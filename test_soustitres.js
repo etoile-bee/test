@@ -45,7 +45,7 @@ function styleHtml(text){
   if (!fs.existsSync(raw)) { console.error('Fichier introuvable: ' + raw); process.exit(1); }
   console.log('Raw utilise :', path.basename(raw));
   console.log('Mode        :', MODE === 'stage' ? 'SANDBOX (gratuit, filigrane)' : 'PRODUCTION (payant)');
-  console.log('Police      :', FONT_NAME, '| FONT_SIZE=' + FONT_SIZE + ' | OY=' + OY);
+  console.log('Police      : Arial Black (style prod subref v2) | FONT_SIZE=' + FONT_SIZE + ' | OY=' + OY);
 
   let dur = 12;
   try { dur = parseFloat(execSync('ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "' + raw + '"').toString().trim()) || 12; } catch(e){}
