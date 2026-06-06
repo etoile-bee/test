@@ -27,7 +27,7 @@ async function generateAudio(script,num){
   const mp3='/tmp/wf_'+num+'.mp3',wav='/tmp/wf_'+num+'.wav';
   const res=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE+'/with-timestamps',{
     method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/—/g,' ').replace(/–/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82,style:0.3,use_speaker_boost:true}})
+    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82,style:0.3,use_speaker_boost:true}})
   });
   let wt=[];
   if(res.ok){
@@ -39,7 +39,7 @@ async function generateAudio(script,num){
       const c=ch[i];
       if(c===' '||i===ch.length-1){
         if(i===ch.length-1&&c!==' '){word+=c;we=en[i];}
-        const clean=word.trim().replace(/[.,!?;:'"—–-]/g,'').toUpperCase();
+        const clean=word.trim().replace(/[.,!?;:'"\u2014\u2013-]/g,'').toUpperCase();
         if(clean)wt.push({text:clean,start:ws,end:we,duration:we-ws});
         word='';if(i+1<ch.length)ws=st[i+1];
       }else{if(!word)ws=st[i];word+=c;we=en[i];}
@@ -48,7 +48,7 @@ async function generateAudio(script,num){
   }else{
     const r2=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE,{
       method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json','Accept':'audio/mpeg'},
-      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/—/g,' ').replace(/–/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82}})
+      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82}})
     });
     if(!r2.ok)throw new Error('ElevenLabs '+r2.status);
     fs.writeFileSync(mp3,await r2.buffer());
@@ -163,7 +163,7 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.0}]; const _reactClips=[]; /*reactions v1*/
   try{
     if(reactions&&reactions.length){
-      const _norm=s=>String(s||'').toUpperCase().replace(/[.,!?;:'"—–-]/g,'').split(/\s+/).filter(Boolean);
+      const _norm=s=>String(s||'').toUpperCase().replace(/[.,!?;:'"\u2014\u2013-]/g,'').split(/\s+/).filter(Boolean);
       const _cache={};
       for(const _rx of reactions.slice(0,2)){
         const _type=(_rx.type||'').toLowerCase();
@@ -212,7 +212,7 @@ async function saveOpen(url,content,ts,num,outDir){
     if(_dur>0.4){_af+=',afade=t=out:st='+Math.max(_dur-0.15,0).toFixed(2)+':d=0.15';}
     const _vf='eq=brightness=0:saturation=1'; /*color revert*/
     const _tmp=p.replace(/\.mp4$/,'_fix.mp4');
-    _cp.execSync('ffmpeg -y -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null');
+    _cp.execSync('ffmpeg -y -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null');
     if(_fs.existsSync(_tmp)&&_fs.statSync(_tmp).size>10000){_fs.renameSync(_tmp,p);console.log('  Passe finale OK (anti-pop + couleur).');}
     else{try{if(_fs.existsSync(_tmp))_fs.unlinkSync(_tmp);}catch(_e2){}console.log('  (passe finale ignoree, video brute conservee)');}
   }catch(_e){console.log('  (passe finale ignoree: '+_e.message+')');}
