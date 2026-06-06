@@ -1,0 +1,23 @@
+# Secrets
+.env
+.env.save
+
+# Dependencies
+node_modules/
+
+# Media outputs (symlinks vers iCloud) + fichiers lourds
+/outputs
+/looks
+outputs/
+looks/
+reactions/
+*.mp3
+*.mp4
+*.wav
+*.m4a
+
+# Temp / logs / macOS
+nohup.out
+*.log
+.DS_Store
+....

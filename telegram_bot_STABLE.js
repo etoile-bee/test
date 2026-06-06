@@ -1,0 +1,491 @@
+require('dotenv').config();
+const {spawn}=require('child_process');
+const fetch=require('node-fetch');
+const fs=require('fs');
+const path=require('path');
+const os=require('os');
+
+const TOKEN=process.env.TELEGRAM_TOKEN;
+const CHAT_ID=String(process.env.TELEGRAM_CHAT_ID);
+const BASE=path.join(os.homedir(),'podcast-workflow');
+const LOOKS=path.join(BASE,'looks');
+const ENV_PATH=path.join(BASE,'.env');
+const LIBRARY=path.join(BASE,'library.json');
+
+let proc=null,offset=0;
+let state='idle';
+let setup={topic:null,photo:null,duration:'25s'};
+let autoAnswers=[];let isAuto=false;
+let scriptBuf='',collectScript=false;
+
+// ── Telegram helpers ──────────────────────────────────────────────────────────
+async function tg(method,body,isForm){
+  if(isForm){
+    const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{method:'POST',body:isForm});
+    return r.json();
+  }
+  const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{
+    method:'POST',headers:{'Content-Type':'application/json'},
+    body:JSON.stringify({chat_id:CHAT_ID,...body})
+  });
+  return r.json();
+}
+function kb(rows){return {reply_markup:{inline_keyboard:rows}};}
+async function send(text,rows){return tg('sendMessage',{text,parse_mode:'HTML',...(rows?kb(rows):{})} );}
+async function sendImg(fp,caption){
+  if(fp&&fp.startsWith('http')){
+    return tg('sendPhoto',{photo:fp,caption:caption||''});
+  }
+  try{
+    const FormData=require('form-data');
+    const form=new FormData();
+    form.append('chat_id',CHAT_ID);
+    // Read as buffer to avoid iCloud stream issues
+    const buf=fs.readFileSync(fp);
+    form.append('photo',buf,{filename:'look.jpg',contentType:'image/jpeg'});
+    if(caption)form.append('caption',caption);
+    const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendPhoto',{method:'POST',body:form});
+    const d=await r.json();
+    if(!d.ok){console.error('sendImg fail:',d.description);}
+    return d;
+  }catch(e){
+    console.error('sendImg error:',e.message,fp);
+    return tg('sendMessage',{text:(caption||'📸')+' (preview unavailable)'});
+  }
+}
+async function sendVid(fp){
+  const FormData=require('form-data');
+  const f=new FormData();
+  f.append('chat_id',CHAT_ID);
+  f.append('video',fs.createReadStream(fp));
+  f.append('supports_streaming','true');
+  f.append('caption','🎬 Video ready!');
+  const r=await tg('sendVideo',null,f);
+  if(!r.ok){
+    const f2=new FormData();
+    f2.append('chat_id',CHAT_ID);
+    f2.append('document',fs.createReadStream(fp));
+    f2.append('caption','🎬 Video ready!');
+    return tg('sendDocument',null,f2);
+  }
+  return r;
+}
+async function answerCB(id){return tg('answerCallbackQuery',{callback_query_id:id});}
+
+// ── Look helpers ──────────────────────────────────────────────────────────────
+function resolveImg(p){
+  if(!p)return null;
+  try{
+    if(fs.existsSync(p))return p;
+    return fs.realpathSync(p);
+  }catch{return null;}
+}
+function getLooksDir(){
+  try{return fs.realpathSync(LOOKS);}catch{return LOOKS;}
+}
+let _lastPick=null;
+function pickRandom(){
+  try{
+    const dir=getLooksDir();
+    const files=fs.readdirSync(dir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
+    if(!files.length)return null;
+    // Exclude last picked to always show a different one
+    const pool=files.length>1?files.filter(f=>path.join(dir,f)!==_lastPick):files;
+    const pick=pool[Math.floor(Math.random()*pool.length)];
+    _lastPick=path.join(dir,pick);
+    return _lastPick;
+  }catch{return null;}
+}
+function setAvatar(fp){
+  let e=fs.readFileSync(ENV_PATH,'utf8');
+  e=e.replace(/HIGGS_AVATAR_URL=.*/,'HIGGS_AVATAR_URL='+fp);
+  fs.writeFileSync(ENV_PATH,e);
+  process.env.HIGGS_AVATAR_URL=fp;
+}
+async function dlPhoto(fileId){
+  const r=await tg('getFile',{file_id:fileId});
+  const url=`https://api.telegram.org/file/bot${TOKEN}/${r.result.file_path}`;
+  const img=await fetch(url);
+  const buf=await img.buffer();
+  const fname='tg_'+Date.now()+'.jpg';
+  const fp=path.join(getLooksDir(),fname);
+  fs.writeFileSync(fp,buf);
+  return fp;
+}
+
+// ── Setup flow ────────────────────────────────────────────────────────────────
+const TOPIC_IDEAS=[
+  ['💔 Red flags','Why you keep attracting toxic men'],
+  ['🔗 Attachment','Anxious attachment is ruining your love life'],
+  ['✨ Self-worth','Stop shrinking yourself for men who don\'t deserve you'],
+  ['💪 Healing','How to stop missing someone who hurt you'],
+  ['🎯 Dating','The dating mistake every woman makes'],
+  ['🌙 Situationship','You\'re not his girlfriend. You\'re his option.'],
+  ['💎 Soft life','Feminine energy and why men chase you less when you chase them'],
+];
+
+async function step1_topic(){
+  state='setup_topic';
+  setup={topic:null,photo:null,duration:'25s'};
+  await send('🎬 <b>New Video — Step 1/3: Topic</b>\n\nType your own or choose a theme:',[
+    [{text:'🎲 Auto-pick',callback_data:'T_AUTO'}],
+    [{text:TOPIC_IDEAS[0][0],callback_data:'T_0'},{text:TOPIC_IDEAS[1][0],callback_data:'T_1'},{text:TOPIC_IDEAS[2][0],callback_data:'T_2'}],
+    [{text:TOPIC_IDEAS[3][0],callback_data:'T_3'},{text:TOPIC_IDEAS[4][0],callback_data:'T_4'},{text:TOPIC_IDEAS[5][0],callback_data:'T_5'}],
+    [{text:TOPIC_IDEAS[6][0],callback_data:'T_6'}],
+  ]);
+}
+async function step2_look(){
+  const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');try{const files=require('fs').readdirSync(lDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));if(files.length>0){const pick=files[Math.floor(Math.random()*files.length)];setup.photo=require('path').join(lDir,pick);setAvatar(setup.photo);const tmp='/tmp/lk'+Date.now()+'.jpg';try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'\U0001f4f8 Step 1/3 — Look').catch(()=>{});}catch{}}}catch(e){}
+  state='setup_look';
+  //  const cur=process.env.HIGGS_AVATAR_URL||null;
+  //  if(cur){try{if(cur.startsWith('http')){await sendImg(cur,'Current look').catch(()=>{});}else{const tc='/tmp/cur'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 800 -s format jpeg "'+cur+'" --out "'+tc+'" 2>/dev/null');await sendImg(tc,'Current look').catch(()=>{});}}catch{}}
+  await send('📸 <b>Step 2/3: Look</b>\n\nKeep current or pick a new one:',[
+    [{text:'✅ Keep current',callback_data:'L_KEEP'},{text:'🎲 Random',callback_data:'L_RANDOM'}],
+    [{text:'📷 Upload a photo',callback_data:'L_UPLOAD'}],
+  ]);
+}
+async function pickAndShow(){
+  state='setup_look';
+  const p=pickRandom();
+  if(!p){await send('No looks found');await step3_duration();return;}
+  setup.photo=p;
+  const tmp='/tmp/lk'+Date.now()+'.jpg';
+  try{
+    require('child_process').execSync('sips -Z 800 -s format jpeg "'+p+'" --out "'+tmp+'" 2>/dev/null');
+    await sendImg(tmp,'Like this look?');
+  }catch(e){
+    console.error('preview fail:',e.message);
+    await send('Look: '+require('path').basename(p));
+  }
+  await send('Keep or pick another?',[
+    [{text:'Use this look',callback_data:'L_KEEP'},{text:'Pick another',callback_data:'L_RANDOM'}],
+  ]);
+}
+async function step3_duration(){
+  state='setup_dur';
+  await send('⏱ <b>Step 3/3: Duration</b>',[
+    [{text:'Short 0-25s',callback_data:'D_25'},{text:'Medium 25-40s',callback_data:'D_40'},{text:'Long 40-65s',callback_data:'D_65'}],
+  ]);
+}
+async function showSummary(){
+  state='setup_confirm';
+  const t=setup.topic||'🎲 Auto-pick';
+  const p=setup.photo?path.basename(setup.photo).substring(0,30):'(current)';
+  const d=setup.duration;
+  // Show look preview
+  const previewPath=setup.photo||(process.env.HIGGS_AVATAR_URL||null);
+  if(previewPath){
+    const rp=resolveImg(previewPath);
+    if(rp)await sendImg(rp,'📸 Look for this video').catch(()=>{});
+  }
+  await send(`✅ <b>Ready to generate!</b>\n\n📌 Topic: ${t}\n📸 Look: ${p}\n⏱ Duration: ${d}`,[
+    [{text:'▶️ Start now',callback_data:'GO'},{text:'🔀 Change topic',callback_data:'CHG_TOPIC'}],
+    [{text:'📸 Change look',callback_data:'CHG_LOOK'},{text:'❌ Cancel',callback_data:'CANCEL'}],
+  ]);
+}
+
+// ── Workflow ──────────────────────────────────────────────────────────────────
+const TRIG=['Change photo','Approve?','YES / NEW','YES / TOPIC','Start?','Make 2 more','Make Part','Continue to Part','Change?','duration'];
+function getQButtons(q){
+  const m=q.toLowerCase();
+  if(m.includes('approve')||m.includes('yes / new'))
+    if(!isAuto)return[[{text:'✅ Approve',callback_data:'A_YES'},{text:'🔄 Regenerate',callback_data:'A_NEW'},{text:'❌ Cancel',callback_data:'A_NO'}]];
+  if(m.includes('make part 2')||m.includes('make 2 more'))
+    return[[{text:'✅ Make Part 2',callback_data:'A_YES'},{text:'⏹ Stop here',callback_data:'A_NO'}]];
+  if(m.includes('continue to part 3')||m.includes('make part 3'))
+    return[[{text:'✅ Make Part 3',callback_data:'A_YES'},{text:'⏹ Stop at 2',callback_data:'A_NO'}]];
+  if(m.includes('start?')||m.includes('yes / topic'))
+    if(!isAuto)return[[{text:'▶️ Start',callback_data:'A_YES'},{text:'🔀 New topic',callback_data:'A_TOPIC'},{text:'❌ Cancel',callback_data:'A_NO'}]];
+  if(isAuto)return null;
+  return[[{text:'✅ YES',callback_data:'A_YES'},{text:'❌ NO',callback_data:'A_NO'}]];
+}
+function wfInput(ans){if(proc)proc.stdin.write(ans+'\n');}
+
+function launch(){
+  if(setup.photo)setAvatar(setup.photo);
+  autoAnswers=['NO','NO']; // Change photo? NO, Change duration? NO
+  state='running';
+  scriptBuf='';collectScript=false;
+  const args=[path.join(BASE,'workflow.js')];
+  if(setup.topic)args.push(setup.topic);
+  proc=spawn('node',args,{cwd:BASE,env:{...process.env}});
+
+  let buf='';
+  proc.stdout.on('data',async d=>{
+    buf+=d.toString();
+    const lines=buf.split('\n');
+    buf=lines.pop()||'';
+    for(const l of lines.filter(l=>l.trim())){
+      const line=l.trim();
+
+      // Progress
+      // hidden:       if(line.match(/Auto-picking|Picking topic/i))await send('🔍 Picking topic...').catch(()=>{});
+      //hidden:       if(line.match(/Topic:/i)&&!line.match(/YES.*TOPIC/))await send('📌 '+line).catch(()=>{});
+      if(line.match(/Script [(]\d+-\d+ words[)]/i)){collectScript=false;scriptBuf='';}
+      if(line.match(/^OK [(]\d+w[)]:/)){ collectScript=true;scriptBuf='';}
+      if(collectScript&&line.length>3&&!line.match(/^OK [(]|^Approve/)){scriptBuf+=(scriptBuf?' ':'')+line.trim();}
+      if(line.match(/Approve[?]/i)){collectScript=false;if(scriptBuf.trim())if(!isAuto)send('Script preview:\n\n'+scriptBuf.trim()).catch(()=>{});}
+      if(line.match(/Audio Part|ElevenLabs/i))await send('🎙 Audio... [████░░░░░░] 35%').catch(()=>{});
+      if(line.match(/🎲 Random look:/i))await send(line).catch(()=>{});
+      if(line.match(/Lipsync Part/i))await send('🎬 Lipsync... [██████░░░░] 60%  (2-5 min)').catch(()=>{});
+      if(line.match(/Rendering Part/i))await send('✨ Rendering... [████████░░] 85%').catch(()=>{});
+      if(line.match(/Saved:/i))await send('✅ Done! [██████████] 100%').catch(()=>{});
+
+      // Questions
+      if(!isAuto&&TRIG.some(t=>line.includes(t))){
+        if(autoAnswers.length>0){
+          const ans=autoAnswers.shift();
+          setTimeout(()=>wfInput(ans),400);
+        }else{
+          state='question';
+          if(!autoAnswers.length)await send('❓ '+line,getQButtons(line)).catch(()=>{});
+        }
+      }
+      // Video saved
+      if(line.includes('Saved:')){
+        const m=line.match(/Saved:\s*(.+\.mp4)/);
+        if(m&&fs.existsSync(m[1].trim())){
+          setTimeout(async()=>{
+            await send('📱 <b>Sending video to Telegram...</b>').catch(()=>{});
+            await sendVid(m[1].trim()).catch(async()=>{
+              await send('⚠️ Video too large — check iCloud → podcast-outputs').catch(()=>{});
+            });
+          },3000);
+        }
+      }
+    }
+    // Check unterminated buffer line
+    if(!isAuto&&buf.trim()&&TRIG.some(t=>buf.includes(t))){
+      const line=buf.trim();buf='';
+      if(autoAnswers.length>0){
+        const ans=autoAnswers.shift();
+        setTimeout(()=>wfInput(ans),400);
+      }else{
+        state='question';
+        send('❓ '+line,getQButtons(line)).catch(()=>{});
+      }
+    }
+  });
+  proc.stderr.on('data',d=>{
+    const m=d.toString().trim();
+    if(m&&!m.includes('dotenv')&&!m.includes('tip:'))
+      send('⚠️ '+m.substring(0,200)).catch(()=>{});
+  });
+  proc.on('close',()=>{
+    proc=null;state='idle';
+    send('✅ <b>Done!</b>\n\nSend /go for another video.',[
+      [{text:'🎬 Make another',callback_data:'NEW_GO'}],
+    ]).catch(()=>{});
+  });
+}
+
+// ── Settings ──────────────────────────────────────────────────────────────────
+async function showSettings(){
+  const c=fs.readFileSync(path.join(BASE,'workflow.js'),'utf8');
+  const size=c.match(/font-size:(\d+)px/)?.[1]||'?';
+  const y=c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||'?';
+  const zoom=c.match(/scale:([\d.]+)\}/)?.[1]||'?';
+  await send(`⚙️ <b>Current Settings</b>\n\n📝 Subtitle size: ${size}px\n📍 Position y: ${y}\n🔍 Zoom: ${zoom}x`,[
+    [{text:'A+ Bigger',callback_data:'S_SIZE_UP'},{text:'A- Smaller',callback_data:'S_SIZE_DN'}],
+    [{text:'⬆️ Move up',callback_data:'S_Y_UP'},{text:'⬇️ Move down',callback_data:'S_Y_DN'}],
+    [{text:'🔍+ More zoom',callback_data:'S_Z_UP'},{text:'🔍- Less zoom',callback_data:'S_Z_DN'}],
+  ]);
+}
+function patchWF(fn){
+  const wfp=path.join(BASE,'workflow.js');
+  let c=fs.readFileSync(wfp,'utf8');
+  c=fn(c);
+  fs.writeFileSync(wfp,c);
+}
+
+// ── Update handler ────────────────────────────────────────────────────────────
+async function handle(upd){
+  // Callback
+  if(upd.callback_query){
+    const cb=upd.callback_query;
+    await answerCB(cb.id);
+    if(String(cb.message.chat.id)!==CHAT_ID)return;
+    const d=cb.data;
+    // Topic selection
+    if(d==='T_AUTO'){const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);setup.topic=TOPIC_IDEAS[idx][1];await showSummary();return;}
+    if(d.match(/^T_\d+$/)){const i=+d.slice(2);setup.topic=TOPIC_IDEAS[i][1];await send('✅ Topic: '+TOPIC_IDEAS[i][1]);await step2_look();return;}
+    // Look
+    if(d==='L_KEEP'){await step3_duration();return;}
+    if(d==='L_RANDOM'){await pickAndShow();return;}
+    if(d==='L_UPLOAD'){state='upload_wait';await send('📷 Send me a photo now (as a photo message):');return;}
+    // Duration
+    if(d==='D_25'){setup.duration='25s';await step1_topic();return;}
+    if(d==='D_40'){setup.duration='40s';await step1_topic();return;}
+    if(d==='D_65'){setup.duration='65s';await step1_topic();return;}
+    // Summary actions
+    if(d==='GO'){
+      await send('Writing script...');
+      try{
+        const Anthropic=require('@anthropic-ai/sdk');
+        const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
+        const words=setup.duration==='65s'?'160-180':setup.duration==='40s'?'90-110':'55-60';
+        const t=setup.topic||'relationship red flags women should know';
+        const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:300,
+          messages:[{role:'user',content:'TikTok script for relationship coach women 20-40. Topic: "'+t+'". EXACTLY '+words+' words. Shocking hook first. Max 8 words per sentence. Add [pause] after hook. No em dashes. Return ONLY the script, nothing else.'}]
+        });
+        const script=r.content[0].text.trim();
+        setup.approvedScript=script.replace(/\[pause\]/gi,'');
+        await send('Topic: '+t+'\n\nScript:\n\n'+script.replace(/\[pause\]/gi,'[...]'));
+await send('Ready to generate video?',[
+          [{text:'Generate Video',callback_data:'SCRIPT_OK'},{text:'Regenerate',callback_data:'AUTO_ALL'},{text:'Cancel',callback_data:'CANCEL'}]
+        ]);
+      }catch(e){
+        launch();await send('Script preview failed, launching...');
+      }
+      return;
+    }
+      if(d==='SCRIPT_OK'){isAuto=true;autoAnswers=['NO','NO','YES','YES','YES','YES'];launch();return;}
+    if(d==='AUTO_ALL'){
+      isAuto=false;
+      setup={topic:null,photo:null,duration:'40s'};
+      const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);
+      setup.topic=TOPIC_IDEAS[idx][1];
+      const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');
+      try{
+        const files=require('fs').readdirSync(lDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
+        if(files.length>0){
+          const pick=files[Math.floor(Math.random()*files.length)];
+          setup.photo=require('path').join(lDir,pick);
+          setAvatar(setup.photo);
+          const tmp='/tmp/auto'+Date.now()+'.jpg';
+          try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'Look selected').catch(()=>{});}catch{}
+        }
+      }catch(e){}
+      await send('Writing script...');
+      try{
+        const Anthropic=require('@anthropic-ai/sdk');
+        const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
+        const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:300,
+          messages:[{role:'user',content:'TikTok script relationship coach women 20-40. Topic: "'+setup.topic+'". 90-110 words. Shocking hook first. Max 8 words per sentence. Add [pause] after hook. No em dashes. Return ONLY the script.'}]
+        });
+        const script=r.content[0].text.trim().replace(/\[pause\]/gi,'');
+        setup.approvedScript=script;
+        await send('Topic: '+setup.topic+'\n\nScript:\n\n'+script,[
+          [{text:'Generate Video',callback_data:'SCRIPT_OK'},{text:'Regenerate',callback_data:'AUTO_ALL'},{text:'Cancel',callback_data:'CANCEL'}]
+        ]);
+      }catch(e){await send('Error: '+e.message);state='idle';}
+      return;
+    }
+    if(d==='MANUAL_GO'){await step2_look();return;}
+    if(d==='NEW_GO'){await step1_topic();return;}
+    if(d==='CHG_TOPIC'){await step1_topic();return;}
+    if(d==='CANCEL'){state='idle';await send('❌ Cancelled.');return;}
+    // Workflow answers
+    if(d.startsWith('A_')&&proc){
+      const ans=d.replace('A_','');
+      wfInput(ans);state='running';
+      //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
+    }
+    // Settings
+    if(d.startsWith('S_')){
+      patchWF(c=>{
+        if(d==='S_SIZE_UP'){const v=+(c.match(/font-size:(\d+)px/)?.[1]||62)+2;return c.replace(/font-size:\d+px/,'font-size:'+v+'px');}
+        if(d==='S_SIZE_DN'){const v=+(c.match(/font-size:(\d+)px/)?.[1]||62)-2;return c.replace(/font-size:\d+px/,'font-size:'+v+'px');}
+        if(d==='S_Y_UP'){const v=(+(c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||0.30)+0.02).toFixed(2);return c.replace(/offset:\{x:0,y:[\d.]+\}/,'offset:{x:0,y:'+v+'}');}
+        if(d==='S_Y_DN'){const v=(+(c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||0.30)-0.02).toFixed(2);return c.replace(/offset:\{x:0,y:[\d.]+\}/,'offset:{x:0,y:'+v+'}');}
+        if(d==='S_Z_UP'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)+0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+        if(d==='S_Z_DN'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)-0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+        return c;
+      });
+      await showSettings();return;
+    }
+    return;
+  }
+
+  const msg=upd.message;
+  if(!msg)return;
+  if(String(msg.chat.id)!==CHAT_ID)return;
+
+  // Photo upload
+  if(state==='upload_wait'&&msg.photo){
+    await send('⏳ Saving photo...');
+    try{
+      const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);
+      setup.photo=fp;
+      _lastPick=fp;
+      await sendImg(fp,'✅ Saved! This look will be used.').catch(()=>{});
+      await send('👇 Continue?',[
+        [{text:'✅ Use this photo',callback_data:'L_KEEP'},{text:'📷 Send another',callback_data:'L_UPLOAD'}],
+      ]);
+    }catch(e){await send('❌ Error saving: '+e.message);await step2_look();}
+    return;
+  }
+
+  const txt=(msg.text||'').trim();
+  if(!txt)return;
+
+  if(txt==='/start'||txt==='/help'){
+    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/mark [title] viral|good|ok — rate a video');return;
+  }
+  if(txt==='/go'||txt==='go'){await send('How do you want to generate?',[[{text:'Auto - full random',callback_data:'AUTO_ALL'},{text:'Manual - I choose',callback_data:'MANUAL_GO'}]]);return;}
+  if(txt==='/stop'){
+    if(proc){proc.kill();proc=null;state='idle';await send('⏹ Stopped.');}
+    else await send('Nothing running.');return;
+  }
+  if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+  if(txt==='/settings'){await showSettings();return;}
+  if(txt==='/library'){
+    try{
+      const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));
+      const sc=(lib.scripts||[]).slice(-8).reverse();
+      if(!sc.length){await send('No scripts yet.');return;}
+      await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
+    }catch{await send('No library yet.');}return;
+  }
+  if(txt==='/looks'){
+    try{
+      const files=fs.readdirSync(getLooksDir()).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
+      await send('📸 <b>'+files.length+' looks</b> available.\n\nUse /go → Random to browse them.');
+    }catch{await send('No looks found.');}return;
+  }
+  if(txt==='/ideas'){
+    await send('⏳ Generating ideas...');
+    try{
+      const Anthropic=require('@anthropic-ai/sdk');
+      const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
+      let used='';
+      try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));used=(lib.scripts||[]).map(s=>s.title).join(', ');}catch{}
+      const r=await ant.messages.create({
+        model:'claude-sonnet-4-6',max_tokens:400,
+        messages:[{role:'user',content:'TikTok relationship coach for women 20-40. Already covered: '+used+'. Give 7 NEW viral topic ideas. Short, punchy, numbered list only.'}]
+      });
+      await send('💡 <b>Ideas:</b>\n\n'+r.content[0].text);
+    }catch(e){await send('Error: '+e.message);}return;
+  }
+  if(txt.startsWith('/mark ')){
+    const parts=txt.split(' ');
+    const perf=parts[parts.length-1];
+    const title=parts.slice(1,-1).join(' ');
+    try{
+      const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));
+      const s=lib.scripts.find(x=>x.title.toLowerCase().includes(title.toLowerCase()));
+      if(s){s.performance=perf;fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));await send('✅ Marked: '+s.title+' → ['+perf+']');}
+      else await send('Not found: '+title);
+    }catch{await send('Error.');}return;
+  }
+  // Topic typed
+  if(state==='setup_topic'){setup.topic=txt;await send('✅ Topic: '+txt);await step2_look();return;}
+  // Workflow free answer
+  if(state==='question'&&proc){wfInput(txt);state='running';await send('Sent: '+txt);return;}
+
+  await send('Send /go to start! Or /help for commands.');
+}
+
+// ── Poll ──────────────────────────────────────────────────────────────────────
+async function poll(){
+  try{
+    const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=10`);
+    if(r.ok){const d=await r.json();if(d.ok)for(const u of d.result){offset=u.update_id+1;await handle(u).catch(e=>console.error('err:',e.message));}}
+  }catch{}
+  setTimeout(poll,1000);
+}
+
+setInterval(()=>{},1<<30);
+send('🤖 <b>Bot ready!</b>\n\nSend /go to create a video.').then(()=>{
+  console.log('Bot running...');poll();
+}).catch(e=>{console.error(e.message);process.exit(1);});

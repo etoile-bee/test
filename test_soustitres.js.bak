@@ -1,0 +1,111 @@
+// ============================================================
+//  TEST SOUS-TITRES — rendu Shotstack GRATUIT (sandbox)
+//  Reprend un raw lipsync DEJA paye et refait UNIQUEMENT
+//  les sous-titres, pour voir le vrai rendu sans rien repayer.
+//
+//  >>> LES 2 SEULS CHIFFRES A REGLER <<<
+const FONT_SIZE = 52;     // taille du texte (plus grand = plus gros)
+const OY        = 0.347;  // hauteur (plus grand = plus haut)
+//  (optionnels)
+const STROKE    = '1.3px'; // epaisseur du trait (plus grand = plus gras)
+const LETTER    = '2px';   // espacement entre lettres
+//  Mots d'exemple affiches successivement :
+const SAMPLE    = ['BUT COMMITS', 'FOR LOVE', 'SHE TESTS YOU', 'KNOW YOUR WORTH'];
+// ============================================================
+
+require('dotenv').config();
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const { execSync } = require('child_process');
+
+// endpoint : 'stage' = sandbox GRATUIT (filigrane) ; passe "prod" en argument pour la vraie API
+const MODE = (process.argv[3] === 'prod') ? 'v1' : 'stage';
+const KEY  = process.env.SHOTSTACK_SANDBOX_KEY || process.env.SHOTSTACK_API_KEY;
+if (!KEY) { console.error('Pas de cle Shotstack dans .env'); process.exit(1); }
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+function styleHtml(text){
+  return '<p style="font-family:Arial Black,Arial,sans-serif;font-size:'+FONT_SIZE+'px;font-weight:900;letter-spacing:'+LETTER+';color:#FFFFFF;-webkit-text-stroke:'+STROKE+' #FFFFFF;text-shadow:0 2px 7px rgba(0,0,0,0.55),0 0 3px rgba(0,0,0,0.45);margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">'+text+'</p>';
+}
+
+(async () => {
+  // 1) choisir le raw : argument fourni, sinon le plus recent dans outputs/
+  let raw = process.argv[2];
+  if (!raw) {
+    const outDir = path.join(os.homedir(), 'podcast-workflow', 'outputs');
+    const files = fs.readdirSync(outDir)
+      .filter(f => /raw.*\.mp4$/i.test(f))
+      .map(f => ({ f, t: fs.statSync(path.join(outDir, f)).mtimeMs }))
+      .sort((a, b) => b.t - a.t);
+    if (!files.length) { console.error('Aucun raw lipsync dans outputs/'); process.exit(1); }
+    raw = path.join(outDir, files[0].f);
+  }
+  if (!fs.existsSync(raw)) { console.error('Fichier introuvable: ' + raw); process.exit(1); }
+  console.log('Raw utilise :', path.basename(raw));
+  console.log('Mode        :', MODE === 'stage' ? 'SANDBOX (gratuit, filigrane)' : 'PRODUCTION (payant)');
+  console.log('Reglages    : FONT_SIZE=' + FONT_SIZE + '  OY=' + OY + '  STROKE=' + STROKE);
+
+  // 2) duree
+  let dur = 12;
+  try { dur = parseFloat(execSync('ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "' + raw + '"').toString().trim()) || 12; } catch(e){}
+
+  // 3) upload tmpfiles
+  console.log('Upload du raw...');
+  const rawUp = execSync('curl -s -F "file=@' + raw + '" https://tmpfiles.org/api/v1/upload').toString().trim();
+  let url;
+  try { url = JSON.parse(rawUp).data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/'); }
+  catch(e){ console.error('Upload echoue:', rawUp.slice(0,200)); process.exit(1); }
+  console.log('OK ->', url);
+
+  // 4) construire les sous-titres exemple (style EXACT = production)
+  const seg = Math.max(dur / SAMPLE.length, 1.5);
+  const subClips = SAMPLE.map((txt, i) => ({
+    asset: { type: 'html', html: styleHtml(txt), width: 720, height: 175, background: 'transparent' },
+    start: +(i * seg).toFixed(2),
+    length: +seg.toFixed(2),
+    position: 'bottom',
+    offset: { x: 0, y: OY }
+  }));
+
+  const edit = {
+    timeline: { background: '#000000', tracks: [
+      { clips: subClips },
+      { clips: [{ asset: { type: 'video', src: url }, start: 0, length: +dur.toFixed(2) }] }
+    ] },
+    output: { format: 'mp4', resolution: 'hd', aspectRatio: '9:16', fps: 30 }
+  };
+
+  // 5) rendu
+  const base = 'https://api.shotstack.io/edit/' + MODE;
+  console.log('Envoi du rendu (' + MODE + ')...');
+  const r = await fetch(base + '/render', { method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': KEY },
+    body: JSON.stringify(edit) });
+  const d = await r.json();
+  if (!d.success) {
+    console.error('Shotstack a refuse:', JSON.stringify(d).slice(0, 300));
+    if (MODE === 'stage') console.error('\n>> Si erreur de cle : il te faut la cle SANDBOX (dashboard Shotstack > Sandbox).\n   Ajoute-la dans .env : SHOTSTACK_SANDBOX_KEY=ta_cle_sandbox');
+    process.exit(1);
+  }
+  const id = d.response.id;
+  let out = null;
+  for (let i = 0; i < 60; i++) {
+    await sleep(4000);
+    const p = await fetch(base + '/render/' + id, { headers: { 'x-api-key': KEY } });
+    const s = await p.json();
+    process.stdout.write('  [' + s.response.status + ' ' + (i * 4) + 's]\r');
+    if (s.response.status === 'done') { out = s.response.url; break; }
+    if (s.response.status === 'failed') { console.error('\nRendu echoue'); process.exit(1); }
+  }
+  if (!out) { console.error('\nTimeout'); process.exit(1); }
+  console.log('\nRendu OK:', out);
+
+  // 6) telecharger + ouvrir
+  const dest = path.join(os.homedir(), 'podcast-workflow', 'outputs', 'TEST_soustitres.mp4');
+  execSync('curl -s -o "' + dest + '" "' + out + '"');
+  console.log('Sauve :', dest);
+  try { execSync('open "' + dest + '"'); } catch(e){}
+  console.log('\nPour ajuster : ouvre ce fichier, change FONT_SIZE / OY en haut, relance. GRATUIT.');
+})();

@@ -1,0 +1,24 @@
+const fs=require('fs');const {execSync}=require('child_process');
+const FILE='telegram_bot.js';let src=fs.readFileSync(FILE,'utf8');
+if(src.includes('/*botfixes v1*/')){console.error('Deja patche.');process.exit(1);}
+const e1A="        if(autoAnswers.length>0){\n          const ans=autoAnswers.shift();\n          setTimeout(()=>wfInput(ans),400);\n        }else if(!isAuto||/make 2 more|make part 2|continue to part 3|make part 3/i.test(line)){\n          // parties manuelles : on demande a l'utilisateur (boutons), meme en auto\n          state='question';\n          await send('❓ '+line,getQButtons(line)).catch(()=>{});\n        }";
+const e1B="        if(/make 2 more|make part 2|continue to part 3|make part 3/i.test(line)){\n          // parties : TOUJOURS demander, jamais d'enchainement auto\n          state='question';\n          await send('❓ '+line,getQButtons(line)).catch(()=>{});\n        }else if(autoAnswers.length>0){\n          const ans=autoAnswers.shift();\n          setTimeout(()=>wfInput(ans),400);\n        }else if(!isAuto){\n          state='question';\n          await send('❓ '+line,getQButtons(line)).catch(()=>{});\n        }";
+const e2A="      if(autoAnswers.length>0){\n        const ans=autoAnswers.shift();\n        setTimeout(()=>wfInput(ans),400);\n      }else if(!isAuto||/make 2 more|make part 2|continue to part 3|make part 3/i.test(line)){\n        // parties manuelles (buffer non termine) : boutons meme en auto\n        state='question';\n        send('❓ '+line,getQButtons(line)).catch(()=>{});\n      }";
+const e2B="      if(/make 2 more|make part 2|continue to part 3|make part 3/i.test(line)){\n        // parties : TOUJOURS demander, jamais d'enchainement auto\n        state='question';\n        send('❓ '+line,getQButtons(line)).catch(()=>{});\n      }else if(autoAnswers.length>0){\n        const ans=autoAnswers.shift();\n        setTimeout(()=>wfInput(ans),400);\n      }else if(!isAuto){\n        state='question';\n        send('❓ '+line,getQButtons(line)).catch(()=>{});\n      }";
+const e3A="            // === aussi la video en FICHIER (Enregistrer dans Fichiers)\n            try{const FormData=require('form-data');const fdv=new FormData();fdv.append('chat_id',CHAT_ID);fdv.append('document',fs.createReadStream(vp));fdv.append('caption','🎬 Vidéo en fichier');await tg('sendDocument',null,fdv).catch(()=>{});}catch(e){}";
+const e3B="            // (video unique : envoyee une seule fois via sendVid, bouton Save dessous)";
+const e4A="  f.append('caption','🎬 Video ready!');\n  const r=await tg('sendVideo',null,f);";
+const e4B="  f.append('caption','🎬 Video ready!');\n  f.append('reply_markup',JSON.stringify({inline_keyboard:[[{text:'💾 Enregistrer (fichier)',callback_data:'SAVE_VID'}]]}));\n  const r=await tg('sendVideo',null,f);";
+const e5A="            await sendVid(vp).catch(async()=>{";
+const e5B="            setup.lastVideo=vp; await sendVid(vp).catch(async()=>{";
+const e6A="    if(d==='MANUAL_GO'){await mLook(true);return;}";
+const e6B="    if(d==='SAVE_VID'){/*botfixes v1*/ if(setup.lastVideo&&fs.existsSync(setup.lastVideo)){try{const FormData=require('form-data');const fdv=new FormData();fdv.append('chat_id',CHAT_ID);fdv.append('document',fs.createReadStream(setup.lastVideo));fdv.append('caption','🎬 Fichier video');await tg('sendDocument',null,fdv).catch(()=>{});}catch(e){}}else{await send('Fichier introuvable.').catch(()=>{});}return;}\n    if(d==='MANUAL_GO'){await mLook(true);return;}";
+const e7A="                try{const c=fs.readFileSync(txtPath,'utf8');if(c.trim())await send('📋 <b>À copier :</b>\\n\\n'+c).catch(()=>{});}catch(e){}";
+const e7B="                try{const c=fs.readFileSync(txtPath,'utf8');const gm=(re)=>{const m=c.match(re);return m?m[1].trim():'';};const sh=gm(/SHORT:\\s*([\\s\\S]*?)\\n\\nLONG:/);const lo=gm(/LONG:\\s*([\\s\\S]*?)\\n\\nHASHTAGS:/);const tg2=gm(/HASHTAGS:\\s*([\\s\\S]*)$/);if(sh)await send('📋 <b>Legende courte + hashtags :</b>\\n\\n'+sh+'\\n\\n'+tg2).catch(()=>{});if(lo)await send('📋 <b>Legende longue + hashtags :</b>\\n\\n'+lo+'\\n\\n'+tg2).catch(()=>{});}catch(e){}";
+function rep(a,b,l){const c=src.split(a).length-1;if(c!==1){console.error('Ancre '+l+' = '+c+' (attendu 1). Annule, rien ecrit.');process.exit(1);}src=src.split(a).join(b);}
+rep(e1A,e1B,'1-perline');rep(e2A,e2B,'2-buffer');rep(e3A,e3B,'3-dup-video');rep(e4A,e4B,'4-save-button');rep(e5A,e5B,'5-store-path');rep(e6A,e6B,'6-save-handler');rep(e7A,e7B,'7-split-captions');
+fs.writeFileSync('telegram_bot.patched.js',src);
+try{execSync('node --check telegram_bot.patched.js',{stdio:'pipe'});}
+catch(e){console.error('Syntaxe KO.');console.error(e.stderr?e.stderr.toString():e.message);process.exit(1);}
+fs.copyFileSync(FILE,FILE+'.prebotfixes');fs.renameSync('telegram_bot.patched.js',FILE);
+console.log('Patch botfixes (parties+video unique+save+legendes x2) applique.');
