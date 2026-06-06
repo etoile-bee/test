@@ -1,7 +1,6 @@
 require('dotenv').config();
 
-// SUBTITLE STYLE
-const SUBTITLE_STYLE = 'font-family:Georgia,serif;font-size:58px;font-weight:700;color:#FFFFFF;text-shadow:-2px -2px 0 #000,2px -2px 0 #000,-2px 2px 0 #000,2px 2px 0 #000;margin:0;padding:4px 12px;text-align:center;';
+// (SUBTITLE_STYLE supprime : code mort, le vrai style est inline dans renderVideo /*subref v2*/) /*revue1*/
 const {execSync}=require('child_process'),fetch=require('node-fetch'),fs=require('fs'),path=require('path'),os=require('os'),Anthropic=require('@anthropic-ai/sdk');
 const anthropic=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
 const HIGGS_AUTH='Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET;
@@ -15,10 +14,21 @@ async function generateScript(topic,words){
   const __cont=/THIS IS PART [23]/i.test(topic); const __p3=/THIS IS PART 3/i.test(topic); /*continuity v2*/
   const __rule1=__cont?('1. This is a DIRECT CONTINUATION of the SAME video, same person still talking. Do NOT use any hook. Do NOT greet, introduce, recap, summarize, or repeat ANY idea, sentence or phrasing from the earlier parts. Begin mid-thought with a NEW angle that deepens the SAME subject.'+(__p3?' End with ONE short call to action.':' No call to action.')):'1. First sentence = THE HOOK (max 8 words). It MUST stop the scroll in under 1 second. Pick whatever is most viral for THIS topic: a shocking question, a brutal accusation, a forbidden secret, a bold contrarian claim, or a callout that makes her feel seen. Create an instant curiosity gap or emotional punch. No greeting, no warmup, no setup. Make it impossible to scroll past';
   const __rule3=__cont?'Add [pause] before the final punchline':'Add [pause] after the hook and before the final punchline';
-  const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:500,
-    messages:[{role:'user',content:'TikTok relationship coach women 20-40. Topic: "'+topic+'". Return ONLY valid JSON: {"script":"Exactly '+words+' words. VIRAL TikTok script. STRICT RULES:\n'+__rule1+'\n2. Every sentence MAX 8 words. Cut ruthlessly.\n3. '+__rule3+'\n4. Emotional, direct, no fluff. Each word earns its place.\n5. No em dashes. English only.","keywords":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6"] — pick the 6 most emotionally charged shocking words only,"caption_short":"Max 80 chars + emojis, punchy hook","caption_long":"200-250 chars, develop the idea + call to action + emojis","hashtags":["t1","t2","t3","t4","t5"] where the 5 tags are the MOST VIRAL generic TikTok hashtags (fyp, foryou, foryoupage, viral, trending, relatable) plus 1 topical one max, no hash symbol, lowercase, no spaces,"reactions":[{"after":"exact sentence copied from the script","type":"mhm|yeah|right|hmm"}] choose EXACTLY 2 to 3 reactions, placed right after the most impactful sentences (ideally near a [pause]), so it feels like an interviewer reacting; the "after" value MUST be copied verbatim from the script}'}]
-  });
-  const c=JSON.parse(msg.content[0].text.match(/\{[\s\S]*\}/)[0]);
+  let c=null; /*revue1: retry anti-JSON-tronque*/
+  for(let __t=1;__t<=3;__t++){
+    try{
+      const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:500,
+        messages:[{role:'user',content:'TikTok relationship coach women 20-40. Topic: "'+topic+'". Return ONLY valid JSON: {"script":"Exactly '+words+' words. VIRAL TikTok script. STRICT RULES:\n'+__rule1+'\n2. Every sentence MAX 8 words. Cut ruthlessly.\n3. '+__rule3+'\n4. Emotional, direct, no fluff. Each word earns its place.\n5. No em dashes. English only.","keywords":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6"] — pick the 6 most emotionally charged shocking words only,"caption_short":"Max 80 chars + emojis, punchy hook","caption_long":"200-250 chars, develop the idea + call to action + emojis","hashtags":["t1","t2","t3","t4","t5"] where the 5 tags are the MOST VIRAL generic TikTok hashtags (fyp, foryou, foryoupage, viral, trending, relatable) plus 1 topical one max, no hash symbol, lowercase, no spaces,"reactions":[{"after":"exact sentence copied from the script","type":"mhm|yeah|right|hmm"}] choose EXACTLY 2 to 3 reactions, placed right after the most impactful sentences (ideally near a [pause]), so it feels like an interviewer reacting; the "after" value MUST be copied verbatim from the script}'}]
+      });
+      const __m=msg.content[0].text.match(/\{[\s\S]*\}/);
+      if(!__m)throw new Error('pas de JSON dans la reponse');
+      c=JSON.parse(__m[0]);
+      break;
+    }catch(__e){
+      console.log('  ⚠ script JSON invalide (essai '+__t+'/3): '+__e.message);
+      if(__t===3)throw new Error('Script: echec apres 3 essais — '+__e.message);
+    }
+  }
   console.log('OK ('+c.script.split(' ').length+'w):',c.script.substring(0,70)+'...');
   return c;
 }
@@ -108,7 +118,7 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   console.log('\n✨ Rendering Part '+num+' (Shotstack)...');
   const kws=new Set(keywords.map(k=>k.toUpperCase()));
   // Strip [pause] tokens from word timings
-  wordTimings=wordTimings.filter(w=>!/^\[pause\]$/i.test(w.word));
+  wordTimings=wordTimings.filter(w=>!/^\[pause\]$/i.test(w.text)); /*revue1: w.word n'existait pas → [PAUSE] s'affichait en fallback*/
   const wt=wordTimings.filter(w=>w.text&&w.duration>0);
   // couper la fin qui traine : limiter a la fin reelle de la parole (+petite marge)
   const _speechEnd=wordTimings.reduce((m,w)=>Math.max(m,(w.end||0)),0);
@@ -219,7 +229,7 @@ async function saveOpen(url,content,ts,num,outDir){
   console.log('\n✅ Part '+num+':',p);
   execSync('open "'+p+'"');
   try{require('child_process').execSync('curl -s -d \"Video Part '+num+' prete !\" -H \"Title: Podcast Workflow\" -H \"Tags: clapper\" https://ntfy.sh/fayrouz-podcast');}catch(e){}
-  console.log('📝',content.caption);
+  console.log('📝',content.caption_short||content.caption||''); /*revue1*/
   console.log('🏷 ',content.hashtags.map(h=>'#'+h).join(' '));
   return p;
 }
@@ -337,7 +347,7 @@ async function main(){
     while(!approved){
       console.log('\n--- SCRIPT ---');
       console.log(c1.script);
-      console.log('Caption: '+c1.caption);
+      console.log('Caption: '+(c1.caption_short||'')); /*revue1*/
       console.log('Tags: '+c1.hashtags.map(h=>'#'+h).join(' '));
       console.log('--------------');
       const check=await ask('Approve? YES / NEW / NO > ');
@@ -354,7 +364,20 @@ async function main(){
     try{const lp=path.join(os.homedir(),'podcast-workflow','library.json');const lib=fs.existsSync(lp)?JSON.parse(fs.readFileSync(lp,'utf8')):{scripts:[]};lib.scripts.push({id:Date.now().toString(),title:topic,date:ts.slice(0,10),script:c1.script,performance:null});fs.writeFileSync(lp,JSON.stringify(lib,null,2));console.log('📚 Saved to library');}catch(e){}
     const more=await ask('\nMake 2 more parts with same outfit? (YES/NO) > ');
     if(more!=='YES'){console.log('\nDone! ✅');process.exit(0);}
-    const c2=await generateScript(topic+'. THIS IS PART 2, a DIRECT CONTINUATION of the SAME video. Part 1 already said: <<'+c1.script+'>>. Rules: do NOT repeat any idea, sentence, hook, or phrasing from Part 1. Open mid-thought with a NEW angle that deepens it. No greeting, no re-introduction, no recap, no call to action.',words);
+    const t2=topic+'. THIS IS PART 2, a DIRECT CONTINUATION of the SAME video. Part 1 already said: <<'+c1.script+'>>. Rules: do NOT repeat any idea, sentence, hook, or phrasing from Part 1. Open mid-thought with a NEW angle that deepens it. No greeting, no re-introduction, no recap, no call to action.';
+    let c2=await generateScript(t2,words); /*revue1: approbation script Part 2 AVANT depense ElevenLabs+Kling*/
+    let ok2=false;
+    while(!ok2){
+      console.log('\n--- SCRIPT Part 2 ---');
+      console.log(c2.script);
+      console.log('Caption: '+(c2.caption_short||''));
+      console.log('Tags: '+c2.hashtags.map(h=>'#'+h).join(' '));
+      console.log('--------------');
+      const ck2=await ask('Approve? YES / NEW / NO > ');
+      if(ck2==='YES')ok2=true;
+      else if(ck2==='NEW')c2=await generateScript(t2,words);
+      else{console.log('\nStopped after Part 1. ✅');process.exit(0);}
+    }
     const {audioUrl:a2,wordTimings:wt2,duration:d2}=await generateAudio(c2.script,2);
     const lip2=await generateLipsync(imageUrl,a2,2);
     await saveLipsyncRaw(lip2,2,ts,outDir);
@@ -362,7 +385,20 @@ async function main(){
     await saveOpen(vid2,c2,ts,2,outDir);
     const next=await ask('\nContinue to Part 3? (YES/NO) > ');
     if(next!=='YES'){console.log('\nStopped at Part 2. ✅');process.exit(0);}
-    const c3=await generateScript(topic+'. THIS IS PART 3, the FINAL part of the SAME video. Part 1 said: <<'+c1.script+'>>. Part 2 said: <<'+c2.script+'>>. Rules: do NOT repeat anything already said in Part 1 or Part 2. Deliver the NEW culminating insight, then end with ONE short call to action. No greeting, no recap, no hook.',words);
+    const t3=topic+'. THIS IS PART 3, the FINAL part of the SAME video. Part 1 said: <<'+c1.script+'>>. Part 2 said: <<'+c2.script+'>>. Rules: do NOT repeat anything already said in Part 1 or Part 2. Deliver the NEW culminating insight, then end with ONE short call to action. No greeting, no recap, no hook.';
+    let c3=await generateScript(t3,words); /*revue1: approbation script Part 3 AVANT depense*/
+    let ok3=false;
+    while(!ok3){
+      console.log('\n--- SCRIPT Part 3 ---');
+      console.log(c3.script);
+      console.log('Caption: '+(c3.caption_short||''));
+      console.log('Tags: '+c3.hashtags.map(h=>'#'+h).join(' '));
+      console.log('--------------');
+      const ck3=await ask('Approve? YES / NEW / NO > ');
+      if(ck3==='YES')ok3=true;
+      else if(ck3==='NEW')c3=await generateScript(t3,words);
+      else{console.log('\nStopped at Part 2. ✅');process.exit(0);}
+    }
     const {audioUrl:a3,wordTimings:wt3,duration:d3}=await generateAudio(c3.script,3);
     const lip3=await generateLipsync(imageUrl,a3,3);
     await saveLipsyncRaw(lip3,3,ts,outDir);
