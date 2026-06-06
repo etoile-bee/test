@@ -12,7 +12,7 @@ const LOOKS=path.join(BASE,'looks');
 const ENV_PATH=path.join(BASE,'.env');
 const LIBRARY=path.join(BASE,'library.json');
 
-let proc=null,offset=0;
+let proc=null,offset=0;let testProc=null; /*cmdtest v1*/
 let state='idle';
 let setup={topic:null,photo:null,duration:'25s'};
 let autoAnswers=[];let isAuto=false;
@@ -719,7 +719,7 @@ await send('Ready to generate video?',[
   if(!txt)return;
 
   if(txt==='/start'||txt==='/help'){
-    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/mark [title] viral|good|ok — rate a video');return;
+    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/mark [title] viral|good|ok — rate a video');return;
   }
   if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
   if(txt==='/stop'){
@@ -727,6 +727,28 @@ await send('Ready to generate video?',[
     else await send('Nothing running.');return;
   }
   if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+  if(txt==='/test'){ /*cmdtest v1 : test sous-titres sandbox depuis Telegram*/
+    if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit). Réessaie quand c\'est fini.');return;}
+    if(testProc){await send('⏳ Un test tourne déjà, patiente...');return;}
+    if(!process.env.SHOTSTACK_SANDBOX_KEY){await send('⚠️ SHOTSTACK_SANDBOX_KEY absente du .env — le test partirait en PRODUCTION (payant). Annulé.');return;}
+    await send('🧪 Test sous-titres SANDBOX lancé (gratuit, filigrané)...\n⏳ ~1 à 3 min.');
+    let tbuf='';
+    testProc=spawn('node',[path.join(BASE,'test_soustitres.js')],{cwd:BASE,env:{...process.env}});
+    testProc.stdout.on('data',d=>{tbuf+=d.toString();});
+    testProc.stderr.on('data',d=>{tbuf+=d.toString();});
+    testProc.on('close',async code=>{
+      testProc=null;
+      const fp=path.join(BASE,'outputs','TEST_soustitres.mp4');
+      if(code===0&&fs.existsSync(fp)){
+        await send('✅ Test fini ! Envoi de la vidéo...').catch(()=>{});
+        await sendVid(fp).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram — voir iCloud → podcast-outputs/TEST_soustitres.mp4').catch(()=>{});});
+        await send('Pour ajuster : dis-le à Claude (plus haut/bas/gros/petit), il modifie FONT_SIZE/OY, puis relance /test.').catch(()=>{});
+      }else{
+        await send('❌ Test échoué :\n<code>'+tbuf.slice(-350).replace(/[<>&]/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;'}[c]))+'</code>').catch(()=>{});
+      }
+    });
+    return;
+  }
   if(txt==='/settings'){await showSettings();return;}
   if(txt==='/library'){
     try{
