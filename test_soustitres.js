@@ -3,11 +3,8 @@
 //  Objectif : reproduire EXACTEMENT le style de 12h37 p1
 //  Police Archivo Black (≈ Arial Black) CHARGEE PAR URL => identique partout.
 //
-//  >>> LES 2 SEULS CHIFFRES A REGLER <<<
-const FONT_SIZE = 52;     // taille du texte (plus grand = plus gros)   /*sync subref v2*/
-const OY        = 0.347;  // hauteur (plus grand = plus haut)           /*sync subpos5*/
-//  (optionnels)
-const LETTER    = '2px';  // espacement entre lettres                   /*sync subref v2*/
+//  >>> REGLAGES : tout est dans subtitle_style.js (source unique prod+test) <<< /*substyle v1*/
+const { FONT_SIZE, OY, styleHtml, WIDTH, HEIGHT } = require('./subtitle_style.js');
 //  Mots d'exemple affiches successivement :
 const SAMPLE    = ['YOU IGNORED', 'THE RED FLAGS', 'BUT DEEP DOWN', 'YOU KNEW'];
 // ============================================================
@@ -24,12 +21,7 @@ if (!KEY) { console.error('Pas de cle Shotstack dans .env'); process.exit(1); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
-// /*sync subref v2*/ : HTML strictement identique a workflow.js (renderVideo), seuls FONT_SIZE/OY/LETTER varient
-function styleHtml(text){
-  return '<p style="font-family:Arial Black,Arial,sans-serif;font-size:' + FONT_SIZE +
-    'px;font-weight:900;letter-spacing:' + LETTER +
-    ';color:#FFFFFF;-webkit-text-stroke:1.3px #FFFFFF;text-shadow:0 2px 7px rgba(0,0,0,0.55),0 0 3px rgba(0,0,0,0.45);margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">' + text + '</p>';
-}
+// styleHtml vient de subtitle_style.js — strictement identique a la prod /*substyle v1*/
 
 (async () => {
   let raw = process.argv[2];
@@ -59,7 +51,7 @@ function styleHtml(text){
 
   const seg = Math.max(dur / SAMPLE.length, 1.5);
   const subClips = SAMPLE.map((txt, i) => ({
-    asset: { type: 'html', html: styleHtml(txt), width: 720, height: 175, background: 'transparent' },
+    asset: { type: 'html', html: styleHtml(txt), width: WIDTH, height: HEIGHT, background: 'transparent' },
     start: +(i * seg).toFixed(2),
     length: +seg.toFixed(2),
     position: 'bottom',

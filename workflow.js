@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-// (SUBTITLE_STYLE supprime : code mort, le vrai style est inline dans renderVideo /*subref v2*/) /*revue1*/
+const SUBSTYLE=require('./subtitle_style.js'); /*substyle v1 : source unique du style sous-titres (partagee avec test_soustitres.js)*/
 const {execSync}=require('child_process'),fetch=require('node-fetch'),fs=require('fs'),path=require('path'),os=require('os'),Anthropic=require('@anthropic-ai/sdk');
 const anthropic=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
 const HIGGS_AUTH='Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET;
@@ -144,15 +144,10 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
     if(end<=start)end=start+0.12;
     chunks.push({text:group.map(g=>g.text).join(' '),start:start,length:Math.max(end-start,0.12)});
   }
-  // === sous-titres v7 : position basse (micro-menton) + adaptation au zoom + style unique /*subpos v1*/
-  const _zsorted=wordTimings.filter(w=>kws.has(w.text)).sort((a,b)=>a.start-b.start);
-  const _ZOOMS2=[1.22,1.40,1.30,1.50,1.35,1.45];
-  const _zr=[];{let _cur=0,_ki=0;for(const _kw of _zsorted){const _zs=Math.max(_kw.start-0.05,_cur);const _z=_ZOOMS2[_ki%_ZOOMS2.length];_ki++;const _ze=Math.min(_zs+3.0,duration);_zr.push({s:_zs,e:_ze,z:_z});_cur=_ze;}}
-  const _scaleAt=function(t){for(var qi=0;qi<_zr.length;qi++){if(t>=_zr[qi].s&&t<_zr[qi].e)return _zr[qi].z;}return 1.0;};
+  // === sous-titres : style unique via subtitle_style.js /*substyle v1 — bloc _zr/_scaleAt supprime (code mort, _sc jamais utilise)*/
   const subClips=chunks.map(function(c){
-    var _sc=_scaleAt(c.start);
-    var _oy=0.347; /*subpos5*/ // haut de la mousse du micro
-    return {asset:{type:'html',html:'<p style="font-family:Arial Black,Arial,sans-serif;font-size:52px;font-weight:900;letter-spacing:2px;color:#FFFFFF;-webkit-text-stroke:1.3px #FFFFFF;text-shadow:0 2px 7px rgba(0,0,0,0.55),0 0 3px rgba(0,0,0,0.45);margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">'+c.text+'</p>'/*subref v2*/,width:720,height:175,background:'transparent'},start:c.start,length:c.length,position:'bottom',offset:{x:0,y:_oy}};
+    /*substyle v1 : style + position lus depuis subtitle_style.js — identique au test sandbox*/
+    return {asset:{type:'html',html:SUBSTYLE.styleHtml(c.text),width:SUBSTYLE.WIDTH,height:SUBSTYLE.HEIGHT,background:'transparent'},start:c.start,length:c.length,position:'bottom',offset:{x:0,y:SUBSTYLE.OY}};
   });
   const sorted=wordTimings.filter(w=>kws.has(w.text)).sort((a,b)=>a.start-b.start);
   // zoom dynamique : plan large entre les mots-cles, zoom alterne (in/out) sur chaque mot-cle

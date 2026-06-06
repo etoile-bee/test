@@ -511,9 +511,11 @@ function launch(){
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 async function showSettings(){
+  /*substyle v1 : taille+position lues dans subtitle_style.js (source unique), zoom dans workflow.js*/
+  const s=fs.readFileSync(path.join(BASE,'subtitle_style.js'),'utf8');
   const c=fs.readFileSync(path.join(BASE,'workflow.js'),'utf8');
-  const size=c.match(/font-size:(\d+)px/)?.[1]||'?';
-  const y=c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||'?';
+  const size=s.match(/FONT_SIZE\s*=\s*(\d+)/)?.[1]||'?';
+  const y=s.match(/OY\s*=\s*([\d.]+)/)?.[1]||'?';
   const zoom=c.match(/scale:([\d.]+)\}/)?.[1]||'?';
   await send(`⚙️ <b>Current Settings</b>\n\n📝 Subtitle size: ${size}px\n📍 Position y: ${y}\n🔍 Zoom: ${zoom}x`,[
     [{text:'A+ Bigger',callback_data:'S_SIZE_UP'},{text:'A- Smaller',callback_data:'S_SIZE_DN'}],
@@ -655,17 +657,23 @@ await send('Ready to generate video?',[
       wfInput(ans);state='running';
       //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
     }
-    // Settings
+    // Settings /*substyle v1 : taille+position patchees dans subtitle_style.js, zoom dans workflow.js*/
     if(d.startsWith('S_')){
-      patchWF(c=>{
-        if(d==='S_SIZE_UP'){const v=+(c.match(/font-size:(\d+)px/)?.[1]||62)+2;return c.replace(/font-size:\d+px/,'font-size:'+v+'px');}
-        if(d==='S_SIZE_DN'){const v=+(c.match(/font-size:(\d+)px/)?.[1]||62)-2;return c.replace(/font-size:\d+px/,'font-size:'+v+'px');}
-        if(d==='S_Y_UP'){const v=(+(c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||0.30)+0.02).toFixed(2);return c.replace(/offset:\{x:0,y:[\d.]+\}/,'offset:{x:0,y:'+v+'}');}
-        if(d==='S_Y_DN'){const v=(+(c.match(/offset:\{x:0,y:([\d.]+)\}/)?.[1]||0.30)-0.02).toFixed(2);return c.replace(/offset:\{x:0,y:[\d.]+\}/,'offset:{x:0,y:'+v+'}');}
-        if(d==='S_Z_UP'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)+0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
-        if(d==='S_Z_DN'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)-0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
-        return c;
-      });
+      if(d==='S_SIZE_UP'||d==='S_SIZE_DN'||d==='S_Y_UP'||d==='S_Y_DN'){
+        const sp=path.join(BASE,'subtitle_style.js');
+        let s=fs.readFileSync(sp,'utf8');
+        if(d==='S_SIZE_UP'){const v=+(s.match(/FONT_SIZE\s*=\s*(\d+)/)?.[1]||52)+2;s=s.replace(/FONT_SIZE\s*=\s*\d+/,'FONT_SIZE = '+v);}
+        if(d==='S_SIZE_DN'){const v=+(s.match(/FONT_SIZE\s*=\s*(\d+)/)?.[1]||52)-2;s=s.replace(/FONT_SIZE\s*=\s*\d+/,'FONT_SIZE = '+v);}
+        if(d==='S_Y_UP'){const v=(+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.347)+0.02).toFixed(3);s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v);}
+        if(d==='S_Y_DN'){const v=(+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.347)-0.02).toFixed(3);s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v);}
+        fs.writeFileSync(sp,s);
+      }else{
+        patchWF(c=>{
+          if(d==='S_Z_UP'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)+0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+          if(d==='S_Z_DN'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)-0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+          return c;
+        });
+      }
       await showSettings();return;
     }
     return;
