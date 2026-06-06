@@ -4,13 +4,10 @@
 //  Police Archivo Black (≈ Arial Black) CHARGEE PAR URL => identique partout.
 //
 //  >>> LES 2 SEULS CHIFFRES A REGLER <<<
-const FONT_SIZE = 48;     // taille du texte (plus grand = plus gros)
-const OY        = 0.32;   // hauteur (plus grand = plus haut)
+const FONT_SIZE = 52;     // taille du texte (plus grand = plus gros)   /*sync subref v2*/
+const OY        = 0.347;  // hauteur (plus grand = plus haut)           /*sync subpos5*/
 //  (optionnels)
-const LETTER    = '0px';  // espacement entre lettres
-//  Police chargee (TTF public) + nom exact a utiliser dans le CSS :
-const FONT_URL  = 'https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf';
-const FONT_NAME = 'Archivo Black';
+const LETTER    = '2px';  // espacement entre lettres                   /*sync subref v2*/
 //  Mots d'exemple affiches successivement :
 const SAMPLE    = ['YOU IGNORED', 'THE RED FLAGS', 'BUT DEEP DOWN', 'YOU KNEW'];
 // ============================================================
@@ -27,10 +24,11 @@ if (!KEY) { console.error('Pas de cle Shotstack dans .env'); process.exit(1); }
 
 const sleep = ms => new Promise(r => setTimeout(r, ms));
 
+// /*sync subref v2*/ : HTML strictement identique a workflow.js (renderVideo), seuls FONT_SIZE/OY/LETTER varient
 function styleHtml(text){
-  return '<p style="font-family:\'' + FONT_NAME + '\';font-size:' + FONT_SIZE +
-    'px;color:#FFFFFF;letter-spacing:' + LETTER +
-    ';margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">' + text + '</p>';
+  return '<p style="font-family:Arial Black,Arial,sans-serif;font-size:' + FONT_SIZE +
+    'px;font-weight:900;letter-spacing:' + LETTER +
+    ';color:#FFFFFF;-webkit-text-stroke:1.3px #FFFFFF;text-shadow:0 2px 7px rgba(0,0,0,0.55),0 0 3px rgba(0,0,0,0.45);margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">' + text + '</p>';
 }
 
 (async () => {
@@ -56,7 +54,7 @@ function styleHtml(text){
   const rawUp = execSync('curl -s -F "file=@' + raw + '" https://tmpfiles.org/api/v1/upload').toString().trim();
   let url;
   try { url = JSON.parse(rawUp).data.url.replace('tmpfiles.org/', 'tmpfiles.org/dl/'); }
-  catch(e){ console.error('Upload echoue:', rawUp.slice(0.270)); process.exit(1); }
+  catch(e){ console.error('Upload echoue:', rawUp.slice(0,270)); process.exit(1); } /*fix: 0.270 → 0,270*/
   console.log('OK ->', url);
 
   const seg = Math.max(dur / SAMPLE.length, 1.5);
@@ -69,8 +67,7 @@ function styleHtml(text){
   }));
 
   const edit = {
-    timeline: {
-      fonts: [ { src: FONT_URL } ],
+    timeline: { // /*sync subref v2*/ plus de fonts[] : la prod n'en charge pas, le test doit faire pareil
       background: '#000000',
       tracks: [
         { clips: subClips },
