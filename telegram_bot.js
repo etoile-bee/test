@@ -178,7 +178,18 @@ function nlLocal(i){ /*fichier local de l'image i (telecharge au besoin, mis en 
   if(fs.existsSync(tmp)&&fs.statSync(tmp).size>5000){newlook.files[i]=tmp;return tmp;}
   return null;
 }
+function nlDisp(file){ /*affichage panneau SANS DEFILEMENT : version 4:5 ancree en haut (visage) — les fichiers gardes restent 9:16*/
+  if(!file)return file;
+  try{
+    const out='/tmp/disp_'+require('path').basename(file).replace(/[^a-z0-9.]/gi,'')+'.jpg';
+    if(fs.existsSync(out)&&fs.statSync(out).mtimeMs>fs.statSync(file).mtimeMs)return out;
+    require('child_process').execSync('ffmpeg -y -i "'+file+'" -vf "crop=iw:min(ih\\,iw*5/4):0:0,scale=720:-2" -q:v 3 "'+out+'" 2>/dev/null');
+    if(fs.existsSync(out)&&fs.statSync(out).size>3000)return out;
+  }catch(e){}
+  return file;
+}
 async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
+  if(file)file=nlDisp(file);
   const FormData=require('form-data');
   const markup=JSON.stringify({inline_keyboard:rows||[]});
   if(newlook.mediaId&&file){
