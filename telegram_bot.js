@@ -2210,6 +2210,21 @@ await send('Ready to generate video?',[
     }catch(e){await send('Erreur : '+e.message);}
     return;
   }
+  if(txt==='/gens'||txt.startsWith('/gens ')){ /*gens v1 : retrouver les generations recentes (archivees automatiquement, gardees ou non)*/
+    (async()=>{
+      try{
+        const n=Math.min(+(txt.replace(/^\/gens\s*/,'').trim()||5)||5,10);
+        const dir=require('path').join(getLooksDir(),'..','podcast-outputs','generations');
+        let real;try{real=fs.realpathSync(require('path').join(BASE,'outputs','generations'));}catch(e){real=null;}
+        if(!real||!fs.existsSync(real)){await send('Aucune génération archivée pour l\'instant.');return;}
+        const files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(require('path').join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,n);
+        if(!files.length){await send('Aucune génération archivée pour l\'instant.');return;}
+        await send('🗂 <b>'+files.length+' générations récentes</b> (tout est archivé dans iCloud → podcast-outputs/generations)');
+        for(const x of files){await sendImg(require('path').join(real,x.f),x.f.replace(/\.jpg$/,''));}
+      }catch(e){await send('Erreur /gens : '+e.message);}
+    })();
+    return;
+  }
   if(txt==='/probe'){ /*probe v1 : quels endpoints Seedream existent (gratuit, rien n'est genere)*/
     (async()=>{
       try{
