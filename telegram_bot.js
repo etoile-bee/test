@@ -790,18 +790,43 @@ async function recapGo(){
   await send('📝 Écriture du script... (gratuit, ~10s)');
   await genScriptStep();
 }
+async function showScriptCard(){
+  await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+genJob.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic||'')+'\n\n'+escHtml(genJob.script),[
+    [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
+    [{text:'🎣 Hooks A/B',callback_data:'GJ_HOOKS'},{text:'📂 Catégorie',callback_data:'GJ_CAT'}],
+    [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
+    [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+  ]);
+}
 async function genScriptStep(){
   try{
     if(!genJob.topic)genJob.topic=await autoPickTopic(genJob.topicCat);
     const prompt=genJob.parts>1?WF.partPrompt(genJob.topic,1,genJob.parts,[]):genJob.topic;
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
-    await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
-      [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
-      [{text:'📂 Catégorie',callback_data:'GJ_CAT'},{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
-      [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
-    ]);
+    await showScriptCard();
   }catch(e){await send('❌ Script: '+e.message);genJob=null;}
+}
+async function genHooks(){
+  if(!genJob||!genJob.script){await send('⚠️ Aucun script.');return;}
+  await send('🎣 Génération de 2 hooks...').catch(()=>{});
+  try{
+    const ant=new (require('@anthropic-ai/sdk'))({apiKey:process.env.ANTHROPIC_API_KEY});
+    const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:120,messages:[{role:'user',content:'Write 2 DIFFERENT punchy 1-line opening hooks (max 12 words each, English, no quotes) for this TikTok relationship-coach script. Return EXACTLY two lines, prefixed "A:" and "B:".\nScript: '+genJob.script}]});
+    const t=r.content[0].text;const a=((t.match(/A:\s*(.+)/)||[])[1]||'').trim();const b=((t.match(/B:\s*(.+)/)||[])[1]||'').trim();
+    if(!a||!b){await send('⚠️ Hooks indispo, garde le script.');await showScriptCard();return;}
+    genJob.hooks=[a,b];
+    await send('🎣 <b>HOOK D\'OUVERTURE</b> — choisis :\n\n🅰 '+escHtml(a)+'\n\n🅱 '+escHtml(b),[
+      [{text:'🅰 Hook A',callback_data:'GJ_HOOK_0'},{text:'🅱 Hook B',callback_data:'GJ_HOOK_1'}],
+      [{text:'◀️ Garder le script actuel',callback_data:'GJ_SHOWSCRIPT'}],
+    ]);
+  }catch(e){await send('❌ Hooks: '+e.message);await showScriptCard();}
+}
+function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
+  const rest=genJob.script.replace(/^[^.!?]*[.!?]\s*/,'');
+  genJob.script=(h.replace(/[.!?]*$/,'.')+' '+rest).trim();
+  if(genJob.c1)genJob.c1=Object.assign({},genJob.c1,{script:genJob.script});
+  genJob.audio=null;
 }
 async function genAfterScript(){
   const c=estimateCost(genJob.duration);const s=readSubs();
@@ -867,12 +892,13 @@ async function genFinal(){
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
-    const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic})-1;
+    const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[]})-1;
     await send('✅ <b>Vidéo prête !</b>\n📁 Dossier : <code>generations/'+path.basename(genDir)+'/</code> (final + raw + légendes + style).\n💾 Pour enregistrer : appui long sur la vidéo ci-dessus, ou 📁 Fichiers.',[
       [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
-      [{text:'🎨 Restyler (gratuit)',callback_data:'GF_RESTYLE_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'}],
-      [{text:'📁 Fichiers de cette vidéo',callback_data:'GF_FILES_'+gfIdx},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+      [{text:'🎨 Restyler (gratuit)',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Choisir la cover',callback_data:'COVER_OPEN_'+gfIdx}],
+      [{text:'📁 Fichiers',callback_data:'GF_FILES_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
     ]);
+    try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
   }catch(e){await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
   state='idle';genJob=null;
 }
@@ -893,6 +919,23 @@ function makeGenFolder(ts,topic,finalP,partsMeta,clips){
   return dir;
 }
 function copyDirFlat(src,dst){fs.mkdirSync(dst,{recursive:true});for(const f of fs.readdirSync(src)){const s=path.join(src,f);try{if(fs.statSync(s).isFile())fs.copyFileSync(s,path.join(dst,f));}catch(e){}}}
+// 3 propositions de cover extraites de la vidéo finale
+function makeCovers(finalP,gfIdx){
+  let dur=10;try{dur=parseFloat(require('child_process').execSync('ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "'+finalP+'"').toString().trim())||10;}catch(e){}
+  const times=[Math.min(0.8,dur*0.1),dur*0.45,Math.max(0.6,dur*0.8)];const out=[];
+  times.forEach((t,i)=>{const c='/tmp/cover_'+gfIdx+'_'+i+'.jpg';try{require('child_process').execFileSync('ffmpeg',['-y','-ss',t.toFixed(2),'-i',finalP,'-frames:v','1','-q:v','2',c],{stdio:'ignore'});if(fs.existsSync(c))out.push(c);}catch(e){}});
+  return out;
+}
+let covState={gfIdx:-1,idx:0,mid:null};
+async function showCover(){
+  const gf=genFolders[covState.gfIdx];if(!gf||!gf.covers||!gf.covers.length){await send('⚠️ Covers indisponibles.');return;}
+  if(covState.idx<0)covState.idx=gf.covers.length-1;if(covState.idx>=gf.covers.length)covState.idx=0;
+  const fp=gf.covers[covState.idx];
+  const rows=[[{text:'◀️',callback_data:'COVER_PREV'},{text:'✅ Choisir cette cover',callback_data:'COVER_PICK'},{text:'▶️',callback_data:'COVER_NEXT'}],[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]];
+  const cap='🖼 <b>COVER</b> '+(covState.idx+1)+'/'+gf.covers.length+' — deviendra la miniature du dossier.';
+  if(covState.mid&&await editPhotoKb(covState.mid,fp,cap,rows))return;
+  const r=await sendPhotoKb(fp,cap,rows);covState.mid=(r&&r.result&&r.result.message_id)||null;
+}
 async function restyleFolder(dir){
   const meta=JSON.parse(fs.readFileSync(path.join(dir,'meta.json'),'utf8'));
   const clips=[];
@@ -1291,7 +1334,10 @@ async function handle(upd){
     // ── Étape script / maquette / GO ──
     if(d==='GJ_OK'){if(genJob)await genAfterScript();else await send('⚠️ Aucun script.');return;}
     if(d==='GJ_NEW'){if(genJob){if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);if(genJob.subjectMode!=='mine')genJob.topic=null;await genScriptStep();}else await send('⚠️ Aucun script.');return;}
-    if(d==='GJ_CAT'){if(!genJob){await send('⚠️ Aucun script.');return;}const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'GJ_CATSET_'+k}]);rows.push([{text:'◀️ Retour au script',callback_data:'GJ_NEW'}]);await send('📂 <b>CATÉGORIE</b> du script — régénère dans ce thème :',rows);return;}
+    if(d==='GJ_HOOKS'){await genHooks();return;}
+    if(d==='GJ_HOOK_0'||d==='GJ_HOOK_1'){if(genJob&&genJob.hooks){applyHook(genJob.hooks[+d.slice(-1)]);await send('🎣 Hook appliqué.').catch(()=>{});await showScriptCard();}else await send('⚠️ Aucun hook.');return;}
+    if(d==='GJ_SHOWSCRIPT'){if(genJob)await showScriptCard();else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_CAT'){if(!genJob){await send('⚠️ Aucun script.');return;}const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'GJ_CATSET_'+k}]);rows.push([{text:'◀️ Retour au script',callback_data:'GJ_SHOWSCRIPT'}]);await send('📂 <b>CATÉGORIE</b> du script — régénère dans ce thème :',rows);return;}
     if(d.startsWith('GJ_CATSET_')){if(!genJob){await send('⚠️ Aucun script.');return;}const k=d.slice(10);genJob.topicCat=k;genJob.subjectMode='auto';if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);genJob.topic=null;genState.topicCat=k;saveState();await send('📂 '+MCATS[k]+' — nouveau script...').catch(()=>{});await genScriptStep();return;}
     if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
     if(d==='GJ_MOCK'){await genMockup();return;}
@@ -1301,6 +1347,10 @@ async function handle(upd){
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));await send('📁 Fichiers de cette génération ('+files.length+') :');for(const f of files)await sendFile(path.join(gf.dir,f));}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('COVER_OPEN_')){covState={gfIdx:+d.slice(11),idx:0,mid:null};await showCover();return;}
+    if(d==='COVER_PREV'){covState.idx--;await showCover();return;}
+    if(d==='COVER_NEXT'){covState.idx++;await showCover();return;}
+    if(d==='COVER_PICK'){const gf=genFolders[covState.gfIdx];if(gf&&gf.covers&&gf.covers[covState.idx]){try{fs.copyFileSync(gf.covers[covState.idx],path.join(gf.dir,'thumbnail.jpg'));require('child_process').execSync('command -v fileicon >/dev/null 2>&1 && fileicon set "'+gf.dir+'" "'+path.join(gf.dir,'thumbnail.jpg')+'" 2>/dev/null||true',{stdio:'ignore'});await send('✅ Cover '+(covState.idx+1)+' = miniature du dossier <code>'+path.basename(gf.dir)+'</code>.');}catch(e){await send('❌ '+e.message);}}else await send('⚠️ Cover indispo.');return;}
     if(d==='GJ_SAVESCRIPT'){if(genJob&&genJob.script){try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:genJob.topic||'script',date:new Date().toISOString().slice(0,10),script:genJob.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));await send('💾 Script gardé dans la bibliothèque (/library).');}catch(e){await send('❌ '+e.message);}}else await send('⚠️ Aucun script.');return;}
     if(d.startsWith('GF_RESTYLE_')){
       const ix=+d.slice(11);const gf=genFolders[ix];if(!gf){await send('⚠️ Entrée introuvable.');return;}

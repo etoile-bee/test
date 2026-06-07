@@ -54,12 +54,16 @@ async function generateScript(topic,words){
   console.log('OK ('+c.script.split(' ').length+'w):',c.script.substring(0,70)+'...');
   return c;
 }
+// Variation VOIX subtile par vidéo : stability/style tirés dans une petite plage configurable
+const VOICE_JITTER={stability:0.45,style:0.30,range:0.06};
+function jitterVoice(){const j=()=>(Math.random()*2-1)*VOICE_JITTER.range;return{stability:+Math.min(0.7,Math.max(0.30,VOICE_JITTER.stability+j())).toFixed(3),style:+Math.min(0.6,Math.max(0.15,VOICE_JITTER.style+j())).toFixed(3)};}
 async function generateAudio(script,num){
-  console.log('\n🎙  Audio Part '+num+' (ElevenLabs Imany)...');
+  const vj=jitterVoice();
+  console.log('\n🎙  Audio Part '+num+' (ElevenLabs Imany, stab='+vj.stability+' style='+vj.style+')...');
   const mp3='/tmp/wf_'+num+'.mp3',wav='/tmp/wf_'+num+'.wav';
   const res=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE+'/with-timestamps',{
     method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82,style:0.3,use_speaker_boost:true}})
+    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
   });
   let wt=[];
   if(res.ok){
@@ -80,7 +84,7 @@ async function generateAudio(script,num){
   }else{
     const r2=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE,{
       method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json','Accept':'audio/mpeg'},
-      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82}})
+      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
     });
     if(!r2.ok)throw new Error('ElevenLabs '+r2.status);
     fs.writeFileSync(mp3,await r2.buffer());
