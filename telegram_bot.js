@@ -127,9 +127,9 @@ function buildVideoCaption(vp){const c=parseCaps(readCapTxt(vp));let cap='✅ <b
 function videoReadyKb(gfIdx){return [
   [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
   [{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Cover',callback_data:'COVER_OPEN_'+gfIdx}],
-  [{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+gfIdx},{text:'📋 Légende',callback_data:'GF_LONG_'+gfIdx}],
-  [{text:'📁 Dossier',callback_data:'GF_FILES_'+gfIdx}],
-];}
+  [{text:'📋 Légende',callback_data:'GF_LONG_'+gfIdx},{text:'📁 Dossier',callback_data:'GF_FILES_'+gfIdx}],
+  [{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+gfIdx}],
+];} /*regle Etoile : Make Part 2 = TOUTE FIN*/
 async function answerCB(id){return tg('answerCallbackQuery',{callback_query_id:id});}
 
 // ── Look helpers ──────────────────────────────────────────────────────────────
@@ -1697,7 +1697,8 @@ async function handle(upd){
       }catch(e){await sp('⛔ Partie '+i+' a planté : '+e.message);}
       return;
     }
-    if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'📁 Dossier',callback_data:'GF_FILES_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
+    if(d.startsWith('GF_BACK_')){const ix=+d.slice(8);const gf=genFolders[ix];if(gf&&gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:buildVideoCaption(gf.finalP),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});}catch(e){}}return;}
+    if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'◀️ Retour',callback_data:'GF_BACK_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
     if(d.startsWith('GF_SHORT_')){const ix=+d.slice(9);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:(gf.caption||buildVideoCaption(gf.finalP)).slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});return;}catch(e){}}return;}
     if(d==='LCAP_LEGACY'){if(setup.lastVideo){const c=parseCaps(readCapTxt(setup.lastVideo));await send('📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':''));}else await send('⚠️ Aucune vidéo récente.');return;}
     if(d.startsWith('COVER_OPEN_')){covState={gfIdx:+d.slice(11),idx:0,mid:null};await showCover();return;}
