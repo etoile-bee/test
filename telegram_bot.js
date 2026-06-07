@@ -725,9 +725,9 @@ let styleList=[];
 async function showStyles(){
   styleList=listStyles();
   if(!styleList.length){await send('📂 Aucun style sauvegardé.\nDans /edit, appuie sur « 💾 Sauvegarder ce style ».');return;}
-  const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🎬',callback_data:'LOADGEN_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
-  rows.push([{text:'◀️ Menu',callback_data:'EDIT_HOME'}]);
-  await send('📂 <b>MODÈLES</b>\n\n📂 charger · 🎬 générer avec · 🗑 supprimer',rows);
+  const rows=styleList.map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🎬',callback_data:'LOADGEN_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
+  rows.push([{text:'◀️ Carte',callback_data:'MAIN_MENU'},{text:'🎨 Édition',callback_data:'EDIT_HOME'}]);
+  await cardMenu('📦 <b>MODÈLES</b> — 📂 charger · 🎬 générer · 🗑 :',rows); // EN PLACE
 }
 // ── Prêt à poster : copie vidéo + légendes + snapshot style dans outputs/ready_to_post/ ──
 function readyDir(){const d=path.join(BASE,'outputs','ready_to_post');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
@@ -810,6 +810,15 @@ function recapKb(){
 }
 // Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
 async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
+// Toast (petite bulle, zéro message) — utilise le dernier callback_query
+let lastCbId=null;
+async function toast(text){try{if(lastCbId)await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}catch(e){}}
+// Édite l'écran d'édition EN PLACE (photo de travail + boutons), comme la carte
+async function editScreen(caption,rows){
+  let frame=null;try{const f=await renderWorkingFrame();frame=f&&f.frame;if(f)editPrevFrame=f.frame;}catch(e){}
+  if(frame){await cockpitPhoto(frame,caption,rows);editPanel.mid=cockpit.mid;}
+  else if(!await cockpitCaption(caption,rows)){const r=await send(caption,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;editPanel.mid=cockpit.mid;}
+}
 async function recapFrame(){ // aperçu = LOOK courant AVEC le style appliqué (item 1)
   if(gwLook())setWorkPhoto(gwLook());
   try{const f=await renderWorkingFrame();return f&&f.frame;}catch(e){return null;}
@@ -1268,37 +1277,28 @@ function sectionCaption(section){
   const i=readFx().image;return `🎨 <b>IMAGE</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K 🔪${i.sharpness} ⬛${i.vignette}\nChoisis : 🎛 Ajuster · 🎨 Filtres · ✨ Effets`;
 }
 async function openPanel(section){
-  editPanel.section=section;editPanel.mid=null;editPrevFrame=null;
-  const f=await renderWorkingFrame();
-  if(!f){await send(sectionCaption(section)+'\n\n⚠️ Aucune frame de travail. Choisis un look 👤 ou lance un /go.',sectionKb(section));return;}
-  editPrevFrame=f.frame;
-  const r=await sendPhotoKb(f.frame,sectionCaption(section),sectionKb(section));
-  editPanel.mid=(r&&r.result&&r.result.message_id)||null;
+  editPanel.section=section;
+  await editScreen(sectionCaption(section),sectionKb(section)); // EN PLACE (morphe la carte)
 }
 async function refreshPanel(){
   const section=editPanel.section||'img';
-  const f=await renderWorkingFrame();
-  if(!f){await send('⚠️ Frame de travail indispo.');return;}
-  editPrevFrame=f.frame;
-  let ok=false;
-  if(editPanel.mid)ok=await editPhotoKb(editPanel.mid,f.frame,sectionCaption(section),sectionKb(section));
-  if(!ok){const r=await sendPhotoKb(f.frame,sectionCaption(section),sectionKb(section));editPanel.mid=(r&&r.result&&r.result.message_id)||null;}
+  await editScreen(sectionCaption(section),sectionKb(section)); // EN PLACE
 }
 async function showEditHome(){
-  await send('🎛 <b>ÉDITION DU LOOK</b>\n\n📸 Photo de travail : <b>'+workSrcLabel()+'</b>\nChoisis une section :',[
-    [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
-    [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
-    [{text:'🎨 Presets',callback_data:'SHOW_PRESETS'},{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'}],
-    [{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
+  editPanel.section='img';
+  await editScreen('🎛 <b>ÉDITION</b> · '+workSrcLabel(),[
+    [{text:'👤 Looks',callback_data:'EDIT_LOOKS'},{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'}],
+    [{text:'🎨 Image',callback_data:'EDIT_IMG'},{text:'🎨 Presets',callback_data:'SHOW_PRESETS'}],
+    [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
     [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Modèles',callback_data:'SHOWSTYLES'}],
-    [{text:'👁 Aperçu complet',callback_data:'EDIT_PREVIEW'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}],
   ]);
 }
 async function showPresets(){
   const keys=Object.keys(IMG_PRESETS);const rows=[];
   for(let k=0;k<keys.length;k+=3)rows.push(keys.slice(k,k+3).map(n=>({text:'🎨 '+n,callback_data:'IMG_PRE_'+n})));
-  rows.push([{text:'🎨 Section Image',callback_data:'EDIT_IMG'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}]);
-  await send('🎨 <b>PRESETS COULEUR</b> — applique en 1 tap (puis 👁 Aperçu) :',rows);
+  rows.push([{text:'🎨 Image',callback_data:'EDIT_IMG'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}]);
+  await cardMenu('🎨 <b>PRESETS COULEUR</b> — 1 tap :',rows); // EN PLACE
 }
 function imageKb(){ // accueil Image épuré : 3 sous-sections + reset
   return [
@@ -1391,17 +1391,16 @@ function patchWF(fn){
 // ── /preview : rend ~3s du dernier raw de test avec le STYLE COURANT et envoie 2 frames (gratuit) ──
 async function runPreview(){
   try{
-    const src=workSrc(); // PHOTO DE TRAVAIL COURANTE
-    if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
-    await send('👁 Aperçu du style courant (photo de travail : '+path.basename(src)+')... ~2s');
+    const src=workSrc();
+    if(!src){await toast('⚠️ Choisis un look 👤');return;}
     const f=await renderWorkingFrame();
-    if(!f){await send('❌ Aperçu indispo.');return;}
+    if(!f){await toast('❌ Aperçu indispo');return;}
     const st=f.style, fx=readFx();
     const img=fx.image, colored=(img.brightness||img.contrast!==1||img.saturation!==1||img.temperature!==6500||img.sharpness||img.vignette)?'oui':'neutre';
-    const cap=`👁 Aperçu — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}\n🎬 zoom ${fx.zoom.on?'ON ×'+fx.zoom.intensity:'OFF'} • 🎨 couleur ${colored} • 🎵 ${fx.music.on?(fx.music.file||'on'):'OFF'}`;
-    await sendImg(f.frame,cap).catch(()=>{});
-    await send('Suite :',[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'🧪 Test vidéo',callback_data:'MENU_TEST'}],[{text:'🎬 Générer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
-  }catch(e){await send('❌ Aperçu: '+e.message);}
+    const cap=`👁 <b>APERÇU</b> — 🔤 ${fontLabel(st.font)} ${st.fontSize}px · 🎬 zoom ${fx.zoom.on?'ON':'OFF'} · 🎨 ${colored} · 🎵 ${fx.music.on?'on':'OFF'}`;
+    if(cockpit.mid)await cockpitPhoto(f.frame,cap,[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'🧪 Test',callback_data:'MENU_TEST'}],[{text:'▶️ GO',callback_data:'MENU_GEN'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]);
+    else {await sendImg(f.frame,cap).catch(()=>{});}
+  }catch(e){await toast('❌ '+e.message);}
 }
 
 // ── Update handler ────────────────────────────────────────────────────────────
@@ -1420,7 +1419,7 @@ async function handle(upd){
     await answerCB(cb.id);
     if(String(cb.message.chat.id)!==CHAT_ID)return;
     switchChat(String(cb.message.chat.id)); // no-op en mono-chat ; bascule l'état si multi-user activé
-    const d=cb.data;
+    const d=cb.data;lastCbId=cb.id;
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
     if(d==='MAIN_MENU'){await showRecap();return;} /*V2 : retour à la CARTE (état courant)*/
@@ -1758,12 +1757,12 @@ await send('Ready to generate video?',[
       return;
     }
     // Styles sauvegardés
-    if(d==='SAVESTYLE'){const n=saveStyleAuto();await send('💾 Style sauvegardé : <b>'+n+'</b>\nRecharge-le via 📂 Modèles.');return;}
+    if(d==='SAVESTYLE'){const n=saveStyleAuto();await toast('💾 Modèle sauvegardé : '+n);await refreshPanel();return;}
     if(d==='SHOWSTYLES'){await showStyles();return;}
     if(d.startsWith('LOADSTYLE_')){
       const i=+d.slice(10);const f=styleList[i];
-      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Modèles).');return;}
-      try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));editPrevFrame=null;applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
+      if(!f){await toast('⚠️ Rouvre 📦 Modèles');return;}
+      try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));editPrevFrame=null;applySnapshot(snap);await toast('✅ Modèle chargé : '+f.replace(/\.json$/,''));editPanel.section='img';await refreshPanel();}catch(e){await toast('❌ '+e.message);}
       return;
     }
     if(d.startsWith('LOADGEN_')){
@@ -1789,15 +1788,15 @@ await send('Ready to generate video?',[
     if(d==='SHOW_PRESETS'){editSectionCur='img';editPanel.section='img';await showPresets();return;}
     if(d==='EDIT_IMGADJ'){editSectionCur='img';await openPanel('imgadj');return;}
     if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
-    if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await send('🔄 Image revenue à la base (Signature). ↩️ Annuler pour récupérer.').catch(()=>{});await refreshPanel();return;}
+    if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanel();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
     if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
     if(d==='NOOP')return;
-    if(d==='UNDO_EDIT'){if(!undoEdit()){await send('↩️ Rien à annuler.');return;}await send('↩️ Annulé.');await refreshSection();return;}
-    if(d==='VALIDATE_STYLE'){clearHistory();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w)){saveLookStyle(path.basename(w),readFx().image);await send('✔️ Réglages validés et <b>mémorisés pour ce look</b>.');}else await send('✔️ Réglages validés.');return;}
+    if(d==='UNDO_EDIT'){if(!undoEdit()){await toast('↩️ Rien à annuler');return;}await toast('↩️ Annulé');await refreshSection();return;}
+    if(d==='VALIDATE_STYLE'){clearHistory();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w)){saveLookStyle(path.basename(w),readFx().image);await toast('✔️ Réglages mémorisés pour ce look');}else await toast('✔️ Réglages validés');await refreshPanel();return;}
     if(d==='LS_REUSE'){if(lookStylePending){const fx=readFx();fx.image=Object.assign({},lookStylePending.fx);writeFx(fx);const r=lookStylePending.ret;lookStylePending=null;await send('✅ Réglages du look réappliqués.').catch(()=>{});await routeAfterLook(r);}return;}
     if(d==='LS_BASE'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);const r=lookStylePending?lookStylePending.ret:'recap';lookStylePending=null;await send('🔄 Réglages remis à la base.').catch(()=>{});await routeAfterLook(r);return;}
     if(d==='LS_KEEP'){const r=lookStylePending?lookStylePending.ret:'recap';lookStylePending=null;await send('🎨 Réglages actuels conservés.').catch(()=>{});await routeAfterLook(r);return;}
