@@ -163,6 +163,14 @@ La cohérence entre couches passe par des fichiers d'état explicites, jamais de
 
 ## CHANGELOG (à maintenir à chaque livraison)
 
+- **2026-06-08** — **Réconciliation multi-sessions.** Deux sessions Cowork travaillaient en parallèle
+  sur le même repo (ligne « looks/Cowork » + ligne « Dispatch/V2 »). Arbitrage Etoile : **`main` reste la base
+  validée** (tags `v1-validee`/`looks-v1-valide`, verrous sous-titres 45px + couleur V5 + panneau looks intacts).
+  Inventaire systématique → **100% des garde-fous Dispatch déjà fusionnés sur `main`** (pause `sanitizeTTS`,
+  « status » `validTTS`, annulation réelle `genAbort`, guard `renderStyleFrame` null, `shrinkIfBig`, anti-dissolution…)
+  → **rien à regreffer**. node --check OK, 0 callback orphelin, CHANTIER 0 restart fait + stable.
+  **Leçon** : sessions parallèles = toujours repartir de `main`, inventorier, regreffer seulement le manquant ;
+  conflit → UI à main, sécurité à nos gardes. (Voir aussi RÈGLE SESSIONS PARALLÈLES dans CONTEXTE_projet.md.)
 - **2026-06-07** — Création du journal. Lot « retours V2 » : carte allégée + budget à la maquette ;
   progression qui disparaît à la fin ; anti-dissolution (pas de re-upload si image inchangée) ;
   /test & /preview sur footage en mouvement ; [➕ Partie suivante] + preuve format long 90s ;
