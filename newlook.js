@@ -67,27 +67,35 @@ async function ensureSoulId(client,log){
   return soul.id;
 }
 
-// Genere UN look. Retourne {url, prompt}. log(msg) = retours de progression.
-async function generateLook(promptText,log){
+/*newlook v3 : 3 environnements (recherches formats viraux 2026 : quiet luxury / studio realiste) + 4 poses par generation*/
+const ENVS={
+  bougies:{label:'🕯 Bougies (actuel)',text:'Environment: same luxury podcast studio as the reference image — dark moody library, bookshelves, warm candlelight glow, professional microphone in front of her.'},
+  jour:{label:'☀️ Lumière du jour',text:'Environment: bright airy creator studio in soft natural daylight — large windows, sheer curtains, neutral cream and beige tones, minimalist elevated interior, a few green plants, professional podcast microphone on a boom arm in front of her. Quiet luxury aesthetic, clean and aspirational.'},
+  studio:{label:'🎙 Studio podcast réaliste',text:'Environment: realistic professional podcast studio — warm wooden slat wall, subtle acoustic panels, soft warm LED accent lighting, professional boom-arm microphone and studio headphones on the table, shallow depth of field with cozy plants and soft string lights blurred in the background.'}
+};
+
+// Genere 4 poses. Retourne {urls:[...], prompt}. opts={env:'bougies'|'jour'|'studio', extra:texte libre optionnel}
+async function generateLook(opts,log){
   log=log||console.log;
+  opts=opts||{};
   const client=getClient();
   const soulId=await ensureSoulId(client,log);
-  const prompt=promptText||defaultPrompt();
+  const env=ENVS[opts.env]?opts.env:'bougies';
+  const prompt=defaultPrompt()+'\n'+ENVS[env].text+(opts.extra?'\n'+opts.extra:'')+'\nGenerate a different natural pose and head angle for each image.';
   const jobSet=await client.generate('/v1/text2image/soul',{
     prompt:prompt,
     custom_reference_id:soulId,
     custom_reference_strength:1,
     width_and_height:'1536x2048',
     quality:'1080p',
-    batch_size:1
+    batch_size:4
   },{withPolling:true});
-  const job=jobSet&&jobSet.jobs&&jobSet.jobs[0];
-  if(!job)throw new Error('réponse vide de Higgsfield');
-  if(job.status==='nsfw')throw new Error('image refusée par la modération (crédits remboursés) — reformule le prompt');
-  if(job.status!=='completed'||!job.results)throw new Error('génération échouée (status: '+job.status+')');
-  const url=(job.results.raw&&job.results.raw.url)||(job.results.min&&job.results.min.url);
-  if(!url)throw new Error('pas d\'URL dans le résultat');
-  return{url:url,prompt:prompt};
+  const jobs=(jobSet&&jobSet.jobs)||[];
+  if(!jobs.length)throw new Error('réponse vide de Higgsfield');
+  if(jobs.every(j=>j.status==='nsfw'))throw new Error('images refusées par la modération (crédits remboursés) — reformule');
+  const urls=jobs.filter(j=>j.status==='completed'&&j.results).map(j=>(j.results.raw&&j.results.raw.url)||(j.results.min&&j.results.min.url)).filter(Boolean);
+  if(!urls.length)throw new Error('génération échouée (statuts: '+jobs.map(j=>j.status).join(',')+')');
+  return{urls:urls,prompt:prompt,env:env};
 }
 
-module.exports={ generateLook, defaultPrompt, looksDir };
+module.exports={ generateLook, defaultPrompt, looksDir, ENVS };

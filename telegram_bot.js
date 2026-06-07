@@ -139,24 +139,33 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={url:null,prompt:null,busy:false}; /*newlook v1*/
-async function runNewLook(customPrompt){
-  if(newlook.busy){await send('⏳ Un look est déjà en cours de génération, patiente...');return;}
+let newlook={urls:[],env:'bougies',extra:null,busy:false}; /*newlook v3 : 3 environnements, 4 poses*/
+async function runNewLook(){
+  if(newlook.busy){await send('⏳ Une génération de looks est déjà en cours, patiente...');return;}
   newlook.busy=true;
   try{
-    await send('🎨 Génération d\'un nouveau look (même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~30-90s':'\n⏳ 1ère fois : création de la référence visage en plus (~2-3 min)'));
+    await send('🎨 Génération de 4 poses ('+newlook.env+', même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
     const {generateLook}=require('./newlook.js');
-    const r=await generateLook(customPrompt,m=>{send('• '+m).catch(()=>{});});
-    newlook.url=r.url;newlook.prompt=customPrompt||null;
-    const tmp='/tmp/newlook'+Date.now()+'.jpg';
-    require('child_process').execSync('curl -s -o "'+tmp+'" "'+r.url+'"');
-    await sendImg(tmp,'🎨 Nouveau look');
-    await send('On le garde ?',[
-      [{text:'✅ Garder',callback_data:'NL_KEEP'},{text:'🔄 Refaire',callback_data:'NL_RETRY'}],
-      [{text:'❌ Annuler',callback_data:'NL_CANCEL'}]
+    const r=await generateLook({env:newlook.env,extra:newlook.extra},m=>{send('• '+m).catch(()=>{});});
+    newlook.urls=r.urls;
+    for(let i=0;i<r.urls.length;i++){
+      const tmp='/tmp/newlook'+Date.now()+'_'+i+'.jpg';
+      require('child_process').execSync('curl -s -o "'+tmp+'" "'+r.urls[i]+'"');
+      await sendImg(tmp,'Pose '+(i+1)+'/'+r.urls.length);
+    }
+    const keepRow=r.urls.map((u,i)=>({text:'✅ '+(i+1),callback_data:'NL_KEEP_'+i}));
+    await send('Lesquelles on garde ? (tu peux en garder plusieurs)',[
+      keepRow,
+      [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'🌆 Changer décor',callback_data:'NL_ENVMENU'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]
     ]);
-  }catch(e){await send('❌ Échec génération look : '+e.message).catch(()=>{});}
+  }catch(e){await send('❌ Échec génération looks : '+e.message).catch(()=>{});}
   newlook.busy=false;
+}
+async function newLookEnvMenu(){
+  const {ENVS}=require('./newlook.js');
+  await send('🌆 Quel décor ?',[
+    Object.keys(ENVS).map(k=>({text:ENVS[k].label,callback_data:'NL_ENV_'+k}))
+  ]);
 }
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
   let e=fs.readFileSync(ENV_PATH,'utf8');
@@ -1894,19 +1903,22 @@ await send('Ready to generate video?',[
       if(d==='MU_VOL_DN')m.volume=clampN(m.volume-0.03,0,1);
       writeFx(fx);await refreshPanel();return;
     }
-    // Nouveau look /*newlook v1*/
-    if(d==='NL_KEEP'){
-      if(!newlook.url){await send('Rien à garder.');return;}
+    // Nouveau look /*newlook v3*/
+    if(d.startsWith('NL_ENV_')){newlook.env=d.replace('NL_ENV_','');runNewLook();return;}
+    if(d==='NL_ENVMENU'){newLookEnvMenu();return;}
+    if(d.startsWith('NL_KEEP_')){
+      const i=+d.replace('NL_KEEP_','');
+      if(!newlook.urls[i]){await send('Pose introuvable (déjà gardée ?).');return;}
       try{
         const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
-        const dest=require('path').join(getLooksDir(),'gen_'+stamp+'.jpg');
-        require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.url+'"');
-        await send('✅ Look enregistré ('+require('path').basename(dest)+') — il sera proposé en premier au prochain choix de look.');
+        const dest=require('path').join(getLooksDir(),'gen_'+stamp+'_p'+(i+1)+'.jpg');
+        require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.urls[i]+'"');
+        await send('✅ Pose '+(i+1)+' enregistrée ('+require('path').basename(dest)+') — proposée en premier au prochain choix de look.');
       }catch(e){await send('Erreur enregistrement : '+e.message);}
-      newlook.url=null;return;
+      return;
     }
-    if(d==='NL_RETRY'){const p=newlook.prompt;newlook.url=null;runNewLook(p);return;}
-    if(d==='NL_CANCEL'){newlook.url=null;await send('Annulé — rien n\'a été ajouté.');return;}
+    if(d==='NL_RETRY'){newlook.urls=[];runNewLook();return;}
+    if(d==='NL_CANCEL'){newlook.urls=[];await send('Terminé — galerie à jour.');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
@@ -2097,9 +2109,9 @@ await send('Ready to generate video?',[
       await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
     }catch{await send('No library yet.');}return;
   }
-  if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v1 : genere un look meme visage, validation avant ajout*/
-    const cp=txt.replace(/^\/newlook\s*/,'').trim()||null;
-    runNewLook(cp); // async volontaire : le bot reste reactif pendant la generation
+  if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v3 : choix du decor puis 4 poses, validation avant ajout*/
+    newlook.extra=txt.replace(/^\/newlook\s*/,'').trim()||null;
+    newLookEnvMenu();
     return;
   }
   if(txt==='/looks'){galMid=null;gal.idx=0;await showLook();return;}
