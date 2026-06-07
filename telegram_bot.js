@@ -148,7 +148,7 @@ let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Ch
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
 async function showLook(){
   gal.files=looksList();
-  if(!gal.files.length){await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.');return;}
+  if(!gal.files.length){await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
   if(gal.idx<0)gal.idx=gal.files.length-1; if(gal.idx>=gal.files.length)gal.idx=0;
   const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
   // iCloud : télécharge si placeholder/manquant (sync) + petite attente
@@ -157,8 +157,8 @@ async function showLook(){
   const rows=[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
-  if(galForRecap)rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);
-  else rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);
+  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
+  else {rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
   if(sz<1000){ // toujours indisponible (placeholder iCloud non téléchargé)
     await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée depuis iCloud. Ouvre-la une fois dans l'app Fichiers, ou ◀️ ▶️ pour la suivante.`,rows);return;
   }
@@ -689,8 +689,9 @@ function doReadyToPost(vp){
 let readyList=[];
 async function showReady(){
   try{readyList=fs.readdirSync(readyDir()).filter(f=>/\.mp4$/i.test(f)).sort().reverse();}catch(e){readyList=[];}
-  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide pour l\'instant.\nSur une vidéo livrée, appuie sur « ✅ Prêt à poster » → elle est copiée dans <code>outputs/ready_to_post/</code> (visible dans Fichiers iCloud sur iPhone).');return;}
+  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide pour l\'instant.\nSur une vidéo livrée, appuie sur « ✅ Prêt à poster » → elle est copiée dans <code>outputs/ready_to_post/</code> (visible dans Fichiers iCloud sur iPhone).',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
   const rows=readyList.slice(0,20).map((f,i)=>[{text:'♻️ '+f.replace(/\.mp4$/,'').slice(0,32),callback_data:'REUSE_'+i}]);
+  rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);
   await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\n\n📱 Dossier <code>outputs/ready_to_post/</code> (iCloud).\n♻️ Reprendre le style d\'une vidéo :',rows);
 }
 // ── Test local gratuit (réutilisable depuis /test et le menu) ───────────────────
@@ -1302,6 +1303,7 @@ await send('Ready to generate video?',[
     if(d==='MM_LOOK_UPLOAD'){state='m_upload_wait';await send('📷 Send a photo now (as a photo message):');return;}
     if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*restart v1*/
     if(d==='CHG_TOPIC'){await step1_topic();return;}
+    if(d==='CHG_LOOK'){galForRecap=false;gal.idx=0;await showLook();return;}
     if(d==='CANCEL'){state='idle';await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     // Workflow answers
     if(d.startsWith('A_')&&proc){
