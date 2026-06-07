@@ -189,14 +189,16 @@ async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption
     fd.append('reply_markup',markup);
     const r=await tg('editMessageMedia',null,fd).catch(()=>null);
     if(r&&r.ok)return true;
-    jlog('⚠️ editMessageMedia refus — degrade en caption (pas de nouveau message)');
+    if(r&&/not modified/i.test(r.description||''))return true; /*contenu identique = etat deja bon, ON NE FAIT RIEN*/
     const r1b=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
     if(r1b&&r1b.ok)return true;
-    newlook.mediaId=null;
+    if(r1b&&/not modified/i.test(r1b.description||''))return true;
+    newlook.mediaId=null;jlog('⚠️ panneau perdu ('+((r&&r.description)||'')+') — recreation unique');
   }
   if(newlook.mediaId&&!file){
     const r=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
     if(r&&r.ok)return true;
+    if(r&&/not modified/i.test(r.description||''))return true;
     newlook.mediaId=null;
   }
   const f2=file||nlCover();
@@ -212,26 +214,43 @@ async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption
 }
 function nlText(caption,rows){return nlMedia(null,caption,rows);} /*caption/boutons seulement, image inchangee*/
 function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;}
-async function nlConfig(){
+async function nlConfig(){ /*ACCUEIL compact (architecture validee Etoile) : etat visible, sous-menus par section*/
   const {readLookbook}=nlMod();
   const lb=readLookbook();
-  if(!newlook.category||!lb.categories[newlook.category])newlook.category=Object.keys(lb.categories)[0];
+  if(!newlook.category||(!lb.categories[newlook.category]&&newlook.category!=='random'))newlook.category=Object.keys(lb.categories)[0];
   if(!lb.envs[newlook.env])newlook.env='bougies';
-  newlook.catLabel=newlook.extra?('✍️ '+newlook.extra.substring(0,22)):(newlook.category==='random'?'🎲 Surprise':lb.categories[newlook.category].label);
+  newlook.catLabel=newlook.extra&&newlook.category!=='random'?('✍️ '+newlook.extra.substring(0,18)):(newlook.category==='random'?'🎲 Surprise':lb.categories[newlook.category].label);
   newlook.envLabel=lb.envs[newlook.env].label;
-  const catKeys=Object.keys(lb.categories);
-  const rows=[];
-  for(let i=0;i<catKeys.length;i+=3)rows.push(catKeys.slice(i,i+3).map(k=>({text:nlMark(lb.categories[k].label,newlook.category===k&&!newlook.extra),callback_data:'NL_SET_CAT_'+k})));
-  rows.push([{text:nlMark('🎲 Surprise (catalogue 204)',newlook.category==='random'&&!newlook.extra),callback_data:'NL_SET_CAT_random'}]);
-  rows.push(Object.keys(lb.envs).map(k=>({text:nlMark(lb.envs[k].label,newlook.env===k),callback_data:'NL_SET_ENV_'+k})));
-  rows.push([
-    {text:nlMark('🧪 Éco 💰·',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
-    {text:nlMark('🖼 Planche ×3 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
-    {text:nlMark('💎 HD ×4 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
-  ]);
-  rows.push([{text:'▶️ Générer 💰',callback_data:'NL_GO'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
+  const cost={eco:'💰·',planche:'💰·',hd:'💰💰💰'}[newlook.mode]||'';
+  const rows=[
+    [{text:'👗 '+newlook.catLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_CAT'},{text:'🌆 '+newlook.envLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_ENV'}],
+    [{text:'🎛 '+newlook.mode+' '+cost,callback_data:'NL_MENU_MODE'},{text:'🎲 Surprise',callback_data:'NL_SET_CAT_random'}],
+    [{text:'▶️ Générer 💰',callback_data:'NL_GO'},{text:'❌',callback_data:'NL_CANCEL'}]
+  ];
   const cur=(newlook.urls.length&&nlLocal(newlook.idx))||null;
-  await nlMedia(cur||nlCover(),'🎨 <b>NOUVEAU LOOK</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode,rows);
+  await nlMedia(cur||nlCover(),'🎨 <b>NOUVEAU LOOK</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode,rows);
+}
+async function nlMenuCat(){
+  const lb=nlMod().readLookbook();
+  const keys=Object.keys(lb.categories);
+  const rows=[];
+  for(let i=0;i<keys.length;i+=3)rows.push(keys.slice(i,i+3).map(k=>({text:nlMark(lb.categories[k].label,newlook.category===k&&!newlook.extra),callback_data:'NL_SET_CAT_'+k})));
+  rows.push([{text:'◀️ Retour',callback_data:'NL_CONFIG'}]);
+  await nlText('👗 <b>TENUE</b> · actuelle : '+escH(newlook.catLabel),rows);
+}
+async function nlMenuEnv(){
+  const lb=nlMod().readLookbook();
+  const rows=[Object.keys(lb.envs).map(k=>({text:nlMark(lb.envs[k].label,newlook.env===k),callback_data:'NL_SET_ENV_'+k}))];
+  rows.push([{text:'◀️ Retour',callback_data:'NL_CONFIG'}]);
+  await nlText('🌆 <b>DÉCOR</b> · actuel : '+escH(newlook.envLabel),rows);
+}
+async function nlMenuMode(){
+  const rows=[[
+    {text:nlMark('🧪 Éco 💰·',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
+    {text:nlMark('🖼 Planche 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
+    {text:nlMark('💎 HD 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
+  ],[{text:'◀️ Retour',callback_data:'NL_CONFIG'}]];
+  await nlText('🎛 <b>FORMAT</b> · actuel : '+newlook.mode,rows);
 }
 function nlResultRows(){
   const n=newlook.urls.length;
@@ -2009,6 +2028,9 @@ await send('Ready to generate video?',[
       else newlook.category=c;
       nlConfig();return;
     }
+    if(d==='NL_MENU_CAT'){nlMenuCat();return;}
+    if(d==='NL_MENU_ENV'){nlMenuEnv();return;}
+    if(d==='NL_MENU_MODE'){nlMenuMode();return;}
     if(d.startsWith('NL_SET_ENV_')){newlook.env=d.replace('NL_SET_ENV_','');nlConfig();return;}
     if(d.startsWith('NL_SET_MODE_')){newlook.mode=d.replace('NL_SET_MODE_','');nlConfig();return;}
     if(d==='NL_GO'){newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
