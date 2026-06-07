@@ -797,7 +797,7 @@ async function genScriptStep(){
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
     await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
       [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
-      [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'}],
+      [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
       [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
   }catch(e){await send('❌ Script: '+e.message);genJob=null;}
@@ -864,9 +864,10 @@ async function genFinal(){
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
     const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic})-1;
-    await send('✅ <b>Vidéo prête !</b>\n📁 Dossier : <code>generations/'+path.basename(genDir)+'/</code> (final + raw + légendes + style).',[
+    await send('✅ <b>Vidéo prête !</b>\n📁 Dossier : <code>generations/'+path.basename(genDir)+'/</code> (final + raw + légendes + style).\n💾 Pour enregistrer : appui long sur la vidéo ci-dessus, ou 📁 Fichiers.',[
       [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
       [{text:'🎨 Restyler (gratuit)',callback_data:'GF_RESTYLE_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'}],
+      [{text:'📁 Fichiers de cette vidéo',callback_data:'GF_FILES_'+gfIdx},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
     ]);
   }catch(e){await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
   state='idle';genJob=null;
@@ -1291,6 +1292,8 @@ async function handle(upd){
     // ── Dossier de génération : Postable / À retravailler / Restyler ──
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));await send('📁 Fichiers de cette génération ('+files.length+') :');for(const f of files)await sendFile(path.join(gf.dir,f));}catch(e){await send('❌ '+e.message);}return;}
+    if(d==='GJ_SAVESCRIPT'){if(genJob&&genJob.script){try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:genJob.topic||'script',date:new Date().toISOString().slice(0,10),script:genJob.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));await send('💾 Script gardé dans la bibliothèque (/library).');}catch(e){await send('❌ '+e.message);}}else await send('⚠️ Aucun script.');return;}
     if(d.startsWith('GF_RESTYLE_')){
       const ix=+d.slice(11);const gf=genFolders[ix];if(!gf){await send('⚠️ Entrée introuvable.');return;}
       await send('🎨 Re-rendu LOCAL gratuit avec le style courant (réutilise raw + audio, aucun Kling)... ~2-4s');
