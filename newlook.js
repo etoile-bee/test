@@ -27,7 +27,7 @@ function defaultPrompt(){
   return 'Stunning confident woman podcast host, elegant new outfit, luxury podcast studio, warm candlelight, bookshelf background, professional microphone, gold jewelry, photorealistic, cinematic lighting, 9:16 portrait';
 }
 
-const SOUL_NAME='influenceuse-podcast';
+const SOUL_NAME='imany-v2'; /*v2 : recree depuis LA photo de reference imany uniquement — l'ancienne ref (6 vieilles photos IMG du 31/05, mauvais visage) est abandonnee*/
 
 function saveSoulId(id){
   let e=fs.readFileSync(ENV_PATH,'utf8');
