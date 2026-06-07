@@ -701,11 +701,12 @@ async function runLocalTest(){
     const {renderLocal}=require('./render_local');
     const src=workSrc(); // PHOTO DE TRAVAIL COURANTE (look choisi ou dernier raw)
     if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
-    await send('🧪 Rendu LOCAL gratuit (ffmpeg, style courant, photo de travail : '+path.basename(src)+')... ~2s');
-    const S='HE IGNORES YOU THEN CALLS YOU CRAZY THAT IS MANIPULATION NOT LOVE WALK AWAY';
-    const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
+    await send('🧪 Rendu LOCAL gratuit (style + script courants, photo de travail : '+path.basename(src)+')... ~2s');
+    const S=previewScript();
+    const wt=S.replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42})).filter(x=>x.text);
     const out='/tmp/localtest_'+Date.now()+'.mp4';
-    const r=await renderLocal({input:src,wordTimings:wt,keywords:['CRAZY','MANIPULATION','AWAY'],reactions:[{after:'THAT IS MANIPULATION NOT LOVE',type:'mhm'}],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
+    const kw=wt.filter((_,i)=>i%4===2).map(x=>x.text).slice(0,3); // quelques mots-clés pour les zooms
+    const r=await renderLocal({input:src,wordTimings:wt,keywords:kw,reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
     const st=r.style;
     await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
     await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
@@ -812,7 +813,7 @@ async function genFinal(){
     if(!job.audio)job.audio=await WF.generateAudio(job.script,1);
     await setProg('📝 ✓ · 🎙 Voix ✓\n🖼 Préparation avatar…');
     const imageUrl=await WF.prepareImage();
-    const clips=[];const prevScripts=[job.script];
+    const clips=[];const prevScripts=[job.script];const partsMeta=[];
     for(let i=1;i<=job.parts;i++){
       let c,audio;
       if(i===1){c=job.c1;audio=job.audio;}
@@ -823,18 +824,57 @@ async function genFinal(){
       await setProg('🎬 Lipsync '+i+'/'+job.parts+' ✓\n✨ Rendu local…');
       const vid=await WF.renderVideo(lip,audio.wordTimings,c.keywords,audio.duration,i,c.reactions,rawi);
       const p=await WF.saveOpen(vid,c,ts,i,outDir);
-      clips.push(p);
+      clips.push(p);partsMeta.push({raw:rawi,wordTimings:audio.wordTimings,keywords:c.keywords,reactions:c.reactions});
     }
     let finalP=clips.filter(Boolean)[0];
     if(clips.filter(Boolean).length>1){finalP=path.join(outDir,ts+'_FINAL.mp4');WF.concatClips(clips.filter(Boolean),finalP);}
+    await setProg('📦 Archivage du dossier…');
+    const genDir=makeGenFolder(ts,job.topic,finalP,partsMeta,clips);
     await setProg('✅ Terminé !');
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
-    const idx=sentVideos.push(finalP)-1;
-    await send('✅ <b>Vidéo prête !</b>',[[{text:'✅ Prêt à poster',callback_data:'READY_'+idx}],[{text:'🎨 Rééditer',callback_data:'EDIT_HOME'},{text:'♻️ Régénérer',callback_data:'MENU_GEN'}]]);
+    const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic})-1;
+    await send('✅ <b>Vidéo prête !</b>\n📁 Dossier : <code>generations/'+path.basename(genDir)+'/</code> (final + raw + légendes + style).',[
+      [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
+      [{text:'🎨 Restyler (gratuit)',callback_data:'GF_RESTYLE_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'}],
+    ]);
   }catch(e){await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
   state='idle';genJob=null;
+}
+// ── Dossier par génération + restyle gratuit ────────────────────────────────────
+function gslug(s){return String(s||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'video';}
+let genFolders=[];
+function makeGenFolder(ts,topic,finalP,partsMeta,clips){
+  const dir=path.join(BASE,'outputs','generations',ts+'_'+gslug(topic));
+  try{fs.mkdirSync(dir,{recursive:true});}catch(e){}
+  try{fs.copyFileSync(finalP,path.join(dir,'final.mp4'));}catch(e){}
+  (partsMeta||[]).forEach((m,i)=>{try{if(m.raw&&fs.existsSync(m.raw))fs.copyFileSync(m.raw,path.join(dir,'raw_p'+(i+1)+'.mp4'));}catch(e){}});
+  try{const txt=clips&&clips[0]&&clips[0].replace(/\.mp4$/,'.txt');if(txt&&fs.existsSync(txt))fs.copyFileSync(txt,path.join(dir,'caption.txt'));}catch(e){}
+  try{fs.writeFileSync(path.join(dir,'style.json'),JSON.stringify(snapshotStyle(),null,2));}catch(e){}
+  try{fs.writeFileSync(path.join(dir,'meta.json'),JSON.stringify({topic,ts,parts:(partsMeta||[]).map((m,i)=>({raw:'raw_p'+(i+1)+'.mp4',wordTimings:m.wordTimings,keywords:m.keywords,reactions:m.reactions}))},null,2));}catch(e){}
+  const thumb=path.join(dir,'thumbnail.jpg');
+  try{require('child_process').execFileSync('ffmpeg',['-y','-ss','1.0','-i',finalP,'-frames:v','1','-vf','scale=360:-1','-q:v','3',thumb],{stdio:'ignore'});}catch(e){}
+  try{require('child_process').execSync('command -v fileicon >/dev/null 2>&1 && fileicon set "'+dir+'" "'+thumb+'" 2>/dev/null||true',{stdio:'ignore'});}catch(e){} // icône dossier = thumbnail (best effort)
+  return dir;
+}
+function copyDirFlat(src,dst){fs.mkdirSync(dst,{recursive:true});for(const f of fs.readdirSync(src)){const s=path.join(src,f);try{if(fs.statSync(s).isFile())fs.copyFileSync(s,path.join(dst,f));}catch(e){}}}
+async function restyleFolder(dir){
+  const meta=JSON.parse(fs.readFileSync(path.join(dir,'meta.json'),'utf8'));
+  const clips=[];
+  for(let i=0;i<meta.parts.length;i++){
+    const m=meta.parts[i];const raw=path.join(dir,m.raw);
+    if(!fs.existsSync(raw))continue;
+    const dur=(m.wordTimings&&m.wordTimings.length)?m.wordTimings[m.wordTimings.length-1].end+0.35:23;
+    const out='/tmp/restyle_'+Date.now()+'_'+i+'.mp4';
+    await RL.renderLocal({input:raw,wordTimings:m.wordTimings,keywords:m.keywords,reactions:m.reactions,output:out,quiet:true,duration:dur});
+    clips.push(out);
+  }
+  if(!clips.length)throw new Error('aucun raw exploitable');
+  let finalP=clips[0];
+  if(clips.length>1){finalP='/tmp/restyle_final_'+Date.now()+'.mp4';WF.concatClips(clips,finalP);}
+  try{fs.copyFileSync(finalP,path.join(dir,'final.mp4'));fs.writeFileSync(path.join(dir,'style.json'),JSON.stringify(snapshotStyle(),null,2));}catch(e){}
+  return finalP;
 }
 async function showMainMenu(){
   await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
@@ -907,15 +947,19 @@ let workingSource=null; // PHOTO DE TRAVAIL COURANTE unifiée (look choisi) ; fa
 function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingSource:latestRaw();}
 function setWorkPhoto(p){if(p&&fs.existsSync(p))workingSource=p;}
 function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
-// Rend un court clip (WRONG YOURE) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
+// Texte d'aperçu : script courant de la session s'il existe, sinon démo
+function previewScript(){return (genJob&&genJob.script)?genJob.script:'SHE SAYS YOU CHANGED BUT CHEMISTRY FADES';}
+function previewPhrase(){return previewScript().replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).slice(0,2).join(' ').toUpperCase().replace(/[^A-Z ]/g,'')||'WRONG YOURE';}
+// Rend un court clip (texte courant) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
 async function renderStyleFrame(input){
   const raw=input||latestRaw(); if(!raw)return null;
   const {renderLocal}=require('./render_local');
-  const wt='WRONG YOURE'.split(' ').map((w,i)=>({text:w,start:+(i*0.5).toFixed(3),end:+((i+1)*0.5).toFixed(3),duration:0.5}));
-  const out='/tmp/sf_'+Date.now()+'.mp4';
-  let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:['WRONG'],reactions:[],output:out,quiet:true,duration:1.4});}catch(e){return null;}
+  const words=previewScript().replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).slice(0,8);
+  const wt=words.map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.45).toFixed(3),end:+((i+1)*0.45).toFixed(3),duration:0.45})).filter(x=>x.text);
+  const out='/tmp/sf_'+Date.now()+'.mp4';const dur=wt.length?wt[wt.length-1].end+0.3:1.4;
+  let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:[wt[1]?wt[1].text:''],reactions:[],output:out,quiet:true,duration:dur});}catch(e){return null;}
   const frame='/tmp/sf_'+Date.now()+'_'+Math.floor(r.duration*100)+'.png';
-  try{require('child_process').execFileSync('ffmpeg',['-y','-ss','0.6','-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return null;}
+  try{require('child_process').execFileSync('ffmpeg',['-y','-ss',Math.min(0.6,dur/2).toFixed(2),'-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return null;}
   return {frame,style:r.style};
 }
 // Aperçu STILL sur une IMAGE (look) : couleur + sous-titres incrustés, via les helpers de render_local
@@ -923,7 +967,7 @@ async function renderStillPreview(imgPath){
   const sub=readSubs(),fx=readFx(),W=720,H=1280;
   const assPath='/tmp/still_'+Date.now()+'.ass';
   const subsOn=sub.subs!==0;
-  if(subsOn)fs.writeFileSync(assPath,RL.buildAss([{text:'WRONG YOURE',start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
+  if(subsOn)fs.writeFileSync(assPath,RL.buildAss([{text:previewPhrase(),start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
   const color=RL.buildColorFilter(fx.image);
   let vf='scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1';
   if(color)vf+=','+color;
@@ -1141,10 +1185,9 @@ async function handle(upd){
     if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
     if(d==='RC_LOOK'){
       const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));
-      const rows=ll.map((p,i)=>[{text:'🖼 '+path.basename(p),callback_data:'RC_LL_'+i}]);
-      rows.push([{text:'👤 Galerie complète',callback_data:'RC_GALLERY'}]);
-      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('👤 <b>LOOK</b> — 3 derniers utilisés ou galerie :',rows);return;
+      if(ll.length)await send('👤 <b>LOOK</b> — tes derniers utilisés (aperçus) :');
+      for(let i=0;i<ll.length;i++){let fp=ll[i];try{if(fs.statSync(fp).size<30000)require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}await sendPhotoKb(fp,path.basename(ll[i]),[[{text:'✅ Utiliser ce look',callback_data:'RC_LL_'+i}]]).catch(()=>{});}
+      await send(ll.length?'Ou ouvre la galerie complète :':'👤 <b>LOOK</b> — ouvre la galerie :',[[{text:'👤 Galerie complète',callback_data:'RC_GALLERY'}],[{text:'◀️ Récap',callback_data:'RC_BACK'}]]);return;
     }
     if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await showRecap();return;}
     if(d==='RC_GALLERY'){galForRecap=true;gal.idx=0;await showLook();return;}
@@ -1173,6 +1216,23 @@ async function handle(upd){
     if(d==='GJ_MOCK'){await genMockup();return;}
     if(d==='GJ_GO'){await genFinal();return;}
     if(d==='GJ_CANCEL'){genJob=null;state='idle';await send('❌ Annulé.');return;}
+    // ── Dossier de génération : Postable / À retravailler / Restyler ──
+    if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_RESTYLE_')){
+      const ix=+d.slice(11);const gf=genFolders[ix];if(!gf){await send('⚠️ Entrée introuvable.');return;}
+      await send('🎨 Re-rendu LOCAL gratuit avec le style courant (réutilise raw + audio, aucun Kling)... ~2-4s');
+      try{
+        const fp=await restyleFolder(gf.dir);
+        try{const m=JSON.parse(fs.readFileSync(path.join(gf.dir,'meta.json'),'utf8'));if(m.parts&&m.parts[0])setWorkPhoto(path.join(gf.dir,m.parts[0].raw));}catch(e){}
+        await sendVid(fp).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
+        await send('✅ Re-stylée (gratuit) !',[
+          [{text:'✅ Postable',callback_data:'GF_POST_'+ix},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+ix}],
+          [{text:'🎨 Éditer encore',callback_data:'EDIT_HOME'},{text:'🎨 Restyler à nouveau',callback_data:'GF_RESTYLE_'+ix}],
+        ]);
+      }catch(e){await send('❌ Restyle : '+e.message);}
+      return;
+    }
     if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
