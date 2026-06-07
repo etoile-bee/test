@@ -725,7 +725,7 @@ const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — gén�
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
-function gwReset(){genJob=null;/* nouveau wizard : aucun script obsolète ne doit fuiter */ gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
+function gwReset(){genJob=null;cockpitReset();/* nouveau wizard : nouveau cockpit, aucun script obsolète */ gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
 function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
 // Fil d'Ariane du parcours (étape active en gras) — affiché sur chaque écran
 function journey(active){
@@ -754,18 +754,15 @@ async function recapFrame(){ // aperçu = LOOK courant AVEC le style appliqué (
 }
 async function showRecap(){
   const frame=await recapFrame();
-  if(frame){const r=await sendPhotoKb(frame,recapCaption(),recapKb());gw.mid=(r&&r.result&&r.result.message_id)||null;}
-  else {await send(recapCaption(),recapKb());gw.mid=null;}
+  if(frame){await cockpitPhoto(frame,recapCaption(),recapKb());gw.mid=cockpit.mid;}
+  else {const r=await send(recapCaption(),recapKb());cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;}
 }
-async function refreshRecap(){
-  const frame=await recapFrame();
-  if(gw.mid&&frame){if(await editPhotoKb(gw.mid,frame,recapCaption(),recapKb()))return;}
-  await showRecap();
-}
+async function refreshRecap(){ await showRecap(); } // cockpitPhoto édite en place
 // ── Orchestration de génération pilotée par le bot (script preview + maquette + GO) ──
 let genJob=null; // job de génération courant
 let genAbort=false; // flag d'annulation (❌ / /stop) vérifié entre étapes + pendant le polling lipsync
 let genStep=''; // étape courante (pour le message « annulé à l'étape X »)
+let modifyFlow=false; // vrai pendant [✏️ Modifier] à l'étape maquette -> les pickers reviennent à la maquette
 function abortNow(){return genAbort;}
 function genBusy(){return !!(proc||genJob&&genJob.running);}
 const CAT_FOCUS={redflags:'red flags, toxic men, manipulation, control, disrespect',attach:'attachment styles, anxious attachment, avoidant men, fear of intimacy',worth:'self-worth, self-respect, knowing your value, stop settling',healing:'breakups, no contact, healing, moving on, grief',situ:'situationships, dating games, mixed signals, breadcrumbing, why men pull away',feminine:'feminine energy, soft life, high-value mindset, letting him chase'};
@@ -794,12 +791,20 @@ async function recapGo(){
   await genScriptStep();
 }
 async function showScriptCard(){
-  await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+genJob.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic||'')+'\n\n'+escHtml(genJob.script),[
-    [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
+  const wc=genJob.script.split(/\s+/).filter(Boolean).length;
+  const head=journey('script')+'\n\n📝 <b>SCRIPT</b> ('+wc+' mots)\n\n';
+  let body=escHtml(genJob.script);const room=990-head.length;let trunc=false;
+  if(body.length>room){body=body.slice(0,room)+'…';trunc=true;}
+  const kb=[
+    [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau',callback_data:'GJ_NEW'}],
     [{text:'🎣 Hooks A/B',callback_data:'GJ_HOOKS'},{text:'📂 Catégorie',callback_data:'GJ_CAT'}],
-    [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
+    [{text:'✏️ Texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
+    ...(trunc?[[{text:'📄 Script complet',callback_data:'GJ_FULL'}]]:[]),
     [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
-  ]);
+  ];
+  const cap=head+body;
+  if(await cockpitCaption(cap,kb))return; // écrit dans le cockpit (sur la photo du récap)
+  const r=await send(cap,kb);cockpit.mid=(r&&r.result&&r.result.message_id)||null;
 }
 async function genScriptStep(){
   try{
@@ -833,27 +838,26 @@ function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
 }
 async function genAfterScript(){
   const c=estimateCost(genJob.duration);const s=readSubs();
-  await send(journey('maquette')+`\n\n✅ Script validé.\n🎨 Modèle courant : <b>${fontLabel(s.font)} ${s.size}px</b>\n💰 GO ≈ ${c.total.toFixed(2)}${COST.CURRENCY} (${c.parts} partie(s)).`,[
-    [{text:'👁 Maquette (~centimes, aperçu réel)',callback_data:'GJ_MOCK'}],
-    [{text:'🚀 GO direct',callback_data:'GJ_GO'}],
-    [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
-  ]);
+  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px · 💰 ~${c.total.toFixed(2)}${COST.CURRENCY}`;
+  const kb=[
+    [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'},{text:'🚀 GO',callback_data:'GJ_GO'}],
+    [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+  ];
+  if(!await cockpitCaption(cap,kb))await send(cap,kb);
 }
 async function genMockup(){
-  if(!genJob||!genJob.script||genJob.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé pour la maquette.');return;}
+  if(!genJob||!genJob.script||genJob.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé.');return;}
   const raw=latestRaw();
-  if(!raw){await send('⚠️ Pas d\'ancien footage pour la maquette. Utilise 🚀 GO direct.');return;}
-  await send('🎙 Voix ElevenLabs (~centimes)...');
+  if(!raw){await send('⚠️ Pas d\'ancien footage. Utilise 🚀 GO direct.');return;}
+  await cockpitCaption('🎙 Voix + rendu maquette…',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]);
   try{
     genJob.audio=await WF.generateAudio(genJob.script,1);
-    await send('✨ Rendu local de la maquette (ancien footage, lèvres NON synchro — c\'est normal)...');
     const out='/tmp/mockup_'+Date.now()+'.mp4';
     await freshRL().renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
-    await sendVid(out).catch(async()=>{await send('⚠️ Maquette trop lourde.');});
-    const s2=readSubs();
-    await send(journey('maquette')+`\n\n👁 Maquette = ton script + modèle (<b>${fontLabel(s2.font)} ${s2.size}px</b>) + réactions courants, sur l'ancien footage (lèvres non synchro — normal). Si ça te plaît :`,[
-      [{text:'🚀 GO définitif (réutilise cette voix)',callback_data:'GJ_GO'}],
-      [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+    const cap=journey('maquette')+`\n\n👁 Maquette (script + modèle courants · lèvres non synchro).`;
+    await cockpitVideo(out,cap,[
+      [{text:'🚀 GO définitif',callback_data:'GJ_GO'}],
+      [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
   }catch(e){await send('❌ Maquette: '+e.message);}
 }
@@ -863,9 +867,13 @@ async function genFinal(){
   genJob.running=true;state='running';genAbort=false;freshRL(); // render_local à jour (cache partagé WF.renderVideo)
   const job=genJob;
   if(!job||!job.script||job.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé — repasse par 🚀 GO.');state='idle';genJob=null;return;}
-  const prog=await send('📊 Génération…\n📝 ✓ · 🎙 Voix…',[[{text:'⛔ Annuler',callback_data:'GEN_ABORT'}]]);
-  const progMid=prog&&prog.result&&prog.result.message_id;
-  const setProg=async t=>{try{if(progMid)await tg('editMessageText',{message_id:progMid,text:'📊 '+t,parse_mode:'HTML',reply_markup:{inline_keyboard:[[{text:'⛔ Annuler',callback_data:'GEN_ABORT'}]]}});}catch(e){}};
+  let progMid=null;const aKb=[[{text:'⛔ Annuler',callback_data:'GEN_ABORT'}]];
+  const setProg=async t=>{ // met à jour le COCKPIT (sur la maquette/photo), sinon un message dédié
+    if(await cockpitCaption('📊 '+t,aKb))return;
+    if(!progMid){const r=await send('📊 '+t,aKb);progMid=r&&r.result&&r.result.message_id;}
+    else{try{await tg('editMessageText',{message_id:progMid,text:'📊 '+t,parse_mode:'HTML',reply_markup:{inline_keyboard:aKb}});}catch(e){}}
+  };
+  await setProg('📝 ✓ · 🎙 Voix…');
   const abrt=()=>{if(genAbort)throw new Error('ABORT');};
   try{
     const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
@@ -906,7 +914,7 @@ async function genFinal(){
     if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape : <b>'+(genStep||'?')+'</b>.');await send('⛔ Génération annulée. Tu peux relancer quand tu veux.');}
     else{await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
   }
-  genAbort=false;genStep='';state='idle';genJob=null;
+  genAbort=false;genStep='';state='idle';genJob=null;cockpitReset();
 }
 // ── Dossier par génération + restyle gratuit ────────────────────────────────────
 function gslug(s){return String(s||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'video';}
@@ -1116,6 +1124,42 @@ async function editPhotoKb(mid,fp,caption,rows){
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
     const d=await r.json();return !!(d&&d.ok);
   }catch(e){return false;}
+}
+// ── COCKPIT : UN seul message de contrôle pour tout le wizard (photo↔vidéo via editMessageMedia) ──
+let cockpit={mid:null};
+function cockpitReset(){cockpit.mid=null;}
+function cap1024(s){s=String(s||'');return s.length>1024?s.slice(0,1000)+'…':s;}
+async function editVideoKb(mid,fp,caption,rows){
+  try{
+    const FormData=require('form-data');const form=new FormData();
+    form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
+    form.append('media',JSON.stringify({type:'video',media:'attach://vid',caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true}));
+    form.append('vid',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
+    if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
+    const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
+    const d=await r.json();return !!(d&&d.ok);
+  }catch(e){return false;}
+}
+// remplace le média du cockpit par une PHOTO (édite en place, sinon nouveau message)
+async function cockpitPhoto(fp,caption,rows){
+  caption=cap1024(caption);
+  if(cockpit.mid&&await editPhotoKb(cockpit.mid,fp,caption,rows))return cockpit.mid;
+  const r=await sendPhotoKb(fp,caption,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;return cockpit.mid;
+}
+// remplace le média du cockpit par une VIDÉO (maquette) dans le MÊME message
+async function cockpitVideo(fp,caption,rows){
+  if(cockpit.mid&&await editVideoKb(cockpit.mid,fp,caption,rows))return cockpit.mid;
+  const FormData=require('form-data');const form=new FormData();
+  form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
+  form.append('caption',cap1024(caption));form.append('parse_mode','HTML');form.append('supports_streaming','true');
+  if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
+  try{const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});const d=await r.json();cockpit.mid=(d&&d.result&&d.result.message_id)||null;}catch(e){cockpit.mid=null;}
+  return cockpit.mid;
+}
+// met à jour SEULEMENT le texte/boutons du cockpit (sans toucher le média)
+async function cockpitCaption(caption,rows){
+  try{if(cockpit.mid){const r=await tg('editMessageCaption',{message_id:cockpit.mid,caption:cap1024(caption),parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});if(r&&r.ok)return true;}}catch(e){}
+  return false;
 }
 function navRow(){return [
   [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
@@ -1340,6 +1384,15 @@ async function handle(upd){
     // ── Étape script / maquette / GO ──
     if(d==='GJ_OK'){if(genJob)await genAfterScript();else await send('⚠️ Aucun script.');return;}
     if(d==='GJ_NEW'){if(genJob){if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);if(genJob.subjectMode!=='mine')genJob.topic=null;await genScriptStep();}else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_FULL'){if(genJob&&genJob.script)await send('📄 <b>Script complet</b> :\n\n'+escHtml(genJob.script));else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_MODIFY'){
+      const kb=[[{text:'✏️ Texte',callback_data:'GJ_EDIT'},{text:'🎨 Modèle',callback_data:'GJM_STYLE'}],[{text:'👤 Look',callback_data:'GJM_LOOK'},{text:'⏱ Durée',callback_data:'GJM_DUR'}],[{text:'◀️ Retour',callback_data:'GJ_SHOWSCRIPT'}]];
+      if(!await cockpitCaption('✏️ <b>MODIFIER</b> — quoi ?',kb))await send('✏️ <b>MODIFIER</b> — quoi ?',kb);return;
+    }
+    if(d==='GJM_STYLE'){const list=listStyles();const rows=list.map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'GJM_ST_'+i}]);rows.unshift([{text:'🎨 Garder l\'actuel',callback_data:'GJ_SHOWSCRIPT'}]);await send('🎨 <b>MODÈLE</b> :',rows);return;}
+    if(d.startsWith('GJM_ST_')){const list=listStyles();const f=list[+d.slice(7)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));if(genJob)genJob.styleName=f.replace(/\.json$/,'');await send('🎨 Modèle appliqué.').catch(()=>{});}catch(e){}}await genAfterScript();return;}
+    if(d==='GJM_LOOK'){modifyFlow=true;galForRecap=true;galMid=null;gal.idx=0;await showLook();return;}
+    if(d==='GJM_DUR'){state='gjm_dur_wait';await send('⏱ Durée en secondes (5–180) :');return;}
     if(d==='GJ_HOOKS'){await genHooks();return;}
     if(d==='GJ_HOOK_0'||d==='GJ_HOOK_1'){if(genJob&&genJob.hooks){applyHook(genJob.hooks[+d.slice(-1)]);await send('🎣 Hook appliqué.').catch(()=>{});await showScriptCard();}else await send('⚠️ Aucun hook.');return;}
     if(d==='GJ_SHOWSCRIPT'){if(genJob)await showScriptCard();else await send('⚠️ Aucun script.');return;}
@@ -1539,8 +1592,10 @@ await send('Ready to generate video?',[
     }
     if(d==='GAL_PICK'){
       const list=looksList();const f=list[gal.idx];
-      if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);}
-      galForRecap=false;await send('✅ Look choisi : <b>'+(f||'?')+'</b>');await showRecap();return;
+      if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);if(genJob)genJob.look=gw.look;}
+      galForRecap=false;
+      if(modifyFlow){modifyFlow=false;await send('✅ Look : <b>'+(f||'?')+'</b>').catch(()=>{});cockpitReset();await genAfterScript();return;}
+      await send('✅ Look choisi : <b>'+(f||'?')+'</b>');await showRecap();return;
     }
     if(d==='GAL_EDIT'){
       const list=looksList();const f=list[gal.idx];
@@ -1769,8 +1824,15 @@ await send('Ready to generate video?',[
   if(state==='gj_edit_wait'&&msg.text){
     if(genJob){genJob.script=msg.text.trim();genJob.c1=Object.assign({},genJob.c1,{script:genJob.script});genJob.audio=null;}
     state='idle';
-    await send('✅ Script remplacé.',[[{text:'👁 Maquette',callback_data:'GJ_MOCK'},{text:'🚀 GO direct',callback_data:'GJ_GO'}],[{text:'❌ Annuler',callback_data:'GJ_CANCEL'}]]);
+    if(genJob)await showScriptCard();else await send('✅ Script remplacé.');
     return;
+  }
+  if(state==='gjm_dur_wait'&&msg.text){
+    let n=parseInt((msg.text.match(/\d+/)||[])[0]||'',10);
+    if(!n||n<5){await send('⚠️ Nombre de secondes (5–180).');return;}
+    if(n>180)n=180;state='idle';
+    if(genJob){const plan=WF.planParts(n);genJob.duration=n+'s';genJob.parts=plan.n;genJob.words=plan.words;genState.duration=genJob.duration;saveState();}
+    await genAfterScript();return;
   }
   if(state==='rc_topic_wait'&&msg.text){
     gw.topic=msg.text.trim();gw.subjectMode='mine';state='idle';
