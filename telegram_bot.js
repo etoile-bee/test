@@ -627,6 +627,32 @@ const clampN=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v*1000)/1000));
 function readFx(){return RL.loadFx();}
 function hasActiveEdits(){try{const i=readFx().image,s=IMG_PRESETS['Signature'];return Object.keys(s).some(k=>Math.abs((+i[k]||0)-(+s[k]||0))>0.001);}catch(e){return false;}}
 function writeFx(fx){fs.writeFileSync(path.join(BASE,'style.json'),JSON.stringify(fx,null,2));}
+// ── Réglages mémorisés PAR LOOK (look basename -> image fx) ──
+const LOOKSTYLES_PATH=path.join(BASE,'styles_par_look.json');
+function loadLookStyles(){try{return JSON.parse(fs.readFileSync(LOOKSTYLES_PATH,'utf8'));}catch(e){return {};}}
+function getLookStyle(name){const m=loadLookStyles();return name&&m[name]?m[name]:null;}
+function saveLookStyle(name,img){if(!name)return;const m=loadLookStyles();m[name]=img;try{fs.writeFileSync(LOOKSTYLES_PATH,JSON.stringify(m,null,2));}catch(e){}}
+function fxDiffers(a,b){if(!a||!b)return true;return Object.keys(a).some(k=>Math.abs((+a[k]||0)-(+b[k]||0))>0.001);}
+// Propose le choix 3 voies si le look a des réglages enregistrés ≠ actuels. Retourne true si a posé la question.
+let lookStylePending=null;
+async function maybeAskLookStyle(lookPath,ret){
+  setWorkPhoto(lookPath);
+  const saved=getLookStyle(path.basename(lookPath));
+  if(saved&&fxDiffers(saved,readFx().image)){
+    lookStylePending={fx:saved,ret};
+    await send('🎨 Ce look a des réglages enregistrés. Réutiliser ?',[
+      [{text:'✅ Oui (du look)',callback_data:'LS_REUSE'}],
+      [{text:'🔄 Base',callback_data:'LS_BASE'},{text:'🎨 Réglages actuels',callback_data:'LS_KEEP'}],
+    ]);
+    return true;
+  }
+  return false;
+}
+async function routeAfterLook(ret){
+  if(ret==='avatar')await send('✅ Look = avatar + photo de travail.',[[{text:'🎨 Édition',callback_data:'EDIT_HOME'}],[{text:'🎬 Générer',callback_data:'GAL_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);
+  else if(ret==='edit')await showEditHome();
+  else {await ensureTopic();await showRecap();} // 'recap'
+}
 // ── Styles sauvegardés (sous-titres + fx) dans ~/podcast-workflow/styles/ ───────
 function stylesDir(){const d=path.join(BASE,'styles');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
 function readSubs(){
@@ -1579,15 +1605,17 @@ await send('Ready to generate video?',[
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
       const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;setWorkPhoto(fp);
-      await send('✅ Look <b>'+f+'</b> = avatar + photo de travail.\nÉdition, aperçu et test l\'utilisent maintenant.',[
-        [{text:'🎨 Retour à l\'édition',callback_data:'EDIT_HOME'}],
+      if(await maybeAskLookStyle(fp,'avatar'))return; // réglages mémorisés pour ce look ?
+      await send('✅ Look <b>'+f+'</b> = avatar + photo de travail.',[
+        [{text:'🎨 Édition',callback_data:'EDIT_HOME'}],
         [{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
       ]);return;
     }
     if(d==='GAL_GEN'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
-      gwReset();gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);
+      gwReset();gw.look=path.join(getLooksDir(),f);
+      if(await maybeAskLookStyle(gw.look,'recap'))return; // réglages mémorisés pour ce look ?
       await ensureTopic();await showRecap();return;
     }
     if(d==='GAL_PICK'){
@@ -1595,7 +1623,9 @@ await send('Ready to generate video?',[
       if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);if(genJob)genJob.look=gw.look;}
       galForRecap=false;
       if(modifyFlow){modifyFlow=false;await send('✅ Look : <b>'+(f||'?')+'</b>').catch(()=>{});cockpitReset();await genAfterScript();return;}
-      await send('✅ Look choisi : <b>'+(f||'?')+'</b>');await showRecap();return;
+      await send('✅ Look choisi : <b>'+(f||'?')+'</b>');
+      if(f&&await maybeAskLookStyle(gw.look,'recap'))return; // réglages mémorisés pour ce look ?
+      await showRecap();return;
     }
     if(d==='GAL_EDIT'){
       const list=looksList();const f=list[gal.idx];
@@ -1689,7 +1719,10 @@ await send('Ready to generate video?',[
     if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
     if(d==='NOOP')return;
     if(d==='UNDO_EDIT'){if(!undoEdit()){await send('↩️ Rien à annuler.');return;}await send('↩️ Annulé.');await refreshSection();return;}
-    if(d==='VALIDATE_STYLE'){clearHistory();await send('✔️ Style validé et figé. (Historique remis à zéro — repars de cet état.)');return;}
+    if(d==='VALIDATE_STYLE'){clearHistory();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w)){saveLookStyle(path.basename(w),readFx().image);await send('✔️ Réglages validés et <b>mémorisés pour ce look</b>.');}else await send('✔️ Réglages validés.');return;}
+    if(d==='LS_REUSE'){if(lookStylePending){const fx=readFx();fx.image=Object.assign({},lookStylePending.fx);writeFx(fx);const r=lookStylePending.ret;lookStylePending=null;await send('✅ Réglages du look réappliqués.').catch(()=>{});await routeAfterLook(r);}return;}
+    if(d==='LS_BASE'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);const r=lookStylePending?lookStylePending.ret:'recap';lookStylePending=null;await send('🔄 Réglages remis à la base.').catch(()=>{});await routeAfterLook(r);return;}
+    if(d==='LS_KEEP'){const r=lookStylePending?lookStylePending.ret:'recap';lookStylePending=null;await send('🎨 Réglages actuels conservés.').catch(()=>{});await routeAfterLook(r);return;}
     if(d.startsWith('IMG_')){
       pushHistory();
       const fx=readFx(),i=fx.image;
