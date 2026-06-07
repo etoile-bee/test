@@ -577,6 +577,7 @@ async function showSettings(){
     [{text:'⬆️ Monter',callback_data:'S_Y_UP'},{text:'⬇️ Descendre',callback_data:'S_Y_DN'}],
     [{text:'🔡+ Espacement',callback_data:'S_SP_UP'},{text:'🔡- Espacement',callback_data:'S_SP_DN'}],
     [{text:subs?'💬 Sous-titres: OFF':'💬 Sous-titres: ON',callback_data:'S_SUBS'}],
+    [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
     [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
@@ -608,6 +609,22 @@ function writeSubs(v){
 }
 function snapshotStyle(){return {savedAt:new Date().toISOString(),subs:readSubs(),fx:readFx()};}
 function applySnapshot(snap){if(snap&&snap.subs)writeSubs(snap.subs);if(snap&&snap.fx)writeFx(snap.fx);}
+// ── Historique d'édition (pile JSON) : undo pas à pas jusqu'à validation ────────
+function histPath(){return path.join(BASE,'edit_history.json');}
+function histRead(){try{return JSON.parse(fs.readFileSync(histPath(),'utf8'));}catch(e){return [];}}
+function histWrite(a){try{fs.writeFileSync(histPath(),JSON.stringify(a));}catch(e){}}
+function pushHistory(){const a=histRead();a.push(snapshotStyle());while(a.length>50)a.shift();histWrite(a);}
+function undoEdit(){const a=histRead();const prev=a.pop();histWrite(a);if(prev)applySnapshot(prev);return !!prev;}
+function clearHistory(){histWrite([]);}
+let editSectionCur=null;
+async function refreshSection(){
+  editPrevFrame=null;
+  if(editSectionCur==='img'){editPanel.mid=null;await sendImagePanel();return;}
+  await sendBeforeAfter();
+  if(editSectionCur==='zoom')await showEditZoom();
+  else if(editSectionCur==='mus')await showEditMusic();
+  else await showSettings();
+}
 function listStyles(){try{return fs.readdirSync(stylesDir()).filter(f=>f.endsWith('.json')).sort();}catch(e){return[];}}
 function saveStyleAuto(){
   const dir=stylesDir();const existing=listStyles();let n=existing.length+1;
@@ -795,6 +812,7 @@ function imageKb(){
     [{text:'➖',callback_data:'IMG_SH_DN'},{text:'🔪 Netteté: '+i.sharpness,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SH_UP'}],
     [{text:'➖',callback_data:'IMG_VI_DN'},{text:'⬛ Vignette: '+i.vignette,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_VI_UP'}],
     ...preRows,
+    [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
     [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ];
 }
@@ -808,6 +826,7 @@ async function showEditZoom(){
     [{text:'💪+ Intensité',callback_data:'ZM_IN_UP'},{text:'💪- Intensité',callback_data:'ZM_IN_DN'}],
     [{text:'⏱+ Durée',callback_data:'ZM_DU_UP'},{text:'⏱- Durée',callback_data:'ZM_DU_DN'}],
     [{text:'🔁 Fréquence (tous / 1 sur 2)',callback_data:'ZM_FREQ'}],
+    [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
     [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
@@ -819,6 +838,7 @@ async function showEditMusic(){
     [{text:m.on?'🎵 Musique: OFF':'🎵 Musique: ON',callback_data:'MU_TOGGLE'}],
     [{text:'⏭ Fichier suivant',callback_data:'MU_FILE'}],
     [{text:'🔊+ Volume',callback_data:'MU_VOL_UP'},{text:'🔊- Volume',callback_data:'MU_VOL_DN'}],
+    [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
     [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
@@ -1088,14 +1108,17 @@ await send('Ready to generate video?',[
     }
     // Menu /edit unifié
     if(d==='EDIT_HOME'){editPrevFrame=null;await showEditHome();return;}
-    if(d==='EDIT_SUBS'){await showSettings();await captureBaseline();return;}
-    if(d==='EDIT_IMG'){editPanel.mid=null;await sendImagePanel();return;}
-    if(d==='EDIT_ZOOM'){await showEditZoom();await captureBaseline();return;}
-    if(d==='EDIT_MUS'){await showEditMusic();await captureBaseline();return;}
+    if(d==='EDIT_SUBS'){editSectionCur='subs';await showSettings();await captureBaseline();return;}
+    if(d==='EDIT_IMG'){editSectionCur='img';editPanel.mid=null;await sendImagePanel();return;}
+    if(d==='EDIT_ZOOM'){editSectionCur='zoom';await showEditZoom();await captureBaseline();return;}
+    if(d==='EDIT_MUS'){editSectionCur='mus';await showEditMusic();await captureBaseline();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
     if(d==='NOOP')return;
+    if(d==='UNDO_EDIT'){if(!undoEdit()){await send('↩️ Rien à annuler.');return;}await send('↩️ Annulé.');await refreshSection();return;}
+    if(d==='VALIDATE_STYLE'){clearHistory();await send('✔️ Style validé et figé. (Historique remis à zéro — repars de cet état.)');return;}
     if(d.startsWith('IMG_')){
+      pushHistory();
       const fx=readFx(),i=fx.image;
       if(d==='IMG_BR_UP')i.brightness=clampN(i.brightness+0.02,-0.3,0.3);
       if(d==='IMG_BR_DN')i.brightness=clampN(i.brightness-0.02,-0.3,0.3);
@@ -1113,6 +1136,7 @@ await send('Ready to generate video?',[
       writeFx(fx);await updateImagePanel();return;
     }
     if(d.startsWith('ZM_')){
+      pushHistory();
       const fx=readFx(),z=fx.zoom;
       if(d==='ZM_TOGGLE')z.on=z.on?0:1;
       if(d==='ZM_IN_UP')z.intensity=clampN(z.intensity+0.25,0,3);
@@ -1123,6 +1147,7 @@ await send('Ready to generate video?',[
       writeFx(fx);await afterEdit('zoom');return;
     }
     if(d.startsWith('MU_')){
+      pushHistory();
       const fx=readFx(),m=fx.music,files=musicFiles();
       if(d==='MU_TOGGLE')m.on=m.on?0:1;
       if(d==='MU_FILE'){if(files.length){let idx=files.indexOf(m.file);m.file=files[(idx+1)%files.length];}}
@@ -1132,6 +1157,7 @@ await send('Ready to generate video?',[
     }
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
+      pushHistory();
       const sp=path.join(BASE,'subtitle_style.js');
       if(d==='S_SIZE_UP'||d==='S_SIZE_DN'||d==='S_Y_UP'||d==='S_Y_DN'){
         let s=fs.readFileSync(sp,'utf8');
