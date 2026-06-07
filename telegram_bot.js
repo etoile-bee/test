@@ -139,15 +139,15 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,busy:false}; /*newlook v4 : lookbook (categories generatives + decors + recettes)*/
+let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,eco:true,busy:false}; /*newlook v5 : eco par defaut (1 image 720p), 💎 final = 4 poses HD*/
 async function runNewLook(){
   if(newlook.busy){await send('⏳ Une génération de looks est déjà en cours, patiente...');return;}
   newlook.busy=true;
   const _hb=setInterval(()=>{send('⏳ Génération de look toujours en cours...').catch(()=>{});},180000); /*heartbeat 3 min*/
   try{
-    await send('🎨 Génération de 4 poses (même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
+    await send((newlook.eco?'🧪 Génération TEST éco (1 image 720p, ~6x moins cher)':'💎 Génération FINALE (4 poses HD)')+' — même visage...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
     const {generateLook}=require('./newlook.js');
-    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra},m=>{send('• '+m).catch(()=>{});});
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,eco:newlook.eco},m=>{send('• '+m).catch(()=>{});});
     newlook.urls=r.urls;newlook.recipe=r.recipe;
     for(let i=0;i<r.urls.length;i++){
       const tmp='/tmp/newlook'+Date.now()+'_'+i+'.jpg';
@@ -155,9 +155,11 @@ async function runNewLook(){
       await sendImg(tmp,'Pose '+(i+1)+'/'+r.urls.length);
     }
     const keepRow=r.urls.map((u,i)=>({text:'✅ '+(i+1),callback_data:'NL_KEEP_'+i}));
-    await send('Lesquelles on garde ? (plusieurs possibles — chaque garde mémorise la recette, recréable via /look)',[
+    const row2=[{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'👗 Catégorie',callback_data:'NL_CATMENU'},{text:'🌆 Décor',callback_data:'NL_ENVMENU'}];
+    if(newlook.eco)row2.unshift({text:'💎 Version finale HD',callback_data:'NL_HD'});
+    await send((newlook.eco?'🧪 Test éco — si ce look te plaît, 💎 lance les 4 poses HD avec la même recette.\n':'')+'Lesquelles on garde ? (chaque garde mémorise la recette, recréable via /look)',[
       keepRow,
-      [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'👗 Catégorie',callback_data:'NL_CATMENU'},{text:'🌆 Décor',callback_data:'NL_ENVMENU'}],
+      row2,
       [{text:'❌ Fini',callback_data:'NL_CANCEL'}]
     ]);
   }catch(e){await send('❌ Échec génération looks : '+e.message).catch(()=>{});}
@@ -1935,6 +1937,7 @@ await send('Ready to generate video?',[
       }catch(e){await send('Erreur enregistrement : '+e.message);}
       return;
     }
+    if(d==='NL_HD'){newlook.urls=[];newlook.eco=false;runNewLook().then(()=>{newlook.eco=true;});return;} /*eco v1 : version finale 4 poses HD, meme recette, puis retour eco*/
     if(d==='NL_RETRY'){newlook.urls=[];runNewLook();return;}
     if(d==='NL_CANCEL'){newlook.urls=[];await send('Terminé — galerie à jour.');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/

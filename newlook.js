@@ -95,20 +95,21 @@ async function generateLook(opts,log){
   const soulId=await ensureSoulId(client,log);
   if(!lb.categories[opts.category]&&!opts.extra)opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
+  /*eco v1 : mode test economique (1 image 720p, ~6x moins cher) vs final (4 poses 1080p)*/
   const jobSet=await client.generate('/v1/text2image/soul',{
     prompt:prompt,
     custom_reference_id:soulId,
     custom_reference_strength:1,
     width_and_height:'1536x2048',
-    quality:'1080p',
-    batch_size:4
+    quality:opts.eco?'720p':'1080p',
+    batch_size:opts.eco?1:4
   },{withPolling:true});
   const jobs=(jobSet&&jobSet.jobs)||[];
   if(!jobs.length)throw new Error('réponse vide de Higgsfield');
   if(jobs.every(j=>j.status==='nsfw'))throw new Error('images refusées par la modération (crédits remboursés) — reformule');
   const urls=jobs.filter(j=>j.status==='completed'&&j.results).map(j=>(j.results.raw&&j.results.raw.url)||(j.results.min&&j.results.min.url)).filter(Boolean);
   if(!urls.length)throw new Error('génération échouée (statuts: '+jobs.map(j=>j.status).join(',')+')');
-  return{urls:urls,prompt:prompt,recipe:{category:opts.category||null,env:opts.env||'bougies',extra:opts.extra||null}};
+  return{urls:urls,prompt:prompt,recipe:{category:opts.category||null,env:opts.env||'bougies',extra:opts.extra||null,eco:!!opts.eco}};
 }
 
 /*newlook v4 : catalogue 204 tenues + rotation anti-repetition (pas de doublon avant cycle complet ; conseil applique : jamais le meme look a moins de 12 videos)*/
