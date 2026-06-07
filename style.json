@@ -1,10 +1,10 @@
 {
   "image": {
-    "brightness": 0.02,
+    "brightness": 0.1,
     "contrast": 1.04,
     "saturation": 1,
     "temperature": 5600,
-    "sharpness": 0,
+    "sharpness": 0.9,
     "vignette": 1
   },
   "zoom": {
@@ -20,6 +20,6 @@
     "volume": 0.12
   },
   "reactions": {
-    "mode": "off"
+    "mode": "natural"
   }
 }

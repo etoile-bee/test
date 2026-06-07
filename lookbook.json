@@ -133,6 +133,22 @@
       "category": "casual",
       "env": "bougies",
       "extra": null
+    },
+    {
+      "id": 12,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-23-09_p1.jpg",
+      "category": "random",
+      "env": "jour",
+      "extra": "ivory silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+    },
+    {
+      "id": 13,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-23-13_p1.jpg",
+      "category": "random",
+      "env": "jour",
+      "extra": "ivory silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
     }
   ],
   "pricing": {
