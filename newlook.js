@@ -126,26 +126,18 @@ async function generateLook(opts,log){
   const prompt=buildPrompt(lb,opts);
   const mode=opts.mode||'planche';
   const refUrl=await getRefUrl(client,log);
-  const {higgsfield,config}=require('@higgsfield/client/v2');
-  config({credentials:process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET});
-  /*seedream v4 edit : prompt + photo de reference = le process manuel exact d'Etoile*/
-  /*format officiel (client Python Higgsfield) : arguments prompt/resolution/aspect_ratio ; edit = avec image de base*/
-  const endpoints=['bytedance/seedream/v4/edit','bytedance/seedream/v4/image-to-image','bytedance/seedream/v4/text-to-image'];
-  let lastErr=null,jobSet=null;
-  for(const ep of endpoints){
-    try{
-      const input={
-        prompt:prompt,
-        aspect_ratio:'9:16',
-        resolution:mode==='hd'?'2K':'1K',
-        batch_size:mode==='hd'?4:1
-      };
-      if(ep!=='bytedance/seedream/v4/text-to-image')input.input_images=[{type:'image_url',image_url:refUrl}];
-      else input.prompt='Use this exact woman as reference: '+refUrl+'\n'+prompt; /*dernier recours si pas d'endpoint edit*/
-      jobSet=await higgsfield.subscribe(ep,{input:input,withPolling:true});
-      if(jobSet){log('moteur : seedream v4 ('+ep.split('/').pop()+')');break;}
-    }catch(e){lastErr=e;log('('+ep.split('/').pop()+' : '+(e.message||e)+')');}
-  }
+  /*v9 FINAL : /v1/text2image/seedream (schema revele par sonde : params.prompt + params.input_images) — meme client v1 que Kling/Soul*/
+  log('moteur : seedream (/v1, reference imany)');
+  const sdParams={
+    prompt:prompt,
+    input_images:[{type:'image_url',image_url:refUrl}],
+    aspect_ratio:'9:16',
+    batch_size:mode==='hd'?4:1
+  };
+  let jobSet=null,lastErr=null;
+  try{
+    jobSet=await client.generate('/v1/text2image/seedream',sdParams,{withPolling:true});
+  }catch(e){lastErr=e;log('(seedream : '+(e.message||e)+')');}
   if(!jobSet)throw new Error('Seedream inaccessible — '+(lastErr&&lastErr.message||'erreur inconnue'));
   const jobs=(jobSet&&jobSet.jobs)||[];
   if(!jobs.length)throw new Error('réponse vide de Higgsfield');
