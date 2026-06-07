@@ -1,22 +1,130 @@
 {
   "persona": "imany",
   "note": "ADN visuel du persona. categories = tenues GENEREES par prompt (pas de liste figee). envs = decors. saved = recettes des looks gardes (recreables via /look). Editable a la main ou via Claude.",
-  "style_rules": "Quiet luxury / old money aesthetic (The Row, Toteme, Loro Piana, Khaite, Celine inspiration) — refined, expensive-looking, NEVER flashy, no visible brand logos. Choose accessories, makeup and hairstyle to MATCH the outfit — vary them from look to look. Within one image set: same outfit, same accessories, same makeup, same hairstyle on every image.",
+  "style_rules": "Quiet luxury / old money aesthetic (The Row, Toteme, Loro Piana, Khaite, Celine inspiration) — refined, expensive-looking, NEVER flashy, no visible brand logos. Choose accessories, makeup and hairstyle to MATCH the outfit — vary them from look to look. Within one image set: same outfit, same accessories, same makeup, same hairstyle on every image. Hair accessories (clips, pins) are ALLOWED but optional and must VARY from look to look — NEVER repeat the same hair clip across different looks; most looks should have none, some can feature a different subtle accessory.",
   "pose_rules": "ONE single full-bleed portrait per image: one subject, ONE pose, NO collage, NO grid, NO multiple panels, NO magazine layout, NO text or typography in the image. Hands resting out of frame, never visible. Seated, chest-up framing, engaged eye contact. Stop-scrolling realistic energy.",
   "realism_rules": "Candid unposed documentary feel, like a real podcast frame grab: shot on a Sony A7 IV with 85mm lens, natural unedited color grading, slightly uneven ambient light, NO beauty filter, NO airbrushing, NO editorial gloss, NO perfect symmetry, natural imperfect hair strands, believable fabric wrinkles. The image must look like a real photo someone took, not a generated portrait.",
   "texture_rules": "Ultra-detailed raw skin rendering: heavily visible pores, beauty marks, fine natural skin unevenness on face, neck, chest and décolleté, subtle vellus hair, slight natural shine — photorealistic unretouched quality, WITHOUT altering the facial features or identity.",
   "categories": {
-    "soiree": { "label": "🌙 Soirée", "prompt": "Invent an elegant evening outfit: silk, satin or velvet, refined neckline, understated luxury." },
-    "business": { "label": "💼 Business", "prompt": "Invent a powerful boardroom outfit: tailored blazer or structured dress, old money codes." },
-    "casual": { "label": "🤍 Casual chic", "prompt": "Invent an elevated everyday outfit: quality basics, crisp shirt or fine knit, effortless." },
-    "cosy": { "label": "🧸 Cosy", "prompt": "Invent a soft cozy outfit: cashmere, oversized knit, warm neutral tones, intimate feel." },
-    "ete": { "label": "☀️ Été", "prompt": "Invent a summer outfit: linen, light silk, sun-kissed elegance, vacation old money." },
-    "fete": { "label": "✨ Fête", "prompt": "Invent a festive seasonal outfit matching the current season or holiday (Christmas, New Year, Valentine's...): celebratory but refined." }
+    "soiree": {
+      "label": "🌙 Soirée",
+      "prompt": "Invent an elegant evening outfit: silk, satin or velvet, refined neckline, understated luxury."
+    },
+    "business": {
+      "label": "💼 Business",
+      "prompt": "Invent a powerful boardroom outfit: tailored blazer or structured dress, old money codes."
+    },
+    "casual": {
+      "label": "🤍 Casual chic",
+      "prompt": "Invent an elevated everyday outfit: quality basics, crisp shirt or fine knit, effortless."
+    },
+    "cosy": {
+      "label": "🧸 Cosy",
+      "prompt": "Invent a soft cozy outfit: cashmere, oversized knit, warm neutral tones, intimate feel."
+    },
+    "ete": {
+      "label": "☀️ Été",
+      "prompt": "Invent a summer outfit: linen, light silk, sun-kissed elegance, vacation old money."
+    },
+    "fete": {
+      "label": "✨ Fête",
+      "prompt": "Invent a festive seasonal outfit matching the current season or holiday (Christmas, New Year, Valentine's...): celebratory but refined."
+    }
   },
   "envs": {
-    "bougies": { "label": "🕯 Bougies", "prompt": "Environment: same luxury podcast studio as the reference image — dark moody library, bookshelves, warm candlelight glow, professional microphone in front of her." },
-    "jour": { "label": "☀️ Jour", "prompt": "Environment: bright airy creator studio in soft natural daylight — large windows, sheer curtains, neutral cream tones, minimalist elevated interior, green plants, podcast microphone on a boom arm. Quiet luxury aesthetic." },
-    "studio": { "label": "🎙 Studio réaliste", "prompt": "Environment: realistic professional podcast studio — warm wooden slat wall, subtle acoustic panels, soft warm LED accent lighting, boom-arm microphone and studio headphones on the table, plants and string lights blurred in background." }
+    "bougies": {
+      "label": "🕯 Bougies",
+      "prompt": "Environment: same luxury podcast studio as the reference image — dark moody library, bookshelves, warm candlelight glow, professional microphone in front of her."
+    },
+    "jour": {
+      "label": "☀️ Jour",
+      "prompt": "Environment: bright airy creator studio in soft natural daylight — large windows, sheer curtains, neutral cream tones, minimalist elevated interior, green plants, podcast microphone on a boom arm. Quiet luxury aesthetic."
+    },
+    "studio": {
+      "label": "🎙 Studio réaliste",
+      "prompt": "Environment: realistic professional podcast studio — warm wooden slat wall, subtle acoustic panels, soft warm LED accent lighting, boom-arm microphone and studio headphones on the table, plants and string lights blurred in background."
+    }
   },
-  "saved": []
+  "saved": [
+    {
+      "id": 1,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-16_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 2,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-16_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 3,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-23_p1.jpg",
+      "category": "ete",
+      "env": "jour",
+      "extra": null
+    },
+    {
+      "id": 4,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-56_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 5,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-57_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 6,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-57_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 7,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-57_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 8,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-58_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 9,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-20-58_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    },
+    {
+      "id": 10,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-21-00_p1.jpg",
+      "category": "business",
+      "env": "studio",
+      "extra": null
+    }
+  ]
 }
