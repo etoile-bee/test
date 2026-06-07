@@ -5,8 +5,8 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 45;     // taille du texte — reduit de 48 a 45 (-3pt, demande Etoile 07/06)
-const OY        = 0.28;   // hauteur — VALIDÉ par Etoile sur le test de 2h31 (texte a 66% : decollete, niveau coeur TikTok)
+const FONT_SIZE = 42;     // taille du texte — reduit 48→45→42 (demande Etoile 07/06)
+const OY        = 0.26;   // hauteur — descendu vers pendentif/clavicule (cible ~70% hauteur, demande Etoile 07/06)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
