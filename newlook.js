@@ -10,7 +10,11 @@ const PROMPT_FILE=path.join(BASE,'newlook_prompt.txt');
 const ENV_PATH=path.join(BASE,'.env');
 
 function looksDir(){try{return fs.realpathSync(path.join(BASE,'looks'));}catch(e){return path.join(BASE,'looks');}}
-function refsDir(){return path.join(looksDir(),'references');}
+function refsDir(){ /*newlook v4 : priorite au dossier references/imany (LA reference officielle), sinon references/*/
+  const im=path.join(looksDir(),'references','imany');
+  try{if(fs.readdirSync(im).some(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)))return im;}catch(e){}
+  return path.join(looksDir(),'references');
+}
 
 function getClient(){
   const {HiggsfieldClient}=require('@higgsfield/client');
