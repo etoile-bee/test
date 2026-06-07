@@ -725,7 +725,7 @@ const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — gén�
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
-function gwReset(){gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
+function gwReset(){genJob=null;/* nouveau wizard : aucun script obsolète ne doit fuiter */ gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
 function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
 // Fil d'Ariane du parcours (étape active en gras) — affiché sur chaque écran
 function journey(active){
@@ -766,19 +766,20 @@ async function refreshRecap(){
 let genJob=null; // job de génération courant
 function genBusy(){return !!(proc||genJob&&genJob.running);}
 const CAT_FOCUS={redflags:'red flags, toxic men, manipulation, control, disrespect',attach:'attachment styles, anxious attachment, avoidant men, fear of intimacy',worth:'self-worth, self-respect, knowing your value, stop settling',healing:'breakups, no contact, healing, moving on, grief',situ:'situationships, dating games, mixed signals, breadcrumbing, why men pull away',feminine:'feminine energy, soft life, high-value mindset, letting him chase'};
-async function autoPickTopic(cat){
+let sessionTopics=[]; // sujets déjà tirés/refusés cette session -> exclusion anti-répétition
+async function autoPickTopic(cat,extra){
   const Anthropic=require('@anthropic-ai/sdk');const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
   let used=[];try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));used=(lib.scripts||[]).map(s=>s.title);}catch(e){}
+  const excl=[...used,...sessionTopics,...(extra||[])].filter(Boolean);
   const focus=cat&&CAT_FOCUS[cat]?('STRICTLY within this theme: '+CAT_FOCUS[cat]+'.'):'romantic relationship topics (red flags, attachment, self-worth, breakups, situationships, feminine energy).';
-  const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:120,messages:[{role:'user',content:'TikTok relationship coach for women 20-40. Pick ONE fresh, viral topic — '+focus+'\nIMPORTANT anti-repetition: it MUST be clearly DIFFERENT (different angle AND different wording) from every title already done below. Avoid any topic that overlaps with them.\nAlready done ('+used.length+'): '+used.join(' | ')+'\nReturn ONLY the new title in English, no quotes, no bold.'}]});
+  const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:120,messages:[{role:'user',content:'TikTok relationship coach for women 20-40. Pick ONE fresh, viral topic — '+focus+'\nIMPORTANT anti-repetition: it MUST be clearly DIFFERENT (different angle AND different wording) from every title in the EXCLUDE list. Never return anything similar to them.\nEXCLUDE ('+excl.length+'): '+excl.slice(-120).join(' | ')+'\nReturn ONLY the new title in English, no quotes, no bold.'}]});
   return r.content[0].text.trim().replace(/^["'*]+|["'*]+$/g,'');
 }
-// Démarre depuis la carte récap : écrit le 1er script et l'affiche pour validation
 // Résout le sujet AU MOMENT du récap (auto -> autoPickTopic), pour l'afficher avant GO
 async function ensureTopic(){
   if(gw.subjectMode==='mine')return;
   if(gw.topic)return;
-  try{gw.topic=await autoPickTopic(gw.topicCat);}catch(e){gw.topic=null;}
+  try{gw.topic=await autoPickTopic(gw.topicCat);if(gw.topic)sessionTopics.push(gw.topic);}catch(e){gw.topic=null;}
 }
 async function recapGo(){
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
@@ -797,7 +798,7 @@ async function genScriptStep(){
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
     await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
       [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
-      [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
+      [{text:'📂 Catégorie',callback_data:'GJ_CAT'},{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'},{text:'💾 Garder',callback_data:'GJ_SAVESCRIPT'}],
       [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
   }catch(e){await send('❌ Script: '+e.message);genJob=null;}
@@ -811,6 +812,7 @@ async function genAfterScript(){
   ]);
 }
 async function genMockup(){
+  if(!genJob||!genJob.script||genJob.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé pour la maquette.');return;}
   const raw=latestRaw();
   if(!raw){await send('⚠️ Pas d\'ancien footage pour la maquette. Utilise 🚀 GO direct.');return;}
   await send('🎙 Voix ElevenLabs (~centimes)...');
@@ -832,6 +834,8 @@ async function genFinal(){
   if(proc||genJob.running){await send('⏳ Déjà en cours.');return;}
   genJob.running=true;state='running';freshRL(); // recharge render_local à jour (cache partagé avec WF.renderVideo)
   const job=genJob;
+  // GARDE-FOU séparation stricte : la vraie génération n'utilise QUE le script validé du wizard
+  if(!job||!job.script||job.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé — repasse par 🚀 GO → écran Script.');state='idle';genJob=null;return;}
   const prog=await send('📊 <b>GÉNÉRATION</b>\n📝 Script ✓\n🎙 Voix…');
   const progMid=prog&&prog.result&&prog.result.message_id;
   const setProg=async t=>{try{if(progMid)await tg('editMessageText',{message_id:progMid,text:'📊 <b>GÉNÉRATION</b>\n'+t,parse_mode:'HTML'});}catch(e){}};
@@ -979,7 +983,9 @@ function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingS
 function setWorkPhoto(p){if(p&&fs.existsSync(p))workingSource=p;}
 function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
 // Texte d'aperçu : script courant de la session s'il existe, sinon démo
-function previewScript(){return (genJob&&genJob.script)?genJob.script:'SHE SAYS YOU CHANGED BUT CHEMISTRY FADES';}
+const DEMO_SCRIPT='SHE SAYS YOU CHANGED BUT CHEMISTRY FADES';
+// L'aperçu/preview LIT le script validé s'il existe (lecture seule, ne l'écrase JAMAIS), sinon démo.
+function previewScript(){return (genJob&&genJob.script)?genJob.script:DEMO_SCRIPT;}
 function previewPhrase(){return previewScript().replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).slice(0,2).join(' ').toUpperCase().replace(/[^A-Z ]/g,'')||'WRONG YOURE';}
 // Rend un court clip (texte courant) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
 async function renderStyleFrame(input){
@@ -1244,7 +1250,7 @@ async function handle(upd){
     }
     if(d==='GEN_KEEP'){gwReset();await ensureTopic();await showRecap();return;}
     if(d==='GEN_RESET'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);gwReset();await ensureTopic();await showRecap();return;}
-    if(d==='RC_NEWTOPIC'){gw.topic=null;await ensureTopic();await refreshRecap();return;}
+    if(d==='RC_NEWTOPIC'){if(gw.topic&&!sessionTopics.includes(gw.topic))sessionTopics.push(gw.topic);gw.topic=null;await send('🔄 Nouveau sujet...').catch(()=>{});await ensureTopic();await refreshRecap();return;}
     if(d==='TEST_GEN'){gwReset();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w))gw.look=w;await send('🚀 Carte de génération (paramètres du test)...').catch(()=>{});await ensureTopic();await showRecap();return;}
     if(d==='EXPRESS_NEW'){gwReset();await recapGo();return;} /*express 1-tap : défauts state.json -> GO direct*/
     // ── Carte récap : lignes modifiables ──
@@ -1284,7 +1290,9 @@ async function handle(upd){
     if(d==='RC_GO'){await recapGo();return;}
     // ── Étape script / maquette / GO ──
     if(d==='GJ_OK'){if(genJob)await genAfterScript();else await send('⚠️ Aucun script.');return;}
-    if(d==='GJ_NEW'){if(genJob)await genScriptStep();else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_NEW'){if(genJob){if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);if(genJob.subjectMode!=='mine')genJob.topic=null;await genScriptStep();}else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_CAT'){if(!genJob){await send('⚠️ Aucun script.');return;}const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'GJ_CATSET_'+k}]);rows.push([{text:'◀️ Retour au script',callback_data:'GJ_NEW'}]);await send('📂 <b>CATÉGORIE</b> du script — régénère dans ce thème :',rows);return;}
+    if(d.startsWith('GJ_CATSET_')){if(!genJob){await send('⚠️ Aucun script.');return;}const k=d.slice(10);genJob.topicCat=k;genJob.subjectMode='auto';if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);genJob.topic=null;genState.topicCat=k;saveState();await send('📂 '+MCATS[k]+' — nouveau script...').catch(()=>{});await genScriptStep();return;}
     if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
     if(d==='GJ_MOCK'){await genMockup();return;}
     if(d==='GJ_GO'){await genFinal();return;}
@@ -1849,20 +1857,20 @@ process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && 
 process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
 
 setInterval(()=>{},1<<30);
-tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le menu "/" de Telegram*/
+tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*/
+  {command:'stop',description:'⏹ Tout arrêter'},
   {command:'go',description:'🏠 Menu principal'},
   {command:'menu',description:'🏠 Menu principal'},
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
   {command:'looks',description:'👤 Galerie de looks'},
   {command:'posted',description:'📤 Vidéos prêtes à poster'},
   {command:'files',description:'📁 Fichiers (vidéos, images, légendes, looks)'},
-  {command:'styles',description:'💾 Modèles enregistrés'},
+  {command:'styles',description:'📦 Modèles enregistrés'},
   {command:'preview',description:'👁 Aperçu gratuit du look'},
   {command:'test',description:'🧪 Rendu local gratuit'},
   {command:'settings',description:'⚙️ Réglages sous-titres'},
   {command:'ideas',description:'💡 Idées de sujets'},
   {command:'library',description:'📚 Derniers scripts'},
-  {command:'stop',description:'⏹ Tout arrêter'},
   {command:'status',description:'ℹ️ État du bot'},
   {command:'restart',description:'🔄 Redémarrer le bot'},
   {command:'help',description:'❓ Aide'},

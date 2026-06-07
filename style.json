@@ -1,8 +1,8 @@
 {
   "image": {
-    "brightness": 0.06,
+    "brightness": 0.02,
     "contrast": 1.04,
-    "saturation": 0.95,
+    "saturation": 1,
     "temperature": 5600,
     "sharpness": 0,
     "vignette": 1
@@ -20,6 +20,6 @@
     "volume": 0.12
   },
   "reactions": {
-    "mode": "on"
+    "mode": "natural"
   }
 }
