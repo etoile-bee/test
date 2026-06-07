@@ -38,18 +38,18 @@
 - Toujours demander "on fait le point ?" avant toute génération de vraie vidéo.
 
 ## ÉTAT ACTUEL (2026-06-07)
-- Sous-titres : style subref v2 (Arial Black 52px, stroke blanc 1.3px, ombre douce, OY=0.347) centralisé dans `subtitle_style.js`. NON ENCORE VALIDÉ visuellement (le test du 06/06 a dû être supprimé — mauvaise personne).
+- Sous-titres : ✅ VALIDÉS ET VERROUILLÉS par Etoile (référence : DEMO_trim_0.1s, vidéo prod 20h54). Style : Arial Black 52px, stroke blanc 1.3px, ombre douce, OY=0.347, dans `subtitle_style.js`. Tag git `soustitres-valides-v1`. NE PLUS TOUCHER sans demande explicite.
+- ⚠️ Le test sandbox peut rendre la police différemment de la prod → pour les sous-titres, la référence est toujours le rendu PROD.
 - `workflow.js` : revue1 appliquée (fix filtre [pause], captions, retry JSON ×3, approbation scripts Parts 2/3 avant dépense, code mort supprimé).
 - `telegram_bot.js` : commande `/test` ajoutée (sandbox, garde-fous) + réglages /settings retargés sur `subtitle_style.js` → ⚠️ REDÉMARRAGE PM2 EN ATTENTE (quand bot libre).
 - Avatar `.env` : la bonne influenceuse (hf_20260531_191302...). Purge faite : tous les fichiers de la "mauvaise personne" (session 21h10-21h28 du 06/06) + selfie terrasse supprimés.
 - Son : trimstart v1 VALIDÉ par Etoile (démo écoutée) — 0.10s coupées en début de chaque vidéo dans la passe finale (pop audio réglé). Réglage : const TRIM dans saveOpen.
 
 ## CE QU'IL RESTE À FAIRE
-1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test` et les nouveaux réglages.
-2. Lancer le test sous-titres (Terminal ou `/test`) sur le raw 20h54 (bonne influenceuse) → caler FONT_SIZE/OY dans `subtitle_style.js` jusqu'à validation.
-3. UNE vraie vidéo de validation (couleur + sous-titres), puis git tag "v1-validee".
-4. 🆕 Galerie de looks dans le bot.
-5. Ensuite seulement : multi-personas (config par influenceuse) puis monétisation.
+1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test` et les réglages /settings retargés.
+2. UNE vraie vidéo de validation complète (couleur + sous-titres verrouillés + trim 0.10s + sans réactions), puis git tag "v1-validee".
+3. 🆕 Galerie de looks dans le bot.
+4. Ensuite seulement : multi-personas (config par influenceuse) puis monétisation.
 
 ## PRÉFÉRENCE SOUS-TITRES (modèle visé)
 - Style référence : photo "CHEMISTRY FADES" = grotesque type Arial/Helvetica, TOUT BLANC, lettres espacées, ombre douce (PAS de gros contour noir), au HAUT DE LA MOUSSE DU MICRO (pas au cou).
@@ -60,4 +60,4 @@
 - L'influenceuse officielle : femme métisse, taches de rousseur, yeux dorés, bijoux or, décor bougies+bibliothèque. Toute autre personne dans looks/ = à signaler.
 
 ## HISTORIQUE DES SESSIONS (ne pas supprimer — ajouter en haut)
-- **2026-06-06/07 (Cowork, 1ère session)** : Setup Cowork (plugins Marketing/Adobe/Small Business). Accès direct aux 3 dossiers. Commits : `76a30d9` (état avant), `a26b161` revue1 (5 fix workflow.js), `3e5800c`+`a7f5aef` test sync subref v2, `7af9202` cmdtest v1 (/test Telegram), `8fb8c55` substyle v1 (source unique `subtitle_style.js`, fix /settings position). Purge "mauvaise personne" : 8 fichiers supprimés (3 tg_*.jpg looks, raw+p1+txt 21-21, TEST_soustitres.mp4, selfie terrasse). `999f229` trimstart v1 (coupe 0.10s debut, pop audio — VALIDÉ sur démo DEMO_trim_0.1s.mp4). Résultat attendu de la session suivante : test sous-titres validé sur la bonne influenceuse, puis vraie vidéo de validation.
+- **2026-06-06/07 (Cowork, 1ère session)** : Setup Cowork (plugins Marketing/Adobe/Small Business). Accès direct aux 3 dossiers. Commits : `76a30d9` (état avant), `a26b161` revue1 (5 fix workflow.js), `3e5800c`+`a7f5aef` test sync subref v2, `7af9202` cmdtest v1 (/test Telegram), `8fb8c55` substyle v1 (source unique `subtitle_style.js`, fix /settings position). Purge "mauvaise personne" : 8 fichiers supprimés (3 tg_*.jpg looks, raw+p1+txt 21-21, TEST_soustitres.mp4, selfie terrasse). `999f229` trimstart v1 (coupe 0.10s debut, pop audio — VALIDÉ sur démo DEMO_trim_0.1s.mp4). `04078ba` réactions audio OFF (demande Etoile). `6888f34` + tag `soustitres-valides-v1` : SOUS-TITRES VALIDÉS ET VERROUILLÉS par Etoile sur DEMO_trim_0.1s (style prod Arial Black 52px/OY 0.347) — fausse piste Archivo annulée, le sandbox rend mal la police, référence = prod. Résultat attendu de la session suivante : redémarrage bot fait, puis UNE vraie vidéo de validation complète → tag v1-validee.
