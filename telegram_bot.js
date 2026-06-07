@@ -13,6 +13,7 @@ const ENV_PATH=path.join(BASE,'.env');
 const LIBRARY=path.join(BASE,'library.json');
 
 let proc=null,offset=0;let testProc=null; /*cmdtest v1*/
+let lastMenuDay=''; // menu principal auto à la 1ère interaction du jour
 let state='idle';
 let setup={topic:null,photo:null,duration:'25s'};
 let autoAnswers=[];let isAuto=false;
@@ -230,9 +231,10 @@ async function showSummary(){
 // ── Manual mode (nouveau) ───────────────────────────────────────────────────
 async function mDur(){
   state='m_dur';
-  await send('⏱️ 2/4 — DURATION',[
+  await send('⏱️ 2/4 — DURÉE',[
     [{text:'10s',callback_data:'MM_DUR_10'},{text:'20s',callback_data:'MM_DUR_20'},{text:'30s',callback_data:'MM_DUR_30'}],
     [{text:'40s',callback_data:'MM_DUR_40'},{text:'60s',callback_data:'MM_DUR_60'}],
+    [{text:'⌨️ Autre durée (taper en sec)',callback_data:'MM_DUR_FREE'}],
   ]);
 }
 async function mTopicStub(){
@@ -644,6 +646,43 @@ async function showReady(){
   const rows=readyList.slice(0,20).map((f,i)=>[{text:'♻️ '+f.replace(/\.mp4$/,'').slice(0,32),callback_data:'REUSE_'+i}]);
   await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\n\n📱 Dossier <code>outputs/ready_to_post/</code> (iCloud).\n♻️ Reprendre le style d\'une vidéo :',rows);
 }
+// ── Test local gratuit (réutilisable depuis /test et le menu) ───────────────────
+async function runLocalTest(){
+  if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit).');return;}
+  try{
+    const {renderLocal}=require('./render_local');
+    const OUT=path.join(BASE,'outputs');
+    const raws=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
+    if(!raws.length){await send('⚠️ Aucun raw de test dans outputs/ — lance d\'abord un /go pour en générer un.');return;}
+    await send('🧪 Rendu LOCAL gratuit (ffmpeg, style courant)... ~2s');
+    const S='HE IGNORES YOU THEN CALLS YOU CRAZY THAT IS MANIPULATION NOT LOVE WALK AWAY';
+    const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
+    const out='/tmp/localtest_'+Date.now()+'.mp4';
+    const r=await renderLocal({input:raws[0],wordTimings:wt,keywords:['CRAZY','MANIPULATION','AWAY'],reactions:[{after:'THAT IS MANIPULATION NOT LOVE',type:'mhm'}],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
+    const st=r.style;
+    await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
+    await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
+    await offerReadyToPost(out).catch(()=>{});
+    await send('Ajuste via /edit puis 👁 Preview ou 🧪 Test.').catch(()=>{});
+  }catch(e){await send('❌ Test local : '+e.message);}
+}
+const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
+async function showGenerateMenu(){
+  await send('🎬 <b>GÉNÉRER</b>\n\nComment veux-tu générer ?',[
+    [{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],
+    [{text:'🚀 Express',callback_data:'EXPRESS_GO'}],
+    [{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+  ]);
+}
+async function showMainMenu(){
+  await send('🏠 <b>MENU PRINCIPAL</b>\n\nQue veux-tu faire ?',[
+    [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'}],
+    [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
+    [{text:'📤 Prêt à poster',callback_data:'SHOWREADY'},{text:'💾 Mes styles',callback_data:'SHOWSTYLES'}],
+    [{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
+    [{text:'⚙️ Réglages techniques',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
+  ]);
+}
 const IMG_PRESETS={
   'Naturel':{brightness:0,contrast:1,saturation:1,temperature:6500,sharpness:0,vignette:0},
   'Chaud':{brightness:0.03,contrast:1.05,saturation:1.18,temperature:4800,sharpness:0.3,vignette:1},
@@ -762,6 +801,32 @@ async function handle(upd){
     await answerCB(cb.id);
     if(String(cb.message.chat.id)!==CHAT_ID)return;
     const d=cb.data;
+    // Menu principal
+    if(d==='MAIN_MENU'){await showMainMenu();return;}
+    if(d==='MENU_GEN'){await showGenerateMenu();return;}
+    if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
+    if(d==='MENU_TEST'){await runLocalTest();return;}
+    if(d==='MENU_HELP'){await send(HELP_TXT);return;}
+    if(d==='MENU_TECH'){await send('⚙️ <b>Réglages techniques</b>',[
+      [{text:'ℹ️ Statut',callback_data:'TECH_STATUS'}],
+      [{text:'🔄 Redémarrer le bot',callback_data:'TECH_RESTART'}],
+      [{text:'⏹ Tout arrêter',callback_data:'TECH_STOP'}],
+      [{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+    ]);return;}
+    if(d==='TECH_STATUS'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+    if(d==='TECH_RESTART'){
+      if(proc||testProc){await send('⛔ Génération ou test en cours — utilise ⏹ d\'abord.');return;}
+      await send('🔄 Redémarrage... (retour dans ~5s)');
+      try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
+      try{releaseLock();}catch(e){}process.exit(0);return;
+    }
+    if(d==='TECH_STOP'){
+      let stopped=false;
+      if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
+      if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;}
+      try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
+      state='idle';await send(stopped?'⏹ Stoppé.':'Rien en cours.');return;
+    }
     // Topic selection
     if(d==='T_AUTO'){const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);setup.topic=TOPIC_IDEAS[idx][1];await showSummary();return;}
     if(d.match(/^T_\d+$/)){const i=+d.slice(2);setup.topic=TOPIC_IDEAS[i][1];await send('✅ Topic: '+TOPIC_IDEAS[i][1]);await step2_look();return;}
@@ -851,6 +916,7 @@ await send('Ready to generate video?',[
     if(d==='MM_DUR_30'){setup.duration='30s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_40'){setup.duration='40s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_60'){setup.duration='60s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
+    if(d==='MM_DUR_FREE'){state='dur_free_wait';await send('⌨️ Tape la durée en <b>secondes</b> (ex: 25). 15–35s = une partie. Au-delà, le multi-parties arrive bientôt.');return;}
     if(d==='MM_TOPIC_KEEP'){if(setup.editing==='topic'){setup.editing=null;setup.script=null;}await mRecap();return;}
     if(d==='MM_TOPIC_NEW'){await mTopic();return;}
     if(d==='MM_TOPIC_SEND'){state='m_topic_wait';await send('✍️ Write your topic in one message:');return;}
@@ -1073,6 +1139,16 @@ await send('Ready to generate video?',[
     return;
   }
 
+  if(state==='dur_free_wait'&&msg.text){
+    let n=parseInt((msg.text.match(/\d+/)||[])[0]||'',10);
+    if(!n||n<5){await send('⚠️ Donne un nombre de secondes valide (ex: 25).');return;}
+    let note='';
+    if(n>35){note='\n⚠️ Multi-parties pas encore dispo — je vise UNE partie ~30s pour l\'instant (assemblage multi-parts à venir).';n=35;}
+    setup.duration=n+'s';
+    await send('✅ Durée: '+n+'s'+note);
+    if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}
+    return;
+  }
   if(state==='m_topic_wait'&&msg.text){
     setup.topic=msg.text.trim(); setup.topicCat=null;
     await mTopicShow();
@@ -1096,10 +1172,11 @@ await send('Ready to generate video?',[
   }
   const txt=(msg.text||'').trim();
   if(!txt)return;
+  // menu principal automatique à la 1ère interaction de la journée
+  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(txt!=='/start'&&txt!=='/menu')await showMainMenu().catch(()=>{});}}
 
-  if(txt==='/start'||txt==='/help'){
-    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/edit — 🎛 éditer le look (sous-titres, image, zooms, musique)\n/settings — réglages sous-titres\n/preview — aperçu gratuit du look courant (frames)\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — rendu local gratuit (vidéo, style courant)\n/restart — redémarrer le bot (code à jour)\n/mark [title] viral|good|ok — rate a video');return;
-  }
+  if(txt==='/start'||txt==='/menu'){await showMainMenu();return;}
+  if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
   if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
     let stopped=false;
@@ -1124,26 +1201,7 @@ await send('Ready to generate video?',[
     releaseLock();process.exit(0);
     return;
   }
-  if(txt==='/test'){ /*cmdtest v2 : rendu LOCAL gratuit (ffmpeg) — plus de Shotstack sandbox. test_soustitres.js conservé sur disque mais plus appelé.*/
-    if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit). Réessaie quand c\'est fini.');return;}
-    try{
-      const {renderLocal}=require('./render_local');
-      const OUT=path.join(BASE,'outputs');
-      const raws=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
-      if(!raws.length){await send('⚠️ Aucun raw de test dans outputs/ — lance d\'abord un /go pour en générer un.');return;}
-      await send('🧪 Rendu LOCAL gratuit (ffmpeg, style courant)... ~2s');
-      const S='HE IGNORES YOU THEN CALLS YOU CRAZY THAT IS MANIPULATION NOT LOVE WALK AWAY';
-      const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
-      const out='/tmp/localtest_'+Date.now()+'.mp4';
-      const r=await renderLocal({input:raws[0],wordTimings:wt,keywords:['CRAZY','MANIPULATION','AWAY'],reactions:[{after:'THAT IS MANIPULATION NOT LOVE',type:'mhm'}],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
-      const st=r.style;
-      await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • zoom ${st.baseZoom||1} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
-      await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
-      await offerReadyToPost(out).catch(()=>{});
-      await send('Ajuste via /edit puis /preview ou /test.').catch(()=>{});
-    }catch(e){await send('❌ Test local : '+e.message);}
-    return;
-  }
+  if(txt==='/test'){await runLocalTest();return;}
   if(txt==='/edit'){await showEditHome();return;}
   if(txt==='/styles'){await showStyles();return;}
   if(txt==='/posted'){await showReady();return;}
@@ -1222,21 +1280,25 @@ process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && 
 process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
 
 setInterval(()=>{},1<<30);
-tg('setMyCommands',{commands:[ /*cmdmenu v1 : les commandes apparaissent dans le menu "/" de Telegram*/
+tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le menu "/" de Telegram*/
+  {command:'menu',description:'🏠 Menu principal'},
   {command:'go',description:'🎬 Créer une vidéo'},
-  {command:'stop',description:'⏹ Tout arrêter (génération + test)'},
-  {command:'test',description:'🧪 Test sous-titres gratuit (sandbox)'},
-  {command:'restart',description:'🔄 Redémarrer le bot (code à jour)'},
-  {command:'status',description:'ℹ️ État du bot'},
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
+  {command:'looks',description:'👤 Galerie de looks'},
+  {command:'posted',description:'📤 Vidéos prêtes à poster'},
+  {command:'styles',description:'💾 Mes styles enregistrés'},
+  {command:'preview',description:'👁 Aperçu gratuit du look'},
+  {command:'test',description:'🧪 Rendu local gratuit'},
   {command:'settings',description:'⚙️ Réglages sous-titres'},
-  {command:'preview',description:'👁 Aperçu gratuit du look courant'},
-  {command:'library',description:'📚 Derniers scripts'},
-  {command:'looks',description:'📸 Looks disponibles'},
   {command:'ideas',description:'💡 Idées de sujets'},
+  {command:'library',description:'📚 Derniers scripts'},
+  {command:'stop',description:'⏹ Tout arrêter'},
+  {command:'status',description:'ℹ️ État du bot'},
+  {command:'restart',description:'🔄 Redémarrer le bot'},
+  {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
-send('🤖 <b>Bot ready!</b>\n\nSend /go to create a video.')).then(()=>{
+send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
