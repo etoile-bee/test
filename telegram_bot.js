@@ -693,9 +693,50 @@ async function showMainMenu(){
     [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'}],
     [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
     [{text:'💾 Mes styles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
-    [{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
+    [{text:'📁 Fichiers',callback_data:'FILES_HOME'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
     [{text:'🛑 Stop',callback_data:'TECH_STOP'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
   ]);
+}
+// ── 📁 FICHIERS : parcourir et recevoir les fichiers (vidéos/images/légendes/ready/looks) ──
+function listDir(dir,filter){try{return fs.readdirSync(dir).filter(f=>!f.startsWith('.')&&filter(f)).map(f=>{const p=path.join(dir,f);let st;try{st=fs.statSync(p);}catch(e){return null;}return st.isFile()?{path:p,name:f,mtime:st.mtimeMs,size:st.size}:null;}).filter(Boolean);}catch(e){return [];}}
+function fileCat(cat){
+  const OUT=path.join(BASE,'outputs');
+  if(cat==='vid')return listDir(OUT,f=>/\.mp4$/i.test(f)).sort((a,b)=>b.mtime-a.mtime);
+  if(cat==='img')return listDir(OUT,f=>/\.(png|jpe?g|webp)$/i.test(f)).concat(listDir(path.join(OUT,'test_local'),f=>/\.(png|jpe?g|webp)$/i.test(f))).sort((a,b)=>b.mtime-a.mtime);
+  if(cat==='txt')return listDir(OUT,f=>/\.txt$/i.test(f)).sort((a,b)=>b.mtime-a.mtime);
+  if(cat==='ready')return listDir(path.join(OUT,'ready_to_post'),f=>/\.(mp4|txt|json)$/i.test(f)).sort((a,b)=>b.mtime-a.mtime);
+  if(cat==='looks')return listDir(getLooksDir(),f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('_')).sort((a,b)=>b.mtime-a.mtime);
+  return [];
+}
+const FCAT_LABEL={vid:'🎬 Vidéos',img:'🖼 Images',txt:'📄 Légendes',ready:'📤 Prêt à poster',looks:'👤 Looks'};
+function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+' Mo':Math.max(1,b/1e3|0)+' Ko';}
+function fmtDate(ms){const d=new Date(ms);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes());}
+let fileList=[];
+async function showFilesMenu(){
+  await send('📁 <b>FICHIERS</b>\n\n📱 Tout le dossier <code>outputs</code> est aussi visible dans l\'app <b>Fichiers</b> de l\'iPhone (iCloud → podcast-outputs).\n\nChoisis une catégorie :',[
+    [{text:'🎬 Vidéos',callback_data:'FCAT_vid'},{text:'🖼 Images',callback_data:'FCAT_img'}],
+    [{text:'📄 Légendes',callback_data:'FCAT_txt'},{text:'📤 Prêt à poster',callback_data:'FCAT_ready'}],
+    [{text:'👤 Looks',callback_data:'FCAT_looks'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+  ]);
+}
+async function showFileList(cat,page){
+  fileList=fileCat(cat);
+  if(!fileList.length){await send(FCAT_LABEL[cat]+' — vide.',[[{text:'◀️ Catégories',callback_data:'FILES_HOME'}]]);return;}
+  const PER=8;const pages=Math.max(1,Math.ceil(fileList.length/PER));page=Math.max(0,Math.min(page,pages-1));
+  const rows=fileList.slice(page*PER,page*PER+PER).map(it=>{const gi=fileList.indexOf(it);return [{text:it.name.slice(0,26)+' · '+fmtSize(it.size)+' · '+fmtDate(it.mtime),callback_data:'FGET_'+gi}];});
+  const nav=[];if(page>0)nav.push({text:'◀️',callback_data:'FPAGE_'+cat+'_'+(page-1)});nav.push({text:(page+1)+'/'+pages,callback_data:'NOOP'});if(page<pages-1)nav.push({text:'▶️',callback_data:'FPAGE_'+cat+'_'+(page+1)});
+  rows.push(nav);rows.push([{text:'◀️ Catégories',callback_data:'FILES_HOME'}]);
+  await send(FCAT_LABEL[cat]+' ('+fileList.length+') — tape pour recevoir le fichier :',rows);
+}
+async function sendFile(fp){
+  if(!fp||!fs.existsSync(fp)){await send('⚠️ Fichier introuvable.');return;}
+  const sz=fs.statSync(fp).size,ext=path.extname(fp).toLowerCase();
+  if(sz>50*1024*1024){await send('📦 <b>'+path.basename(fp)+'</b> ('+(sz/1e6).toFixed(0)+' Mo) dépasse la limite Telegram (50 Mo).\n📱 Ouvre-le dans <b>Fichiers</b> (iCloud) :\n<code>'+fp+'</code>');return;}
+  try{
+    if(ext==='.mp4')await sendVid(fp);
+    else if(/\.(png|jpe?g|webp)$/.test(ext))await sendImg(fp,path.basename(fp));
+    else{const FormData=require('form-data');const fd=new FormData();fd.append('chat_id',CHAT_ID);fd.append('document',fs.createReadStream(fp));fd.append('caption',path.basename(fp));await tg('sendDocument',null,fd);}
+  }catch(e){await send('⚠️ Envoi échoué ('+e.message+').\n📱 Chemin iCloud :\n<code>'+fp+'</code>');}
 }
 const IMG_PRESETS={
   'Naturel':{brightness:0,contrast:1,saturation:1,temperature:6500,sharpness:0,vignette:0},
@@ -948,6 +989,10 @@ async function handle(upd){
     if(d==='MAIN_MENU'){await showMainMenu();return;}
     if(d==='MENU_GEN'){await showGenerateMenu();return;}
     if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
+    if(d==='FILES_HOME'){await showFilesMenu();return;}
+    if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
+    if(d.startsWith('FPAGE_')){const m=d.slice(6).match(/^(\w+)_(\d+)$/);if(m)await showFileList(m[1],+m[2]);return;}
+    if(d.startsWith('FGET_')){const it=fileList[+d.slice(5)];await sendFile(it&&it.path);return;}
     if(d==='MENU_TEST'){await runLocalTest();return;}
     if(d==='MENU_HELP'){await send(HELP_TXT);return;}
     if(d==='MENU_TECH'){await send('⚙️ <b>Réglages techniques</b>',[
@@ -1377,6 +1422,7 @@ await send('Ready to generate video?',[
   if(txt==='/edit'){await showEditHome();return;}
   if(txt==='/styles'){await showStyles();return;}
   if(txt==='/posted'){await showReady();return;}
+  if(txt==='/files'){await showFilesMenu();return;}
   if(txt==='/settings'){await showSettings();return;}
   if(txt==='/preview'){await runPreview();return;}
   if(txt==='/library'){
@@ -1458,6 +1504,7 @@ tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
   {command:'looks',description:'👤 Galerie de looks'},
   {command:'posted',description:'📤 Vidéos prêtes à poster'},
+  {command:'files',description:'📁 Fichiers (vidéos, images, légendes, looks)'},
   {command:'styles',description:'💾 Mes styles enregistrés'},
   {command:'preview',description:'👁 Aperçu gratuit du look'},
   {command:'test',description:'🧪 Rendu local gratuit'},
