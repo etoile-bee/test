@@ -79,11 +79,16 @@ function writeLookbook(lb){fs.writeFileSync(LOOKBOOK,JSON.stringify(lb,null,2));
 function buildPrompt(lb,opts){
   const cat=lb.categories[opts.category];
   const env=lb.envs[opts.env]||lb.envs.bougies;
+  /*v6 : mode planche = UNE image contenant 3 poses du MEME look (sinon : un portrait par image)*/
+  const pose=opts.mode==='planche'
+    ?'One single image laid out as a clean 3-frame vertical contact sheet: THREE different natural poses of the SAME woman in the SAME outfit, same accessories, same makeup, same hairstyle — facing camera, three-quarter view, slight profile. No text, no typography, thin black frame separations only. Hands out of frame. Chest-up framing, engaged eye contact.'
+    :lb.pose_rules;
   return defaultPrompt()
     +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))
     +'\n'+lb.style_rules
+    +'\n'+(lb.texture_rules||'')
     +'\n'+env.prompt
-    +'\n'+lb.pose_rules;
+    +'\n'+pose;
 }
 
 // Genere 4 poses. opts={category, env, extra}. Retourne {urls, prompt, recipe}
@@ -95,14 +100,15 @@ async function generateLook(opts,log){
   const soulId=await ensureSoulId(client,log);
   if(!lb.categories[opts.category]&&!opts.extra)opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
-  /*eco v1 : mode test economique (1 image 720p, ~6x moins cher) vs final (4 poses 1080p)*/
+  /*v6 : 3 modes — eco (1 pose 720p, calibrage pas cher), planche (1 image 1080p = 3 poses du meme look), hd (4 portraits 1080p)*/
+  const mode=opts.mode||(opts.eco?'eco':'hd');
   const jobSet=await client.generate('/v1/text2image/soul',{
     prompt:prompt,
     custom_reference_id:soulId,
     custom_reference_strength:1,
     width_and_height:'1536x2048',
-    quality:opts.eco?'720p':'1080p',
-    batch_size:opts.eco?1:4
+    quality:mode==='eco'?'720p':'1080p',
+    batch_size:mode==='hd'?4:1
   },{withPolling:true});
   const jobs=(jobSet&&jobSet.jobs)||[];
   if(!jobs.length)throw new Error('réponse vide de Higgsfield');

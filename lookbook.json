@@ -2,7 +2,8 @@
   "persona": "imany",
   "note": "ADN visuel du persona. categories = tenues GENEREES par prompt (pas de liste figee). envs = decors. saved = recettes des looks gardes (recreables via /look). Editable a la main ou via Claude.",
   "style_rules": "Quiet luxury / old money aesthetic (The Row, Toteme, Loro Piana, Khaite, Celine inspiration) — refined, expensive-looking, NEVER flashy, no visible brand logos. Choose accessories, makeup and hairstyle to MATCH the outfit — vary them from look to look. Within one image set: same outfit, same accessories, same makeup, same hairstyle on every image.",
-  "pose_rules": "Hands resting out of frame, never visible. Across the image set, three different natural poses and camera angles: facing camera, three-quarter view, slight profile — all seated, chest-up framing, engaged eye contact with the camera. Stop-scrolling realistic energy.",
+  "pose_rules": "ONE single full-bleed portrait per image: one subject, ONE pose, NO collage, NO grid, NO multiple panels, NO magazine layout, NO text or typography in the image. Hands resting out of frame, never visible. Seated, chest-up framing, engaged eye contact. Stop-scrolling realistic energy.",
+  "texture_rules": "Ultra-detailed raw skin rendering: heavily visible pores, beauty marks, fine natural skin unevenness on face, neck, chest and décolleté, subtle vellus hair, slight natural shine — photorealistic unretouched quality, WITHOUT altering the facial features or identity.",
   "categories": {
     "soiree": { "label": "🌙 Soirée", "prompt": "Invent an elegant evening outfit: silk, satin or velvet, refined neckline, understated luxury." },
     "business": { "label": "💼 Business", "prompt": "Invent a powerful boardroom outfit: tailored blazer or structured dress, old money codes." },
