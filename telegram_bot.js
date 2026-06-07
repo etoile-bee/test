@@ -2174,6 +2174,7 @@ tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*
   {command:'menu',description:'🏠 Menu principal'},
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
   {command:'looks',description:'👤 Galerie de looks'},
+  {command:'newlook',description:'🎨 Générer un nouveau look (même visage)'},
   {command:'posted',description:'📤 Vidéos prêtes à poster'},
   {command:'files',description:'📁 Fichiers (vidéos, images, légendes, looks)'},
   {command:'styles',description:'📦 Modèles enregistrés'},
