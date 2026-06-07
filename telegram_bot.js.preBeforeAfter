@@ -576,7 +576,7 @@ async function showSettings(){
     [{text:'⬆️ Monter',callback_data:'S_Y_UP'},{text:'⬇️ Descendre',callback_data:'S_Y_DN'}],
     [{text:'🔡+ Espacement',callback_data:'S_SP_UP'},{text:'🔡- Espacement',callback_data:'S_SP_DN'}],
     [{text:subs?'💬 Sous-titres: OFF':'💬 Sous-titres: ON',callback_data:'S_SUBS'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
 // ── Helpers /edit (Image, Zooms, Musique) — stockés dans style.json ─────────────
@@ -692,46 +692,31 @@ const IMG_PRESETS={
 };
 function musicFiles(){try{return fs.readdirSync(RL.MUSIC_DIR).filter(f=>/\.(mp3|m4a)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_'));}catch(e){return[];}}
 function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);return r[0]||null;}catch(e){return null;}}
-// Rend un court clip (WRONG YOURE) avec le STYLE COURANT et renvoie {frame,style}
-async function renderStyleFrame(){
-  const raw=latestRaw(); if(!raw)return null;
+// Rend un court clip avec le STYLE COURANT et envoie l'image composite [RÉFÉRENCE | RENDU]
+async function sendCompareNow(){
+  const raw=latestRaw();
+  if(!raw){await send('⚠️ Côte-à-côte indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
   const {renderLocal}=require('./render_local');
-  const wt='WRONG YOURE'.split(' ').map((w,i)=>({text:w,start:+(i*0.5).toFixed(3),end:+((i+1)*0.5).toFixed(3),duration:0.5}));
-  const out='/tmp/sf_'+Date.now()+'.mp4';
-  let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:['WRONG'],reactions:[],output:out,quiet:true,duration:1.4});}catch(e){return null;}
-  const frame='/tmp/sf_'+Date.now()+'_'+Math.floor(r.duration*100)+'.png';
-  try{require('child_process').execFileSync('ffmpeg',['-y','-ss','0.6','-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return null;}
-  return {frame,style:r.style};
+  const words='WRONG YOURE';
+  const wt=words.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.5).toFixed(3),end:+((i+1)*0.5).toFixed(3),duration:0.5}));
+  const out='/tmp/cmp_'+Date.now()+'.mp4';
+  let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:['WRONG'],reactions:[],output:out,quiet:true,duration:1.4});}catch(e){await send('❌ Aperçu: '+e.message);return;}
+  const cp=require('child_process');const frame='/tmp/cmpframe.png';
+  try{cp.execFileSync('ffmpeg',['-y','-ss','0.6','-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return;}
+  const ref=path.join(BASE,'reference_model.png');const comp='/tmp/compare_'+Date.now()+'.png';
+  if(fs.existsSync(ref)){
+    try{
+      const FF='/System/Library/Fonts/Helvetica.ttc';
+      cp.execFileSync('ffmpeg',['-y','-i',ref,'-i',frame,'-filter_complex',
+        "[0:v]scale=-1:1000,drawtext=fontfile="+FF+":text=REFERENCE:x=12:y=12:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.6[a];[1:v]scale=-1:1000,drawtext=fontfile="+FF+":text=RENDU:x=12:y=12:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.6[b];[a][b]hstack",comp],{stdio:'ignore'});
+    }catch(e){fs.copyFileSync(frame,comp);}
+  }else{fs.copyFileSync(frame,comp);}
+  const st=r.style;
+  await sendImg(comp,`↔️ RÉFÉRENCE | RENDU — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
 }
-function hstackLabeled(leftPng,rightPng,leftLabel,rightLabel,outPng){
-  const FF='/System/Library/Fonts/Helvetica.ttc';
-  require('child_process').execFileSync('ffmpeg',['-y','-i',leftPng,'-i',rightPng,'-filter_complex',
-    `[0:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${leftLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[a];[1:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${rightLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[b];[a][b]hstack`,outPng],{stdio:'ignore'});
-}
-let editPrevFrame=null; // frame "AVANT" pour le before/after
-async function captureBaseline(){ const f=await renderStyleFrame(); editPrevFrame=f?f.frame:null; }
-// Après un réglage : envoie AVANT|APRÈS puis re-affiche les contrôles
-async function sendBeforeAfter(){
-  const after=await renderStyleFrame();
-  if(!after){await send('⚠️ Aperçu indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
-  const comp='/tmp/ba_'+Date.now()+'.png';
-  if(editPrevFrame&&fs.existsSync(editPrevFrame)){
-    try{hstackLabeled(editPrevFrame,after.frame,'AVANT','APRES',comp);}catch(e){fs.copyFileSync(after.frame,comp);}
-  }else fs.copyFileSync(after.frame,comp);
-  editPrevFrame=after.frame; // l'après devient l'avant du prochain réglage
-  const st=after.style;
-  await sendImg(comp,`↔️ AVANT | APRÈS — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
-}
-async function sendVsReference(){
-  const after=await renderStyleFrame();
-  if(!after){await send('⚠️ Aperçu indispo (aucun raw).');return;}
-  const ref=path.join(BASE,'reference_model.png');const comp='/tmp/vr_'+Date.now()+'.png';
-  if(fs.existsSync(ref)){try{hstackLabeled(ref,after.frame,'REFERENCE','RENDU',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
-  else fs.copyFileSync(after.frame,comp);
-  await sendImg(comp,'🎯 RÉFÉRENCE | RENDU actuel').catch(()=>{});
-}
+// Après un réglage : envoie le côte-à-côte PUIS re-affiche les contrôles de la section
 async function afterEdit(section){
-  await sendBeforeAfter();
+  await sendCompareNow();
   if(section==='subs')await showSettings();
   else if(section==='img')await showEditImage();
   else if(section==='zoom')await showEditZoom();
@@ -754,7 +739,7 @@ async function showEditImage(){
     [{text:'🔪+',callback_data:'IMG_SH_UP'},{text:'🔪-',callback_data:'IMG_SH_DN'},{text:'⬛+',callback_data:'IMG_VI_UP'},{text:'⬛-',callback_data:'IMG_VI_DN'}],
     [{text:'Naturel',callback_data:'IMG_PRE_Naturel'},{text:'Chaud',callback_data:'IMG_PRE_Chaud'},{text:'Cinéma',callback_data:'IMG_PRE_Cinéma'}],
     [{text:'Luxe',callback_data:'IMG_PRE_Luxe'},{text:'Soft',callback_data:'IMG_PRE_Soft'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
 async function showEditZoom(){
@@ -764,7 +749,7 @@ async function showEditZoom(){
     [{text:'💪+ Intensité',callback_data:'ZM_IN_UP'},{text:'💪- Intensité',callback_data:'ZM_IN_DN'}],
     [{text:'⏱+ Durée',callback_data:'ZM_DU_UP'},{text:'⏱- Durée',callback_data:'ZM_DU_DN'}],
     [{text:'🔁 Fréquence (tous / 1 sur 2)',callback_data:'ZM_FREQ'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
 async function showEditMusic(){
@@ -775,7 +760,7 @@ async function showEditMusic(){
     [{text:m.on?'🎵 Musique: OFF':'🎵 Musique: ON',callback_data:'MU_TOGGLE'}],
     [{text:'⏭ Fichier suivant',callback_data:'MU_FILE'}],
     [{text:'🔊+ Volume',callback_data:'MU_VOL_UP'},{text:'🔊- Volume',callback_data:'MU_VOL_DN'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ]);
 }
 function patchWF(fn){
@@ -1011,7 +996,7 @@ await send('Ready to generate video?',[
       if(!f){await send('⚠️ Entrée introuvable (rouvre 📤).');return;}
       const sj=path.join(readyDir(),f.replace(/\.mp4$/,'.style.json'));
       if(!fs.existsSync(sj)){await send('⚠️ Pas de snapshot de style pour cette vidéo.');return;}
-      try{editPrevFrame=null;applySnapshot(JSON.parse(fs.readFileSync(sj,'utf8')));await send('✅ Style repris depuis <b>'+f.replace(/\.mp4$/,'')+'</b>.');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
+      try{applySnapshot(JSON.parse(fs.readFileSync(sj,'utf8')));await send('✅ Style repris depuis <b>'+f.replace(/\.mp4$/,'')+'</b>.');await sendCompareNow();}catch(e){await send('❌ '+e.message);}
       return;
     }
     // Styles sauvegardés
@@ -1020,7 +1005,7 @@ await send('Ready to generate video?',[
     if(d.startsWith('LOADSTYLE_')){
       const i=+d.slice(10);const f=styleList[i];
       if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
-      try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));editPrevFrame=null;applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
+      try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendCompareNow();}catch(e){await send('❌ '+e.message);}
       return;
     }
     if(d.startsWith('DELSTYLE_')){
@@ -1031,13 +1016,12 @@ await send('Ready to generate video?',[
       await showStyles();return;
     }
     // Menu /edit unifié
-    if(d==='EDIT_HOME'){editPrevFrame=null;await showEditHome();return;}
-    if(d==='EDIT_SUBS'){await showSettings();await captureBaseline();return;}
-    if(d==='EDIT_IMG'){await showEditImage();await captureBaseline();return;}
-    if(d==='EDIT_ZOOM'){await showEditZoom();await captureBaseline();return;}
-    if(d==='EDIT_MUS'){await showEditMusic();await captureBaseline();return;}
+    if(d==='EDIT_HOME'){await showEditHome();return;}
+    if(d==='EDIT_SUBS'){await showSettings();return;}
+    if(d==='EDIT_IMG'){await showEditImage();return;}
+    if(d==='EDIT_ZOOM'){await showEditZoom();return;}
+    if(d==='EDIT_MUS'){await showEditMusic();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
-    if(d==='CMP_REF'){await sendVsReference();return;}
     if(d.startsWith('IMG_')){
       const fx=readFx(),i=fx.image;
       if(d==='IMG_BR_UP')i.brightness=clampN(i.brightness+0.03,-0.5,0.5);
