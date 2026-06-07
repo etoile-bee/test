@@ -657,17 +657,11 @@ await send('Ready to generate video?',[
         if(d==='S_Y_DN'){const v=(+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.347)-0.02).toFixed(3);s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v);}
         fs.writeFileSync(sp,s);
       }else{
-        // bouton zoom : patche workflow.js (fallback Shotstack) ET ZOOM dans subtitle_style.js (rendu local)
-        const wfp=path.join(BASE,'workflow.js');
-        let v=+(fs.readFileSync(wfp,'utf8').match(/scale:([\d.]+)\}/)?.[1]||1.0);
-        if(d==='S_Z_UP')v=+(v+0.04).toFixed(2);
-        if(d==='S_Z_DN')v=+(v-0.04).toFixed(2);
-        if(v<1)v=1; // garde-fou : pas de de-zoom sous 1.0
-        const vs=v.toFixed(2);
-        patchWF(c=>c.replace(/scale:[\d.]+\}/g,'scale:'+vs+'}'));
-        const sp=path.join(BASE,'subtitle_style.js');
-        let s=fs.readFileSync(sp,'utf8');
-        if(/const\s+ZOOM\s*=/.test(s)){s=s.replace(/const(\s+)ZOOM(\s*)=\s*[\d.]+/,'const$1ZOOM$2= '+vs);fs.writeFileSync(sp,s);}
+        patchWF(c=>{
+          if(d==='S_Z_UP'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)+0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+          if(d==='S_Z_DN'){const v=(+(c.match(/scale:([\d.]+)\}/)?.[1]||1.32)-0.04).toFixed(2);return c.replace(/scale:[\d.]+\}/g,'scale:'+v+'}');}
+          return c;
+        });
       }
       await showSettings();return;
     }

@@ -5,11 +5,10 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 52;     // ✅ aligné look validé Arial Black (frames test_local validées par Etoile)
-const OY        = 0.347;  // ✅ aligné look validé Arial Black (position subref v2)
+const FONT_SIZE = 45;     // ✅ VERROUILLE 07/06 — valide par Etoile (dernier test 2h49)
+const OY        = 0.25;   // ✅ VERROUILLE 07/06 — centre du texte a 68% (pendentif/clavicule)
 //  (optionnel)
-const LETTER    = '2px';  // espacement entre lettres (subref v2 : letter-spacing 2px)
-const ZOOM      = 1.0;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)
+const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
 
 const FONT_URL  = 'https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf';
@@ -25,4 +24,4 @@ function styleHtml(text){
 // Embarquee dans timeline.fonts de CHAQUE edit Shotstack (prod ET test) — garantie d'uniformite
 const FONTS = [ { src: FONT_URL } ];
 
-module.exports = { FONT_SIZE, OY, LETTER, ZOOM, styleHtml, FONTS, WIDTH: 720, HEIGHT: 175 };
+module.exports = { FONT_SIZE, OY, LETTER, styleHtml, FONTS, WIDTH: 720, HEIGHT: 175 };
