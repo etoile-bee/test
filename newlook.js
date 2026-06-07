@@ -194,7 +194,7 @@ async function probeEndpoints(){
   const out=[];
   for(const ep of eps){
     try{
-      const r=await fetch('https://platform.higgsfield.ai'+(ep.startsWith('/')?ep:'/'+ep),{method:'POST',headers:{'Authorization':'Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET,'Content-Type':'application/json'},body:'{}'});
+      const r=await fetch('https://platform.higgsfield.ai'+(ep.startsWith('/')?ep:'/'+ep),{method:'POST',headers:{'Authorization':'Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET,'Content-Type':'application/json'},body:'{"params":{}}'});
       let body='';try{body=(await r.text()).substring(0,1200);}catch(e){}
       out.push((r.status===404?'❌ ':'✅ ')+ep+' (HTTP '+r.status+')\n'+body+'\n');
     }catch(e){out.push('⚠️ '+ep+' ('+e.message+')');}
