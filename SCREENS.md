@@ -7,6 +7,13 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 **Boutons :**
 - L1: [💾 Enregistrer (fichier)](SAVE_VID)
 
+## videoReadyKb
+
+**Boutons :**
+- L1: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
+- L2: [🎨 Restyler](GF_RESTYLE_) · [🖼 Cover](COVER_OPEN_)
+- L3: [📋 Légende longue](GF_LONG_) · [📁 Dossier](GF_FILES_)
+
 ## showLook
 
 **Texte :** `📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.`
@@ -125,7 +132,8 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 **Texte :** `⏳ Une génération est déjà en cours — je ne relance pas (anti-doublon). Attends la fin, ou /stop.`
 
 **Boutons :**
-- L1: [🔄 Nouvelle vidéo](NEW_GO)
+- L1: [✅ Prêt à poster](READY_) · [📋 Légende longue](LCAP_LEGACY)
+- L2: [🔄 Nouvelle vidéo](NEW_GO)
 
 ## showSettings
 
@@ -171,11 +179,12 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 
 ## showReady
 
-**Texte :** `📤 <b>PRÊT À POSTER</b>\n\nVide pour l\`
+**Texte :** `📤 <b>PRÊT À POSTER</b>\n\nVide. Sur une vidéo livrée, appuie sur ✅ Postable.`
 
 **Boutons :**
 - L1: [◀️ Menu](MAIN_MENU)
-- L2: [◀️ Menu](MAIN_MENU)
+- L2: [♻️](REUSE_)
+- L3: [◀️ Menu](MAIN_MENU)
 
 ## runLocalTest
 
@@ -248,9 +257,6 @@ _(pas de boutons inline)_
 
 **Boutons :**
 - L1: [⛔ Annuler](GEN_ABORT)
-- L2: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
-- L3: [🎨 Restyler](GF_RESTYLE_) · [🖼 Cover](COVER_OPEN_)
-- L4: [📁 Fichiers](GF_FILES_) · [♻️ Régénérer](MENU_GEN) · [◀️ Menu](MAIN_MENU)
 
 ## showCover
 
@@ -396,27 +402,29 @@ _(pas de boutons inline)_
 - L5: [◀️ Récap](RC_BACK)
 - L6: [✏️ Texte](GJ_EDIT) · [🎨 Modèle](GJM_STYLE) · [👤 Look](GJM_LOOK) · [⏱ Durée](GJM_DUR) · [◀️ Retour](GJ_SHOWSCRIPT)
 - L7: [◀️ Retour au script](GJ_SHOWSCRIPT)
-- L8: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
-- L9: [🎨 Éditer encore](EDIT_HOME) · [🎨 Restyler à nouveau](GF_RESTYLE_)
-- L10: [ℹ️ Statut](TECH_STATUS)
-- L11: [🔄 Redémarrer le bot](TECH_RESTART)
-- L12: [⏹ Tout arrêter](TECH_STOP)
-- L13: [◀️ Menu](MAIN_MENU)
-- L14: [Generate Video](SCRIPT_OK) · [Regenerate](AUTO_ALL) · [Cancel](CANCEL)
-- L15: [🔄 Nouvelle vidéo](NEW_GO)
-- L16: [⚡ Sur-mesure](MANUAL_GO) · [🎲 Aléatoire](AUTO_ALL) · [🚀 Express](EXPRESS_GO)
-- L17: [🔄 Nouvelle vidéo](NEW_GO)
-- L18: [🎨 Édition](EDIT_HOME)
-- L19: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
-- L20: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
-- L21: [📷 Upload](MM_LOOK_UPLOAD)
-- L22: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
-- L23: [➕ Ajouter aux looks](ADD_LOOK)
-- L24: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
-- L25: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
-- L26: [❌ Ignorer](ADD_IGNORE)
-- L27: [🔄 Nouvelle vidéo](NEW_GO)
+- L8: [↩️ Légende courte](GF_SHORT_) · [📁 Dossier](GF_FILES_)
+- L9: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
+- L10: [🎨 Éditer encore](EDIT_HOME) · [🎨 Restyler à nouveau](GF_RESTYLE_)
+- L11: [ℹ️ Statut](TECH_STATUS)
+- L12: [🔄 Redémarrer le bot](TECH_RESTART)
+- L13: [⏹ Tout arrêter](TECH_STOP)
+- L14: [◀️ Menu](MAIN_MENU)
+- L15: [Generate Video](SCRIPT_OK) · [Regenerate](AUTO_ALL) · [Cancel](CANCEL)
+- L16: [🔄 Nouvelle vidéo](NEW_GO)
+- L17: [⚡ Sur-mesure](MANUAL_GO) · [🎲 Aléatoire](AUTO_ALL) · [🚀 Express](EXPRESS_GO)
+- L18: [🔄 Nouvelle vidéo](NEW_GO)
+- L19: [🎨 Édition](EDIT_HOME)
+- L20: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
+- L21: [📋 Légende longue](POSTLONG_)
+- L22: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
+- L23: [📷 Upload](MM_LOOK_UPLOAD)
+- L24: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
+- L25: [➕ Ajouter aux looks](ADD_LOOK)
+- L26: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
+- L27: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
+- L28: [❌ Ignorer](ADD_IGNORE)
+- L29: [🔄 Nouvelle vidéo](NEW_GO)
 
 
 ---
-_50 écrans extraits._
+_51 écrans extraits._

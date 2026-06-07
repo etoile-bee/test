@@ -92,6 +92,30 @@ async function sendVid(fp){
   }
   return r;
 }
+// Vidéo + caption + boutons en UN seul message (livraison consolidée). Renvoie le message_id.
+async function sendVideoKb(fp,caption,rows){
+  uiLog({dir:'out',type:'video',screen:'video prête',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:false});
+  try{
+    const FormData=require('form-data');const f=new FormData();
+    f.append('chat_id',CHAT_ID);f.append('video',fs.createReadStream(fp));f.append('supports_streaming','true');
+    if(caption){f.append('caption',caption.slice(0,1020));f.append('parse_mode','HTML');}
+    if(rows)f.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
+    const r=await tg('sendVideo',null,f);
+    if(r&&r.ok)return r.result&&r.result.message_id;
+    const f2=new FormData();f2.append('chat_id',CHAT_ID);f2.append('document',fs.createReadStream(fp));if(caption){f2.append('caption',caption.slice(0,1020));f2.append('parse_mode','HTML');}if(rows)f2.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
+    const r2=await tg('sendDocument',null,f2);return r2&&r2.result&&r2.result.message_id;
+  }catch(e){return null;}
+}
+// Légendes : lit le .txt à côté du .mp4 (SHORT/LONG/HASHTAGS)
+function readCapTxt(vp){try{return fs.readFileSync(String(vp).replace(/\.mp4$/,'.txt'),'utf8');}catch(e){return '';}}
+function parseCaps(txt){const nd=s=>(s||'').replace(/[—–]/g,' ').replace(/\s{2,}/g,' ').trim();const gm=re=>{const m=txt.match(re);return m?m[1].trim():'';};return {short:nd(gm(/SHORT:\s*([\s\S]*?)\n\nLONG:/)),long:nd(gm(/LONG:\s*([\s\S]*?)\n\nHASHTAGS:/)),tags:gm(/HASHTAGS:\s*([\s\S]*)$/)};}
+function escH(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');}
+function buildVideoCaption(vp){const c=parseCaps(readCapTxt(vp));let cap='✅ <b>Vidéo prête</b>';if(c.short)cap+='\n\n<code>'+escH(c.short)+'</code>';if(c.tags)cap+='\n\n<code>'+escH(c.tags)+'</code>';return cap.slice(0,1020);}
+function videoReadyKb(gfIdx){return [
+  [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
+  [{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Cover',callback_data:'COVER_OPEN_'+gfIdx}],
+  [{text:'📋 Légende longue',callback_data:'GF_LONG_'+gfIdx},{text:'📁 Dossier',callback_data:'GF_FILES_'+gfIdx}],
+];}
 async function answerCB(id){return tg('answerCallbackQuery',{callback_query_id:id});}
 
 // ── Look helpers ──────────────────────────────────────────────────────────────
@@ -133,6 +157,11 @@ async function dlPhoto(fileId){
 function trashDir(){const t=path.join(getLooksDir(),'_trash');try{fs.mkdirSync(t,{recursive:true});}catch(e){}return t;}
 function looksList(){try{const d=getLooksDir();return fs.readdirSync(d).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_')).map(f=>{let m=0;try{m=fs.statSync(path.join(d,f)).mtimeMs;}catch(e){}return {f,m};}).sort((a,b)=>b.m-a.m).map(x=>x.f);}catch(e){return[];}}
 function tsName(){const d=new Date();const p=n=>String(n).padStart(2,'0');return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());}
+// ── Noms conviviaux (cache les hf_2026..._844c..png) ──
+const MONTHS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function dateFromName(s){const m=String(s||'').match(/(20\d{2})[-_]?(\d{2})[-_]?(\d{2})/);return m?(parseInt(m[3],10)+' '+(MONTHS_FR[parseInt(m[2],10)-1]||'')):'';}
+function lookName(p){if(!p)return '(photo actuelle)';const base=path.basename(p);let i=-1;try{i=looksList().indexOf(base);}catch(e){}const d=dateFromName(base);return 'Look '+(i>=0?i+1:'•')+(d?' · '+d:'');}
+function friendlyName(name,idx){const d=dateFromName(name);return 'Vidéo '+((idx||0)+1)+(d?' · '+d:'');}
 async function dlPhotoNamed(fileId,name){
   const r=await tg('getFile',{file_id:fileId});
   const url=`https://api.telegram.org/file/bot${TOKEN}/${r.result.file_path}`;
@@ -171,7 +200,7 @@ async function showLook(){
   ];
   if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
   else {rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
-  const cap=`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`;
+  const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
     galMid=null;await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows);return;
@@ -509,31 +538,11 @@ function launch(){
         if(m&&fs.existsSync(m[1].trim())){
           if(mmPing){clearInterval(mmPing);mmPing=null;}
           const vp=m[1].trim();
-          await send('✅ Vidéo prête ! Envoi en cours...').catch(()=>{});
           setTimeout(async()=>{
-            setup.lastVideo=vp; await sendVid(vp).catch(async()=>{
-              await send('⚠️ Vidéo trop lourde pour Telegram — voir iCloud → podcast-outputs').catch(()=>{});
+            setup.lastVideo=vp;const _i=sentVideos.push(vp)-1;
+            await sendVideoKb(vp,buildVideoCaption(vp),[[{text:'✅ Prêt à poster',callback_data:'READY_'+_i}],[{text:'📋 Légende longue',callback_data:'LCAP_LEGACY'}]]).catch(async()=>{
+              await send('⚠️ Vidéo trop lourde — voir iCloud → podcast-outputs').catch(()=>{});
             });
-            await offerReadyToPost(vp).catch(()=>{});
-            // (video unique : envoyee une seule fois via sendVid, bouton Save dessous)
-            // === miniature : extraire une frame de la video via qlmanage (macOS)
-            let thumbPath=null;
-            try{const cp=require('child_process');const pth=require('path');cp.execSync('qlmanage -t -s 320 -o "/tmp" "'+vp+'" 2>/dev/null',{stdio:'ignore'});const png='/tmp/'+pth.basename(vp)+'.png';const jpg='/tmp/thumb'+Date.now()+'.jpg';if(fs.existsSync(png)){cp.execSync('sips -Z 320 -s format jpeg "'+png+'" --out "'+jpg+'" 2>/dev/null');if(fs.existsSync(jpg))thumbPath=jpg;}}catch(e){}
-            // envoi legende txt : le fichier .txt a le meme chemin que le .mp4
-            try{
-              const txtPath=vp.replace(/\.mp4$/,'.txt');
-              if(fs.existsSync(txtPath)){
-                const FormData=require('form-data');
-                const fd=new FormData();
-                fd.append('chat_id',CHAT_ID);
-                fd.append('document',fs.createReadStream(txtPath));
-                fd.append('caption','📝 Légende + script (à copier pour TikTok)');
-                if(thumbPath&&fs.existsSync(thumbPath)){try{fd.append('thumbnail',fs.createReadStream(thumbPath));}catch(e){}}
-                await tg('sendDocument',null,fd).catch(()=>{});
-                // aussi le contenu directement dans le chat pour copie rapide
-                try{const c=fs.readFileSync(txtPath,'utf8');const _nd=function(s){return (s||'').replace(/[\u2014\u2013]/g,' ').replace(/(^|\s)-+(?=\s|$)/g,'$1').replace(/\s{2,}/g,' ').trim();};const gm=(re)=>{const m=c.match(re);return m?m[1].trim():'';};const sh=_nd(gm(/SHORT:\s*([\s\S]*?)\n\nLONG:/));const lo=_nd(gm(/LONG:\s*([\s\S]*?)\n\nHASHTAGS:/));const tg2=gm(/HASHTAGS:\s*([\s\S]*)$/);/*legende v3*/if(sh){await send('📋 Legende COURTE — copie le message juste en dessous 👇').catch(()=>{});await send(sh+'\n\n'+tg2).catch(()=>{});}if(lo){await send('📋 Legende LONGUE — copie le message juste en dessous 👇').catch(()=>{});await send(lo+'\n\n'+tg2).catch(()=>{});}}catch(e){}
-              }
-            }catch(e){}
           },2000);
         }
       }
@@ -555,9 +564,8 @@ function launch(){
     }
   });
   proc.stderr.on('data',d=>{
-    const m=d.toString().trim();
-    if(m&&!m.includes('dotenv')&&!m.includes('tip:'))
-      send('⚠️ '+m.substring(0,200)).catch(()=>{});
+    // stderr (ffmpeg/libass/coretext/frame=…) -> FICHIER uniquement, JAMAIS dans le chat
+    try{fs.mkdirSync(LOGDIR,{recursive:true});fs.appendFileSync(path.join(LOGDIR,'workflow_stderr.log'),d.toString());}catch(e){}
   });
   proc.on('close',()=>{
     if(mmPing){clearInterval(mmPing);mmPing=null;}
@@ -732,13 +740,21 @@ function doReadyToPost(vp){
   fs.writeFileSync(path.join(dir,base+'.style.json'),JSON.stringify(snapshotStyle(),null,2));
   return dst;
 }
-let readyList=[];
+let readyList=[]; // chaque entrée = {label, mp4} (mp4 plat OU dossier/final.mp4)
 async function showReady(){
-  try{readyList=fs.readdirSync(readyDir()).filter(f=>/\.mp4$/i.test(f)).sort().reverse();}catch(e){readyList=[];}
-  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide pour l\'instant.\nSur une vidéo livrée, appuie sur « ✅ Prêt à poster » → elle est copiée dans <code>outputs/ready_to_post/</code> (visible dans Fichiers iCloud sur iPhone).',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
-  const rows=readyList.slice(0,20).map((f,i)=>[{text:'♻️ '+f.replace(/\.mp4$/,'').slice(0,32),callback_data:'REUSE_'+i}]);
+  readyList=[];
+  try{
+    const dir=readyDir();
+    for(const e of fs.readdirSync(dir).sort().reverse()){
+      const p=path.join(dir,e);let st;try{st=fs.statSync(p);}catch(_){continue;}
+      if(st.isDirectory()){const fm=path.join(p,'final.mp4');if(fs.existsSync(fm))readyList.push({label:e,mp4:fm});}
+      else if(/\.mp4$/i.test(e))readyList.push({label:e.replace(/\.mp4$/,''),mp4:p});
+    }
+  }catch(e){}
+  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide. Sur une vidéo livrée, appuie sur ✅ Postable.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  const rows=readyList.slice(0,20).map((x,i)=>[{text:'📤 '+friendlyName(x.label,i),callback_data:'POSTSEND_'+i},{text:'♻️',callback_data:'REUSE_'+i}]);
   rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);
-  await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\n\n📱 Dossier <code>outputs/ready_to_post/</code> (iCloud).\n♻️ Reprendre le style d\'une vidéo :',rows);
+  await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\nTape 📤 = reçois la vidéo + légende prête à poster. ♻️ = reprendre le style.',rows);
 }
 // ── Test local gratuit (réutilisable depuis /test et le menu) ───────────────────
 async function runLocalTest(){
@@ -776,7 +792,7 @@ function recapCaption(){
   const cat=gw.topicCat&&MCATS[gw.topicCat]?(MCATS[gw.topicCat].replace(/^[^ ]+ /,'')+' — '):'';
   const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?(cat+'« '+gw.topic+' »'):(cat||'🎲 auto…'));
   const mins=Math.max(3,Math.round(c.parts*4)); // ~4 min de lipsync Kling par partie
-  return `${journey('recap')}\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(photo actuelle)'}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
+  return `${journey('recap')}\n\n👤 Look : <b>${escH(lookName(gwLook()))}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
 }
 function recapKb(){
   return [
@@ -940,13 +956,10 @@ async function genFinal(){
     await setProg('✅ Terminé !');
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
-    await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
     const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[]})-1;
-    await send('✅ <b>Vidéo prête !</b>\n📁 <code>generations/'+path.basename(genDir)+'/</code>',[
-      [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
-      [{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Cover',callback_data:'COVER_OPEN_'+gfIdx}],
-      [{text:'📁 Fichiers',callback_data:'GF_FILES_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
-    ]);
+    // UN SEUL message : vidéo + légende courte + hashtags (copiables) en caption + actions
+    const vidMid=await sendVideoKb(finalP,buildVideoCaption(finalP),videoReadyKb(gfIdx)).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');return null;});
+    genFolders[gfIdx].vidMid=vidMid;genFolders[gfIdx].caption=buildVideoCaption(finalP);
     try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
   }catch(e){
     if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape : <b>'+(genStep||'?')+'</b>.');await send('⛔ Génération annulée. Tu peux relancer quand tu veux.');}
@@ -1005,14 +1018,17 @@ async function restyleFolder(dir){
   try{fs.copyFileSync(finalP,path.join(dir,'final.mp4'));fs.writeFileSync(path.join(dir,'style.json'),JSON.stringify(snapshotStyle(),null,2));}catch(e){}
   return finalP;
 }
+let mainMenuMid=null;
+async function delMsg(mid){try{if(mid)await tg('deleteMessage',{message_id:mid});}catch(e){}}
 async function showMainMenu(){
-  await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
+  const r=await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
     [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'},{text:'⚡ Express',callback_data:'EXPRESS_NEW'}],
     [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
     [{text:'💾 Modèles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
     [{text:'📁 Fichiers',callback_data:'FILES_HOME'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
     [{text:'🛑 Stop',callback_data:'TECH_STOP'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
   ]);
+  mainMenuMid=(r&&r.result&&r.result.message_id)||null;
 }
 // ── 📁 FICHIERS : parcourir et recevoir les fichiers (vidéos/images/légendes/ready/looks) ──
 function listDir(dir,filter){try{return fs.readdirSync(dir).filter(f=>!f.startsWith('.')&&filter(f)).map(f=>{const p=path.join(dir,f);let st;try{st=fs.statSync(p);}catch(e){return null;}return st.isFile()?{path:p,name:f,mtime:st.mtimeMs,size:st.size}:null;}).filter(Boolean);}catch(e){return [];}}
@@ -1380,6 +1396,7 @@ async function handle(upd){
     // Menu principal
     if(d==='MAIN_MENU'){await showMainMenu();return;}
     if(d==='MENU_GEN'){
+      await delMsg(mainMenuMid);mainMenuMid=null; // l'écran Générer REMPLACE le menu (pas d'empilement)
       if(hasActiveEdits()){await send('🎬 Tu as des réglages d\'image actifs. Pour cette nouvelle vidéo :',[[{text:'✅ Garder les réglages',callback_data:'GEN_KEEP'}],[{text:'🔄 Repartir de la base',callback_data:'GEN_RESET'}]]);return;}
       gwReset();await send('🎬 Préparation de la carte (sujet auto)...').catch(()=>{});await ensureTopic();await showRecap();return;
     }
@@ -1387,7 +1404,7 @@ async function handle(upd){
     if(d==='GEN_RESET'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);gwReset();await ensureTopic();await showRecap();return;}
     if(d==='RC_NEWTOPIC'){if(gw.topic&&!sessionTopics.includes(gw.topic))sessionTopics.push(gw.topic);gw.topic=null;await send('🔄 Nouveau sujet...').catch(()=>{});await ensureTopic();await refreshRecap();return;}
     if(d==='TEST_GEN'){gwReset();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w))gw.look=w;await send('🚀 Carte de génération (paramètres du test)...').catch(()=>{});await ensureTopic();await showRecap();return;}
-    if(d==='EXPRESS_NEW'){gwReset();await recapGo();return;} /*express 1-tap : défauts state.json -> GO direct*/
+    if(d==='EXPRESS_NEW'){await delMsg(mainMenuMid);mainMenuMid=null;gwReset();await recapGo();return;} /*express 1-tap*/
     // ── Carte récap : lignes modifiables ──
     if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
     if(d==='RC_LOOK'){
@@ -1448,6 +1465,9 @@ async function handle(upd){
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));await send('📁 Fichiers de cette génération ('+files.length+') :');for(const f of files)await sendFile(path.join(gf.dir,f));}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'📁 Dossier',callback_data:'GF_FILES_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
+    if(d.startsWith('GF_SHORT_')){const ix=+d.slice(9);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:(gf.caption||buildVideoCaption(gf.finalP)).slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});return;}catch(e){}}return;}
+    if(d==='LCAP_LEGACY'){if(setup.lastVideo){const c=parseCaps(readCapTxt(setup.lastVideo));await send('📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':''));}else await send('⚠️ Aucune vidéo récente.');return;}
     if(d.startsWith('COVER_OPEN_')){covState={gfIdx:+d.slice(11),idx:0,mid:null};await showCover();return;}
     if(d==='COVER_PREV'){covState.idx--;await showCover();return;}
     if(d==='COVER_NEXT'){covState.idx++;await showCover();return;}
@@ -1687,12 +1707,20 @@ await send('Ready to generate video?',[
       return;
     }
     if(d==='SHOWREADY'){await showReady();return;}
+    if(d.startsWith('POSTSEND_')){
+      const x=readyList[+d.slice(9)];if(!x){await send('⚠️ Rouvre 📤.');return;}
+      // tap = reçois la vidéo + légende+hashtags copiables, prête à forward/poster
+      await sendVideoKb(x.mp4,buildVideoCaption(x.mp4),[[{text:'📋 Légende longue',callback_data:'POSTLONG_'+(+d.slice(9))}]]).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir Fichiers iCloud.');});
+      return;
+    }
+    if(d.startsWith('POSTLONG_')){const x=readyList[+d.slice(9)];if(!x){await send('⚠️ Rouvre 📤.');return;}const c=parseCaps(readCapTxt(x.mp4));await send('📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':''));return;}
     if(d.startsWith('REUSE_')){
-      const i=+d.slice(6);const f=readyList[i];
-      if(!f){await send('⚠️ Entrée introuvable (rouvre 📤).');return;}
-      const sj=path.join(readyDir(),f.replace(/\.mp4$/,'.style.json'));
+      const x=readyList[+d.slice(6)];
+      if(!x){await send('⚠️ Entrée introuvable (rouvre 📤).');return;}
+      // cherche un style.json (plat: <base>.style.json ; dossier: style.json)
+      let sj=x.mp4.replace(/\.mp4$/,'.style.json');if(!fs.existsSync(sj))sj=path.join(path.dirname(x.mp4),'style.json');
       if(!fs.existsSync(sj)){await send('⚠️ Pas de snapshot de style pour cette vidéo.');return;}
-      try{editPrevFrame=null;applySnapshot(JSON.parse(fs.readFileSync(sj,'utf8')));await send('✅ Style repris depuis <b>'+f.replace(/\.mp4$/,'')+'</b>.');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
+      try{editPrevFrame=null;applySnapshot(JSON.parse(fs.readFileSync(sj,'utf8')));await send('✅ Style repris depuis <b>'+escH(x.label)+'</b>.');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
       return;
     }
     // Styles sauvegardés
@@ -2029,6 +2057,7 @@ process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e &
 setInterval(()=>{},1<<30);
 tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*/
   {command:'stop',description:'⏹ Tout arrêter'},
+  {command:'restart',description:'🔄 Redémarrer le bot'},
   {command:'go',description:'🏠 Menu principal'},
   {command:'menu',description:'🏠 Menu principal'},
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
@@ -2042,7 +2071,6 @@ tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*
   {command:'ideas',description:'💡 Idées de sujets'},
   {command:'library',description:'📚 Derniers scripts'},
   {command:'status',description:'ℹ️ État du bot'},
-  {command:'restart',description:'🔄 Redémarrer le bot'},
   {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
