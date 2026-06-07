@@ -104,6 +104,13 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
     if(fs.existsSync(tmp)&&fs.statSync(tmp).size>10000){fs.renameSync(tmp,dest);console.log('Passe couleur V5 appliquee (comme la prod).');}
   }catch(e){console.log('(passe couleur ignoree: '+e.message+')');}
   console.log('Sauve :', dest);
+  /*testarchive v1 : copie horodatee — plus d'ecrasement silencieux, chaque test reste identifiable*/
+  try{
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    const arch=dest.replace(/TEST_soustitres\.mp4$/,'TEST_'+stamp+'.mp4');
+    fs.copyFileSync(dest,arch);
+    console.log('Archive :', arch);
+  }catch(e){}
   try { execSync('open "' + dest + '"'); } catch(e){}
   console.log('\nPour ajuster : change FONT_SIZE / OY en haut du fichier, relance. GRATUIT.');
 })();
