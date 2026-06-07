@@ -581,6 +581,44 @@ const RL=require('./render_local');
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v*1000)/1000));
 function readFx(){return RL.loadFx();}
 function writeFx(fx){fs.writeFileSync(path.join(BASE,'style.json'),JSON.stringify(fx,null,2));}
+// ── Styles sauvegardés (sous-titres + fx) dans ~/podcast-workflow/styles/ ───────
+function stylesDir(){const d=path.join(BASE,'styles');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
+function readSubs(){
+  const s=fs.readFileSync(path.join(BASE,'subtitle_style.js'),'utf8');
+  return {
+    font:s.match(/const\s+FONT\s*=\s*['"]([^'"]+)['"]/)?.[1]||'Archivo Black',
+    size:+(s.match(/FONT_SIZE\s*=\s*([\d.]+)/)?.[1]||78),
+    oy:+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.27),
+    letter:s.match(/const\s+LETTER\s*=\s*['"]([^'"]*)['"]/)?.[1]||'2px',
+    subs:+(s.match(/const\s+SUBS\s*=\s*([01])/)?.[1]||1),
+  };
+}
+function writeSubs(v){
+  let s=fs.readFileSync(path.join(BASE,'subtitle_style.js'),'utf8');
+  if(v.font!=null)s=s.replace(/const(\s+)FONT(\s*)=\s*['"][^'"]*['"]/,"const$1FONT$2= '"+v.font+"'");
+  if(v.size!=null)s=s.replace(/FONT_SIZE\s*=\s*[\d.]+/,'FONT_SIZE = '+v.size);
+  if(v.oy!=null)s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v.oy);
+  if(v.letter!=null)s=s.replace(/const(\s+)LETTER(\s*)=\s*['"][^'"]*['"]/,"const$1LETTER$2= '"+v.letter+"'");
+  if(v.subs!=null)s=s.replace(/const(\s+)SUBS(\s*)=\s*[01]/,'const$1SUBS$2= '+(v.subs?1:0));
+  fs.writeFileSync(path.join(BASE,'subtitle_style.js'),s);
+}
+function snapshotStyle(){return {savedAt:new Date().toISOString(),subs:readSubs(),fx:readFx()};}
+function applySnapshot(snap){if(snap&&snap.subs)writeSubs(snap.subs);if(snap&&snap.fx)writeFx(snap.fx);}
+function listStyles(){try{return fs.readdirSync(stylesDir()).filter(f=>f.endsWith('.json')).sort();}catch(e){return[];}}
+function saveStyleAuto(){
+  const dir=stylesDir();const existing=listStyles();let n=existing.length+1;
+  while(fs.existsSync(path.join(dir,'style_'+n+'.json')))n++;
+  const name='style_'+n;const snap=snapshotStyle();snap.name=name;
+  fs.writeFileSync(path.join(dir,name+'.json'),JSON.stringify(snap,null,2));return name;
+}
+let styleList=[];
+async function showStyles(){
+  styleList=listStyles();
+  if(!styleList.length){await send('📂 Aucun style sauvegardé.\nDans /edit, appuie sur « 💾 Sauvegarder ce style ».');return;}
+  const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
+  rows.push([{text:'◀️ Menu',callback_data:'EDIT_HOME'}]);
+  await send('📂 <b>MES STYLES</b>\n\nCharge ou supprime un style :',rows);
+}
 const IMG_PRESETS={
   'Naturel':{brightness:0,contrast:1,saturation:1,temperature:6500,sharpness:0,vignette:0},
   'Chaud':{brightness:0.03,contrast:1.05,saturation:1.18,temperature:4800,sharpness:0.3,vignette:1},
@@ -624,6 +662,7 @@ async function showEditHome(){
   await send('🎛 <b>ÉDITION DU LOOK</b>\n\nChoisis une section à régler :',[
     [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
     [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'}],
+    [{text:'💾 Sauvegarder ce style',callback_data:'SAVESTYLE'},{text:'📂 Mes styles',callback_data:'SHOWSTYLES'}],
     [{text:'👁 Aperçu du look complet',callback_data:'EDIT_PREVIEW'}],
   ]);
 }
@@ -853,6 +892,22 @@ await send('Ready to generate video?',[
       return;
     }
     if(d==='ADD_IGNORE'){pendingPhotoId=null;await send('Ok, photo ignorée.');return;}
+    // Styles sauvegardés
+    if(d==='SAVESTYLE'){const n=saveStyleAuto();await send('💾 Style sauvegardé : <b>'+n+'</b>\nRecharge-le via 📂 Mes styles.');return;}
+    if(d==='SHOWSTYLES'){await showStyles();return;}
+    if(d.startsWith('LOADSTYLE_')){
+      const i=+d.slice(10);const f=styleList[i];
+      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
+      try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendCompareNow();}catch(e){await send('❌ '+e.message);}
+      return;
+    }
+    if(d.startsWith('DELSTYLE_')){
+      const i=+d.slice(9);const f=styleList[i];
+      if(!f){await send('⚠️ Style introuvable.');return;}
+      const tdir=path.join(stylesDir(),'_trash');try{fs.mkdirSync(tdir,{recursive:true});}catch(e){}
+      try{fs.renameSync(path.join(stylesDir(),f),path.join(tdir,f));await send('🗑 <b>'+f.replace(/\.json$/,'')+'</b> déplacé dans styles/_trash/ (réversible).');}catch(e){await send('❌ '+e.message);}
+      await showStyles();return;
+    }
     // Menu /edit unifié
     if(d==='EDIT_HOME'){await showEditHome();return;}
     if(d==='EDIT_SUBS'){await showSettings();return;}
@@ -1048,6 +1103,7 @@ await send('Ready to generate video?',[
     return;
   }
   if(txt==='/edit'){await showEditHome();return;}
+  if(txt==='/styles'){await showStyles();return;}
   if(txt==='/settings'){await showSettings();return;}
   if(txt==='/preview'){await runPreview();return;}
   if(txt==='/library'){
