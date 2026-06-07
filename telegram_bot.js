@@ -675,12 +675,12 @@ async function showGenerateMenu(){
   ]);
 }
 async function showMainMenu(){
-  await send('🏠 <b>MENU PRINCIPAL</b>\n\nQue veux-tu faire ?',[
+  await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
     [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'}],
     [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
-    [{text:'📤 Prêt à poster',callback_data:'SHOWREADY'},{text:'💾 Mes styles',callback_data:'SHOWSTYLES'}],
+    [{text:'💾 Mes styles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
     [{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
-    [{text:'⚙️ Réglages techniques',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
+    [{text:'🛑 Stop',callback_data:'TECH_STOP'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
   ]);
 }
 const IMG_PRESETS={
@@ -689,6 +689,12 @@ const IMG_PRESETS={
   'Cinéma':{brightness:-0.02,contrast:1.22,saturation:0.92,temperature:5500,sharpness:0.6,vignette:3},
   'Luxe':{brightness:0.02,contrast:1.12,saturation:1.28,temperature:5200,sharpness:0.7,vignette:2},
   'Soft':{brightness:0.05,contrast:0.96,saturation:1.05,temperature:6000,sharpness:0,vignette:1},
+  'N&B':{brightness:0,contrast:1.12,saturation:0,temperature:6500,sharpness:0.2,vignette:1},
+  'Vintage':{brightness:0.02,contrast:0.92,saturation:0.8,temperature:4500,sharpness:0,vignette:3},
+  'Golden':{brightness:0.05,contrast:1.05,saturation:1.2,temperature:4200,sharpness:0.2,vignette:2},
+  'Studio':{brightness:0.03,contrast:1.08,saturation:1.05,temperature:6500,sharpness:0.5,vignette:0},
+  'Glow':{brightness:0.06,contrast:0.98,saturation:1.05,temperature:5800,sharpness:-0.6,vignette:1},
+  'Punch':{brightness:0,contrast:1.3,saturation:1.4,temperature:6500,sharpness:0.6,vignette:2},
 };
 function musicFiles(){try{return fs.readdirSync(RL.MUSIC_DIR).filter(f=>/\.(mp3|m4a)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_'));}catch(e){return[];}}
 function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);return r[0]||null;}catch(e){return null;}}
@@ -745,17 +751,24 @@ async function showEditHome(){
     [{text:'👁 Aperçu du look complet',callback_data:'EDIT_PREVIEW'}],
   ]);
 }
-async function showEditImage(){
-  const i=readFx().image;
-  const td=i.temperature<6500?'chaud 🔥':i.temperature>6500?'froid ❄️':'neutre';
-  await send(`🎨 <b>IMAGE</b>\n\n☀️ Luminosité: ${i.brightness}\n◐ Contraste: ${i.contrast}\n🌈 Saturation: ${i.saturation}\n🌡 Température: ${i.temperature}K (${td})\n🔪 Netteté: ${i.sharpness}\n⬛ Vignette: ${i.vignette}`,[
-    [{text:'☀️+',callback_data:'IMG_BR_UP'},{text:'☀️-',callback_data:'IMG_BR_DN'},{text:'◐+',callback_data:'IMG_CT_UP'},{text:'◐-',callback_data:'IMG_CT_DN'}],
-    [{text:'🌈+',callback_data:'IMG_SA_UP'},{text:'🌈-',callback_data:'IMG_SA_DN'},{text:'🔥 chaud',callback_data:'IMG_TE_DN'},{text:'❄️ froid',callback_data:'IMG_TE_UP'}],
-    [{text:'🔪+',callback_data:'IMG_SH_UP'},{text:'🔪-',callback_data:'IMG_SH_DN'},{text:'⬛+',callback_data:'IMG_VI_UP'},{text:'⬛-',callback_data:'IMG_VI_DN'}],
-    [{text:'Naturel',callback_data:'IMG_PRE_Naturel'},{text:'Chaud',callback_data:'IMG_PRE_Chaud'},{text:'Cinéma',callback_data:'IMG_PRE_Cinéma'}],
-    [{text:'Luxe',callback_data:'IMG_PRE_Luxe'},{text:'Soft',callback_data:'IMG_PRE_Soft'}],
+function imageKb(){
+  const i=readFx().image;const sg=v=>(v>0?'+':'')+v;
+  const td=i.temperature<6500?'chaud':i.temperature>6500?'froid':'neutre';
+  const keys=Object.keys(IMG_PRESETS);const preRows=[];
+  for(let k=0;k<keys.length;k+=3)preRows.push(keys.slice(k,k+3).map(n=>({text:'🎨 '+n,callback_data:'IMG_PRE_'+n})));
+  return [
+    [{text:'➖',callback_data:'IMG_BR_DN'},{text:'☀️ Lumière: '+sg(i.brightness),callback_data:'NOOP'},{text:'➕',callback_data:'IMG_BR_UP'}],
+    [{text:'➖',callback_data:'IMG_CT_DN'},{text:'◐ Contraste: '+i.contrast,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_CT_UP'}],
+    [{text:'➖',callback_data:'IMG_SA_DN'},{text:'🌈 Saturation: '+i.saturation,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SA_UP'}],
+    [{text:'🔥',callback_data:'IMG_TE_DN'},{text:'🌡 '+i.temperature+'K ('+td+')',callback_data:'NOOP'},{text:'❄️',callback_data:'IMG_TE_UP'}],
+    [{text:'➖',callback_data:'IMG_SH_DN'},{text:'🔪 Netteté: '+i.sharpness,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SH_UP'}],
+    [{text:'➖',callback_data:'IMG_VI_DN'},{text:'⬛ Vignette: '+i.vignette,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_VI_UP'}],
+    ...preRows,
     [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
-  ]);
+  ];
+}
+async function showEditImage(){
+  await send('🎨 <b>IMAGE</b> — règle, l\'AVANT/APRÈS s\'affiche à chaque pas.',imageKb());
 }
 async function showEditZoom(){
   const z=readFx().zoom;
@@ -1038,20 +1051,21 @@ await send('Ready to generate video?',[
     if(d==='EDIT_MUS'){await showEditMusic();await captureBaseline();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
+    if(d==='NOOP')return;
     if(d.startsWith('IMG_')){
       const fx=readFx(),i=fx.image;
-      if(d==='IMG_BR_UP')i.brightness=clampN(i.brightness+0.03,-0.5,0.5);
-      if(d==='IMG_BR_DN')i.brightness=clampN(i.brightness-0.03,-0.5,0.5);
-      if(d==='IMG_CT_UP')i.contrast=clampN(i.contrast+0.05,0.5,2);
-      if(d==='IMG_CT_DN')i.contrast=clampN(i.contrast-0.05,0.5,2);
-      if(d==='IMG_SA_UP')i.saturation=clampN(i.saturation+0.1,0,3);
-      if(d==='IMG_SA_DN')i.saturation=clampN(i.saturation-0.1,0,3);
-      if(d==='IMG_TE_UP')i.temperature=clampN(i.temperature+400,2000,12000); // froid
-      if(d==='IMG_TE_DN')i.temperature=clampN(i.temperature-400,2000,12000); // chaud
-      if(d==='IMG_SH_UP')i.sharpness=clampN(i.sharpness+0.2,0,3);
-      if(d==='IMG_SH_DN')i.sharpness=clampN(i.sharpness-0.2,0,3);
-      if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+1,0,5);
-      if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-1,0,5);
+      if(d==='IMG_BR_UP')i.brightness=clampN(i.brightness+0.02,-0.3,0.3);
+      if(d==='IMG_BR_DN')i.brightness=clampN(i.brightness-0.02,-0.3,0.3);
+      if(d==='IMG_CT_UP')i.contrast=clampN(i.contrast+0.05,0.7,1.5);
+      if(d==='IMG_CT_DN')i.contrast=clampN(i.contrast-0.05,0.7,1.5);
+      if(d==='IMG_SA_UP')i.saturation=clampN(i.saturation+0.05,0,2);
+      if(d==='IMG_SA_DN')i.saturation=clampN(i.saturation-0.05,0,2);
+      if(d==='IMG_TE_UP')i.temperature=clampN(i.temperature+200,3500,8500); // froid
+      if(d==='IMG_TE_DN')i.temperature=clampN(i.temperature-200,3500,8500); // chaud
+      if(d==='IMG_SH_UP')i.sharpness=clampN(i.sharpness+0.15,-1,1.5);
+      if(d==='IMG_SH_DN')i.sharpness=clampN(i.sharpness-0.15,-1,1.5);
+      if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+0.5,0,4);
+      if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-0.5,0,4);
       if(d.startsWith('IMG_PRE_')){const n=d.slice(8);if(IMG_PRESETS[n])fx.image=Object.assign({},IMG_PRESETS[n]);}
       writeFx(fx);await afterEdit('img');return;
     }
@@ -1193,7 +1207,7 @@ await send('Ready to generate video?',[
 
   if(txt==='/start'||txt==='/menu'){await showMainMenu();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
+  if(txt==='/go'||txt==='go'){await showMainMenu();return;} /*menu v5 : /go = menu principal*/
   if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
     let stopped=false;
     if(proc){try{proc.kill('SIGKILL');}catch(e){} proc=null;stopped=true;}
@@ -1297,8 +1311,8 @@ process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e &
 
 setInterval(()=>{},1<<30);
 tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le menu "/" de Telegram*/
+  {command:'go',description:'🏠 Menu principal'},
   {command:'menu',description:'🏠 Menu principal'},
-  {command:'go',description:'🎬 Créer une vidéo'},
   {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
   {command:'looks',description:'👤 Galerie de looks'},
   {command:'posted',description:'📤 Vidéos prêtes à poster'},

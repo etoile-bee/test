@@ -93,7 +93,7 @@ function buildColorFilter(img) {
   const t = img.temperature != null ? +img.temperature : 6500;
   if (t !== 6500) f.push(`colortemperature=temperature=${Math.round(t)}:mix=1:pl=0`);
   const sh = +img.sharpness || 0;
-  if (sh > 0) f.push(`unsharp=5:5:${sh.toFixed(2)}:5:5:0`);
+  if (sh !== 0) f.push(`unsharp=5:5:${sh.toFixed(2)}:5:5:0`); // sh<0 = flou doux (effet Glow/peau douce)
   const vg = +img.vignette || 0;
   if (vg > 0) f.push(`vignette=angle=${(Math.PI / 5 * (1 + vg * 0.4)).toFixed(4)}`);
   return f.join(',');
