@@ -17,7 +17,8 @@
 ## Qui je suis / setup
 - MacBook, dossier `~/podcast-workflow/`. Tout en FRANÇAIS.
 - Bot Telegram qui génère des vidéos TikTok lipsync (coach relationnelle, femmes 20-40).
-- Fichiers : `telegram_bot.js` (bot, pm2 `podcast-bot`), `workflow.js` (moteur vidéo), `subtitle_style.js` (style sous-titres — SOURCE UNIQUE prod+test+bot), `test_soustitres.js` (test sandbox gratuit).
+- Fichiers (arborescence nettoyée 07/06, tag `avant-menage` pour l'ancienne) : `telegram_bot.js` (bot, pm2 `podcast-bot`), `workflow.js` (moteur vidéo), `subtitle_style.js` (SOURCE UNIQUE sous-titres), `color_style.js` (SOURCE UNIQUE couleur), `test_soustitres.js` (test sandbox), `library.json` + `topic_history.json` (données), `server.js`/`server_latest.js` (dashboard web port 3333 — en sommeil, à ressusciter ou supprimer), `make_reactions_v3.js` + `reactions/` (réactions, désactivées).
+- Clés TikTok dans `.env` mais AUCUN code TikTok : la publication auto reste à construire (chaînon manquant du 100% auto).
 - Pipeline : ElevenLabs (voix) + Kling/Higgsfield (lipsync) + Shotstack (montage/sous-titres/couleur).
 - Looks : iCloud `podcast-looks/` (symlink `looks/`). Sorties : iCloud `podcast-outputs/` (symlink `outputs/`).
 
@@ -47,10 +48,12 @@
 - Couleur : ✅ teinte V5 VALIDÉE par Etoile (07/06, DEMO_couleur_V5) = désat -12%, bleu tons moyens/clairs, +contraste, netteté douce, étiquette bt709 (fin du jaune téléphone). Correction ADAPTATIVE (coloradapt v1) : dosée via signalstats selon la saturation/jaune de la vidéo de base, référence _REF dans saveOpen. Encodage crf17/medium.
 
 ## CE QU'IL RESTE À FAIRE
-1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test` et les réglages /settings retargés.
-2. UNE vraie vidéo de validation complète (couleur + sous-titres verrouillés + trim 0.10s + sans réactions), puis git tag "v1-validee".
+1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test`, `/settings` retargés, `/stop` "partout".
+2. UNE vraie vidéo de validation complète (couleur V5 adaptative + sous-titres verrouillés + trim + sans réactions), puis git tag "v1-validee".
 3. 🆕 Galerie de looks dans le bot.
-4. Ensuite seulement : multi-personas (config par influenceuse) puis monétisation.
+4. Publication TikTok automatique (clés déjà dans .env, code à écrire) + remplacer tmpfiles.org par un stockage privé.
+5. Multi-personas (config par influenceuse, moteur unique) — voir feuille de route monétisation dans l'historique 07/06.
+6. Boucle d'apprentissage : brancher /mark (62 scripts, 0 noté) pour que le moteur privilégie les sujets qui performent.
 
 ## PRÉFÉRENCE SOUS-TITRES (modèle visé)
 - Style référence : photo "CHEMISTRY FADES" = grotesque type Arial/Helvetica, TOUT BLANC, lettres espacées, ombre douce (PAS de gros contour noir), au HAUT DE LA MOUSSE DU MICRO (pas au cou).
