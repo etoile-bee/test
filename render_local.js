@@ -13,6 +13,7 @@ const { execFileSync } = require('child_process');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
+const { isPauseToken } = require('./tts_sanitize'); // filtre marqueurs de pause (sous-titres)
 
 // ============================================================================
 // CONSTANTES ÉDITABLES — style sous-titres validé (Arial Black ~52px @720x1280)
@@ -105,7 +106,7 @@ function buildColorFilter(img) {
 // Normalise les wordTimings : { text, start, end, duration } (gère .text ou .word)
 function normTimings(wordTimings) {
   return (wordTimings || [])
-    .filter(w => !/^\[pause\]$/i.test(String(w.text || w.word || '')))
+    .filter(w => !isPauseToken(w.text != null ? w.text : w.word))
     .map(w => {
       const text = wtext(w);
       const start = +w.start || 0;

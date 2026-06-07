@@ -626,6 +626,7 @@ let RL=require('./render_local');
 // au démarrage. On purge le cache require et on recharge AVANT chaque rendu -> toujours le code à jour.
 function freshRL(){try{delete require.cache[require.resolve('./render_local')];}catch(e){}RL=require('./render_local');return RL;}
 const WF=require('./workflow.js'); // briques de génération (require.main!==module -> main() ne se lance pas)
+const {sanitizeTTS:_sanTTS}=require('./tts_sanitize'); // ceinture : nettoyage pause côté bot aussi
 // ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
 const STATE_PATH=path.join(BASE,'state.json');
 const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[]};
@@ -915,7 +916,7 @@ async function genMockup(){
   await cockpitCaption('🎙 Voix + rendu maquette…',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]);
   try{
     ttsCheck('maquette',genJob.script);
-    genJob.audio=await WF.generateAudio(genJob.script,1);
+    genJob.audio=await WF.generateAudio(_sanTTS(genJob.script),1);
     const out='/tmp/mockup_'+Date.now()+'.mp4';
     await freshRL().renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
     const cap=journey('maquette')+`\n\n👁 Maquette (script + modèle courants · lèvres non synchro).`;
@@ -943,14 +944,14 @@ async function genFinal(){
     const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
     const outDir=path.join(BASE,'outputs');
     genStep='voix';abrt();
-    if(!job.audio){ttsCheck('gen p1',job.script);job.audio=await WF.generateAudio(job.script,1);}
+    if(!job.audio){ttsCheck('gen p1',job.script);job.audio=await WF.generateAudio(_sanTTS(job.script),1);}
     genStep='avatar';abrt();await setProg('📝 ✓ · 🎙 ✓ · 🖼 avatar…');
     const imageUrl=await WF.prepareImage();
     const clips=[];const prevScripts=[job.script];const partsMeta=[];
     for(let i=1;i<=job.parts;i++){
       let c,audio;
       if(i===1){c=job.c1;audio=job.audio;}
-      else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);ttsCheck('gen p'+i,c.script);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
+      else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);ttsCheck('gen p'+i,c.script);audio=await WF.generateAudio(_sanTTS(c.script),i);prevScripts.push(c.script);}
       genStep='lipsync '+i+'/'+job.parts;abrt();await setProg('🎬 Lipsync '+i+'/'+job.parts+'… (~3-5 min)');
       const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i,abortNow);
       const rawi=await WF.saveLipsyncRaw(lip,i,ts,outDir);

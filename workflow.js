@@ -7,6 +7,7 @@ const anthropic=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
 const HIGGS_AUTH='Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET;
 const HIGGS_BASE='https://platform.higgsfield.ai';
 const SHOTSTACK=process.env.SHOTSTACK_API_KEY,EL_KEY=process.env.ELEVENLABS_API_KEY,EL_VOICE=process.env.ELEVENLABS_VOICE_ID,AVATAR_URL=process.env.HIGGS_AVATAR_URL;
+const {sanitizeTTS,stripPauseTokens}=require('./tts_sanitize'); // nettoyage UNIQUE des marqueurs de pause
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ask=q=>new Promise(resolve=>{const rl=require('readline').createInterface({input:process.stdin,output:process.stdout});rl.question(q,a=>{rl.close();resolve(a.trim().toUpperCase());});});
 
@@ -46,7 +47,7 @@ async function generateScript(topic,words){
   console.log('\n📝 Script ('+words+' words)...');
   const __cont=/THIS IS PART [23]/i.test(topic); const __p3=/THIS IS PART 3/i.test(topic); /*continuity v2*/
   const __rule1=__cont?('1. This is a DIRECT CONTINUATION of the SAME video, same person still talking. Do NOT use any hook. Do NOT greet, introduce, recap, summarize, or repeat ANY idea, sentence or phrasing from the earlier parts. Begin mid-thought with a NEW angle that deepens the SAME subject.'+(__p3?' End with ONE short call to action.':' No call to action.')):'1. First sentence = THE HOOK (max 8 words). It MUST stop the scroll in under 1 second. Pick whatever is most viral for THIS topic: a shocking question, a brutal accusation, a forbidden secret, a bold contrarian claim, or a callout that makes her feel seen. Create an instant curiosity gap or emotional punch. No greeting, no warmup, no setup. Make it impossible to scroll past';
-  const __rule3=__cont?'Add [pause] before the final punchline':'Add [pause] after the hook and before the final punchline';
+  const __rule3=(__cont?'Add [pause] before the final punchline':'Add [pause] after the hook and before the final punchline')+'. Use EXACTLY "[pause]" (lowercase, square brackets) as the ONLY pause marker — NEVER write (pause), Pause, PAUSE, or the bare word pause as a stage direction.';
   const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:500,
     messages:[{role:'user',content:'TikTok relationship coach women 20-40. Topic: "'+topic+'". Return ONLY valid JSON: {"script":"Exactly '+words+' words. VIRAL TikTok script. STRICT RULES:\n'+__rule1+'\n2. Every sentence MAX 8 words. Cut ruthlessly.\n3. '+__rule3+'\n4. Emotional, direct, no fluff. Each word earns its place.\n5. No em dashes. English only.","keywords":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6"] — pick the 6 most emotionally charged shocking words only,"caption_short":"Max 80 chars + emojis, punchy hook","caption_long":"200-250 chars, develop the idea + call to action + emojis","hashtags":["t1","t2","t3","t4","t5"] where the 5 tags are the MOST VIRAL generic TikTok hashtags (fyp, foryou, foryoupage, viral, trending, relatable) plus 1 topical one max, no hash symbol, lowercase, no spaces,"reactions":[{"after":"exact sentence copied from the script","type":"mhm|yeah|right|hmm"}] choose EXACTLY 2 to 3 reactions, placed right after the most impactful sentences (ideally near a [pause]), so it feels like an interviewer reacting; the "after" value MUST be copied verbatim from the script}'}]
   });
@@ -67,20 +68,23 @@ async function generateAudio(script,num){
   const mp3='/tmp/wf_'+num+'.mp3',wav='/tmp/wf_'+num+'.wav';
   const res=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE+'/with-timestamps',{
     method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
+    body:JSON.stringify({text:sanitizeTTS(script),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
   });
   let wt=[];
   if(res.ok){
     const d=await res.json();
     fs.writeFileSync(mp3,Buffer.from(d.audio_base64,'base64'));
     const {characters:ch,character_start_times_seconds:st,character_end_times_seconds:en}=d.alignment;
-    let word='',ws=0,we=0;
+    let word='',ws=0,we=0,inTag=false;
     for(let i=0;i<ch.length;i++){
       const c=ch[i];
+      // ignore les spans de tags SSML <break .../> : ne jamais en faire des mots/sous-titres
+      if(c==='<'){inTag=true;}
+      if(inTag){if(c==='>'){inTag=false;if(i+1<ch.length)ws=st[i+1];}word='';continue;}
       if(c===' '||i===ch.length-1){
         if(i===ch.length-1&&c!==' '){word+=c;we=en[i];}
         const clean=word.trim().replace(/[.,!?;:'"\u2014\u2013-]/g,'').toUpperCase();
-        if(clean)wt.push({text:clean,start:ws,end:we,duration:we-ws});
+        if(clean&&!/^PAUSE$/i.test(clean))wt.push({text:clean,start:ws,end:we,duration:we-ws});
         word='';if(i+1<ch.length)ws=st[i+1];
       }else{if(!word)ws=st[i];word+=c;we=en[i];}
     }
@@ -88,7 +92,7 @@ async function generateAudio(script,num){
   }else{
     const r2=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE,{
       method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json','Accept':'audio/mpeg'},
-      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
+      body:JSON.stringify({text:sanitizeTTS(script),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
     });
     if(!r2.ok)throw new Error('ElevenLabs '+r2.status);
     fs.writeFileSync(mp3,await r2.buffer());
@@ -170,8 +174,8 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
 async function renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions){
   console.log('\n✨ Rendering Part '+num+' (Shotstack)...');
   const kws=new Set(keywords.map(k=>k.toUpperCase()));
-  // Strip [pause] tokens from word timings
-  wordTimings=wordTimings.filter(w=>!/^\[pause\]$/i.test(w.word));
+  // Strip toutes les variantes de marqueur de pause des word timings (sous-titres)
+  wordTimings=stripPauseTokens(wordTimings);
   const wt=wordTimings.filter(w=>w.text&&w.duration>0);
   // couper la fin qui traine : limiter a la fin reelle de la parole (+petite marge)
   const _speechEnd=wordTimings.reduce((m,w)=>Math.max(m,(w.end||0)),0);
