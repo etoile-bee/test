@@ -455,4 +455,4 @@ async function main(){
 // exécuté comme programme (node workflow.js / spawn du bot) -> lance main().
 // importé (require) pour test -> n'exécute PAS main(), expose renderVideo pour le test d'intégration.
 if(require.main===module)main();
-module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw,planParts,partPrompt,concatClips,generateScript,generateAudio,prepareImage,generateLipsync};
+module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw,planParts,partPrompt,concatClips};

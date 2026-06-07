@@ -144,7 +144,6 @@ async function sendPhotoKb(fp,caption,rows){
   }catch(e){console.error('sendPhotoKb',e.message);return send((caption||'📸')+' (image indisponible)',rows);}
 }
 let gal={files:[],idx:0};
-let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Choisir pour la vidéo »
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
 async function showLook(){
   gal.files=looksList();
@@ -153,12 +152,10 @@ async function showLook(){
   const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
   // iCloud : tente le téléchargement si le fichier semble être un placeholder
   try{if(!fs.existsSync(fp)||fs.statSync(fp).size<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}}}catch(e){}
-  const rows=[
+  await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
-  ];
-  if(galForRecap)rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);
-  else rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);
-  await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,rows);
+    [{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}],
+  ]);
 }
 
 // ── Setup flow ────────────────────────────────────────────────────────────────
@@ -586,29 +583,6 @@ async function showSettings(){
 }
 // ── Helpers /edit (Image, Zooms, Musique) — stockés dans style.json ─────────────
 const RL=require('./render_local');
-const WF=require('./workflow.js'); // briques de génération (require.main!==module -> main() ne se lance pas)
-// ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
-const STATE_PATH=path.join(BASE,'state.json');
-const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[]};
-let genState=Object.assign({},DEFAULT_STATE);
-function loadState(){try{genState=Object.assign({},DEFAULT_STATE,JSON.parse(fs.readFileSync(STATE_PATH,'utf8')));}catch(e){genState=Object.assign({},DEFAULT_STATE);}}
-function saveState(){try{fs.writeFileSync(STATE_PATH,JSON.stringify(genState,null,2));}catch(e){}}
-function pushLastLook(p){if(!p)return;genState.lastLooks=[p,...(genState.lastLooks||[]).filter(x=>x!==p)].slice(0,3);}
-// ── Coûts estimés (CONFIGURABLES — valeurs raisonnables documentées, à ajuster) ──
-const COST={
-  EL_EUR_PER_1K_CHARS:0.20, // ElevenLabs multilingual v2 ~0.18–0.30€/1k caractères selon le plan
-  KLING_EUR_PER_PART:0.40,  // Higgsfield/Kling lipsync ~par part générée
-  CHARS_PER_WORD:6,         // ~5 lettres + 1 espace
-  CURRENCY:'€',
-};
-function estimateCost(durationStr){
-  const sec=parseInt(durationStr,10)||23;
-  const plan=WF.planParts(sec);
-  const wm=plan.words.split('-').map(Number);const wpp=(wm[0]+wm[1])/2;
-  const totalWords=Math.round(wpp*plan.n);const chars=totalWords*COST.CHARS_PER_WORD;
-  const el=(chars/1000)*COST.EL_EUR_PER_1K_CHARS, kling=plan.n*COST.KLING_EUR_PER_PART;
-  return {parts:plan.n,words:totalWords,el,kling,total:el+kling};
-}
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v*1000)/1000));
 function readFx(){return RL.loadFx();}
 function writeFx(fx){fs.writeFileSync(path.join(BASE,'style.json'),JSON.stringify(fx,null,2));}
@@ -707,52 +681,16 @@ async function runLocalTest(){
   }catch(e){await send('❌ Test local : '+e.message);}
 }
 const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
-async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
-// ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
-let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
-function gwReset(){gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topic:null,duration:genState.duration||'23s',mid:null};}
-function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
-function recapCaption(){
-  const dur=gw.duration||'23s';const c=estimateCost(dur);
-  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):'🎲 auto';
-  return `🎬 <b>NOUVELLE VIDÉO</b>\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(avatar actuel)'}</b>\n🎨 Style : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût estimé : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b>  (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})`;
-}
-function recapKb(){
-  return [
-    [{text:'👤 Changer le look',callback_data:'RC_LOOK'}],
-    [{text:'🎨 Style',callback_data:'RC_STYLE'},{text:'💬 Sujet',callback_data:'RC_SUBJ'}],
-    [{text:'⏱ 15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️ Libre',callback_data:'RC_DUR_FREE'}],
-    [{text:'🚀 GO',callback_data:'RC_GO'},{text:'❌ Annuler',callback_data:'RC_CANCEL'}],
-  ];
-}
-async function showRecap(){
-  const lk=gwLook();
-  if(lk){const r=await sendPhotoKb(lk,recapCaption(),recapKb());gw.mid=(r&&r.result&&r.result.message_id)||null;}
-  else {await send(recapCaption(),recapKb());gw.mid=null;}
-}
-async function refreshRecap(){
-  const lk=gwLook();
-  if(gw.mid&&lk){const ok=await editPhotoKb(gw.mid,lk,recapCaption(),recapKb());if(ok)return;}
-  await showRecap();
-}
-// Lance la génération depuis la carte récap (C1 : passe par le moteur existant).
-async function recapGo(){
-  if(proc){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
-  if(gwLook()){setAvatar(gwLook());setup.photo=gwLook();}
-  setup.topic=gw.subjectMode==='mine'?(gw.topic||''):'';
-  setup.duration=gw.duration||'23s';
-  // mémoire persistante : VRAIE génération uniquement
-  if(gwLook())genState.look=gwLook();
-  genState.duration=gw.duration;genState.styleName=gw.styleName;genState.subjectMode=gw.subjectMode;
-  pushLastLook(gwLook());saveState();
-  isAuto=true;autoAnswers=['NO','NO','YES','YES'];state='running';
-  const c=estimateCost(setup.duration);
-  await send('🚀 <b>Génération lancée</b> (~'+c.total.toFixed(2)+COST.CURRENCY+', '+c.parts+' partie(s))...');
-  launch();
+async function showGenerateMenu(){
+  await send('🎬 <b>GÉNÉRER</b>\n\nComment veux-tu générer ?',[
+    [{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],
+    [{text:'🚀 Express',callback_data:'EXPRESS_GO'}],
+    [{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+  ]);
 }
 async function showMainMenu(){
   await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
-    [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'},{text:'⚡ Express',callback_data:'EXPRESS_NEW'}],
+    [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'}],
     [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
     [{text:'💾 Mes styles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
     [{text:'📁 Fichiers',callback_data:'FILES_HOME'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
@@ -1049,37 +987,7 @@ async function handle(upd){
     const d=cb.data;
     // Menu principal
     if(d==='MAIN_MENU'){await showMainMenu();return;}
-    if(d==='MENU_GEN'){gwReset();await showRecap();return;}
-    if(d==='EXPRESS_NEW'){gwReset();await recapGo();return;} /*express 1-tap : défauts state.json -> GO direct*/
-    // ── Carte récap : lignes modifiables ──
-    if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
-    if(d==='RC_LOOK'){
-      const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));
-      const rows=ll.map((p,i)=>[{text:'🖼 '+path.basename(p),callback_data:'RC_LL_'+i}]);
-      rows.push([{text:'👤 Galerie complète',callback_data:'RC_GALLERY'}]);
-      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('👤 <b>LOOK</b> — 3 derniers utilisés ou galerie :',rows);return;
-    }
-    if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;}await showRecap();return;}
-    if(d==='RC_GALLERY'){galForRecap=true;gal.idx=0;await showLook();return;}
-    if(d==='RC_BACK'){await showRecap();return;}
-    if(d==='RC_STYLE'){
-      const list=listStyles();
-      const rows=list.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
-      rows.unshift([{text:'🎨 Style actuel (ne pas changer)',callback_data:'RC_ST_CUR'}]);
-      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('🎨 <b>STYLE</b> — applique un style enregistré :',rows);return;
-    }
-    if(d==='RC_ST_CUR'){gw.styleName=null;await showRecap();return;}
-    if(d.startsWith('RC_ST_')){const list=listStyles();const f=list[+d.slice(6)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gw.styleName=f.replace(/\.json$/,'');}catch(e){}}await showRecap();return;}
-    if(d==='RC_SUBJ'){await send('💬 <b>SUJET</b>',[[{text:'🎲 Auto',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'}],[{text:'◀️ Récap',callback_data:'RC_BACK'}]]);return;}
-    if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topic=null;await showRecap();return;}
-    if(d==='RC_SUBJ_MINE'){state='rc_topic_wait';await send('⌨️ Tape ton sujet (ex: « pourquoi il revient quand tu l\'ignores ») :');return;}
-    if(d==='RC_DUR_15'){gw.duration='15s';await showRecap();return;}
-    if(d==='RC_DUR_23'){gw.duration='23s';await showRecap();return;}
-    if(d==='RC_DUR_30'){gw.duration='30s';await showRecap();return;}
-    if(d==='RC_DUR_FREE'){state='rc_dur_wait';await send('⌨️ Durée en secondes (5–180). Au-delà de ~30s = plusieurs parties assemblées.');return;}
-    if(d==='RC_GO'){await recapGo();return;}
+    if(d==='MENU_GEN'){await showGenerateMenu();return;}
     if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
@@ -1237,13 +1145,8 @@ await send('Ready to generate video?',[
     if(d==='GAL_GEN'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
-      gwReset();gw.look=path.join(getLooksDir(),f);
-      await showRecap();return;
-    }
-    if(d==='GAL_PICK'){
-      const list=looksList();const f=list[gal.idx];
-      if(f){gw.look=path.join(getLooksDir(),f);}
-      galForRecap=false;await send('✅ Look choisi : <b>'+(f||'?')+'</b>');await showRecap();return;
+      const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
+      await send('✅ Look <b>'+f+'</b> sélectionné. On génère !');await showGenerateMenu();return;
     }
     if(d==='GAL_EDIT'){
       const list=looksList();const f=list[gal.idx];
@@ -1309,7 +1212,7 @@ await send('Ready to generate video?',[
     if(d.startsWith('LOADGEN_')){
       const i=+d.slice(8);const f=styleList[i];
       if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
-      try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gwReset();gw.styleName=f.replace(/\.json$/,'');await showRecap();}catch(e){await send('❌ '+e.message);}
+      try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));await send('✅ Style <b>'+f.replace(/\.json$/,'')+'</b> appliqué. On génère !');await showGenerateMenu();}catch(e){await send('❌ '+e.message);}
       return;
     }
     if(d.startsWith('DELSTYLE_')){
@@ -1462,16 +1365,6 @@ await send('Ready to generate video?',[
     await send('✅ Durée: '+n+'s'+(parts>1?` → ${parts} parties enchaînées + assemblage auto.`:' (une partie).'));
     if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}
     return;
-  }
-  if(state==='rc_topic_wait'&&msg.text){
-    gw.topic=msg.text.trim();gw.subjectMode='mine';state='idle';
-    await send('✅ Sujet : '+gw.topic);await showRecap();return;
-  }
-  if(state==='rc_dur_wait'&&msg.text){
-    let n=parseInt((msg.text.match(/\d+/)||[])[0]||'',10);
-    if(!n||n<5){await send('⚠️ Donne un nombre de secondes (5–180).');return;}
-    if(n>180)n=180;
-    gw.duration=n+'s';state='idle';await showRecap();return;
   }
   if(state==='m_topic_wait'&&msg.text){
     setup.topic=msg.text.trim(); setup.topicCat=null;
@@ -1626,5 +1519,5 @@ tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
 send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
-  loadState();console.log('Bot running...');poll();
+  console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
