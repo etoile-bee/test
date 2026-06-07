@@ -137,7 +137,7 @@ async function sendPhotoKb(fp,caption,rows){
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);
     form.append('photo',fs.readFileSync(f),{filename:'look.jpg',contentType:'image/jpeg'});
-    if(caption){form.append('caption',caption);form.append('parse_mode','HTML');}
+    if(caption)form.append('caption',caption);
     if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendPhoto',{method:'POST',body:form});
     return r.json();
@@ -154,7 +154,7 @@ async function showLook(){
   try{if(!fs.existsSync(fp)||fs.statSync(fp).size<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}}}catch(e){}
   await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
-    [{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}],
+    [{text:'🎬 Générer avec ce look',callback_data:'GAL_GEN'}],
   ]);
 }
 
@@ -618,8 +618,12 @@ function undoEdit(){const a=histRead();const prev=a.pop();histWrite(a);if(prev)a
 function clearHistory(){histWrite([]);}
 let editSectionCur=null;
 async function refreshSection(){
-  // après un undo : ré-affiche le panneau de la section courante (état restauré)
-  await refreshPanel();
+  editPrevFrame=null;
+  if(editSectionCur==='img'){editPanel.mid=null;await sendImagePanel();return;}
+  await sendBeforeAfter();
+  if(editSectionCur==='zoom')await showEditZoom();
+  else if(editSectionCur==='mus')await showEditMusic();
+  else await showSettings();
 }
 function listStyles(){try{return fs.readdirSync(stylesDir()).filter(f=>f.endsWith('.json')).sort();}catch(e){return[];}}
 function saveStyleAuto(){
@@ -712,13 +716,9 @@ const IMG_PRESETS={
 };
 function musicFiles(){try{return fs.readdirSync(RL.MUSIC_DIR).filter(f=>/\.(mp3|m4a)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_'));}catch(e){return[];}}
 function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);return r[0]||null;}catch(e){return null;}}
-// Source de la frame de travail : un look (image) choisi, sinon le dernier raw vidéo
-let workingSource=null;
-function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingSource:latestRaw();}
-function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
-// Rend un court clip (WRONG YOURE) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
-async function renderStyleFrame(input){
-  const raw=input||latestRaw(); if(!raw)return null;
+// Rend un court clip (WRONG YOURE) avec le STYLE COURANT et renvoie {frame,style}
+async function renderStyleFrame(){
+  const raw=latestRaw(); if(!raw)return null;
   const {renderLocal}=require('./render_local');
   const wt='WRONG YOURE'.split(' ').map((w,i)=>({text:w,start:+(i*0.5).toFixed(3),end:+((i+1)*0.5).toFixed(3),duration:0.5}));
   const out='/tmp/sf_'+Date.now()+'.mp4';
@@ -727,36 +727,16 @@ async function renderStyleFrame(input){
   try{require('child_process').execFileSync('ffmpeg',['-y','-ss','0.6','-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return null;}
   return {frame,style:r.style};
 }
-// Aperçu STILL sur une IMAGE (look) : couleur + sous-titres incrustés, via les helpers de render_local
-async function renderStillPreview(imgPath){
-  const sub=readSubs(),fx=readFx(),W=720,H=1280;
-  const assPath='/tmp/still_'+Date.now()+'.ass';
-  const subsOn=sub.subs!==0;
-  if(subsOn)fs.writeFileSync(assPath,RL.buildAss([{text:'WRONG YOURE',start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
-  const color=RL.buildColorFilter(fx.image);
-  let vf='scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1';
-  if(color)vf+=','+color;
-  if(subsOn)vf+=',ass='+assPath;
-  const out='/tmp/still_'+Date.now()+'.png';
-  try{require('child_process').execFileSync('ffmpeg',['-y','-i',imgPath,'-vf',vf,'-frames:v','1','-q:v','2',out],{stdio:'ignore'});}catch(e){return null;}
-  return {frame:out,style:{font:sub.font,fontSize:sub.size,oy:sub.oy}};
-}
-// Frame de travail courante (image look -> still ; sinon vidéo raw -> render)
-async function renderWorkingFrame(){
-  const src=workSrc(); if(!src)return null;
-  if(/\.(jpg|jpeg|png|webp)$/i.test(src))return await renderStillPreview(src);
-  return await renderStyleFrame(src);
-}
 function hstackLabeled(leftPng,rightPng,leftLabel,rightLabel,outPng){
   const FF='/System/Library/Fonts/Helvetica.ttc';
   require('child_process').execFileSync('ffmpeg',['-y','-i',leftPng,'-i',rightPng,'-filter_complex',
     `[0:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${leftLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[a];[1:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${rightLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[b];[a][b]hstack`,outPng],{stdio:'ignore'});
 }
 let editPrevFrame=null; // frame "AVANT" pour le before/after
-async function captureBaseline(){ const f=await renderWorkingFrame(); editPrevFrame=f?f.frame:null; }
+async function captureBaseline(){ const f=await renderStyleFrame(); editPrevFrame=f?f.frame:null; }
 // Après un réglage : envoie AVANT|APRÈS puis re-affiche les contrôles
 async function sendBeforeAfter(){
-  const after=await renderWorkingFrame();
+  const after=await renderStyleFrame();
   if(!after){await send('⚠️ Aperçu indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
   const comp='/tmp/ba_'+Date.now()+'.png';
   if(editPrevFrame&&fs.existsSync(editPrevFrame)){
@@ -767,7 +747,7 @@ async function sendBeforeAfter(){
   await sendImg(comp,`↔️ AVANT | APRÈS — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
 }
 async function sendVsReference(){
-  const after=await renderWorkingFrame();
+  const after=await renderStyleFrame();
   if(!after){await send('⚠️ Aperçu indispo (aucun raw).');return;}
   const ref=path.join(BASE,'reference_model.png');const comp='/tmp/vr_'+Date.now()+'.png';
   if(fs.existsSync(ref)){try{hstackLabeled(ref,after.frame,'REFERENCE','RENDU',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
@@ -780,8 +760,8 @@ async function afterEdit(section){
   else if(section==='zoom')await showEditZoom();
   else if(section==='mus')await showEditMusic();
 }
-// ── Panneau d'édition EN PLACE (un seul message PHOTO, editMessageMedia) ─────────
-let editPanel={mid:null,section:'img'};
+// ── Panneau IMAGE édité EN PLACE (un seul message, editMessageMedia) ─────────────
+let editPanel={mid:null};
 async function editPhotoKb(mid,fp,caption,rows){
   try{
     const FormData=require('form-data');const form=new FormData();
@@ -793,48 +773,30 @@ async function editPhotoKb(mid,fp,caption,rows){
     const d=await r.json();return !!(d&&d.ok);
   }catch(e){return false;}
 }
-function navRow(){return [
-  [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
-  [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
-  [{text:'↔️ Avant/Après',callback_data:'BEFORE_AFTER'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
-];}
-function sectionKb(section){
-  if(section==='subs')return subsKb();
-  if(section==='zoom')return zoomKb();
-  if(section==='mus')return musicKb();
-  return imageKb();
-}
-function sectionCaption(section){
-  const src='📸 '+workSrcLabel();
-  if(section==='subs'){const s=readSubs();return `💬 <b>SOUS-TITRES</b> · ${src}\n🔤 ${fontLabel(s.font)} · ${s.size}px · y=${s.oy} · ${s.subs?'incrustés':'OFF'}`;}
-  if(section==='zoom'){const z=readFx().zoom;return `🎬 <b>ZOOMS</b> · ${src}\n${z.on?'ON ×'+z.intensity+' · '+z.duration+'s · 1/'+z.everyN:'OFF'}`;}
-  if(section==='mus'){const m=readFx().music;return `🎵 <b>MUSIQUE</b> · ${src}\n${m.on?(m.file||'(aucun)')+' @'+m.volume:'OFF'}`;}
-  const i=readFx().image;return `🎨 <b>IMAGE</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K 🔪${i.sharpness} ⬛${i.vignette}`;
-}
-async function openPanel(section){
-  editPanel.section=section;editPanel.mid=null;editPrevFrame=null;
-  const f=await renderWorkingFrame();
-  if(!f){await send(sectionCaption(section)+'\n\n⚠️ Aucune frame de travail. Choisis un look 👤 ou lance un /go.',sectionKb(section));return;}
+async function sendImagePanel(){
+  const f=await renderStyleFrame();
+  if(!f){await send('🎨 <b>IMAGE</b> — règle, l\'AVANT/APRÈS s\'affiche à chaque pas.',imageKb());editPanel.mid=null;return;}
   editPrevFrame=f.frame;
-  const r=await sendPhotoKb(f.frame,sectionCaption(section),sectionKb(section));
+  const r=await sendPhotoKb(f.frame,'🎨 IMAGE — l\'aperçu se met à jour ICI à chaque réglage',imageKb());
   editPanel.mid=(r&&r.result&&r.result.message_id)||null;
 }
-async function refreshPanel(){
-  const section=editPanel.section||'img';
-  const f=await renderWorkingFrame();
-  if(!f){await send('⚠️ Frame de travail indispo.');return;}
-  editPrevFrame=f.frame;
+async function updateImagePanel(){
+  const after=await renderStyleFrame();
+  if(!after){return;}
+  const comp='/tmp/iap_'+Date.now()+'.png';
+  if(editPrevFrame&&fs.existsSync(editPrevFrame)){try{hstackLabeled(editPrevFrame,after.frame,'AVANT','APRES',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
+  else fs.copyFileSync(after.frame,comp);
+  editPrevFrame=after.frame;
   let ok=false;
-  if(editPanel.mid)ok=await editPhotoKb(editPanel.mid,f.frame,sectionCaption(section),sectionKb(section));
-  if(!ok){const r=await sendPhotoKb(f.frame,sectionCaption(section),sectionKb(section));editPanel.mid=(r&&r.result&&r.result.message_id)||null;}
+  if(editPanel.mid)ok=await editPhotoKb(editPanel.mid,comp,'🎨 IMAGE — AVANT | APRÈS',imageKb());
+  if(!ok){const r=await sendPhotoKb(comp,'🎨 IMAGE — AVANT | APRÈS',imageKb());editPanel.mid=(r&&r.result&&r.result.message_id)||null;}
 }
 async function showEditHome(){
-  await send('🎛 <b>ÉDITION DU LOOK</b>\n\n📸 Photo de travail : <b>'+workSrcLabel()+'</b>\nChoisis une section :',[
-    [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
+  await send('🎛 <b>ÉDITION DU LOOK</b>\n\nChoisis une section à régler :',[
     [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
     [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'}],
-    [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Mes styles',callback_data:'SHOWSTYLES'}],
-    [{text:'👁 Aperçu complet',callback_data:'EDIT_PREVIEW'}],
+    [{text:'💾 Sauvegarder ce style',callback_data:'SAVESTYLE'},{text:'📂 Mes styles',callback_data:'SHOWSTYLES'}],
+    [{text:'👁 Aperçu du look complet',callback_data:'EDIT_PREVIEW'}],
   ]);
 }
 function imageKb(){
@@ -850,38 +812,12 @@ function imageKb(){
     [{text:'➖',callback_data:'IMG_SH_DN'},{text:'🔪 Netteté: '+i.sharpness,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SH_UP'}],
     [{text:'➖',callback_data:'IMG_VI_DN'},{text:'⬛ Vignette: '+i.vignette,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_VI_UP'}],
     ...preRows,
-    ...navRow(),
+    [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
   ];
 }
-function subsKb(){
-  const s=readSubs();
-  return [
-    [{text:'🔤 Police: '+fontLabel(s.font),callback_data:'S_FONT'}],
-    [{text:'A+ Taille',callback_data:'S_SIZE_UP'},{text:s.size+'px',callback_data:'NOOP'},{text:'A-',callback_data:'S_SIZE_DN'}],
-    [{text:'⬆️ Monter',callback_data:'S_Y_UP'},{text:'y='+s.oy,callback_data:'NOOP'},{text:'⬇️ Descendre',callback_data:'S_Y_DN'}],
-    [{text:'🔡+ Espace',callback_data:'S_SP_UP'},{text:s.letter,callback_data:'NOOP'},{text:'🔡- Espace',callback_data:'S_SP_DN'}],
-    [{text:s.subs?'💬 Sous-titres: ON':'💬 Sous-titres: OFF',callback_data:'S_SUBS'}],
-    ...navRow(),
-  ];
-}
-function zoomKb(){
-  const z=readFx().zoom;
-  return [
-    [{text:z.on?'🎬 Zooms: ON':'🎬 Zooms: OFF',callback_data:'ZM_TOGGLE'}],
-    [{text:'💪- ',callback_data:'ZM_IN_DN'},{text:'Intensité '+z.intensity+'×',callback_data:'NOOP'},{text:'💪+',callback_data:'ZM_IN_UP'}],
-    [{text:'⏱- ',callback_data:'ZM_DU_DN'},{text:'Durée '+z.duration+'s',callback_data:'NOOP'},{text:'⏱+',callback_data:'ZM_DU_UP'}],
-    [{text:'🔁 Fréquence: '+(z.everyN===1?'tous':'1 sur '+z.everyN),callback_data:'ZM_FREQ'}],
-    ...navRow(),
-  ];
-}
-function musicKb(){
-  const m=readFx().music;const n=musicFiles().length;
-  return [
-    [{text:m.on?'🎵 Musique: ON':'🎵 Musique: OFF',callback_data:'MU_TOGGLE'}],
-    [{text:'⏭ Fichier: '+(m.file||'(aucun)')+(n?'':' — dossier vide'),callback_data:'MU_FILE'}],
-    [{text:'🔊- ',callback_data:'MU_VOL_DN'},{text:'Volume '+m.volume,callback_data:'NOOP'},{text:'🔊+',callback_data:'MU_VOL_UP'}],
-    ...navRow(),
-  ];
+async function showEditImage(){
+  await send('🎨 <b>IMAGE</b> — règle, l\'AVANT/APRÈS s\'affiche à chaque pas.',imageKb());
 }
 async function showEditZoom(){
   const z=readFx().zoom;
@@ -1103,13 +1039,6 @@ await send('Ready to generate video?',[
       const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
       await send('✅ Look <b>'+f+'</b> sélectionné. On génère !');await showGenerateMenu();return;
     }
-    if(d==='GAL_EDIT'){
-      const list=looksList();const f=list[gal.idx];
-      if(!f){await send('⚠️ Look introuvable.');return;}
-      workingSource=path.join(getLooksDir(),f);
-      await send('🎨 Édition sur le look <b>'+f+'</b> (il devient la photo de travail).');
-      editSectionCur='img';await openPanel('img');return;
-    }
     if(d==='GAL_DEL'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Rien à supprimer.');return;}
@@ -1179,14 +1108,12 @@ await send('Ready to generate video?',[
     }
     // Menu /edit unifié
     if(d==='EDIT_HOME'){editPrevFrame=null;await showEditHome();return;}
-    if(d==='EDIT_SUBS'){editSectionCur='subs';await openPanel('subs');return;}
-    if(d==='EDIT_IMG'){editSectionCur='img';await openPanel('img');return;}
-    if(d==='EDIT_ZOOM'){editSectionCur='zoom';await openPanel('zoom');return;}
-    if(d==='EDIT_MUS'){editSectionCur='mus';await openPanel('mus');return;}
-    if(d==='EDIT_LOOKS'){gal.idx=0;await showLook();return;}
+    if(d==='EDIT_SUBS'){editSectionCur='subs';await showSettings();await captureBaseline();return;}
+    if(d==='EDIT_IMG'){editSectionCur='img';editPanel.mid=null;await sendImagePanel();return;}
+    if(d==='EDIT_ZOOM'){editSectionCur='zoom';await showEditZoom();await captureBaseline();return;}
+    if(d==='EDIT_MUS'){editSectionCur='mus';await showEditMusic();await captureBaseline();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
-    if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
     if(d==='NOOP')return;
     if(d==='UNDO_EDIT'){if(!undoEdit()){await send('↩️ Rien à annuler.');return;}await send('↩️ Annulé.');await refreshSection();return;}
     if(d==='VALIDATE_STYLE'){clearHistory();await send('✔️ Style validé et figé. (Historique remis à zéro — repars de cet état.)');return;}
@@ -1206,7 +1133,7 @@ await send('Ready to generate video?',[
       if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+0.5,0,4);
       if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-0.5,0,4);
       if(d.startsWith('IMG_PRE_')){const n=d.slice(8);if(IMG_PRESETS[n])fx.image=Object.assign({},IMG_PRESETS[n]);}
-      writeFx(fx);await refreshPanel();return;
+      writeFx(fx);await updateImagePanel();return;
     }
     if(d.startsWith('ZM_')){
       pushHistory();
@@ -1217,7 +1144,7 @@ await send('Ready to generate video?',[
       if(d==='ZM_DU_UP')z.duration=clampN(z.duration+0.5,0.5,6);
       if(d==='ZM_DU_DN')z.duration=clampN(z.duration-0.5,0.5,6);
       if(d==='ZM_FREQ')z.everyN=z.everyN>=2?1:2;
-      writeFx(fx);await refreshPanel();return;
+      writeFx(fx);await afterEdit('zoom');return;
     }
     if(d.startsWith('MU_')){
       pushHistory();
@@ -1226,7 +1153,7 @@ await send('Ready to generate video?',[
       if(d==='MU_FILE'){if(files.length){let idx=files.indexOf(m.file);m.file=files[(idx+1)%files.length];}}
       if(d==='MU_VOL_UP')m.volume=clampN(m.volume+0.03,0,1);
       if(d==='MU_VOL_DN')m.volume=clampN(m.volume-0.03,0,1);
-      writeFx(fx);await refreshPanel();return;
+      writeFx(fx);await afterEdit('mus');return;
     }
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
@@ -1272,7 +1199,7 @@ await send('Ready to generate video?',[
         let s=fs.readFileSync(sp,'utf8');
         if(/const\s+ZOOM\s*=/.test(s)){s=s.replace(/const(\s+)ZOOM(\s*)=\s*[\d.]+/,'const$1ZOOM$2= '+vs);fs.writeFileSync(sp,s);}
       }
-      await refreshPanel();return;
+      await afterEdit('subs');return;
     }
     return;
   }
