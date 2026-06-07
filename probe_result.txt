@@ -1,0 +1,6 @@
+2026-06-07T20:02:26.811Z
+✅ /v1/text2image/seedream (HTTP 422)
+{"detail":[{"type":"missing","loc":["body","params","prompt"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","params","input_images"],"msg":"Field required","input":{}}]}
+
+✅ /v1/text2image/nano-banana (HTTP 422)
+{"detail":[{"type":"missing","loc":["body","params","prompt"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","params","input_images"],"msg":"Field required","input":{}},{"type":"missing","loc":["body","params","aspect_ratio"],"msg":"Field required","input":{}}]}
