@@ -47,13 +47,17 @@
 - Son : trimstart v1 VALIDÉ par Etoile (démo écoutée) — 0.10s coupées en début de chaque vidéo dans la passe finale (pop audio réglé). Réglage : const TRIM dans saveOpen.
 - Couleur : ✅ teinte V5 VALIDÉE par Etoile (07/06, DEMO_couleur_V5) = désat -12%, bleu tons moyens/clairs, +contraste, netteté douce, étiquette bt709 (fin du jaune téléphone). Correction ADAPTATIVE (coloradapt v1) : dosée via signalstats selon la saturation/jaune de la vidéo de base, référence _REF dans saveOpen. Encodage crf17/medium.
 
-## CE QU'IL RESTE À FAIRE
-1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test`, `/settings` retargés, `/stop` "partout".
-2. UNE vraie vidéo de validation complète (couleur V5 adaptative + sous-titres verrouillés + trim + sans réactions), puis git tag "v1-validee".
-3. 🆕 Galerie de looks dans le bot.
-4. Publication TikTok automatique (clés déjà dans .env, code à écrire) + remplacer tmpfiles.org par un stockage privé.
-5. Multi-personas (config par influenceuse, moteur unique) — voir feuille de route monétisation dans l'historique 07/06.
-6. Boucle d'apprentissage : brancher /mark (62 scripts, 0 noté) pour que le moteur privilégie les sujets qui performent.
+## ✅ V1 VALIDÉE (tag git `v1-validee`, 07/06 ~4h30) — base figée
+Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.25, couleur V5 adaptative (desat only), trim 0.10s, bt709, sans réactions, lookpick nouveautés d'abord. Toute évolution = nouvelle branche de travail, la v1 reste récupérable.
+
+## CE QU'IL RESTE À FAIRE (ordre recommandé)
+1. ⚠️ Redémarrer le bot (commande sécurisée ci-dessus) — TOUJOURS PAS FAIT : active `/test`, `/stop` "partout", `/settings` retargés, lookpick côté bot.
+2. Publication TikTok automatique (clés dans .env, code à écrire — OAuth + Content Posting API, prérequis : app TikTok déclarée). Le chaînon manquant du 100% auto.
+3. Remplacer tmpfiles.org par un stockage privé (S3/R2) — fiabilité + confidentialité, indispensable avant monétisation.
+4. 🆕 Galerie de looks dans le bot (parcourir/choisir, pas seulement random).
+5. Multi-personas : extraire la config par influenceuse (voix, looks, thème, prompts, compte) — le moteur reste unique.
+6. Boucle d'apprentissage : brancher /mark (62 scripts, 0 noté) → le générateur de sujets privilégie ce qui performe.
+7. Décider du sort du dashboard web (server.js) : ressusciter comme interface produit ou supprimer.
 
 ## PRÉFÉRENCE SOUS-TITRES (modèle visé)
 - Style référence : photo "CHEMISTRY FADES" = grotesque type Arial/Helvetica, TOUT BLANC, lettres espacées, ombre douce (PAS de gros contour noir), au HAUT DE LA MOUSSE DU MICRO (pas au cou).
