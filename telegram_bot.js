@@ -735,20 +735,99 @@ async function refreshRecap(){
   if(gw.mid&&lk){const ok=await editPhotoKb(gw.mid,lk,recapCaption(),recapKb());if(ok)return;}
   await showRecap();
 }
-// Lance la génération depuis la carte récap (C1 : passe par le moteur existant).
+// ── Orchestration de génération pilotée par le bot (script preview + maquette + GO) ──
+let genJob=null; // job de génération courant
+function genBusy(){return !!(proc||genJob&&genJob.running);}
+async function autoPickTopic(){
+  const Anthropic=require('@anthropic-ai/sdk');const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
+  let used='';try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));used=(lib.scripts||[]).map(s=>s.title).join(', ');}catch(e){}
+  const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:100,messages:[{role:'user',content:'TikTok relationship coach women 20-40. ONLY romantic relationship topics: red flags, toxic men, attachment styles, self-worth, breakups, why men pull away, dating mistakes, narcissists. Pick ONE viral topic not yet covered. Already covered: '+used+'. Return ONLY the title in English, no quotes, no bold.'}]});
+  return r.content[0].text.trim().replace(/^["'*]+|["'*]+$/g,'');
+}
+// Démarre depuis la carte récap : écrit le 1er script et l'affiche pour validation
 async function recapGo(){
-  if(proc){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
-  if(gwLook()){setAvatar(gwLook());setup.photo=gwLook();}
-  setup.topic=gw.subjectMode==='mine'?(gw.topic||''):'';
-  setup.duration=gw.duration||'23s';
-  // mémoire persistante : VRAIE génération uniquement
-  if(gwLook())genState.look=gwLook();
-  genState.duration=gw.duration;genState.styleName=gw.styleName;genState.subjectMode=gw.subjectMode;
-  pushLastLook(gwLook());saveState();
-  isAuto=true;autoAnswers=['NO','NO','YES','YES'];state='running';
-  const c=estimateCost(setup.duration);
-  await send('🚀 <b>Génération lancée</b> (~'+c.total.toFixed(2)+COST.CURRENCY+', '+c.parts+' partie(s))...');
-  launch();
+  if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
+  const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
+  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topic:gw.subjectMode==='mine'?(gw.topic||null):null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
+  if(gwLook())setAvatar(gwLook());
+  await send('📝 Écriture du script... (gratuit, ~10s)');
+  await genScriptStep();
+}
+async function genScriptStep(){
+  try{
+    if(!genJob.topic)genJob.topic=await autoPickTopic();
+    const prompt=genJob.parts>1?WF.partPrompt(genJob.topic,1,genJob.parts,[]):genJob.topic;
+    const c=await WF.generateScript(prompt,genJob.words);
+    genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
+    await send('📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
+      [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau',callback_data:'GJ_NEW'}],
+      [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'}],
+      [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+    ]);
+  }catch(e){await send('❌ Script: '+e.message);genJob=null;}
+}
+async function genAfterScript(){
+  const c=estimateCost(genJob.duration);
+  await send('✅ Script validé.\n💰 GO ≈ '+c.total.toFixed(2)+COST.CURRENCY+' ('+c.parts+' partie(s)).',[
+    [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'}],
+    [{text:'🚀 GO direct',callback_data:'GJ_GO'}],
+    [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+  ]);
+}
+async function genMockup(){
+  const raw=latestRaw();
+  if(!raw){await send('⚠️ Pas d\'ancien footage pour la maquette. Utilise 🚀 GO direct.');return;}
+  await send('🎙 Voix ElevenLabs (~centimes)...');
+  try{
+    genJob.audio=await WF.generateAudio(genJob.script,1);
+    await send('✨ Rendu local de la maquette (ancien footage, lèvres NON synchro — c\'est normal)...');
+    const out='/tmp/mockup_'+Date.now()+'.mp4';
+    await RL.renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
+    await sendVid(out).catch(async()=>{await send('⚠️ Maquette trop lourde.');});
+    await send('👁 Maquette ci-dessus (lèvres pas synchro, footage ancien). Si le rythme/texte te plaît :',[
+      [{text:'🚀 GO définitif (réutilise cette voix)',callback_data:'GJ_GO'}],
+      [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
+    ]);
+  }catch(e){await send('❌ Maquette: '+e.message);}
+}
+async function genFinal(){
+  if(!genJob){await send('⚠️ Aucun script en attente.');return;}
+  if(proc||genJob.running){await send('⏳ Déjà en cours.');return;}
+  genJob.running=true;state='running';
+  const job=genJob;
+  const prog=await send('📊 <b>GÉNÉRATION</b>\n📝 Script ✓\n🎙 Voix…');
+  const progMid=prog&&prog.result&&prog.result.message_id;
+  const setProg=async t=>{try{if(progMid)await tg('editMessageText',{message_id:progMid,text:'📊 <b>GÉNÉRATION</b>\n'+t,parse_mode:'HTML'});}catch(e){}};
+  try{
+    const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    const outDir=path.join(BASE,'outputs');
+    await setProg('📝 Script ✓\n🎙 Voix…');
+    if(!job.audio)job.audio=await WF.generateAudio(job.script,1);
+    await setProg('📝 ✓ · 🎙 Voix ✓\n🖼 Préparation avatar…');
+    const imageUrl=await WF.prepareImage();
+    const clips=[];const prevScripts=[job.script];
+    for(let i=1;i<=job.parts;i++){
+      let c,audio;
+      if(i===1){c=job.c1;audio=job.audio;}
+      else{await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
+      await setProg('📝 ✓ · 🎙 ✓ · 🖼 ✓\n🎬 Lipsync partie '+i+'/'+job.parts+'… (~3-5 min, patiente)');
+      const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i);
+      const rawi=await WF.saveLipsyncRaw(lip,i,ts,outDir);
+      await setProg('🎬 Lipsync '+i+'/'+job.parts+' ✓\n✨ Rendu local…');
+      const vid=await WF.renderVideo(lip,audio.wordTimings,c.keywords,audio.duration,i,c.reactions,rawi);
+      const p=await WF.saveOpen(vid,c,ts,i,outDir);
+      clips.push(p);
+    }
+    let finalP=clips.filter(Boolean)[0];
+    if(clips.filter(Boolean).length>1){finalP=path.join(outDir,ts+'_FINAL.mp4');WF.concatClips(clips.filter(Boolean),finalP);}
+    await setProg('✅ Terminé !');
+    try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
+    if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
+    await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
+    const idx=sentVideos.push(finalP)-1;
+    await send('✅ <b>Vidéo prête !</b>',[[{text:'✅ Prêt à poster',callback_data:'READY_'+idx}],[{text:'🎨 Rééditer',callback_data:'EDIT_HOME'},{text:'♻️ Régénérer',callback_data:'MENU_GEN'}]]);
+  }catch(e){await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
+  state='idle';genJob=null;
 }
 async function showMainMenu(){
   await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
@@ -1080,6 +1159,13 @@ async function handle(upd){
     if(d==='RC_DUR_30'){gw.duration='30s';await showRecap();return;}
     if(d==='RC_DUR_FREE'){state='rc_dur_wait';await send('⌨️ Durée en secondes (5–180). Au-delà de ~30s = plusieurs parties assemblées.');return;}
     if(d==='RC_GO'){await recapGo();return;}
+    // ── Étape script / maquette / GO ──
+    if(d==='GJ_OK'){if(genJob)await genAfterScript();else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_NEW'){if(genJob)await genScriptStep();else await send('⚠️ Aucun script.');return;}
+    if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
+    if(d==='GJ_MOCK'){await genMockup();return;}
+    if(d==='GJ_GO'){await genFinal();return;}
+    if(d==='GJ_CANCEL'){genJob=null;state='idle';await send('❌ Annulé.');return;}
     if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
@@ -1103,7 +1189,7 @@ async function handle(upd){
     if(d==='TECH_STOP'){
       let stopped=false;
       if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
-      if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;}
+      if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} genJob=null;
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
       state='idle';await send(stopped?'⏹ Stoppé.':'Rien en cours.');return;
     }
@@ -1463,6 +1549,12 @@ await send('Ready to generate video?',[
     if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}
     return;
   }
+  if(state==='gj_edit_wait'&&msg.text){
+    if(genJob){genJob.script=msg.text.trim();genJob.c1=Object.assign({},genJob.c1,{script:genJob.script});genJob.audio=null;}
+    state='idle';
+    await send('✅ Script remplacé.',[[{text:'👁 Maquette',callback_data:'GJ_MOCK'},{text:'🚀 GO direct',callback_data:'GJ_GO'}],[{text:'❌ Annuler',callback_data:'GJ_CANCEL'}]]);
+    return;
+  }
   if(state==='rc_topic_wait'&&msg.text){
     gw.topic=msg.text.trim();gw.subjectMode='mine';state='idle';
     await send('✅ Sujet : '+gw.topic);await showRecap();return;
@@ -1505,7 +1597,7 @@ await send('Ready to generate video?',[
   if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
     let stopped=false;
     if(proc){try{proc.kill('SIGKILL');}catch(e){} proc=null;stopped=true;}
-    if(testProc){try{testProc.kill('SIGKILL');}catch(e){} testProc=null;stopped=true;}
+    if(testProc){try{testProc.kill('SIGKILL');}catch(e){} testProc=null;stopped=true;} genJob=null;
     const _k=require('child_process');
     try{_k.execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
     try{_k.execSync('pkill -9 -f "node.*test_soustitres.js" 2>/dev/null');stopped=true;}catch(e){}
