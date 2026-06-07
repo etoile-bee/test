@@ -202,6 +202,7 @@ async function probeEndpoints(){
       out.push((r.status===404?'❌ ':'✅ ')+ep+' (HTTP '+r.status+')');
     }catch(e){out.push('⚠️ '+ep+' ('+e.message+')');}
   }
+  try{fs.writeFileSync(path.join(BASE,'probe_result.txt'),new Date().toISOString()+'\n'+out.join('\n'));}catch(e){} /*resultat lisible par Claude*/
   return out;
 }
 
