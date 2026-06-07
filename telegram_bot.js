@@ -1404,12 +1404,21 @@ async function runPreview(){
 }
 
 // ── Update handler ────────────────────────────────────────────────────────────
+// ── Séparation MOTEUR / UI / ÉTAT-UTILISATEUR (préparation multi-utilisateur, vente) ──
+// MOTEUR : workflow.js + render_local.js (sans état). UI : fonctions show*/card*/cockpit*.
+// ÉTAT par chat_id : ci-dessous. Dormant tant qu'un seul chat est autorisé (no-op), prêt pour le multi-user.
+const SESSION_VARS=['gw','genJob','cockpit','sessionTopics','workingSource','state','editPrevFrame','editSectionCur','galMid','lookStylePending','modifyFlow','genAbort','genStep','gal'];
+const sessions={};let activeChat=CHAT_ID;
+function _ssave(id){const s=sessions[id]||(sessions[id]={});for(const k of SESSION_VARS){try{s[k]=eval(k);}catch(e){}}}
+function _sload(id){const s=sessions[id];if(!s)return;for(const k of SESSION_VARS){try{if(k in s)eval(k+'=s[k]');}catch(e){}}}
+function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeChat=id; if(sessions[id])_sload(id); else { gwReset(); state='idle'; } }
 async function handle(upd){
   // Callback
   if(upd.callback_query){
     const cb=upd.callback_query;
     await answerCB(cb.id);
     if(String(cb.message.chat.id)!==CHAT_ID)return;
+    switchChat(String(cb.message.chat.id)); // no-op en mono-chat ; bascule l'état si multi-user activé
     const d=cb.data;
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
@@ -1881,6 +1890,7 @@ await send('Ready to generate video?',[
   const msg=upd.message;
   if(!msg)return;
   if(String(msg.chat.id)!==CHAT_ID)return;
+  switchChat(String(msg.chat.id)); // no-op en mono-chat
   uiLog({dir:'in',type:msg.photo?'photo':'msg',screen:'',user_action:(msg.text||(msg.photo?'[photo]':'[media]')).slice(0,80),caption_len:(msg.text||'').length,buttons:[],edited_in_place:false});
 
   // Photo upload
