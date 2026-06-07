@@ -41,7 +41,9 @@ async function tg(method,body,isForm){
   try{if(body&&(body.text||body.caption))jlog('BOT→ '+method+' : '+(body.text||body.caption));else if(method!=='getUpdates')jlog('BOT→ '+method);}catch(e){}
   if(isForm){
     const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{method:'POST',body:isForm});
-    return r.json();
+    const j=await r.json();
+    try{if(j&&j.ok===false)jlog('⚠️ TG(form) '+method+' REFUS: '+(j.description||'').substring(0,250));}catch(e){}
+    return j;
   }
   const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{
     method:'POST',headers:{'Content-Type':'application/json'},
@@ -187,7 +189,10 @@ async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption
     fd.append('reply_markup',markup);
     const r=await tg('editMessageMedia',null,fd).catch(()=>null);
     if(r&&r.ok)return true;
-    jlog('⚠️ editMessageMedia refus — recreation du panneau');newlook.mediaId=null;
+    jlog('⚠️ editMessageMedia refus — degrade en caption (pas de nouveau message)');
+    const r1b=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
+    if(r1b&&r1b.ok)return true;
+    newlook.mediaId=null;
   }
   if(newlook.mediaId&&!file){
     const r=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
