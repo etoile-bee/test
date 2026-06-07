@@ -67,21 +67,30 @@ async function ensureSoulId(client,log){
   return soul.id;
 }
 
-/*newlook v3 : 3 environnements (recherches formats viraux 2026 : quiet luxury / studio realiste) + 4 poses par generation*/
-const ENVS={
-  bougies:{label:'🕯 Bougies (actuel)',text:'Environment: same luxury podcast studio as the reference image — dark moody library, bookshelves, warm candlelight glow, professional microphone in front of her.'},
-  jour:{label:'☀️ Lumière du jour',text:'Environment: bright airy creator studio in soft natural daylight — large windows, sheer curtains, neutral cream and beige tones, minimalist elevated interior, a few green plants, professional podcast microphone on a boom arm in front of her. Quiet luxury aesthetic, clean and aspirational.'},
-  studio:{label:'🎙 Studio podcast réaliste',text:'Environment: realistic professional podcast studio — warm wooden slat wall, subtle acoustic panels, soft warm LED accent lighting, professional boom-arm microphone and studio headphones on the table, shallow depth of field with cozy plants and soft string lights blurred in the background.'}
-};
+/*newlook v4 : lookbook.json = ADN visuel (categories generatives, decors, regles, recettes sauvegardees)*/
+const LOOKBOOK=path.join(BASE,'lookbook.json');
+function readLookbook(){return JSON.parse(fs.readFileSync(LOOKBOOK,'utf8'));}
+function writeLookbook(lb){fs.writeFileSync(LOOKBOOK,JSON.stringify(lb,null,2));}
 
-// Genere 4 poses. Retourne {urls:[...], prompt}. opts={env:'bougies'|'jour'|'studio', extra:texte libre optionnel}
+function buildPrompt(lb,opts){
+  const cat=lb.categories[opts.category];
+  const env=lb.envs[opts.env]||lb.envs.bougies;
+  return defaultPrompt()
+    +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))
+    +'\n'+lb.style_rules
+    +'\n'+env.prompt
+    +'\n'+lb.pose_rules;
+}
+
+// Genere 4 poses. opts={category, env, extra}. Retourne {urls, prompt, recipe}
 async function generateLook(opts,log){
   log=log||console.log;
   opts=opts||{};
+  const lb=readLookbook();
   const client=getClient();
   const soulId=await ensureSoulId(client,log);
-  const env=ENVS[opts.env]?opts.env:'bougies';
-  const prompt=defaultPrompt()+'\n'+ENVS[env].text+(opts.extra?'\n'+opts.extra:'')+'\nGenerate a different natural pose and head angle for each image.';
+  if(!lb.categories[opts.category]&&!opts.extra)opts.category=Object.keys(lb.categories)[0];
+  const prompt=buildPrompt(lb,opts);
   const jobSet=await client.generate('/v1/text2image/soul',{
     prompt:prompt,
     custom_reference_id:soulId,
@@ -95,7 +104,36 @@ async function generateLook(opts,log){
   if(jobs.every(j=>j.status==='nsfw'))throw new Error('images refusées par la modération (crédits remboursés) — reformule');
   const urls=jobs.filter(j=>j.status==='completed'&&j.results).map(j=>(j.results.raw&&j.results.raw.url)||(j.results.min&&j.results.min.url)).filter(Boolean);
   if(!urls.length)throw new Error('génération échouée (statuts: '+jobs.map(j=>j.status).join(',')+')');
-  return{urls:urls,prompt:prompt,env:env};
+  return{urls:urls,prompt:prompt,recipe:{category:opts.category||null,env:opts.env||'bougies',extra:opts.extra||null}};
 }
 
-module.exports={ generateLook, defaultPrompt, looksDir, ENVS };
+/*newlook v4 : catalogue 204 tenues + rotation anti-repetition (pas de doublon avant cycle complet ; conseil applique : jamais le meme look a moins de 12 videos)*/
+const CATALOG=path.join(BASE,'outfits_catalog.json');
+const OUT_HIST=path.join(BASE,'outfits_history.json');
+function pickOutfit(category){
+  const cat=JSON.parse(fs.readFileSync(CATALOG,'utf8')).outfits;
+  let hist=[];try{hist=JSON.parse(fs.readFileSync(OUT_HIST,'utf8'));}catch(e){}
+  let pool=cat.filter(o=>(!category||o.cat===category)&&!hist.includes(o.id));
+  if(!pool.length){ // cycle complet → on repart, en evitant les 12 derniers
+    const recent=hist.slice(-12);
+    pool=cat.filter(o=>(!category||o.cat===category)&&!recent.includes(o.id));
+  }
+  const pick=pool[Math.floor(Math.random()*pool.length)];
+  hist.push(pick.id);if(hist.length>400)hist=hist.slice(-400);
+  try{fs.writeFileSync(OUT_HIST,JSON.stringify(hist));}catch(e){}
+  return pick;
+}
+
+// Sauvegarde la recette d'un look garde → recreable via /look <numero>
+function saveRecipe(recipe,file){
+  const lb=readLookbook();
+  const id=(lb.saved.length?Math.max(...lb.saved.map(s=>s.id)):0)+1;
+  lb.saved.push({id:id,date:new Date().toISOString().slice(0,10),file:file,category:recipe.category,env:recipe.env,extra:recipe.extra});
+  if(lb.saved.length>100)lb.saved=lb.saved.slice(-100);
+  writeLookbook(lb);
+  return id;
+}
+function getRecipe(id){const lb=readLookbook();return lb.saved.find(s=>s.id===+id);}
+function listRecipes(){const lb=readLookbook();return lb.saved.slice(-15).reverse();}
+
+module.exports={ generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit };

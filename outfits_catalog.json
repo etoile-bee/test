@@ -1,0 +1,1025 @@
+{
+ "note": "Catalogue de tenues — rotation anti-repetition via outfits_history.json. Regenerable/extensible par Claude.",
+ "outfits": [
+  {
+   "id": 1,
+   "cat": "soiree",
+   "prompt": "black halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 2,
+   "cat": "soiree",
+   "prompt": "champagne gold halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 3,
+   "cat": "soiree",
+   "prompt": "deep emerald halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 4,
+   "cat": "soiree",
+   "prompt": "burgundy halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 5,
+   "cat": "soiree",
+   "prompt": "midnight blue halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 6,
+   "cat": "soiree",
+   "prompt": "ivory halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 7,
+   "cat": "soiree",
+   "prompt": "chocolate brown halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 8,
+   "cat": "soiree",
+   "prompt": "dusty rose halter silk evening dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 9,
+   "cat": "soiree",
+   "prompt": "black satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 10,
+   "cat": "soiree",
+   "prompt": "champagne gold satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 11,
+   "cat": "soiree",
+   "prompt": "deep emerald satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 12,
+   "cat": "soiree",
+   "prompt": "burgundy satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 13,
+   "cat": "soiree",
+   "prompt": "midnight blue satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 14,
+   "cat": "soiree",
+   "prompt": "ivory satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 15,
+   "cat": "soiree",
+   "prompt": "chocolate brown satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 16,
+   "cat": "soiree",
+   "prompt": "dusty rose satin slip dress with thin straps, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 17,
+   "cat": "soiree",
+   "prompt": "black velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 18,
+   "cat": "soiree",
+   "prompt": "champagne gold velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 19,
+   "cat": "soiree",
+   "prompt": "deep emerald velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 20,
+   "cat": "soiree",
+   "prompt": "burgundy velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 21,
+   "cat": "soiree",
+   "prompt": "midnight blue velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 22,
+   "cat": "soiree",
+   "prompt": "ivory velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 23,
+   "cat": "soiree",
+   "prompt": "chocolate brown velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 24,
+   "cat": "soiree",
+   "prompt": "dusty rose velvet wrap dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 25,
+   "cat": "soiree",
+   "prompt": "black off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 26,
+   "cat": "soiree",
+   "prompt": "champagne gold off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 27,
+   "cat": "soiree",
+   "prompt": "deep emerald off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 28,
+   "cat": "soiree",
+   "prompt": "burgundy off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 29,
+   "cat": "soiree",
+   "prompt": "midnight blue off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 30,
+   "cat": "soiree",
+   "prompt": "ivory off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 31,
+   "cat": "soiree",
+   "prompt": "chocolate brown off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 32,
+   "cat": "soiree",
+   "prompt": "dusty rose off-shoulder draped gown, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 33,
+   "cat": "soiree",
+   "prompt": "black corset-bodice midi dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 34,
+   "cat": "soiree",
+   "prompt": "champagne gold corset-bodice midi dress, refined evening elegance, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 35,
+   "cat": "business",
+   "prompt": "ivory tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 36,
+   "cat": "business",
+   "prompt": "camel tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 37,
+   "cat": "business",
+   "prompt": "charcoal grey tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 38,
+   "cat": "business",
+   "prompt": "navy tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 39,
+   "cat": "business",
+   "prompt": "cream pinstripe tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 40,
+   "cat": "business",
+   "prompt": "soft taupe tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 41,
+   "cat": "business",
+   "prompt": "black tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 42,
+   "cat": "business",
+   "prompt": "chocolate tailored double-breasted blazer, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 43,
+   "cat": "business",
+   "prompt": "ivory structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 44,
+   "cat": "business",
+   "prompt": "camel structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 45,
+   "cat": "business",
+   "prompt": "charcoal grey structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 46,
+   "cat": "business",
+   "prompt": "navy structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 47,
+   "cat": "business",
+   "prompt": "cream pinstripe structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 48,
+   "cat": "business",
+   "prompt": "soft taupe structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 49,
+   "cat": "business",
+   "prompt": "black structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 50,
+   "cat": "business",
+   "prompt": "chocolate structured sheath dress, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 51,
+   "cat": "business",
+   "prompt": "ivory silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 52,
+   "cat": "business",
+   "prompt": "camel silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 53,
+   "cat": "business",
+   "prompt": "charcoal grey silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 54,
+   "cat": "business",
+   "prompt": "navy silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 55,
+   "cat": "business",
+   "prompt": "cream pinstripe silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 56,
+   "cat": "business",
+   "prompt": "soft taupe silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 57,
+   "cat": "business",
+   "prompt": "black silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 58,
+   "cat": "business",
+   "prompt": "chocolate silk blouse with high collar, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 59,
+   "cat": "business",
+   "prompt": "ivory fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 60,
+   "cat": "business",
+   "prompt": "camel fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 61,
+   "cat": "business",
+   "prompt": "charcoal grey fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 62,
+   "cat": "business",
+   "prompt": "navy fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 63,
+   "cat": "business",
+   "prompt": "cream pinstripe fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 64,
+   "cat": "business",
+   "prompt": "soft taupe fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 65,
+   "cat": "business",
+   "prompt": "black fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 66,
+   "cat": "business",
+   "prompt": "chocolate fine-knit polo and pencil silhouette, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 67,
+   "cat": "business",
+   "prompt": "ivory waistcoat over crisp shirt, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 68,
+   "cat": "business",
+   "prompt": "camel waistcoat over crisp shirt, boardroom old money authority, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 69,
+   "cat": "casual",
+   "prompt": "white oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 70,
+   "cat": "casual",
+   "prompt": "heather grey oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 71,
+   "cat": "casual",
+   "prompt": "beige oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 72,
+   "cat": "casual",
+   "prompt": "sage green oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 73,
+   "cat": "casual",
+   "prompt": "pale blue oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 74,
+   "cat": "casual",
+   "prompt": "cream oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 75,
+   "cat": "casual",
+   "prompt": "caramel oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 76,
+   "cat": "casual",
+   "prompt": "soft black oversized crisp shirt, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 77,
+   "cat": "casual",
+   "prompt": "white fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 78,
+   "cat": "casual",
+   "prompt": "heather grey fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 79,
+   "cat": "casual",
+   "prompt": "beige fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 80,
+   "cat": "casual",
+   "prompt": "sage green fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 81,
+   "cat": "casual",
+   "prompt": "pale blue fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 82,
+   "cat": "casual",
+   "prompt": "cream fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 83,
+   "cat": "casual",
+   "prompt": "caramel fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 84,
+   "cat": "casual",
+   "prompt": "soft black fine merino crewneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 85,
+   "cat": "casual",
+   "prompt": "white silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 86,
+   "cat": "casual",
+   "prompt": "heather grey silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 87,
+   "cat": "casual",
+   "prompt": "beige silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 88,
+   "cat": "casual",
+   "prompt": "sage green silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 89,
+   "cat": "casual",
+   "prompt": "pale blue silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 90,
+   "cat": "casual",
+   "prompt": "cream silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 91,
+   "cat": "casual",
+   "prompt": "caramel silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 92,
+   "cat": "casual",
+   "prompt": "soft black silk camisole under open cardigan, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 93,
+   "cat": "casual",
+   "prompt": "white ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 94,
+   "cat": "casual",
+   "prompt": "heather grey ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 95,
+   "cat": "casual",
+   "prompt": "beige ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 96,
+   "cat": "casual",
+   "prompt": "sage green ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 97,
+   "cat": "casual",
+   "prompt": "pale blue ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 98,
+   "cat": "casual",
+   "prompt": "cream ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 99,
+   "cat": "casual",
+   "prompt": "caramel ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 100,
+   "cat": "casual",
+   "prompt": "soft black ribbed turtleneck, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 101,
+   "cat": "casual",
+   "prompt": "white linen shirt half-tucked, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 102,
+   "cat": "casual",
+   "prompt": "heather grey linen shirt half-tucked, effortless elevated everyday, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 103,
+   "cat": "cosy",
+   "prompt": "oatmeal oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 104,
+   "cat": "cosy",
+   "prompt": "cream oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 105,
+   "cat": "cosy",
+   "prompt": "dusty pink oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 106,
+   "cat": "cosy",
+   "prompt": "camel oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 107,
+   "cat": "cosy",
+   "prompt": "light grey oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 108,
+   "cat": "cosy",
+   "prompt": "chocolate oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 109,
+   "cat": "cosy",
+   "prompt": "forest green oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 110,
+   "cat": "cosy",
+   "prompt": "vanilla oversized cashmere turtleneck, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 111,
+   "cat": "cosy",
+   "prompt": "oatmeal chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 112,
+   "cat": "cosy",
+   "prompt": "cream chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 113,
+   "cat": "cosy",
+   "prompt": "dusty pink chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 114,
+   "cat": "cosy",
+   "prompt": "camel chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 115,
+   "cat": "cosy",
+   "prompt": "light grey chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 116,
+   "cat": "cosy",
+   "prompt": "chocolate chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 117,
+   "cat": "cosy",
+   "prompt": "forest green chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 118,
+   "cat": "cosy",
+   "prompt": "vanilla chunky knit sweater, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 119,
+   "cat": "cosy",
+   "prompt": "oatmeal soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 120,
+   "cat": "cosy",
+   "prompt": "cream soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 121,
+   "cat": "cosy",
+   "prompt": "dusty pink soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 122,
+   "cat": "cosy",
+   "prompt": "camel soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 123,
+   "cat": "cosy",
+   "prompt": "light grey soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 124,
+   "cat": "cosy",
+   "prompt": "chocolate soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 125,
+   "cat": "cosy",
+   "prompt": "forest green soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 126,
+   "cat": "cosy",
+   "prompt": "vanilla soft mohair cardigan, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 127,
+   "cat": "cosy",
+   "prompt": "oatmeal cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 128,
+   "cat": "cosy",
+   "prompt": "cream cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 129,
+   "cat": "cosy",
+   "prompt": "dusty pink cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 130,
+   "cat": "cosy",
+   "prompt": "camel cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 131,
+   "cat": "cosy",
+   "prompt": "light grey cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 132,
+   "cat": "cosy",
+   "prompt": "chocolate cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 133,
+   "cat": "cosy",
+   "prompt": "forest green cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 134,
+   "cat": "cosy",
+   "prompt": "vanilla cable-knit pullover, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 135,
+   "cat": "cosy",
+   "prompt": "oatmeal brushed wool sweater dress, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 136,
+   "cat": "cosy",
+   "prompt": "cream brushed wool sweater dress, warm intimate fireside feel, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 137,
+   "cat": "ete",
+   "prompt": "white linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 138,
+   "cat": "ete",
+   "prompt": "sand linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 139,
+   "cat": "ete",
+   "prompt": "sky blue linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 140,
+   "cat": "ete",
+   "prompt": "butter yellow linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 141,
+   "cat": "ete",
+   "prompt": "coral linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 142,
+   "cat": "ete",
+   "prompt": "sage linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 143,
+   "cat": "ete",
+   "prompt": "pale lavender linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 144,
+   "cat": "ete",
+   "prompt": "ecru linen shirt dress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 145,
+   "cat": "ete",
+   "prompt": "white silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 146,
+   "cat": "ete",
+   "prompt": "sand silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 147,
+   "cat": "ete",
+   "prompt": "sky blue silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 148,
+   "cat": "ete",
+   "prompt": "butter yellow silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 149,
+   "cat": "ete",
+   "prompt": "coral silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 150,
+   "cat": "ete",
+   "prompt": "sage silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 151,
+   "cat": "ete",
+   "prompt": "pale lavender silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 152,
+   "cat": "ete",
+   "prompt": "ecru silk halter top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 153,
+   "cat": "ete",
+   "prompt": "white lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 154,
+   "cat": "ete",
+   "prompt": "sand lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 155,
+   "cat": "ete",
+   "prompt": "sky blue lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 156,
+   "cat": "ete",
+   "prompt": "butter yellow lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 157,
+   "cat": "ete",
+   "prompt": "coral lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 158,
+   "cat": "ete",
+   "prompt": "sage lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 159,
+   "cat": "ete",
+   "prompt": "pale lavender lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 160,
+   "cat": "ete",
+   "prompt": "ecru lightweight strapless sundress, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 161,
+   "cat": "ete",
+   "prompt": "white sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 162,
+   "cat": "ete",
+   "prompt": "sand sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 163,
+   "cat": "ete",
+   "prompt": "sky blue sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 164,
+   "cat": "ete",
+   "prompt": "butter yellow sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 165,
+   "cat": "ete",
+   "prompt": "coral sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 166,
+   "cat": "ete",
+   "prompt": "sage sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 167,
+   "cat": "ete",
+   "prompt": "pale lavender sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 168,
+   "cat": "ete",
+   "prompt": "ecru sleeveless linen blouse, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 169,
+   "cat": "ete",
+   "prompt": "white flowing silk wrap top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 170,
+   "cat": "ete",
+   "prompt": "sand flowing silk wrap top, sun-kissed vacation old money, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 171,
+   "cat": "fete",
+   "prompt": "gold sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 172,
+   "cat": "fete",
+   "prompt": "deep red sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 173,
+   "cat": "fete",
+   "prompt": "silver-grey sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 174,
+   "cat": "fete",
+   "prompt": "black sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 175,
+   "cat": "fete",
+   "prompt": "emerald sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 176,
+   "cat": "fete",
+   "prompt": "champagne sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 177,
+   "cat": "fete",
+   "prompt": "ruby sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 178,
+   "cat": "fete",
+   "prompt": "pearl white sequin-trimmed silk dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 179,
+   "cat": "fete",
+   "prompt": "gold satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 180,
+   "cat": "fete",
+   "prompt": "deep red satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 181,
+   "cat": "fete",
+   "prompt": "silver-grey satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 182,
+   "cat": "fete",
+   "prompt": "black satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 183,
+   "cat": "fete",
+   "prompt": "emerald satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 184,
+   "cat": "fete",
+   "prompt": "champagne satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 185,
+   "cat": "fete",
+   "prompt": "ruby satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 186,
+   "cat": "fete",
+   "prompt": "pearl white satin bow-neck blouse, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 187,
+   "cat": "fete",
+   "prompt": "gold velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 188,
+   "cat": "fete",
+   "prompt": "deep red velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 189,
+   "cat": "fete",
+   "prompt": "silver-grey velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 190,
+   "cat": "fete",
+   "prompt": "black velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 191,
+   "cat": "fete",
+   "prompt": "emerald velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 192,
+   "cat": "fete",
+   "prompt": "champagne velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 193,
+   "cat": "fete",
+   "prompt": "ruby velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 194,
+   "cat": "fete",
+   "prompt": "pearl white velvet corset top, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 195,
+   "cat": "fete",
+   "prompt": "gold metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 196,
+   "cat": "fete",
+   "prompt": "deep red metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 197,
+   "cat": "fete",
+   "prompt": "silver-grey metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 198,
+   "cat": "fete",
+   "prompt": "black metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 199,
+   "cat": "fete",
+   "prompt": "emerald metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 200,
+   "cat": "fete",
+   "prompt": "champagne metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 201,
+   "cat": "fete",
+   "prompt": "ruby metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 202,
+   "cat": "fete",
+   "prompt": "pearl white metallic-thread knit dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 203,
+   "cat": "fete",
+   "prompt": "gold feather-trim neckline dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 204,
+   "cat": "fete",
+   "prompt": "deep red feather-trim neckline dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  }
+ ]
+}

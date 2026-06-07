@@ -139,32 +139,42 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={urls:[],env:'bougies',extra:null,busy:false}; /*newlook v3 : 3 environnements, 4 poses*/
+let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,busy:false}; /*newlook v4 : lookbook (categories generatives + decors + recettes)*/
 async function runNewLook(){
   if(newlook.busy){await send('⏳ Une génération de looks est déjà en cours, patiente...');return;}
   newlook.busy=true;
   try{
-    await send('🎨 Génération de 4 poses ('+newlook.env+', même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
+    await send('🎨 Génération de 4 poses (même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
     const {generateLook}=require('./newlook.js');
-    const r=await generateLook({env:newlook.env,extra:newlook.extra},m=>{send('• '+m).catch(()=>{});});
-    newlook.urls=r.urls;
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra},m=>{send('• '+m).catch(()=>{});});
+    newlook.urls=r.urls;newlook.recipe=r.recipe;
     for(let i=0;i<r.urls.length;i++){
       const tmp='/tmp/newlook'+Date.now()+'_'+i+'.jpg';
       require('child_process').execSync('curl -s -o "'+tmp+'" "'+r.urls[i]+'"');
       await sendImg(tmp,'Pose '+(i+1)+'/'+r.urls.length);
     }
     const keepRow=r.urls.map((u,i)=>({text:'✅ '+(i+1),callback_data:'NL_KEEP_'+i}));
-    await send('Lesquelles on garde ? (tu peux en garder plusieurs)',[
+    await send('Lesquelles on garde ? (plusieurs possibles — chaque garde mémorise la recette, recréable via /look)',[
       keepRow,
-      [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'🌆 Changer décor',callback_data:'NL_ENVMENU'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]
+      [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'👗 Catégorie',callback_data:'NL_CATMENU'},{text:'🌆 Décor',callback_data:'NL_ENVMENU'}],
+      [{text:'❌ Fini',callback_data:'NL_CANCEL'}]
     ]);
   }catch(e){await send('❌ Échec génération looks : '+e.message).catch(()=>{});}
   newlook.busy=false;
 }
+async function newLookCatMenu(){
+  const {readLookbook}=require('./newlook.js');
+  const cats=readLookbook().categories;
+  const keys=Object.keys(cats);
+  const rows=[];for(let i=0;i<keys.length;i+=3)rows.push(keys.slice(i,i+3).map(k=>({text:cats[k].label,callback_data:'NL_CAT_'+k})));
+  rows.push([{text:'🎲 Surprise',callback_data:'NL_CAT_random'}]);
+  await send('👗 Quelle catégorie de look ? (la tenue exacte sera inventée par l\'IA — accessoires, makeup et coiffure assortis, différents à chaque look)',rows);
+}
 async function newLookEnvMenu(){
-  const {ENVS}=require('./newlook.js');
+  const {readLookbook}=require('./newlook.js');
+  const envs=readLookbook().envs;
   await send('🌆 Quel décor ?',[
-    Object.keys(ENVS).map(k=>({text:ENVS[k].label,callback_data:'NL_ENV_'+k}))
+    Object.keys(envs).map(k=>({text:envs[k].label,callback_data:'NL_ENV_'+k}))
   ]);
 }
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
@@ -1904,6 +1914,12 @@ await send('Ready to generate video?',[
       writeFx(fx);await refreshPanel();return;
     }
     // Nouveau look /*newlook v3*/
+    if(d.startsWith('NL_CAT_')){
+      const c=d.replace('NL_CAT_','');
+      if(c==='random'){const o=require('./newlook.js').pickOutfit(null);newlook.category=o.cat;newlook.extra=o.prompt;}
+      else{const o=require('./newlook.js').pickOutfit(c);newlook.category=c;newlook.extra=o.prompt;} /*catalogue : tenue suivante jamais utilisee de la categorie*/
+      newLookEnvMenu();return;
+    }
     if(d.startsWith('NL_ENV_')){newlook.env=d.replace('NL_ENV_','');runNewLook();return;}
     if(d==='NL_ENVMENU'){newLookEnvMenu();return;}
     if(d.startsWith('NL_KEEP_')){
@@ -2109,9 +2125,25 @@ await send('Ready to generate video?',[
       await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
     }catch{await send('No library yet.');}return;
   }
-  if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v3 : choix du decor puis 4 poses, validation avant ajout*/
+  if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v4 : categorie → decor → 4 poses → garde avec recette*/
     newlook.extra=txt.replace(/^\/newlook\s*/,'').trim()||null;
-    newLookEnvMenu();
+    if(newlook.extra)newLookEnvMenu(); // tenue donnee a la main → reste juste le decor
+    else newLookCatMenu();
+    return;
+  }
+  if(txt==='/look'||txt.startsWith('/look ')){ /*newlook v4 : recreer un look garde depuis sa recette*/
+    const arg=txt.replace(/^\/look\s*/,'').trim();
+    const {listRecipes,getRecipe}=require('./newlook.js');
+    if(!arg){
+      const list=listRecipes();
+      if(!list.length){await send('Aucun look mémorisé — garde des poses via /newlook d\'abord.');return;}
+      await send('📒 <b>Looks mémorisés</b> (recréer : /look numéro)\n\n'+list.map(s=>'#'+s.id+' — '+(s.category||'libre')+' / '+s.env+(s.extra?' / '+s.extra:'')+' ('+s.date+')').join('\n'));
+      return;
+    }
+    const rec=getRecipe(arg.replace('#',''));
+    if(!rec){await send('Look #'+arg+' introuvable. /look pour la liste.');return;}
+    newlook.category=rec.category;newlook.env=rec.env;newlook.extra=rec.extra;
+    runNewLook();
     return;
   }
   if(txt==='/looks'){galMid=null;gal.idx=0;await showLook();return;}
