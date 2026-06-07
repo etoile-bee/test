@@ -5,12 +5,12 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 78;     // ✅ calqué modèle, police Archivo Black (cap ~42px @720x1280)
-const OY        = 0.27;   // ✅ calqué modèle (bas du texte ~0.28 depuis le bas)
+const FONT_SIZE = 68;     // ✅ calqué sur le modèle de réf (cap ~45px) — mesuré sur la vidéo modèle
+const OY        = 0.27;   // ✅ calqué sur le modèle de réf (bas du texte ~0.278 depuis le bas)
 //  (optionnel)
-const LETTER    = '2px';  // espacement entre lettres (proche du modèle)
+const LETTER    = '2px';  // espacement entre lettres (proche du modèle de réf)
 const ZOOM      = 1.20;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)
-const FONT      = 'Archivo Black'; // police de référence confirmée par l'utilisateur (bouton 🔤 garde les autres)
+const FONT      = 'Helvetica'; // police du rendu local libass (bouton 🔤) — calqué modèle (medium bold, pas Black)
 const SUBS      = 1;      // 1 = sous-titres incrustés ; 0 = vidéo propre (captions ajoutées dans TikTok)
 // ============================================================
 
