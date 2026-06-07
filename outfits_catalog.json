@@ -1,5 +1,5 @@
 {
- "note": "Catalogue de tenues — rotation anti-repetition via outfits_history.json. Regenerable/extensible par Claude.",
+ "note": "Catalogue de tenues — rotation anti-repetition via outfits_history.json. Regenerable/extensible par Claude. | 08/06: +30 looks 'pdf60' (60 prompts lipsync avatar — outfit+makeup+hairstyle, racine intacte).",
  "outfits": [
   {
    "id": 1,
@@ -1020,6 +1020,186 @@
    "id": 204,
    "cat": "fete",
    "prompt": "deep red feather-trim neckline dress, celebratory refined sparkle, matching accessories, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 205,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "The Row-style cream sleeveless tailored waistcoat with matching wide-leg trousers, monochrome look. Soft glam, fine winged liner, glossy nude lips. Delicate gold chain with small pendant, thin gold hoops. Loose waves, side part."
+  },
+  {
+   "id": 206,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Max Mara-style camel oversized blazer over a white tank, cream wide-leg trousers. Clean-girl makeup, dewy skin, brushed-up brows. Layered fine gold necklaces, gold watch. Soft blowout."
+  },
+  {
+   "id": 207,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Chanel-style black tweed blazer worn open over a delicate camisole, gold quilted-style brooch. Soft glam, warm brown smokey eye, nude satin lips. Baroque pearl drop earrings. Bouncy curls."
+  },
+  {
+   "id": 208,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Gold satin strapless midi dress. Evening-luxe smokey eye, glossy lips, highlighted cheekbones. Vintage gold medallion earrings, single pendant. Voluminous waves, side part."
+  },
+  {
+   "id": 209,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "White halter-neck waistcoat with chocolate L'Agence-style tailored trousers. Soft glam, winged liner, glowing skin. Chunky gold hoops, stacked bracelets. High glossy ponytail."
+  },
+  {
+   "id": 210,
+   "cat": "casual",
+   "src": "pdf60",
+   "prompt": "Naked Wardrobe-style white sleeveless turtleneck dress with front keyhole cutout, body-con silhouette. Soft glam, glossy nude lips. Pearl earrings, delicate gold chain. Sleek low bun."
+  },
+  {
+   "id": 211,
+   "cat": "ete",
+   "src": "pdf60",
+   "prompt": "Zimmermann-style beige lace co-ord set, cropped top and tailored shorts, resort style. Golden-hour glow makeup, peachy blush. Chunky gold hoops, stacked bracelets. Loose waves."
+  },
+  {
+   "id": 212,
+   "cat": "casual",
+   "src": "pdf60",
+   "prompt": "Ralph Lauren-style powder-blue silk button-down knotted at the waist, white wide-leg trousers. Clean-girl makeup, dewy skin. Gold drop earrings, layered necklaces. Half-up, face-framing strands."
+  },
+  {
+   "id": 213,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "L'Agence-style dusty-rose tailored vest with matching pleated wide-leg trousers, monochrome suit. Soft glam, warm neutral eye, glossy lips. Gold statement hoops, delicate pendant. Slicked-back low ponytail."
+  },
+  {
+   "id": 214,
+   "cat": "casual",
+   "src": "pdf60",
+   "prompt": "Balmain-style black knit midi dress with white-trimmed ruffled hem, fitted silhouette. Bold liner, matte mauve lips. Layered fine gold necklaces. Half-up half-down, face-framing strands."
+  },
+  {
+   "id": 215,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Bottega Veneta-style burgundy silk slip dress, minimalist cut. Soft glam, glossy nude lips, glowing skin. Gold hoops, delicate chain. Soft blowout."
+  },
+  {
+   "id": 216,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Brunello Cucinelli-style pearl-grey tailored vest and wide-leg trousers, monochrome. Clean-girl makeup, dewy skin. Baroque pearl earrings, fine gold chain. Sleek low bun."
+  },
+  {
+   "id": 217,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Toteme-style ivory structured single-button blazer over bare neckline, matching trousers. Soft glam, winged liner, glossy lips. Thin gold hoops, layered chains. Loose waves, side part."
+  },
+  {
+   "id": 218,
+   "cat": "casual",
+   "src": "pdf60",
+   "prompt": "Sage-green silk shirt half-tucked, cream tailored trousers. Clean-girl makeup, dewy glow. Gold medallion earrings, delicate pendant. Sleek low bun, baby hairs."
+  },
+  {
+   "id": 219,
+   "cat": "cosy",
+   "src": "pdf60",
+   "prompt": "Khaite-style taupe fine-knit sleeveless top and matching maxi skirt, monochrome. Soft glam, nude glossy lips. Chunky gold hoops, stacked bracelets. Soft blowout."
+  },
+  {
+   "id": 220,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Ralph Lauren-style crisp white double-breasted blazer and wide-leg trousers, gold buttons. Bold liner, defined contour, mauve lips. Large gold hoops, layered necklaces. High glossy ponytail."
+  },
+  {
+   "id": 221,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Caramel suede tailored vest with cream wide-leg trousers. Golden-hour glow makeup, peachy blush. Gold statement hoops, gold watch. Voluminous waves."
+  },
+  {
+   "id": 222,
+   "cat": "business",
+   "src": "pdf60",
+   "prompt": "Chanel-style powder-pink tweed cropped jacket over a white camisole, white trousers. Soft glam, glossy lips, glowing skin. Pearl drop earrings, fine gold chain. Bouncy curls."
+  },
+  {
+   "id": 223,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Burgundy velvet off-shoulder evening gown, draped silhouette. Evening-luxe deep smokey eyes, nude satin lips, highlighted cheekbones. Baroque pearl drop earrings, fine gold chain. Soft blowout, side part."
+  },
+  {
+   "id": 224,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Emerald-green satin gown with cowl neckline. Evening-luxe smokey eye, glossy nude lips. Vintage gold medallion earrings, single pendant. Voluminous waves."
+  },
+  {
+   "id": 225,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Midnight-navy fine-sequin slip dress, subtle shimmer. Bold liner, defined contour, glossy lips. Chunky gold hoops, stacked thin bracelets. Sleek low bun."
+  },
+  {
+   "id": 226,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Champagne sequin spaghetti-strap slip dress, body-con. Soft glam, warm smokey eye, glossy lips. Delicate gold chain, thin hoops. High glossy ponytail."
+  },
+  {
+   "id": 227,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Galvan-style black off-shoulder column gown, minimalist. Evening-luxe smokey eye, nude satin lips. Large baroque pearl earrings, gold chain. Slicked-back wet look."
+  },
+  {
+   "id": 228,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Silver metallic mini dress, liquid-look fabric. Bold graphic liner, mauve lips. Gold statement hoops, layered necklaces. Soft blowout."
+  },
+  {
+   "id": 229,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Saint Laurent-style deep-plunge black blazer dress, tailored. Evening-luxe deep smokey eye, contour, nude lips. Fine gold chain, thin hoops. Sleek low bun, baby hairs."
+  },
+  {
+   "id": 230,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Red satin halter-neck gown, open back. Soft glam, glossy nude lips, glowing skin. Vintage gold medallion earrings, single pendant. Voluminous waves, side part."
+  },
+  {
+   "id": 231,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Nude tulle gown with delicate beading, romantic. Golden-hour glow makeup, shimmer eye, glossy lips. Baroque pearl earrings, layered fine chains. Half-up, face-framing strands."
+  },
+  {
+   "id": 232,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Liquid-gold draped satin gown, one-shoulder. Evening-luxe smokey eye, highlighted cheekbones, glossy lips. Gold statement hoops, stacked bracelets. High glossy ponytail."
+  },
+  {
+   "id": 233,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Black velvet tuxedo blazer dress with satin lapels, gold buttons. Bold liner, mauve lips. Large gold hoops, delicate chain. Soft blowout."
+  },
+  {
+   "id": 234,
+   "cat": "soiree",
+   "src": "pdf60",
+   "prompt": "Cream satin bias-cut slip gown, minimalist elegance. Soft glam, fine winged liner, glossy nude lips. Baroque pearl drop earrings, fine gold chain. Sleek low bun."
   }
  ]
 }

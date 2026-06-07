@@ -152,16 +152,17 @@
     }
   ],
   "pricing": {
-    "note": "Releves Etoile 08/06 (UNITES=CREDITS). 500 cr = 31 USD => 0.062 USD/cr (~0.057 EUR/cr). hd = batch x4 mesure par delta 219.44-212.08. video30s: 10-13 cr, A RECONFIRMER (13 retenu par prudence).",
-    "usd_per_credit": 0.062,
-    "eur_per_credit": 0.057,
+    "note": "Releves Etoile 08/06 soir (UNITES=CREDITS). Facture: 500cr=31.25USD (credits API dedies Higgsfield, PAS abonnement) => 0.0625 USD/cr. MESURE seedream: 1 photo HD = 211.12-210.64 = 0.48cr ; 1 photo eco = 212.08-211.60 = 0.48cr (IDENTIQUE eco/HD a l'unite). hd batch x4 = 7.36cr (delta 219.44-212.08). video test: 0? A CONFIRMER (en attente test). video30s HD: 10-13cr A RECONFIRMER (13 retenu).",
+    "usd_per_credit": 0.0625,
+    "eur_per_credit": 0.058,
     "ops": {
-      "eco": 0.5,
-      "planche": 0.5,
+      "eco": 0.48,
+      "planche": 0.48,
       "hd": 7.36,
-      "recreate": 0.5,
+      "recreate": 0.48,
       "video_test": 4,
-      "video30s": 13
+      "video30s": 13,
+      "hd1": 0.48
     }
   }
 }
