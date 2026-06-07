@@ -407,6 +407,7 @@ async function renderLocal(opts) {
     '-map', '[vout]', '-map', '[aout]',
     '-r', String(FPS),
     '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+    '-colorspace', 'bt709', '-color_primaries', 'bt709', '-color_trc', 'bt709', /*conformite v1-validee : etiquette couleur — fin du jaune telephone (GO 3/3)*/
     '-c:a', 'aac', '-b:a', '192k',
     '-movflags', '+faststart',
     '-t', duration.toFixed(3),
