@@ -5,8 +5,8 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 45;     // taille du texte
-const OY        = 0.25;   // hauteur — version vue et mesuree a 68% (test 2h42)
+const FONT_SIZE = 45;     // ✅ VERROUILLE 07/06 — valide par Etoile (dernier test 2h49)
+const OY        = 0.25;   // ✅ VERROUILLE 07/06 — centre du texte a 68% (pendentif/clavicule)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
