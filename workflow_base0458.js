@@ -7,14 +7,47 @@ const anthropic=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
 const HIGGS_AUTH='Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET;
 const HIGGS_BASE='https://platform.higgsfield.ai';
 const SHOTSTACK=process.env.SHOTSTACK_API_KEY,EL_KEY=process.env.ELEVENLABS_API_KEY,EL_VOICE=process.env.ELEVENLABS_VOICE_ID,AVATAR_URL=process.env.HIGGS_AVATAR_URL;
+const {sanitizeTTS,stripPauseTokens}=require('./tts_sanitize'); // nettoyage UNIQUE des marqueurs de pause
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ask=q=>new Promise(resolve=>{const rl=require('readline').createInterface({input:process.stdin,output:process.stdout});rl.question(q,a=>{rl.close();resolve(a.trim().toUpperCase());});});
+
+// === DURÉE LIBRE / MULTI-PARTS ===
+// planParts(seconds) -> {n parts <=~28s, words par part (~2.4 mots/s)}
+function planParts(seconds){
+  seconds=Math.max(8,Math.min(180,Math.round(+seconds||23)));
+  const MAXPART=28;                       // chaque part <= ~28-30s
+  const n=Math.max(1,Math.ceil(seconds/MAXPART));
+  const perSec=seconds/n;
+  const wpp=Math.max(18,Math.round(perSec*2.4)); // ~2.4 mots/s
+  return {n,seconds,perSec:Math.round(perSec),words:(wpp-5)+'-'+(wpp+5)};
+}
+// Prompt de continuité généralisé à N parts (réplique la logique PART 2/3)
+function partPrompt(topic,idx,n,prevScripts){
+  if(idx<=1)return topic;
+  const isLast=idx===n;
+  const prev=prevScripts.map((s,k)=>'Part '+(k+1)+' said: <<'+s+'>>').join(' ');
+  return topic+'. THIS IS PART '+idx+' OF '+n+', a DIRECT CONTINUATION of the SAME video, same person still talking. '+prev+
+    '. Rules: do NOT repeat any idea, sentence, hook or phrasing from earlier parts. Open mid-thought with a NEW angle that deepens the SAME subject. '+
+    (isLast?'Deliver the culminating insight, then end with ONE short call to action.':'No greeting, no recap, no call to action.');
+}
+// Concat local ffmpeg de N clips en une vidéo finale (clips conservés séparément)
+function concatClips(clips,outPath){
+  const lf=outPath+'.concat.txt';
+  fs.writeFileSync(lf,clips.map(c=>"file '"+String(c).replace(/'/g,"'\\''")+"'").join('\n')+'\n');
+  let ok=false;
+  try{execSync('ffmpeg -y -f concat -safe 0 -i "'+lf+'" -c copy "'+outPath+'" 2>/dev/null');ok=fs.existsSync(outPath)&&fs.statSync(outPath).size>10000;}catch(e){ok=false;}
+  if(!ok){ // fallback re-encode si les clips n'ont pas des params identiques
+    execSync('ffmpeg -y -f concat -safe 0 -i "'+lf+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 192k "'+outPath+'" 2>/dev/null');
+  }
+  try{fs.unlinkSync(lf);}catch(_){}
+  return outPath;
+}
 async function generateScript(topic,words){
   words=words||'55-60';
   console.log('\n📝 Script ('+words+' words)...');
   const __cont=/THIS IS PART [23]/i.test(topic); const __p3=/THIS IS PART 3/i.test(topic); /*continuity v2*/
   const __rule1=__cont?('1. This is a DIRECT CONTINUATION of the SAME video, same person still talking. Do NOT use any hook. Do NOT greet, introduce, recap, summarize, or repeat ANY idea, sentence or phrasing from the earlier parts. Begin mid-thought with a NEW angle that deepens the SAME subject.'+(__p3?' End with ONE short call to action.':' No call to action.')):'1. First sentence = THE HOOK (max 8 words). It MUST stop the scroll in under 1 second. Pick whatever is most viral for THIS topic: a shocking question, a brutal accusation, a forbidden secret, a bold contrarian claim, or a callout that makes her feel seen. Create an instant curiosity gap or emotional punch. No greeting, no warmup, no setup. Make it impossible to scroll past';
-  const __rule3=__cont?'Add [pause] before the final punchline':'Add [pause] after the hook and before the final punchline';
+  const __rule3=(__cont?'Add [pause] before the final punchline':'Add [pause] after the hook and before the final punchline')+'. Use EXACTLY "[pause]" (lowercase, square brackets) as the ONLY pause marker — NEVER write (pause), Pause, PAUSE, or the bare word pause as a stage direction.';
   const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:500,
     messages:[{role:'user',content:'TikTok relationship coach women 20-40. Topic: "'+topic+'". Return ONLY valid JSON: {"script":"Exactly '+words+' words. VIRAL TikTok script. STRICT RULES:\n'+__rule1+'\n2. Every sentence MAX 8 words. Cut ruthlessly.\n3. '+__rule3+'\n4. Emotional, direct, no fluff. Each word earns its place.\n5. No em dashes. English only.","keywords":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6"] — pick the 6 most emotionally charged shocking words only,"caption_short":"Max 80 chars + emojis, punchy hook","caption_long":"200-250 chars, develop the idea + call to action + emojis","hashtags":["t1","t2","t3","t4","t5"] where the 5 tags are the MOST VIRAL generic TikTok hashtags (fyp, foryou, foryoupage, viral, trending, relatable) plus 1 topical one max, no hash symbol, lowercase, no spaces,"reactions":[{"after":"exact sentence copied from the script","type":"mhm|yeah|right|hmm"}] choose EXACTLY 2 to 3 reactions, placed right after the most impactful sentences (ideally near a [pause]), so it feels like an interviewer reacting; the "after" value MUST be copied verbatim from the script}'}]
   });
@@ -22,25 +55,36 @@ async function generateScript(topic,words){
   console.log('OK ('+c.script.split(' ').length+'w):',c.script.substring(0,70)+'...');
   return c;
 }
+// Variation VOIX subtile par vidéo : stability/style tirés dans une petite plage configurable
+const VOICE_JITTER={stability:0.45,style:0.30,range:0.06};
+function jitterVoice(){const j=()=>(Math.random()*2-1)*VOICE_JITTER.range;return{stability:+Math.min(0.7,Math.max(0.30,VOICE_JITTER.stability+j())).toFixed(3),style:+Math.min(0.6,Math.max(0.15,VOICE_JITTER.style+j())).toFixed(3)};}
 async function generateAudio(script,num){
-  console.log('\n🎙  Audio Part '+num+' (ElevenLabs Imany)...');
+  // 🔒 Dernier rempart : refuse un texte TTS suspect (statut/commande/mot unique/trop court)
+  const _s=String(script||'').trim();
+  if(_s.length<15||!/\s/.test(_s)||/^[\/]?(status|running|idle|lipsync|rendu|voix|avatar|script|maquette|done|ok|undefined|null|stop|menu|go)$/i.test(_s))
+    throw new Error('generateAudio: texte suspect « '+_s.slice(0,40)+' » bloqué');
+  const vj=jitterVoice();
+  console.log('\n🎙  Audio Part '+num+' (ElevenLabs Imany, stab='+vj.stability+' style='+vj.style+')...');
   const mp3='/tmp/wf_'+num+'.mp3',wav='/tmp/wf_'+num+'.wav';
   const res=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE+'/with-timestamps',{
     method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json'},
-    body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82,style:0.3,use_speaker_boost:true}})
+    body:JSON.stringify({text:sanitizeTTS(script),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
   });
   let wt=[];
   if(res.ok){
     const d=await res.json();
     fs.writeFileSync(mp3,Buffer.from(d.audio_base64,'base64'));
     const {characters:ch,character_start_times_seconds:st,character_end_times_seconds:en}=d.alignment;
-    let word='',ws=0,we=0;
+    let word='',ws=0,we=0,inTag=false;
     for(let i=0;i<ch.length;i++){
       const c=ch[i];
+      // ignore les spans de tags SSML <break .../> : ne jamais en faire des mots/sous-titres
+      if(c==='<'){inTag=true;}
+      if(inTag){if(c==='>'){inTag=false;if(i+1<ch.length)ws=st[i+1];}word='';continue;}
       if(c===' '||i===ch.length-1){
         if(i===ch.length-1&&c!==' '){word+=c;we=en[i];}
         const clean=word.trim().replace(/[.,!?;:'"\u2014\u2013-]/g,'').toUpperCase();
-        if(clean)wt.push({text:clean,start:ws,end:we,duration:we-ws});
+        if(clean&&!/^PAUSE$/i.test(clean))wt.push({text:clean,start:ws,end:we,duration:we-ws});
         word='';if(i+1<ch.length)ws=st[i+1];
       }else{if(!word)ws=st[i];word+=c;we=en[i];}
     }
@@ -48,7 +92,7 @@ async function generateAudio(script,num){
   }else{
     const r2=await fetch('https://api.elevenlabs.io/v1/text-to-speech/'+EL_VOICE,{
       method:'POST',headers:{'xi-api-key':EL_KEY,'Content-Type':'application/json','Accept':'audio/mpeg'},
-      body:JSON.stringify({text:script.replace(/\[pause\]/gi,'<break time="0.8s"/>').replace(/\u2014/g,' ').replace(/\u2013/g,' '),model_id:'eleven_multilingual_v2',voice_settings:{stability:0.45,similarity_boost:0.82}})
+      body:JSON.stringify({text:sanitizeTTS(script),model_id:'eleven_multilingual_v2',voice_settings:{stability:vj.stability,similarity_boost:0.82,style:vj.style,use_speaker_boost:true}})
     });
     if(!r2.ok)throw new Error('ElevenLabs '+r2.status);
     fs.writeFileSync(mp3,await r2.buffer());
@@ -74,7 +118,9 @@ async function prepareImage(){
   if(!u.startsWith('http'))throw new Error('Image upload failed');
   console.log('  OK:',u);return u;
 }
-async function generateLipsync(imageUrl,audioUrl,num){
+async function generateLipsync(imageUrl,audioUrl,num,abortFn){
+  const chk=()=>{if(abortFn&&abortFn())throw new Error('ABORT');};
+  chk();
   console.log('\n🎬 Lipsync Part '+num+' (Kling)...');
   const res=await fetch(HIGGS_BASE+'/v1/speak/kling',{
     method:'POST',headers:{'Authorization':HIGGS_AUTH,'Content-Type':'application/json'},
@@ -85,7 +131,9 @@ async function generateLipsync(imageUrl,audioUrl,num){
   const jobId=data.id||data.job_id||data.request_id;
   console.log('  Job:',jobId);
   for(let i=0;i<540;i++){
+    chk();
     await sleep(5000);
+    chk();
     const p=await fetch(HIGGS_BASE+'/requests/'+jobId+'/status',{headers:{'Authorization':HIGGS_AUTH}});
     if(!p.ok)continue;
     const d=await p.json();
@@ -102,13 +150,32 @@ async function generateLipsync(imageUrl,audioUrl,num){
   throw new Error('Timeout 45min');
 }
 async function saveLipsyncRaw(url,num,ts,outDir){
-  try{const p=require('path').join(outDir,ts+'_raw_p'+num+'.mp4');require('child_process').execSync('curl -s -o "'+p+'" "'+url+'"');console.log('  Raw saved:',p);}catch(e){console.log('  (raw save skipped)');}
+  try{const p=require('path').join(outDir,ts+'_raw_p'+num+'.mp4');require('child_process').execSync('curl -s -o "'+p+'" "'+url+'"');console.log('  Raw saved:',p);return p;}catch(e){console.log('  (raw save skipped)');return null;}
 }
-async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions){
+// === Aiguillage rendu : LOCAL (ffmpeg+libass) par defaut, Shotstack en secours via USE_SHOTSTACK=1 ===
+async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions,localInput){
+  if(process.env.USE_SHOTSTACK==='1'){
+    return await renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions);
+  }
+  console.log('\n✨ Rendering Part '+num+' (local ffmpeg)...');
+  const {renderLocal}=require('./render_local');
+  // input local : reutilise le raw deja telecharge par saveLipsyncRaw, sinon telecharge une seule fois
+  let input=localInput;
+  if(!input||!fs.existsSync(input)){
+    if(/^https?:/i.test(lipsyncUrl)){input='/tmp/wf_raw_'+num+'.mp4';execSync('curl -s -o "'+input+'" "'+lipsyncUrl+'"');}
+    else if(fs.existsSync(lipsyncUrl)){input=lipsyncUrl;}
+    else throw new Error('render local: pas d\'input video (ni raw local ni URL): '+lipsyncUrl);
+  }
+  const output='/tmp/wf_render_'+num+'.mp4';
+  const r=await renderLocal({input:input,wordTimings:wordTimings,keywords:keywords||[],duration:duration,reactions:reactions||[],output:output});
+  console.log('  OK local:',r.output,'('+r.duration.toFixed(2)+'s, '+r.segments+' seg, '+r.subtitles+' sous-titres, '+r.reactions+' reaction)');
+  return r.output;
+}
+async function renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions){
   console.log('\n✨ Rendering Part '+num+' (Shotstack)...');
   const kws=new Set(keywords.map(k=>k.toUpperCase()));
-  // Strip [pause] tokens from word timings
-  wordTimings=wordTimings.filter(w=>!/^\[pause\]$/i.test(w.word));
+  // Strip toutes les variantes de marqueur de pause des word timings (sous-titres)
+  wordTimings=stripPauseTokens(wordTimings);
   const wt=wordTimings.filter(w=>w.text&&w.duration>0);
   // couper la fin qui traine : limiter a la fin reelle de la parole (+petite marge)
   const _speechEnd=wordTimings.reduce((m,w)=>Math.max(m,(w.end||0)),0);
@@ -151,16 +218,16 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   for(const kw of sorted){
     const zs=Math.max(kw.start-0.05,cur);
     // segment plan large avant le mot-cle
-    if(zs>cur+0.05)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:zs-cur,scale:1.0});
+    if(zs>cur+0.05)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:zs-cur,scale:1.20});
     // segment zoom sur le mot-cle, intensite alternee
     const z=ZOOMS[ki%ZOOMS.length];ki++;
     const ze=Math.min(zs+2.5,duration); /*zoom2*/ // zoom plus frequent
     vc.push({asset:{type:'video',src:lipsyncUrl,trim:zs},start:zs,length:ze-zs,scale:z});
     cur=ze;
   }
-  if(cur<duration-0.1)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:duration-cur,scale:1.0});
+  if(cur<duration-0.1)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:duration-cur,scale:1.20});
   if(vc.length===0)vc=[{asset:{type:'video',src:lipsyncUrl},start:0,length:duration}];
-  vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.0}]; const _reactClips=[]; /*reactions v1*/
+  vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.20}]; const _reactClips=[]; /*reactions v1*/
   try{
     if(reactions&&reactions.length){
       const _norm=s=>String(s||'').toUpperCase().replace(/[.,!?;:'"\u2014\u2013-]/g,'').split(/\s+/).filter(Boolean);
@@ -203,16 +270,21 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
 async function saveOpen(url,content,ts,num,outDir){
   const p=path.join(outDir,ts+'_p'+num+'.mp4');
   try{const cf=p.replace('.mp4','.txt');const tags=(content.hashtags||[]).map(h=>'#'+h).join(' ');const txt='SCRIPT:\n'+(content.script||'')+'\n\nSHORT:\n'+(content.caption_short||content.caption||'')+'\n\nLONG:\n'+(content.caption_long||'')+'\n\nHASHTAGS:\n'+tags;require('fs').writeFileSync(cf,txt);console.log('Caption saved:',cf);}catch(e){}
-  execSync('curl -s -o "'+p+'" "'+url+'"');
-  // === passe finale : fondu audio (anti-pop) + couleur de-jaunie pour coller au brut Kling /*finalpass v1*/
-  try{
+  // source LOCALE (rendu ffmpeg) -> simple copie ; sinon (URL Shotstack) -> telechargement curl
+  const _isLocal=!/^https?:/i.test(url)&&fs.existsSync(url);
+  if(_isLocal)fs.copyFileSync(url,p);else execSync('curl -s -o "'+p+'" "'+url+'"');
+  // === passe finale : fades anti-pop. UNIQUEMENT pour Shotstack. /*finalpass v1*/
+  // Rendu local : deja h264 crf18 + fades integres, et le filtre couleur eq=brightness=0:saturation=1 est neutre
+  // -> on supprime le double reencode (gain de temps + zero perte de qualite).
+  if(_isLocal){console.log('  (passe finale ignoree : rendu local deja encode + fades anti-pop integres)');}
+  else try{
     const _cp=require('child_process');const _fs=require('fs');
     let _dur=0;try{_dur=parseFloat(_cp.execSync('ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "'+p+'"').toString().trim())||0;}catch(_e){_dur=0;}
     let _af='afade=t=in:ss=0:d=0.12';
     if(_dur>0.4){_af+=',afade=t=out:st='+Math.max(_dur-0.15,0).toFixed(2)+':d=0.15';}
     const _vf='eq=brightness=0:saturation=1'; /*color revert*/
     const _tmp=p.replace(/\.mp4$/,'_fix.mp4');
-    _cp.execSync('ffmpeg -y -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset medium -pix_fmt yuv420p -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null');
+    _cp.execSync('ffmpeg -y -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null');
     if(_fs.existsSync(_tmp)&&_fs.statSync(_tmp).size>10000){_fs.renameSync(_tmp,p);console.log('  Passe finale OK (anti-pop + couleur).');}
     else{try{if(_fs.existsSync(_tmp))_fs.unlinkSync(_tmp);}catch(_e2){}console.log('  (passe finale ignoree, video brute conservee)');}
   }catch(_e){console.log('  (passe finale ignoree: '+_e.message+')');}
@@ -348,27 +420,55 @@ async function main(){
     const {audioUrl:a1,wordTimings:wt1,duration:d1}=await generateAudio(c1.script,1);
     const imageUrl=await prepareImage();
     const lip1=await generateLipsync(imageUrl,a1,1);
-    await saveLipsyncRaw(lip1,1,ts,outDir);
-    const vid1=await renderVideo(lip1,wt1,c1.keywords,d1,1,c1.reactions);
-    await saveOpen(vid1,c1,ts,1,outDir);
+    const raw1=await saveLipsyncRaw(lip1,1,ts,outDir);
+    const vid1=await renderVideo(lip1,wt1,c1.keywords,d1,1,c1.reactions,raw1);
+    const p1=await saveOpen(vid1,c1,ts,1,outDir);
     try{const lp=path.join(os.homedir(),'podcast-workflow','library.json');const lib=fs.existsSync(lp)?JSON.parse(fs.readFileSync(lp,'utf8')):{scripts:[]};lib.scripts.push({id:Date.now().toString(),title:topic,date:ts.slice(0,10),script:c1.script,performance:null});fs.writeFileSync(lp,JSON.stringify(lib,null,2));console.log('📚 Saved to library');}catch(e){}
+
+    // === DURÉE LIBRE / MULTI-PARTS ===
+    const _secReq=parseInt(process.argv[3],10)||0;
+    const _plan=planParts(_secReq||23);
+    if(_plan.n>1){
+      // AUTO multi-parts : aucune question, enchaînement + assemblage local. (pas de prompt -> pas de blocage stdin)
+      console.log('\n🧩 Durée '+_plan.seconds+'s -> '+_plan.n+' parts de ~'+_plan.perSec+'s ('+_plan.words+' mots/part), assemblage auto.');
+      const prevScripts=[c1.script];const clips=[p1];
+      for(let i=2;i<=_plan.n;i++){
+        const ci=await generateScript(partPrompt(topic,i,_plan.n,prevScripts),words);
+        const {audioUrl:ai,wordTimings:wti,duration:di}=await generateAudio(ci.script,i);
+        const lipi=await generateLipsync(imageUrl,ai,i);
+        const rawi=await saveLipsyncRaw(lipi,i,ts,outDir);
+        const vidi=await renderVideo(lipi,wti,ci.keywords,di,i,ci.reactions,rawi);
+        const pi=await saveOpen(vidi,ci,ts,i,outDir);
+        prevScripts.push(ci.script);clips.push(pi);
+      }
+      if(clips.filter(Boolean).length>1){
+        const finalPath=path.join(outDir,ts+'_FINAL.mp4');
+        try{concatClips(clips.filter(Boolean),finalPath);console.log('\n🎬 Final assemblé ('+clips.filter(Boolean).length+' parts) :',finalPath);console.log('✅ Part 0: '+finalPath);}
+        catch(e){console.log('  (assemblage final échoué: '+e.message+' — clips séparés conservés)');}
+      }
+      console.log('\n🎉 Done! Saved in:',outDir);process.exit(0);
+    }
+    // --- Flux historique (≤ ~30s) : 2-3 parts à la main (textes INCHANGÉS pour la détection du bot) ---
     const more=await ask('\nMake 2 more parts with same outfit? (YES/NO) > ');
     if(more!=='YES'){console.log('\nDone! ✅');process.exit(0);}
     const c2=await generateScript(topic+'. THIS IS PART 2, a DIRECT CONTINUATION of the SAME video. Part 1 already said: <<'+c1.script+'>>. Rules: do NOT repeat any idea, sentence, hook, or phrasing from Part 1. Open mid-thought with a NEW angle that deepens it. No greeting, no re-introduction, no recap, no call to action.',words);
     const {audioUrl:a2,wordTimings:wt2,duration:d2}=await generateAudio(c2.script,2);
     const lip2=await generateLipsync(imageUrl,a2,2);
-    await saveLipsyncRaw(lip2,2,ts,outDir);
-    const vid2=await renderVideo(lip2,wt2,c2.keywords,d2,2,c2.reactions);
+    const raw2=await saveLipsyncRaw(lip2,2,ts,outDir);
+    const vid2=await renderVideo(lip2,wt2,c2.keywords,d2,2,c2.reactions,raw2);
     await saveOpen(vid2,c2,ts,2,outDir);
     const next=await ask('\nContinue to Part 3? (YES/NO) > ');
     if(next!=='YES'){console.log('\nStopped at Part 2. ✅');process.exit(0);}
     const c3=await generateScript(topic+'. THIS IS PART 3, the FINAL part of the SAME video. Part 1 said: <<'+c1.script+'>>. Part 2 said: <<'+c2.script+'>>. Rules: do NOT repeat anything already said in Part 1 or Part 2. Deliver the NEW culminating insight, then end with ONE short call to action. No greeting, no recap, no hook.',words);
     const {audioUrl:a3,wordTimings:wt3,duration:d3}=await generateAudio(c3.script,3);
     const lip3=await generateLipsync(imageUrl,a3,3);
-    await saveLipsyncRaw(lip3,3,ts,outDir);
-    const vid3=await renderVideo(lip3,wt3,c3.keywords,d3,3,c3.reactions);
+    const raw3=await saveLipsyncRaw(lip3,3,ts,outDir);
+    const vid3=await renderVideo(lip3,wt3,c3.keywords,d3,3,c3.reactions,raw3);
     await saveOpen(vid3,c3,ts,3,outDir);
     console.log('\n🎉 All 3 done! Saved in:',outDir);
   }catch(err){console.error('\n❌',err.message);process.exit(1);}
 }
-main();
+// exécuté comme programme (node workflow.js / spawn du bot) -> lance main().
+// importé (require) pour test -> n'exécute PAS main(), expose renderVideo pour le test d'intégration.
+if(require.main===module)main();
+module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw,planParts,partPrompt,concatClips,generateScript,generateAudio,prepareImage,generateLipsync};
