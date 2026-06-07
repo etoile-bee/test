@@ -2191,6 +2191,21 @@ await send('Ready to generate video?',[
     })();
     return;
   }
+  if(txt==='/prompt'||txt.startsWith('/prompt ')){ /*prompt v1 : le prompt de base est consultable et modifiable depuis le chat*/
+    const np=txt.replace(/^\/prompt\s*/,'').trim();
+    const pf=path.join(BASE,'newlook_prompt.txt');
+    if(!np){
+      let cur='';try{cur=fs.readFileSync(pf,'utf8').trim();}catch(e){}
+      await send('📝 <b>Prompt de base actuel</b> (fichier newlook_prompt.txt) :\n\n<code>'+escH(cur.substring(0,3500))+'</code>\n\nPour le remplacer : <code>/prompt nouveau texte complet</code>');
+      return;
+    }
+    try{
+      fs.copyFileSync(pf,pf+'.bak');
+      fs.writeFileSync(pf,np+'\n');
+      await send('✅ Prompt de base remplacé ('+np.split(/\s+/).length+' mots). Ancien sauvegardé dans newlook_prompt.txt.bak — actif dès la prochaine génération, sans redémarrage.');
+    }catch(e){await send('Erreur : '+e.message);}
+    return;
+  }
   if(txt==='/probe'){ /*probe v1 : quels endpoints Seedream existent (gratuit, rien n'est genere)*/
     (async()=>{
       try{
