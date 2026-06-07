@@ -234,7 +234,7 @@ function nlResultRows(){
   const rows=[];
   if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
   rows.push([{text:'✅ Garder cette pose',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'✅ Tout garder',callback_data:'NL_KEEP_ALL'}]:[])]);
-  if(newlook.mode==='planche')rows.push([{text:'✂️ Découper en 3 poses (gratuit)',callback_data:'NL_SPLIT'}]);
+  if(newlook.mode==='planche')rows.push([{text:'🪄 9:16 pose 1 💰',callback_data:'NL_RE_0'},{text:'🪄 2 💰',callback_data:'NL_RE_1'},{text:'🪄 3 💰',callback_data:'NL_RE_2'},{text:'🪄 les 3 💰💰💰',callback_data:'NL_RE_ALL'}]);
   rows.push([{text:'🎬 Vidéo avec cette pose',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD',callback_data:'NL_HD'}]:[])]);
   rows.push([{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]);
   return rows;
@@ -2026,6 +2026,22 @@ await send('Ready to generate video?',[
     }
     if(d==='NL_KEEP_ALL'){
       try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await nlText('✅ <b>'+n+' poses gardées</b> (galerie + recette /look)',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      return;
+    }
+    if(d.startsWith('NL_RE_')){ /*recreate v1 : choix LIBRE de la/des pose(s) a recreer en 9:16 natif (payant, 1 credit/pose)*/
+      (async()=>{
+        try{
+          const which=d==='NL_RE_ALL'?[0,1,2]:[+d.replace('NL_RE_','')];
+          const planche=newlook.urls[0];
+          const out=[];
+          for(const i of which){
+            await nlText('🪄 <b>Recréation 9:16 — pose '+(i+1)+'…</b> ('+(out.length+1)+'/'+which.length+', payant)');
+            out.push(await nlMod().recreatePose(planche,i,m=>{nlText('🪄 '+escH(m)).catch(()=>{});}));
+          }
+          newlook.urls=out;newlook.files=[];newlook.idx=0;newlook.mode='hd';
+          await nlShowResult();
+        }catch(e){await nlText('❌ Recréation : '+escH(e.message),nlResultRows());}
+      })();
       return;
     }
     if(d==='NL_SPLIT'){

@@ -211,4 +211,30 @@ async function splitPlanche(url){
   return files;
 }
 
-module.exports={ splitPlanche, generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };
+/*recreate v1 : recree UNE case de la planche en portrait 9:16 natif (pret lipsync) — la case decoupee sert de reference (fidelite max)*/
+async function recreatePose(plancheUrl,frameIdx,log){
+  log=log||console.log;
+  const cp=require('child_process');
+  const src='/tmp/pl_'+Date.now()+'.jpg';
+  cp.execSync('curl -sL -o "'+src+'" "'+plancheUrl+'"');
+  const crop='/tmp/crop_'+Date.now()+'.jpg';
+  cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=iw:ih/3:0:'+(frameIdx===0?'0':'ih*'+frameIdx+'/3')+'" -q:v 2 "'+crop+'" 2>/dev/null');
+  if(!fs.existsSync(crop)||fs.statSync(crop).size<3000)throw new Error('extraction de la case '+(frameIdx+1)+' echouee');
+  const client=getClient();
+  const cropUrl=await client.uploadImage(fs.readFileSync(crop),'jpeg');
+  log('Recréation de la pose '+(frameIdx+1)+' en 9:16…');
+  const jobSet=await client.generate('/v1/text2image/seedream',{
+    prompt:'Recreate this exact image as ONE single full-bleed 9:16 vertical portrait: same woman, same face, same outfit, same accessories, same makeup, same hairstyle, same pose, same studio and lighting. '+defaultPrompt(),
+    input_images:[{type:'image_url',image_url:cropUrl}],
+    aspect_ratio:'9:16',
+    batch_size:1
+  },{withPolling:true});
+  const job=jobSet&&jobSet.jobs&&jobSet.jobs[0];
+  if(!job||job.status!=='completed'||!job.results)throw new Error('recréation échouée ('+(job&&job.status)+')');
+  const url=(job.results.raw&&job.results.raw.url)||(job.results.min&&job.results.min.url);
+  if(!url)throw new Error('pas d URL');
+  archiveAll([url],{category:'recreate-9x16'});
+  return url;
+}
+
+module.exports={ recreatePose, splitPlanche, generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };
