@@ -387,7 +387,8 @@ function launch(){
   scriptBuf='';collectScript=false;
   let mmPing=null; // suivi MM
   const args=[path.join(BASE,'workflow.js')];
-  if(setup.topic)args.push(setup.topic);
+  args.push(setup.topic||''); /*durfix v1 : position argv[2]=topic gardee meme sans topic*/
+  args.push(setup.duration||'25s'); /*durfix v1 : la duree choisie est ENFIN transmise au moteur (argv[3])*/
   proc=spawn('node',args,{cwd:BASE,env:{...process.env}});
   console.error('=== DEBUG spawn lance, pid='+(proc&&proc.pid)+' args='+JSON.stringify(args));
   if(proc)proc.on('error',e=>console.error('=== DEBUG spawn ERROR: '+e.message));

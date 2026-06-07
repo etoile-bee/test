@@ -17,7 +17,7 @@ async function generateScript(topic,words){
   let c=null; /*revue1: retry anti-JSON-tronque*/
   for(let __t=1;__t<=3;__t++){
     try{
-      const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:500,
+      const msg=await anthropic.messages.create({model:'claude-sonnet-4-6',max_tokens:900,/*durfix v1 : 500 tronquait les scripts 160-180 mots*/
         messages:[{role:'user',content:'TikTok relationship coach women 20-40. Topic: "'+topic+'". Return ONLY valid JSON: {"script":"Exactly '+words+' words. VIRAL TikTok script. STRICT RULES:\n'+__rule1+'\n2. Every sentence MAX 8 words. Cut ruthlessly.\n3. '+__rule3+'\n4. Emotional, direct, no fluff. Each word earns its place.\n5. No em dashes. English only.","keywords":["WORD1","WORD2","WORD3","WORD4","WORD5","WORD6"] — pick the 6 most emotionally charged shocking words only,"caption_short":"Max 80 chars + emojis, punchy hook","caption_long":"200-250 chars, develop the idea + call to action + emojis","hashtags":["t1","t2","t3","t4","t5"] where the 5 tags are the MOST VIRAL generic TikTok hashtags (fyp, foryou, foryoupage, viral, trending, relatable) plus 1 topical one max, no hash symbol, lowercase, no spaces,"reactions":[{"after":"exact sentence copied from the script","type":"mhm|yeah|right|hmm"}] choose EXACTLY 2 to 3 reactions, placed right after the most impactful sentences (ideally near a [pause]), so it feels like an interviewer reacting; the "after" value MUST be copied verbatim from the script}'}]
       });
       const __m=msg.content[0].text.match(/\{[\s\S]*\}/);
@@ -288,9 +288,15 @@ async function main(){
       console.log('   ✅ Photo updated');
     }
   }
-  console.log('\n⏱  Duration: 23s (55-60 words)');
-  const chDur=await ask('   Change? (YES/NO) > ');
+  /*durfix v1 : la duree peut arriver du bot en argv[3] ('25s'/'40s'/'65s' ou '15'/'23'/'30')*/
   let words='55-60';
+  const _argDur=(process.argv[3]||'').toLowerCase().replace('s','');
+  if(_argDur==='40')words='90-110';
+  else if(_argDur==='65')words='160-180';
+  else if(_argDur==='15')words='45-55';
+  const _dl0=words==='45-55'?'15s':words==='90-110'?'40s':words==='160-180'?'65s':'23s';
+  console.log('\n⏱  Duration: '+_dl0+' ('+words+' words)');
+  const chDur=await ask('   Change? (YES/NO) > ');
   if(chDur==='YES'){
     const d=await ask('   Seconds (15/23/30) > ');
     if(d==='15')words='45-55';else if(d==='30')words='95-110';
@@ -309,7 +315,7 @@ async function main(){
     console.log('  Topic:',topic);
   }
   const as=(process.env.HIGGS_AVATAR_URL||'').split('/').pop();
-  const dl=words==='45-55'?'15s':words==='95-110'?'30s':'23s';
+  const dl=words==='45-55'?'15s':words==='95-110'?'30s':words==='90-110'?'40s':words==='160-180'?'65s':'23s'; /*durfix v1*/
   console.log('\n'+'━'.repeat(50)+'\n📋 SUMMARY\n'+'━'.repeat(50));
   console.log('📌 Topic:   ',topic);
   console.log('🖼  Photo:    ...'+as.substring(0,40));
