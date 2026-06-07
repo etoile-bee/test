@@ -167,6 +167,12 @@ function nlCover(){ /*image d'accueil du panneau = la reference imany*/
     require('child_process').execSync('sips -Z 900 -s format jpeg "'+require('path').join(dir,f)+'" --out "'+out+'" 2>/dev/null || ffmpeg -y -i "'+require('path').join(dir,f)+'" -vf scale=900:-2 -q:v 3 "'+out+'" 2>/dev/null');
     if(fs.existsSync(out)&&fs.statSync(out).size>3000){_nlCover=out;return out;}
   }catch(e){}
+  /*blindage : JAMAIS sans image — couverture neutre generee localement (le panneau doit toujours etre un message-photo)*/
+  try{
+    const out='/tmp/nlcover_default.jpg';
+    if(!fs.existsSync(out))require('child_process').execSync('ffmpeg -y -f lavfi -i color=c=0x1c1c28:s=720x900:d=0.1 -frames:v 1 "'+out+'" 2>/dev/null');
+    if(fs.existsSync(out)&&fs.statSync(out).size>500){_nlCover=out;return out;}
+  }catch(e){}
   return null;
 }
 function nlLocal(i){ /*fichier local de l'image i (telecharge au besoin, mis en cache)*/
