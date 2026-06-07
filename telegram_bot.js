@@ -596,7 +596,10 @@ async function showSettings(){
   ]);
 }
 // ── Helpers /edit (Image, Zooms, Musique) — stockés dans style.json ─────────────
-const RL=require('./render_local');
+let RL=require('./render_local');
+// CAUSE RACINE des sous-titres « qui bougent » / style obsolète : le process bot fige render_local
+// au démarrage. On purge le cache require et on recharge AVANT chaque rendu -> toujours le code à jour.
+function freshRL(){try{delete require.cache[require.resolve('./render_local')];}catch(e){}RL=require('./render_local');return RL;}
 const WF=require('./workflow.js'); // briques de génération (require.main!==module -> main() ne se lance pas)
 // ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
 const STATE_PATH=path.join(BASE,'state.json');
@@ -702,7 +705,7 @@ async function showReady(){
 async function runLocalTest(){
   if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit).');return;}
   try{
-    const {renderLocal}=require('./render_local');
+    const {renderLocal}=freshRL();
     const src=workSrc(); // PHOTO DE TRAVAIL COURANTE (look choisi ou dernier raw)
     if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
     await send('🧪 Rendu LOCAL gratuit (style + script courants, photo de travail : '+path.basename(src)+')... ~2s');
@@ -723,16 +726,23 @@ async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirig
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
 function gwReset(){gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
 function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
+// Fil d'Ariane du parcours (étape active en gras) — affiché sur chaque écran
+function journey(active){
+  const s=[['recap','🎬 Récap'],['script','📝 Script'],['maquette','👁 Maquette'],['go','🚀 GO']];
+  const ci=s.findIndex(x=>x[0]===active);
+  return '🧭 '+s.map((x,i)=>i<ci?(x[1]+' ✓'):(i===ci?('<b>'+x[1]+'</b>'):x[1])).join(' → ');
+}
 function recapCaption(){
   const dur=gw.duration||'23s';const c=estimateCost(dur);
-  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto');
+  const cat=gw.topicCat&&MCATS[gw.topicCat]?(MCATS[gw.topicCat].replace(/^[^ ]+ /,'')+' — '):'';
+  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?(cat+'« '+gw.topic+' »'):(cat||'🎲 auto…'));
   const mins=Math.max(3,Math.round(c.parts*4)); // ~4 min de lipsync Kling par partie
-  return `🎬 <b>NOUVELLE VIDÉO</b>\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(photo actuelle)'}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
+  return `${journey('recap')}\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(photo actuelle)'}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
 }
 function recapKb(){
   return [
     [{text:'👤 Changer le look',callback_data:'RC_LOOK'}],
-    [{text:'🎨 Style',callback_data:'RC_STYLE'},{text:'💬 Sujet',callback_data:'RC_SUBJ'}],
+    [{text:'🎨 Modèle',callback_data:'RC_STYLE'},{text:'💬 Sujet',callback_data:'RC_SUBJ'},{text:'🔄 Autre sujet',callback_data:'RC_NEWTOPIC'}],
     [{text:'⏱ 15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️ Libre',callback_data:'RC_DUR_FREE'}],
     [{text:'🚀 GO',callback_data:'RC_GO'},{text:'❌ Annuler',callback_data:'RC_CANCEL'}],
   ];
@@ -763,10 +773,17 @@ async function autoPickTopic(cat){
   return r.content[0].text.trim().replace(/^["'*]+|["'*]+$/g,'');
 }
 // Démarre depuis la carte récap : écrit le 1er script et l'affiche pour validation
+// Résout le sujet AU MOMENT du récap (auto -> autoPickTopic), pour l'afficher avant GO
+async function ensureTopic(){
+  if(gw.subjectMode==='mine')return;
+  if(gw.topic)return;
+  try{gw.topic=await autoPickTopic(gw.topicCat);}catch(e){gw.topic=null;}
+}
 async function recapGo(){
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
+  await ensureTopic();
   const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
-  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.subjectMode==='mine'?(gw.topic||null):null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
+  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.topic||null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
   if(gwLook())setAvatar(gwLook());
   await send('📝 Écriture du script... (gratuit, ~10s)');
   await genScriptStep();
@@ -777,17 +794,17 @@ async function genScriptStep(){
     const prompt=genJob.parts>1?WF.partPrompt(genJob.topic,1,genJob.parts,[]):genJob.topic;
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
-    await send('📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
-      [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau',callback_data:'GJ_NEW'}],
+    await send(journey('script')+'\n\n📝 <b>SCRIPT</b> ('+c.script.split(/\s+/).length+' mots) — sujet : '+escHtml(genJob.topic)+'\n\n'+escHtml(c.script),[
+      [{text:'✅ Valider',callback_data:'GJ_OK'},{text:'🔄 Nouveau script',callback_data:'GJ_NEW'}],
       [{text:'✏️ Modifier le texte',callback_data:'GJ_EDIT'}],
       [{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
   }catch(e){await send('❌ Script: '+e.message);genJob=null;}
 }
 async function genAfterScript(){
-  const c=estimateCost(genJob.duration);
-  await send('✅ Script validé.\n💰 GO ≈ '+c.total.toFixed(2)+COST.CURRENCY+' ('+c.parts+' partie(s)).',[
-    [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'}],
+  const c=estimateCost(genJob.duration);const s=readSubs();
+  await send(journey('maquette')+`\n\n✅ Script validé.\n🎨 Modèle courant : <b>${fontLabel(s.font)} ${s.size}px</b>\n💰 GO ≈ ${c.total.toFixed(2)}${COST.CURRENCY} (${c.parts} partie(s)).`,[
+    [{text:'👁 Maquette (~centimes, aperçu réel)',callback_data:'GJ_MOCK'}],
     [{text:'🚀 GO direct',callback_data:'GJ_GO'}],
     [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
   ]);
@@ -800,9 +817,10 @@ async function genMockup(){
     genJob.audio=await WF.generateAudio(genJob.script,1);
     await send('✨ Rendu local de la maquette (ancien footage, lèvres NON synchro — c\'est normal)...');
     const out='/tmp/mockup_'+Date.now()+'.mp4';
-    await RL.renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
+    await freshRL().renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
     await sendVid(out).catch(async()=>{await send('⚠️ Maquette trop lourde.');});
-    await send('👁 Maquette ci-dessus (lèvres pas synchro, footage ancien). Si le rythme/texte te plaît :',[
+    const s2=readSubs();
+    await send(journey('maquette')+`\n\n👁 Maquette = ton script + modèle (<b>${fontLabel(s2.font)} ${s2.size}px</b>) + réactions courants, sur l'ancien footage (lèvres non synchro — normal). Si ça te plaît :`,[
       [{text:'🚀 GO définitif (réutilise cette voix)',callback_data:'GJ_GO'}],
       [{text:'✏️ Modifier',callback_data:'GJ_EDIT'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
@@ -811,7 +829,7 @@ async function genMockup(){
 async function genFinal(){
   if(!genJob){await send('⚠️ Aucun script en attente.');return;}
   if(proc||genJob.running){await send('⏳ Déjà en cours.');return;}
-  genJob.running=true;state='running';
+  genJob.running=true;state='running';freshRL(); // recharge render_local à jour (cache partagé avec WF.renderVideo)
   const job=genJob;
   const prog=await send('📊 <b>GÉNÉRATION</b>\n📝 Script ✓\n🎙 Voix…');
   const progMid=prog&&prog.result&&prog.result.message_id;
@@ -877,7 +895,7 @@ async function restyleFolder(dir){
     if(!fs.existsSync(raw))continue;
     const dur=(m.wordTimings&&m.wordTimings.length)?m.wordTimings[m.wordTimings.length-1].end+0.35:23;
     const out='/tmp/restyle_'+Date.now()+'_'+i+'.mp4';
-    await RL.renderLocal({input:raw,wordTimings:m.wordTimings,keywords:m.keywords,reactions:m.reactions,output:out,quiet:true,duration:dur});
+    await freshRL().renderLocal({input:raw,wordTimings:m.wordTimings,keywords:m.keywords,reactions:m.reactions,output:out,quiet:true,duration:dur});
     clips.push(out);
   }
   if(!clips.length)throw new Error('aucun raw exploitable');
@@ -964,7 +982,7 @@ function previewPhrase(){return previewScript().replace(/[\n\r]+/g,' ').split(/\
 // Rend un court clip (texte courant) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
 async function renderStyleFrame(input){
   const raw=input||latestRaw(); if(!raw)return null;
-  const {renderLocal}=require('./render_local');
+  const {renderLocal}=freshRL();
   const words=previewScript().replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).slice(0,8);
   const wt=words.map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.45).toFixed(3),end:+((i+1)*0.45).toFixed(3),duration:0.45})).filter(x=>x.text);
   const out='/tmp/sf_'+Date.now()+'.mp4';const dur=wt.length?wt[wt.length-1].end+0.3:1.4;
@@ -975,11 +993,12 @@ async function renderStyleFrame(input){
 }
 // Aperçu STILL sur une IMAGE (look) : couleur + sous-titres incrustés, via les helpers de render_local
 async function renderStillPreview(imgPath){
+  const rl=freshRL();
   const sub=readSubs(),fx=readFx(),W=720,H=1280;
   const assPath='/tmp/still_'+Date.now()+'.ass';
   const subsOn=sub.subs!==0;
-  if(subsOn)fs.writeFileSync(assPath,RL.buildAss([{text:previewPhrase(),start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
-  const color=RL.buildColorFilter(fx.image);
+  if(subsOn)fs.writeFileSync(assPath,rl.buildAss([{text:previewPhrase(),start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
+  const color=rl.buildColorFilter(fx.image);
   let vf='scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1';
   if(color)vf+=','+color;
   if(subsOn)vf+=',ass='+assPath;
@@ -1200,7 +1219,8 @@ async function handle(upd){
     const d=cb.data;
     // Menu principal
     if(d==='MAIN_MENU'){await showMainMenu();return;}
-    if(d==='MENU_GEN'){gwReset();await showRecap();return;}
+    if(d==='MENU_GEN'){gwReset();await send('🎬 Préparation de la carte (sujet auto)...').catch(()=>{});await ensureTopic();await showRecap();return;}
+    if(d==='RC_NEWTOPIC'){gw.topic=null;await ensureTopic();await refreshRecap();return;}
     if(d==='EXPRESS_NEW'){gwReset();await recapGo();return;} /*express 1-tap : défauts state.json -> GO direct*/
     // ── Carte récap : lignes modifiables ──
     if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
@@ -1229,8 +1249,8 @@ async function handle(upd){
       rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
       await send('💬 <b>SUJET</b> — choisis une catégorie, Auto, ou tape le tien :',rows);return;
     }
-    if(d.startsWith('RC_CAT_')){const k=d.slice(7);gw.subjectMode='auto';gw.topicCat=k;gw.topic=null;genState.topicCat=k;saveState();await refreshRecap();return;}
-    if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topicCat=null;gw.topic=null;genState.topicCat=null;saveState();await refreshRecap();return;}
+    if(d.startsWith('RC_CAT_')){const k=d.slice(7);gw.subjectMode='auto';gw.topicCat=k;gw.topic=null;genState.topicCat=k;saveState();await ensureTopic();await refreshRecap();return;}
+    if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topicCat=null;gw.topic=null;genState.topicCat=null;saveState();await ensureTopic();await refreshRecap();return;}
     if(d==='RC_SUBJ_MINE'){state='rc_topic_wait';await send('⌨️ Tape ton sujet (ex: « pourquoi il revient quand tu l\'ignores ») :');return;}
     if(d==='RC_DUR_15'){gw.duration='15s';genState.duration='15s';saveState();await refreshRecap();return;}
     if(d==='RC_DUR_23'){gw.duration='23s';genState.duration='23s';saveState();await refreshRecap();return;}
@@ -1423,7 +1443,7 @@ await send('Ready to generate video?',[
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
       gwReset();gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);
-      await showRecap();return;
+      await ensureTopic();await showRecap();return;
     }
     if(d==='GAL_PICK'){
       const list=looksList();const f=list[gal.idx];
@@ -1494,7 +1514,7 @@ await send('Ready to generate video?',[
     if(d.startsWith('LOADGEN_')){
       const i=+d.slice(8);const f=styleList[i];
       if(!f){await send('⚠️ Style introuvable (rouvre 📂 Modèles).');return;}
-      try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gwReset();gw.styleName=f.replace(/\.json$/,'');await showRecap();}catch(e){await send('❌ '+e.message);}
+      try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gwReset();gw.styleName=f.replace(/\.json$/,'');await ensureTopic();await showRecap();}catch(e){await send('❌ '+e.message);}
       return;
     }
     if(d.startsWith('DELSTYLE_')){
