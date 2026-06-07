@@ -995,7 +995,7 @@ await send('Ready to generate video?',[
     if(d==='MM_DUR_30'){setup.duration='30s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_40'){setup.duration='40s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_60'){setup.duration='60s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
-    if(d==='MM_DUR_FREE'){state='dur_free_wait';await send('⌨️ Tape la durée en <b>secondes</b> (ex: 25). 15–35s = une partie. Au-delà, le multi-parties arrive bientôt.');return;}
+    if(d==='MM_DUR_FREE'){state='dur_free_wait';await send('⌨️ Tape la durée en <b>secondes</b> (ex: 25, 60, 90). Au-delà de ~30s, le bot découpe en plusieurs parties enchaînées et les assemble automatiquement.');return;}
     if(d==='MM_TOPIC_KEEP'){if(setup.editing==='topic'){setup.editing=null;setup.script=null;}await mRecap();return;}
     if(d==='MM_TOPIC_NEW'){await mTopic();return;}
     if(d==='MM_TOPIC_SEND'){state='m_topic_wait';await send('✍️ Write your topic in one message:');return;}
@@ -1240,11 +1240,11 @@ await send('Ready to generate video?',[
 
   if(state==='dur_free_wait'&&msg.text){
     let n=parseInt((msg.text.match(/\d+/)||[])[0]||'',10);
-    if(!n||n<5){await send('⚠️ Donne un nombre de secondes valide (ex: 25).');return;}
-    let note='';
-    if(n>35){note='\n⚠️ Multi-parties pas encore dispo — je vise UNE partie ~30s pour l\'instant (assemblage multi-parts à venir).';n=35;}
+    if(!n||n<5){await send('⚠️ Donne un nombre de secondes valide (ex: 25, 60, 90).');return;}
+    if(n>180)n=180;
+    const parts=Math.max(1,Math.ceil(n/28));
     setup.duration=n+'s';
-    await send('✅ Durée: '+n+'s'+note);
+    await send('✅ Durée: '+n+'s'+(parts>1?` → ${parts} parties enchaînées + assemblage auto.`:' (une partie).'));
     if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}
     return;
   }

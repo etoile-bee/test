@@ -9,38 +9,6 @@ const HIGGS_BASE='https://platform.higgsfield.ai';
 const SHOTSTACK=process.env.SHOTSTACK_API_KEY,EL_KEY=process.env.ELEVENLABS_API_KEY,EL_VOICE=process.env.ELEVENLABS_VOICE_ID,AVATAR_URL=process.env.HIGGS_AVATAR_URL;
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 const ask=q=>new Promise(resolve=>{const rl=require('readline').createInterface({input:process.stdin,output:process.stdout});rl.question(q,a=>{rl.close();resolve(a.trim().toUpperCase());});});
-
-// === DURÉE LIBRE / MULTI-PARTS ===
-// planParts(seconds) -> {n parts <=~28s, words par part (~2.4 mots/s)}
-function planParts(seconds){
-  seconds=Math.max(8,Math.min(180,Math.round(+seconds||23)));
-  const MAXPART=28;                       // chaque part <= ~28-30s
-  const n=Math.max(1,Math.ceil(seconds/MAXPART));
-  const perSec=seconds/n;
-  const wpp=Math.max(18,Math.round(perSec*2.4)); // ~2.4 mots/s
-  return {n,seconds,perSec:Math.round(perSec),words:(wpp-5)+'-'+(wpp+5)};
-}
-// Prompt de continuité généralisé à N parts (réplique la logique PART 2/3)
-function partPrompt(topic,idx,n,prevScripts){
-  if(idx<=1)return topic;
-  const isLast=idx===n;
-  const prev=prevScripts.map((s,k)=>'Part '+(k+1)+' said: <<'+s+'>>').join(' ');
-  return topic+'. THIS IS PART '+idx+' OF '+n+', a DIRECT CONTINUATION of the SAME video, same person still talking. '+prev+
-    '. Rules: do NOT repeat any idea, sentence, hook or phrasing from earlier parts. Open mid-thought with a NEW angle that deepens the SAME subject. '+
-    (isLast?'Deliver the culminating insight, then end with ONE short call to action.':'No greeting, no recap, no call to action.');
-}
-// Concat local ffmpeg de N clips en une vidéo finale (clips conservés séparément)
-function concatClips(clips,outPath){
-  const lf=outPath+'.concat.txt';
-  fs.writeFileSync(lf,clips.map(c=>"file '"+String(c).replace(/'/g,"'\\''")+"'").join('\n')+'\n');
-  let ok=false;
-  try{execSync('ffmpeg -y -f concat -safe 0 -i "'+lf+'" -c copy "'+outPath+'" 2>/dev/null');ok=fs.existsSync(outPath)&&fs.statSync(outPath).size>10000;}catch(e){ok=false;}
-  if(!ok){ // fallback re-encode si les clips n'ont pas des params identiques
-    execSync('ffmpeg -y -f concat -safe 0 -i "'+lf+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 192k "'+outPath+'" 2>/dev/null');
-  }
-  try{fs.unlinkSync(lf);}catch(_){}
-  return outPath;
-}
 async function generateScript(topic,words){
   words=words||'55-60';
   console.log('\n📝 Script ('+words+' words)...');
@@ -406,33 +374,8 @@ async function main(){
     const lip1=await generateLipsync(imageUrl,a1,1);
     const raw1=await saveLipsyncRaw(lip1,1,ts,outDir);
     const vid1=await renderVideo(lip1,wt1,c1.keywords,d1,1,c1.reactions,raw1);
-    const p1=await saveOpen(vid1,c1,ts,1,outDir);
+    await saveOpen(vid1,c1,ts,1,outDir);
     try{const lp=path.join(os.homedir(),'podcast-workflow','library.json');const lib=fs.existsSync(lp)?JSON.parse(fs.readFileSync(lp,'utf8')):{scripts:[]};lib.scripts.push({id:Date.now().toString(),title:topic,date:ts.slice(0,10),script:c1.script,performance:null});fs.writeFileSync(lp,JSON.stringify(lib,null,2));console.log('📚 Saved to library');}catch(e){}
-
-    // === DURÉE LIBRE / MULTI-PARTS ===
-    const _secReq=parseInt(process.argv[3],10)||0;
-    const _plan=planParts(_secReq||23);
-    if(_plan.n>1){
-      // AUTO multi-parts : aucune question, enchaînement + assemblage local. (pas de prompt -> pas de blocage stdin)
-      console.log('\n🧩 Durée '+_plan.seconds+'s -> '+_plan.n+' parts de ~'+_plan.perSec+'s ('+_plan.words+' mots/part), assemblage auto.');
-      const prevScripts=[c1.script];const clips=[p1];
-      for(let i=2;i<=_plan.n;i++){
-        const ci=await generateScript(partPrompt(topic,i,_plan.n,prevScripts),words);
-        const {audioUrl:ai,wordTimings:wti,duration:di}=await generateAudio(ci.script,i);
-        const lipi=await generateLipsync(imageUrl,ai,i);
-        const rawi=await saveLipsyncRaw(lipi,i,ts,outDir);
-        const vidi=await renderVideo(lipi,wti,ci.keywords,di,i,ci.reactions,rawi);
-        const pi=await saveOpen(vidi,ci,ts,i,outDir);
-        prevScripts.push(ci.script);clips.push(pi);
-      }
-      if(clips.filter(Boolean).length>1){
-        const finalPath=path.join(outDir,ts+'_FINAL.mp4');
-        try{concatClips(clips.filter(Boolean),finalPath);console.log('\n🎬 Final assemblé ('+clips.filter(Boolean).length+' parts) :',finalPath);console.log('✅ Part 0: '+finalPath);}
-        catch(e){console.log('  (assemblage final échoué: '+e.message+' — clips séparés conservés)');}
-      }
-      console.log('\n🎉 Done! Saved in:',outDir);process.exit(0);
-    }
-    // --- Flux historique (≤ ~30s) : 2-3 parts à la main (textes INCHANGÉS pour la détection du bot) ---
     const more=await ask('\nMake 2 more parts with same outfit? (YES/NO) > ');
     if(more!=='YES'){console.log('\nDone! ✅');process.exit(0);}
     const c2=await generateScript(topic+'. THIS IS PART 2, a DIRECT CONTINUATION of the SAME video. Part 1 already said: <<'+c1.script+'>>. Rules: do NOT repeat any idea, sentence, hook, or phrasing from Part 1. Open mid-thought with a NEW angle that deepens it. No greeting, no re-introduction, no recap, no call to action.',words);
@@ -455,4 +398,4 @@ async function main(){
 // exécuté comme programme (node workflow.js / spawn du bot) -> lance main().
 // importé (require) pour test -> n'exécute PAS main(), expose renderVideo pour le test d'intégration.
 if(require.main===module)main();
-module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw,planParts,partPrompt,concatClips};
+module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw};
