@@ -190,7 +190,7 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   }catch(e){console.log('  reactions skip:',e.message);}
   const _tracks=[{clips:subClips},{clips:vc},{clips:_audioBed}];
   if(_reactClips.length)_tracks.push({clips:_reactClips});
-  const edit={timeline:{background:'#000000',tracks:_tracks},output:{format:'mp4',resolution:'hd',aspectRatio:'9:16',fps:30}};
+  const edit={timeline:{fonts:SUBSTYLE.FONTS,background:'#000000',tracks:_tracks},output:{format:'mp4',resolution:'hd',aspectRatio:'9:16',fps:30}}; /*substyle v4 : police embarquee aussi en prod*/
   const r=await fetch('https://api.shotstack.io/edit/v1/render',{method:'POST',headers:{'Content-Type':'application/json','x-api-key':SHOTSTACK},body:JSON.stringify(edit)});
   const d=await r.json();
   if(!d.success)throw new Error('Shotstack: '+JSON.stringify(d).substring(0,200));

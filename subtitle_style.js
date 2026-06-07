@@ -1,23 +1,27 @@
 // ============================================================
-//  SOURCE UNIQUE DU STYLE SOUS-TITRES /*substyle v3 — style VALIDE par Etoile le 07/06 sur DEMO_trim_0.1s (video prod 20h54)*/
+//  SOURCE UNIQUE DU STYLE SOUS-TITRES /*substyle v4 — VERROUILLE par Etoile le 07/06 : version EPAISSE Archivo Black*/
 //  Lu par : workflow.js (prod) + test_soustitres.js (sandbox) + telegram_bot.js (/settings)
-//  ⚠️ Le rendu sandbox peut differer legerement (police) : la REFERENCE = le rendu PROD (DEMO_trim_0.1s).
+//  La police est EMBARQUEE par URL (FONTS) => rendu identique a 100% partout, sandbox ET prod.
+//  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 52;     // taille du texte (plus grand = plus gros)
-const OY        = 0.347;  // hauteur (plus grand = plus haut) — haut de la mousse du micro
+const FONT_SIZE = 48;     // taille du texte (plus grand = plus gros)
+const OY        = 0.32;   // hauteur (plus grand = plus haut)
 //  (optionnel)
-const LETTER    = '2px';  // espacement entre lettres
+const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
 
-// HTML identique a la prod validee (subref v2 : Arial Black, stroke blanc 1.3px, ombre douce)
+const FONT_URL  = 'https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf';
+const FONT_NAME = 'Archivo Black';
+
+// HTML identique aux tests valides (police noire native, pas de stroke ni d'ombre)
 function styleHtml(text){
-  return '<p style="font-family:Arial Black,Arial,sans-serif;font-size:'+FONT_SIZE+
-    'px;font-weight:900;letter-spacing:'+LETTER+
-    ';color:#FFFFFF;-webkit-text-stroke:1.3px #FFFFFF;text-shadow:0 2px 7px rgba(0,0,0,0.55),0 0 3px rgba(0,0,0,0.45);margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">'+text+'</p>';
+  return '<p style="font-family:\'' + FONT_NAME + '\';font-size:' + FONT_SIZE +
+    'px;color:#FFFFFF;letter-spacing:' + LETTER +
+    ';margin:0;padding:6px 20px;text-align:center;text-transform:uppercase;">' + text + '</p>';
 }
 
-// Pas de chargement de police externe : la prod validee n'en utilise pas
-const FONTS = [];
+// Embarquee dans timeline.fonts de CHAQUE edit Shotstack (prod ET test) — garantie d'uniformite
+const FONTS = [ { src: FONT_URL } ];
 
 module.exports = { FONT_SIZE, OY, LETTER, styleHtml, FONTS, WIDTH: 720, HEIGHT: 175 };

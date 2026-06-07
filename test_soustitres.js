@@ -4,7 +4,7 @@
 //  Police Archivo Black (≈ Arial Black) CHARGEE PAR URL => identique partout.
 //
 //  >>> REGLAGES : tout est dans subtitle_style.js (source unique prod+test) <<< /*substyle v1*/
-const { FONT_SIZE, OY, styleHtml, WIDTH, HEIGHT } = require('./subtitle_style.js');
+const { FONT_SIZE, OY, styleHtml, FONTS, WIDTH, HEIGHT } = require('./subtitle_style.js');
 //  Mots d'exemple affiches successivement :
 const SAMPLE    = ['YOU IGNORED', 'THE RED FLAGS', 'BUT DEEP DOWN', 'YOU KNEW'];
 // ============================================================
@@ -59,7 +59,8 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
   }));
 
   const edit = {
-    timeline: { // /*sync subref v2*/ plus de fonts[] : la prod n'en charge pas, le test doit faire pareil
+    timeline: { // /*substyle v4*/ police embarquee, comme la prod
+      fonts: FONTS,
       background: '#000000',
       tracks: [
         { clips: subClips },
