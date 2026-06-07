@@ -167,7 +167,7 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   if(vc.length===0)vc=[{asset:{type:'video',src:lipsyncUrl},start:0,length:duration}];
   vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.0}]; const _reactClips=[]; /*reactions v1*/
   try{
-    if(reactions&&reactions.length){
+    if(false&&reactions&&reactions.length){ /*reactions OFF (demande Etoile 07/06) — remettre true pour reactiver*/
       const _norm=s=>String(s||'').toUpperCase().replace(/[.,!?;:'"—–-]/g,'').split(/\s+/).filter(Boolean);
       const _cache={};
       for(const _rx of reactions.slice(0,2)){
