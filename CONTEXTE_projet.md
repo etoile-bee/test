@@ -38,8 +38,8 @@
 - Toujours demander "on fait le point ?" avant toute génération de vraie vidéo.
 
 ## ÉTAT ACTUEL (2026-06-07)
-- Sous-titres : ✅ VALIDÉS ET VERROUILLÉS par Etoile (référence : DEMO_trim_0.1s, vidéo prod 20h54). Style : Arial Black 52px, stroke blanc 1.3px, ombre douce, OY=0.347, dans `subtitle_style.js`. Tag git `soustitres-valides-v1`. NE PLUS TOUCHER sans demande explicite.
-- ⚠️ Le test sandbox peut rendre la police différemment de la prod → pour les sous-titres, la référence est toujours le rendu PROD.
+- Sous-titres : ✅ VERROUILLÉS par Etoile (substyle v4) = version ÉPAISSE **Archivo Black EMBARQUÉE par URL** (48px, OY=0.32, sans contour ni ombre), police chargée dans CHAQUE edit Shotstack (prod ET test) → rendu déterministe partout. Tags git : `soustitres-valides-v2-archivo` (actuel), `soustitres-valides-v1` (ancien style Arial Black 52px, historique). NE PLUS TOUCHER sans demande explicite.
+- Leçon : sans police embarquée, le serveur Shotstack rend tantôt fin tantôt épais selon les polices dispo → toujours embarquer via FONTS de `subtitle_style.js`.
 - `workflow.js` : revue1 appliquée (fix filtre [pause], captions, retry JSON ×3, approbation scripts Parts 2/3 avant dépense, code mort supprimé).
 - `telegram_bot.js` : commande `/test` ajoutée (sandbox, garde-fous) + réglages /settings retargés sur `subtitle_style.js` → ⚠️ REDÉMARRAGE PM2 EN ATTENTE (quand bot libre).
 - Avatar `.env` : la bonne influenceuse (hf_20260531_191302...). Purge faite : tous les fichiers de la "mauvaise personne" (session 21h10-21h28 du 06/06) + selfie terrasse supprimés.
