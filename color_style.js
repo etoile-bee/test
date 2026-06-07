@@ -21,7 +21,7 @@ function buildVf(p){
   let vf='eq=contrast=1.03:saturation=0.88,colorbalance=rm=0.02:bm=0.03:bh=0.04,unsharp=5:5:0.35:3:3:0.0';
   const m=measureColor(p);
   if(m){
-    const sf=Math.min(1.0,Math.max(0.80,0.88*REF.sat/m.sat)).toFixed(3);   // plus la base est saturee, plus on desature
+    const sf=Math.min(1.12,Math.max(0.80,0.88*REF.sat/m.sat)).toFixed(3);  // normalise VERS la cible : desature si trop sature, RAVIVE si terne /*coloradapt v3*/
     const yr=Math.min(2,Math.max(0,(128-m.u)/REF.yellow));                  // dominante jaune vs reference
     const bm=(0.03*yr).toFixed(3),bh=(0.04*yr).toFixed(3);
     vf='eq=contrast=1.03:saturation='+sf+',colorbalance=rm=0.02:bm='+bm+':bh='+bh+',unsharp=5:5:0.35:3:3:0.0';
