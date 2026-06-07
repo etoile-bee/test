@@ -81,7 +81,7 @@ function buildPrompt(lb,opts){
   const env=lb.envs[opts.env]||lb.envs.bougies;
   /*v6 : mode planche = UNE image contenant 3 poses du MEME look (sinon : un portrait par image)*/
   const pose=opts.mode==='planche'
-    ?'One single image laid out as a clean 3-frame vertical contact sheet: THREE different natural poses of the SAME woman in the SAME outfit, same accessories, same makeup, same hairstyle — facing camera, three-quarter view, slight profile. No text, no typography, thin black frame separations only. Hands out of frame. Chest-up framing, engaged eye contact.'
+    ?'One single image laid out as an editorial podcast contact sheet (mixed grid): several frames of the SAME woman in the SAME outfit, same accessories, same makeup, same hairstyle — MIX wide seated shots at the microphone (podcast ambiance, set visible) AND tighter chest-up close-ups, varied natural poses and head angles. Real podcast studio atmosphere in every frame. No text, no typography, thin frame separations only.'
     :lb.pose_rules;
   return defaultPrompt()
     +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))

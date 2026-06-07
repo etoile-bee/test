@@ -195,7 +195,7 @@ function nlDisp(file){ /*affichage panneau SANS DEFILEMENT : version 4:5 ancree 
   return file;
 }
 async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
-  if(file)file=nlDisp(file);
+  if(file&&newlook.mode!=='planche')file=nlDisp(file); /*regle Etoile : planche affichee ENTIERE, jamais rognee*/
   const FormData=require('form-data');
   const markup=JSON.stringify({inline_keyboard:rows||[]});
   if(newlook.mediaId&&file){
