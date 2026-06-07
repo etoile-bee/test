@@ -102,28 +102,9 @@ async function generateLipsync(imageUrl,audioUrl,num){
   throw new Error('Timeout 45min');
 }
 async function saveLipsyncRaw(url,num,ts,outDir){
-  try{const p=require('path').join(outDir,ts+'_raw_p'+num+'.mp4');require('child_process').execSync('curl -s -o "'+p+'" "'+url+'"');console.log('  Raw saved:',p);return p;}catch(e){console.log('  (raw save skipped)');return null;}
+  try{const p=require('path').join(outDir,ts+'_raw_p'+num+'.mp4');require('child_process').execSync('curl -s -o "'+p+'" "'+url+'"');console.log('  Raw saved:',p);}catch(e){console.log('  (raw save skipped)');}
 }
-// === Aiguillage rendu : LOCAL (ffmpeg+libass) par defaut, Shotstack en secours via USE_SHOTSTACK=1 ===
-async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions,localInput){
-  if(process.env.USE_SHOTSTACK==='1'){
-    return await renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions);
-  }
-  console.log('\n✨ Rendering Part '+num+' (local ffmpeg)...');
-  const {renderLocal}=require('./render_local');
-  // input local : reutilise le raw deja telecharge par saveLipsyncRaw, sinon telecharge une seule fois
-  let input=localInput;
-  if(!input||!fs.existsSync(input)){
-    if(/^https?:/i.test(lipsyncUrl)){input='/tmp/wf_raw_'+num+'.mp4';execSync('curl -s -o "'+input+'" "'+lipsyncUrl+'"');}
-    else if(fs.existsSync(lipsyncUrl)){input=lipsyncUrl;}
-    else throw new Error('render local: pas d\'input video (ni raw local ni URL): '+lipsyncUrl);
-  }
-  const output='/tmp/wf_render_'+num+'.mp4';
-  const r=await renderLocal({input:input,wordTimings:wordTimings,keywords:keywords||[],duration:duration,reactions:reactions||[],output:output});
-  console.log('  OK local:',r.output,'('+r.duration.toFixed(2)+'s, '+r.segments+' seg, '+r.subtitles+' sous-titres, '+r.reactions+' reaction)');
-  return r.output;
-}
-async function renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions){
+async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions){
   console.log('\n✨ Rendering Part '+num+' (Shotstack)...');
   const kws=new Set(keywords.map(k=>k.toUpperCase()));
   // Strip [pause] tokens from word timings
@@ -222,14 +203,9 @@ async function renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num
 async function saveOpen(url,content,ts,num,outDir){
   const p=path.join(outDir,ts+'_p'+num+'.mp4');
   try{const cf=p.replace('.mp4','.txt');const tags=(content.hashtags||[]).map(h=>'#'+h).join(' ');const txt='SCRIPT:\n'+(content.script||'')+'\n\nSHORT:\n'+(content.caption_short||content.caption||'')+'\n\nLONG:\n'+(content.caption_long||'')+'\n\nHASHTAGS:\n'+tags;require('fs').writeFileSync(cf,txt);console.log('Caption saved:',cf);}catch(e){}
-  // source LOCALE (rendu ffmpeg) -> simple copie ; sinon (URL Shotstack) -> telechargement curl
-  const _isLocal=!/^https?:/i.test(url)&&fs.existsSync(url);
-  if(_isLocal)fs.copyFileSync(url,p);else execSync('curl -s -o "'+p+'" "'+url+'"');
-  // === passe finale : fades anti-pop. UNIQUEMENT pour Shotstack. /*finalpass v1*/
-  // Rendu local : deja h264 crf18 + fades integres, et le filtre couleur eq=brightness=0:saturation=1 est neutre
-  // -> on supprime le double reencode (gain de temps + zero perte de qualite).
-  if(_isLocal){console.log('  (passe finale ignoree : rendu local deja encode + fades anti-pop integres)');}
-  else try{
+  execSync('curl -s -o "'+p+'" "'+url+'"');
+  // === passe finale : fondu audio (anti-pop) + couleur de-jaunie pour coller au brut Kling /*finalpass v1*/
+  try{
     const _cp=require('child_process');const _fs=require('fs');
     let _dur=0;try{_dur=parseFloat(_cp.execSync('ffprobe -v error -show_entries format=duration -of default=nw=1:nk=1 "'+p+'"').toString().trim())||0;}catch(_e){_dur=0;}
     let _af='afade=t=in:ss=0:d=0.12';
@@ -372,8 +348,8 @@ async function main(){
     const {audioUrl:a1,wordTimings:wt1,duration:d1}=await generateAudio(c1.script,1);
     const imageUrl=await prepareImage();
     const lip1=await generateLipsync(imageUrl,a1,1);
-    const raw1=await saveLipsyncRaw(lip1,1,ts,outDir);
-    const vid1=await renderVideo(lip1,wt1,c1.keywords,d1,1,c1.reactions,raw1);
+    await saveLipsyncRaw(lip1,1,ts,outDir);
+    const vid1=await renderVideo(lip1,wt1,c1.keywords,d1,1,c1.reactions);
     await saveOpen(vid1,c1,ts,1,outDir);
     try{const lp=path.join(os.homedir(),'podcast-workflow','library.json');const lib=fs.existsSync(lp)?JSON.parse(fs.readFileSync(lp,'utf8')):{scripts:[]};lib.scripts.push({id:Date.now().toString(),title:topic,date:ts.slice(0,10),script:c1.script,performance:null});fs.writeFileSync(lp,JSON.stringify(lib,null,2));console.log('📚 Saved to library');}catch(e){}
     const more=await ask('\nMake 2 more parts with same outfit? (YES/NO) > ');
@@ -381,21 +357,18 @@ async function main(){
     const c2=await generateScript(topic+'. THIS IS PART 2, a DIRECT CONTINUATION of the SAME video. Part 1 already said: <<'+c1.script+'>>. Rules: do NOT repeat any idea, sentence, hook, or phrasing from Part 1. Open mid-thought with a NEW angle that deepens it. No greeting, no re-introduction, no recap, no call to action.',words);
     const {audioUrl:a2,wordTimings:wt2,duration:d2}=await generateAudio(c2.script,2);
     const lip2=await generateLipsync(imageUrl,a2,2);
-    const raw2=await saveLipsyncRaw(lip2,2,ts,outDir);
-    const vid2=await renderVideo(lip2,wt2,c2.keywords,d2,2,c2.reactions,raw2);
+    await saveLipsyncRaw(lip2,2,ts,outDir);
+    const vid2=await renderVideo(lip2,wt2,c2.keywords,d2,2,c2.reactions);
     await saveOpen(vid2,c2,ts,2,outDir);
     const next=await ask('\nContinue to Part 3? (YES/NO) > ');
     if(next!=='YES'){console.log('\nStopped at Part 2. ✅');process.exit(0);}
     const c3=await generateScript(topic+'. THIS IS PART 3, the FINAL part of the SAME video. Part 1 said: <<'+c1.script+'>>. Part 2 said: <<'+c2.script+'>>. Rules: do NOT repeat anything already said in Part 1 or Part 2. Deliver the NEW culminating insight, then end with ONE short call to action. No greeting, no recap, no hook.',words);
     const {audioUrl:a3,wordTimings:wt3,duration:d3}=await generateAudio(c3.script,3);
     const lip3=await generateLipsync(imageUrl,a3,3);
-    const raw3=await saveLipsyncRaw(lip3,3,ts,outDir);
-    const vid3=await renderVideo(lip3,wt3,c3.keywords,d3,3,c3.reactions,raw3);
+    await saveLipsyncRaw(lip3,3,ts,outDir);
+    const vid3=await renderVideo(lip3,wt3,c3.keywords,d3,3,c3.reactions);
     await saveOpen(vid3,c3,ts,3,outDir);
     console.log('\n🎉 All 3 done! Saved in:',outDir);
   }catch(err){console.error('\n❌',err.message);process.exit(1);}
 }
-// exécuté comme programme (node workflow.js / spawn du bot) -> lance main().
-// importé (require) pour test -> n'exécute PAS main(), expose renderVideo pour le test d'intégration.
-if(require.main===module)main();
-module.exports={renderVideo,renderVideoShotstack,saveOpen,saveLipsyncRaw};
+main();
