@@ -140,6 +140,10 @@ function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique loo
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
 let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,mode:'eco',busy:false,panelId:null,catLabel:'',envLabel:''}; /*newlook v6 : panneau unique auto-editable (maquette validee Etoile 07/06)*/
+function nlMod(){ /*hot-reload : newlook.js est recharge a CHAQUE appel — les correctifs s'appliquent sans redemarrage*/
+  try{delete require.cache[require.resolve('./newlook.js')];}catch(e){}
+  return require('./newlook.js');
+}
 async function nlPanel(text,rows){
   const body={text:text,parse_mode:'HTML',...(rows?kb(rows):{reply_markup:{inline_keyboard:[]}})};
   if(newlook.panelId){
@@ -157,7 +161,7 @@ async function sendImgUrl(u){return tg('sendPhoto',{photo:u});}
 /*newlook v7 : VARIANTE B validee — tout-en-un, selections visibles ●, Generer en 1 appui. Regle Etoile : images TEST d'abord, video/HD seulement apres validation visuelle.*/
 function nlMark(t,on){return on?'• '+t+' •':t;}
 async function nlConfig(){
-  const {readLookbook}=require('./newlook.js');
+  const {readLookbook}=nlMod();
   const lb=readLookbook();
   if(!newlook.category||!lb.categories[newlook.category])newlook.category=Object.keys(lb.categories)[0];
   if(!lb.envs[newlook.env])newlook.env='bougies';
@@ -195,7 +199,7 @@ async function runNewLook(){
   const _hb=setInterval(()=>{_sec+=30;nlPanel('⏳ <b>Génération en cours…</b> ('+_sec+'s)\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab).catch(()=>{});},30000); /*le panneau s'auto-edite : zero spam*/
   try{
     await nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab+(process.env.HIGGS_SOUL_ID?'':'\n(1ère fois : + création de la référence visage, jusqu\'à ~10 min)'));
-    const {generateLook}=require('./newlook.js');
+    const {generateLook}=nlMod();
     const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
     newlook.urls=r.urls;newlook.recipe=r.recipe;
     clearInterval(_hb);
@@ -1944,7 +1948,7 @@ await send('Ready to generate video?',[
     if(d.startsWith('NL_SET_CAT_')){
       const c=d.replace('NL_SET_CAT_','');
       newlook.extra=null;
-      if(c==='random'){const o=require('./newlook.js').pickOutfit(null);newlook.category='random';newlook.extra=o.prompt;newlook.catLabel='🎲 Surprise';}
+      if(c==='random'){const o=nlMod().pickOutfit(null);newlook.category='random';newlook.extra=o.prompt;newlook.catLabel='🎲 Surprise';}
       else newlook.category=c;
       nlConfig();return;
     }
@@ -1956,7 +1960,7 @@ await send('Ready to generate video?',[
       const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
       const dest=require('path').join(getLooksDir(),'gen_'+stamp+'_p'+(i+1)+'.jpg');
       require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.urls[i]+'"');
-      try{require('./newlook.js').saveRecipe(newlook.recipe,require('path').basename(dest));}catch(e){}
+      try{nlMod().saveRecipe(newlook.recipe,require('path').basename(dest));}catch(e){}
       return dest;
     }
     if(d.startsWith('NL_KEEP_')&&d!=='NL_KEEP_ALL'){
@@ -2210,7 +2214,7 @@ await send('Ready to generate video?',[
     (async()=>{
       try{
         await send('🔬 Sonde des endpoints Seedream (gratuit)...');
-        const list=await require('./newlook.js').probeEndpoints();
+        const list=await nlMod().probeEndpoints();
         await send('<b>Endpoints Higgsfield :</b>\n'+list.join('\n')+'\n\n✅ = existe (je branche le meilleur), ❌ = n\'existe pas');
       }catch(e){await send('Erreur sonde : '+e.message);}
     })();
@@ -2218,7 +2222,7 @@ await send('Ready to generate video?',[
   }
   if(txt==='/look'||txt.startsWith('/look ')){ /*newlook v4 : recreer un look garde depuis sa recette*/
     const arg=txt.replace(/^\/look\s*/,'').trim();
-    const {listRecipes,getRecipe}=require('./newlook.js');
+    const {listRecipes,getRecipe}=nlMod();
     if(!arg){
       const list=listRecipes();
       if(!list.length){await send('Aucun look mémorisé — garde des poses via /newlook d\'abord.');return;}
