@@ -179,7 +179,7 @@ async function nlConfig(){
   ]);
   rows.push([{text:'▶️ Générer ('+newlook.catLabel.replace(/^[^ ]+ /,'')+' · '+newlook.envLabel.replace(/^[^ ]+ /,'')+' · '+newlook.mode+')',callback_data:'NL_GO'}]);
   rows.push([{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
-  await nlPanel('🎨 <b>Nouveau look</b>\nAppuie pour sélectionner (✅), puis Générer.\n💰 <b>Coûts</b> : toute génération d\'image est PAYANTE (Éco/Planche ≈ le moins cher, HD ≈ 4× plus). Gratuit : /probe et le test sous-titres sandbox.\n<i>Images test d\'abord — HD et vidéo après validation visuelle.</i>',rows);
+  await nlPanel('🎨 <b>Nouveau look</b>\n① Tenue : '+escH(newlook.catLabel)+' · ② Décor : '+escH(newlook.envLabel)+' · ③ Format : '+newlook.mode+' · ④ Générer\nAppuie pour sélectionner (✅), puis Générer.\n💰 <b>Coûts</b> : toute génération d\'image est PAYANTE (Éco/Planche ≈ le moins cher, HD ≈ 4× plus). Gratuit : /probe et le test sous-titres sandbox.\n<i>Images test d\'abord — HD et vidéo après validation visuelle.</i>',rows);
 }
 async function nlResults(){
   const n=newlook.urls.length;
