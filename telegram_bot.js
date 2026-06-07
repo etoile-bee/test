@@ -19,6 +19,15 @@ let setup={topic:null,photo:null,duration:'25s'};
 let autoAnswers=[];let isAuto=false;
 let scriptBuf='',collectScript=false;
 
+// ── Journal UI (pont d'observation : chaque échange logué en JSONL, rotation 2 Mo) ──
+const LOGDIR=path.join(BASE,'logs');const UIJOURNAL=path.join(LOGDIR,'ui_journal.jsonl');
+function uiLog(e){try{
+  fs.mkdirSync(LOGDIR,{recursive:true});
+  try{const st=fs.statSync(UIJOURNAL);if(st.size>2*1024*1024){const d=fs.readFileSync(UIJOURNAL,'utf8').split('\n');fs.writeFileSync(UIJOURNAL,d.slice(Math.floor(d.length/2)).join('\n'));}}catch(_){}
+  fs.appendFileSync(UIJOURNAL,JSON.stringify(Object.assign({ts:new Date().toISOString()},e))+'\n');
+}catch(_){}}
+function btnLabels(rows){try{return (rows||[]).flat().map(b=>b&&b.text).filter(Boolean);}catch(e){return [];}}
+function screenOf(t){if(!t)return '';const b=String(t).match(/<b>(.*?)<\/b>/);if(b)return b[1].replace(/<[^>]+>/g,'').slice(0,40);return String(t).replace(/<[^>]+>/g,'').split('\n')[0].slice(0,40);}
 // ── Telegram helpers ──────────────────────────────────────────────────────────
 async function tg(method,body,isForm){
   if(isForm){
@@ -32,8 +41,9 @@ async function tg(method,body,isForm){
   return r.json();
 }
 function kb(rows){return {reply_markup:{inline_keyboard:rows}};}
-async function send(text,rows){return tg('sendMessage',{text,parse_mode:'HTML',...(rows?kb(rows):{})} );}
+async function send(text,rows){uiLog({dir:'out',type:'msg',screen:screenOf(text),user_action:'',caption_len:(text||'').length,buttons:btnLabels(rows),edited_in_place:false});return tg('sendMessage',{text,parse_mode:'HTML',...(rows?kb(rows):{})} );}
 async function sendImg(fp,caption){
+  uiLog({dir:'out',type:'photo',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:[],edited_in_place:false});
   if(fp&&fp.startsWith('http')){
     return tg('sendPhoto',{photo:fp,caption:caption||''});
   }
@@ -64,6 +74,7 @@ async function sendImg(fp,caption){
   }
 }
 async function sendVid(fp){
+  uiLog({dir:'out',type:'video',screen:'video finale',user_action:'',caption_len:14,buttons:['💾 Enregistrer (fichier)'],edited_in_place:false});
   const FormData=require('form-data');
   const f=new FormData();
   f.append('chat_id',CHAT_ID);
@@ -131,6 +142,7 @@ async function dlPhotoNamed(fileId,name){
 }
 // envoie une photo locale AVEC boutons inline
 async function sendPhotoKb(fp,caption,rows){
+  uiLog({dir:'out',type:'photo',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:false});
   try{
     let f=fp;
     try{const st=fs.statSync(fp);if(st.size>9000000){const small='/tmp/prev'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 1280 -s format jpeg "'+fp+'" --out "'+small+'" 2>/dev/null');if(fs.existsSync(small))f=small;}}catch(e){}
@@ -1141,6 +1153,7 @@ async function afterEdit(section){
 // ── Panneau d'édition EN PLACE (un seul message PHOTO, editMessageMedia) ─────────
 let editPanel={mid:null,section:'img'};
 async function editPhotoKb(mid,fp,caption,rows){
+  uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
@@ -1156,6 +1169,7 @@ let cockpit={mid:null};
 function cockpitReset(){cockpit.mid=null;}
 function cap1024(s){s=String(s||'');return s.length>1024?s.slice(0,1000)+'…':s;}
 async function editVideoKb(mid,fp,caption,rows){
+  uiLog({dir:'out',type:'edit',screen:screenOf(caption)||'maquette',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
@@ -1184,6 +1198,7 @@ async function cockpitVideo(fp,caption,rows){
 }
 // met à jour SEULEMENT le texte/boutons du cockpit (sans toucher le média)
 async function cockpitCaption(caption,rows){
+  uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{if(cockpit.mid){const r=await tg('editMessageCaption',{message_id:cockpit.mid,caption:cap1024(caption),parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});if(r&&r.ok)return true;}}catch(e){}
   return false;
 }
@@ -1361,6 +1376,7 @@ async function handle(upd){
     await answerCB(cb.id);
     if(String(cb.message.chat.id)!==CHAT_ID)return;
     const d=cb.data;
+    uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
     if(d==='MAIN_MENU'){await showMainMenu();return;}
     if(d==='MENU_GEN'){
@@ -1813,6 +1829,7 @@ await send('Ready to generate video?',[
   const msg=upd.message;
   if(!msg)return;
   if(String(msg.chat.id)!==CHAT_ID)return;
+  uiLog({dir:'in',type:msg.photo?'photo':'msg',screen:'',user_action:(msg.text||(msg.photo?'[photo]':'[media]')).slice(0,80),caption_len:(msg.text||'').length,buttons:[],edited_in_place:false});
 
   // Photo upload
   if(state==='m_upload_wait'&&msg.photo){
