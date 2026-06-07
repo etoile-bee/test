@@ -6,7 +6,7 @@
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
 const FONT_SIZE = 48;     // taille du texte (plus grand = plus gros)
-const OY        = 0.27;   // hauteur (plus grand = plus haut) — descendu 0.32→0.30→0.28→0.27 (07/06)
+const OY        = 0.28;   // hauteur — VALIDÉ par Etoile sur le test de 2h31 (texte a 66% : decollete, niveau coeur TikTok)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
