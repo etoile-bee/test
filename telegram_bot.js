@@ -887,6 +887,7 @@ async function sendFile(fp){
   }catch(e){await send('⚠️ Envoi échoué ('+e.message+').\n📱 Chemin iCloud :\n<code>'+fp+'</code>');}
 }
 const IMG_PRESETS={
+  'Signature':{brightness:0.02,contrast:1.04,saturation:1.0,temperature:5600,sharpness:0,vignette:1},
   'Naturel':{brightness:0,contrast:1,saturation:1,temperature:6500,sharpness:0,vignette:0},
   'Chaud':{brightness:0.03,contrast:1.05,saturation:1.18,temperature:4800,sharpness:0.3,vignette:1},
   'Cinéma':{brightness:-0.02,contrast:1.22,saturation:0.92,temperature:5500,sharpness:0.6,vignette:3},
@@ -988,10 +989,16 @@ function navRow(){return [
   [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
   [{text:'↔️ Avant/Après',callback_data:'BEFORE_AFTER'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
 ];}
+function reactionsKb(){
+  const m=(readFx().reactions||{}).mode||'off';
+  const b=(k,l)=>({text:(m===k?'✅ ':'')+l,callback_data:'RE_'+k.toUpperCase()});
+  return [[b('off','🔇 OFF'),b('natural','🍃 Naturel'),b('on','🔊 ON')],...navRow()];
+}
 function sectionKb(section){
   if(section==='subs')return subsKb();
   if(section==='zoom')return zoomKb();
   if(section==='mus')return musicKb();
+  if(section==='react')return reactionsKb();
   return imageKb();
 }
 function sectionCaption(section){
@@ -999,6 +1006,7 @@ function sectionCaption(section){
   if(section==='subs'){const s=readSubs();return `💬 <b>SOUS-TITRES</b> · ${src}\n🔤 ${fontLabel(s.font)} · ${s.size}px · y=${s.oy} · ${s.subs?'incrustés':'OFF'}`;}
   if(section==='zoom'){const z=readFx().zoom;return `🎬 <b>ZOOMS</b> · ${src}\n${z.on?'ON ×'+z.intensity+' · '+z.duration+'s · 1/'+z.everyN:'OFF'}`;}
   if(section==='mus'){const m=readFx().music;return `🎵 <b>MUSIQUE</b> · ${src}\n${m.on?(m.file||'(aucun)')+' @'+m.volume:'OFF'}`;}
+  if(section==='react'){const m=(readFx().reactions||{}).mode||'off';return `🎙 <b>RÉACTIONS</b> · ${src}\nMode : <b>${m==='off'?'OFF':m==='natural'?'Naturel (1 max, douce, sur une pause)':'ON (toutes)'}</b>`;}
   const i=readFx().image;return `🎨 <b>IMAGE</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K 🔪${i.sharpness} ⬛${i.vignette}`;
 }
 async function openPanel(section){
@@ -1022,7 +1030,7 @@ async function showEditHome(){
   await send('🎛 <b>ÉDITION DU LOOK</b>\n\n📸 Photo de travail : <b>'+workSrcLabel()+'</b>\nChoisis une section :',[
     [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
     [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
-    [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'}],
+    [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
     [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Mes styles',callback_data:'SHOWSTYLES'}],
     [{text:'👁 Aperçu complet',callback_data:'EDIT_PREVIEW'}],
   ]);
@@ -1411,6 +1419,8 @@ await send('Ready to generate video?',[
     if(d==='EDIT_IMG'){editSectionCur='img';await openPanel('img');return;}
     if(d==='EDIT_ZOOM'){editSectionCur='zoom';await openPanel('zoom');return;}
     if(d==='EDIT_MUS'){editSectionCur='mus';await openPanel('mus');return;}
+    if(d==='EDIT_REACT'){editSectionCur='react';await openPanel('react');return;}
+    if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){gal.idx=0;await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}

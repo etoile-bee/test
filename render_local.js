@@ -68,9 +68,11 @@ function loadStyle() {
 // ----------------------------------------------------------------------------
 const MUSIC_DIR = path.join(__dirname, 'music');
 const FX_DEFAULT = {
-  image: { brightness: 0, contrast: 1.0, saturation: 1.0, temperature: 6500, sharpness: 0, vignette: 0 },
+  // Signature : look validé, légèrement réchauffé (température basse=chaud), SANS toucher la saturation
+  image: { brightness: 0.02, contrast: 1.04, saturation: 1.0, temperature: 5600, sharpness: 0, vignette: 1 },
   zoom:  { on: 1, intensity: 1.0, duration: 2.5, everyN: 1, base: 1.0 },
   music: { on: 0, file: '', volume: 0.12 },
+  reactions: { mode: 'off' }, // off | natural (1 max, vol 0.3) | on (toutes)
 };
 function loadFx() {
   try {
@@ -81,6 +83,7 @@ function loadFx() {
       image: Object.assign({}, FX_DEFAULT.image, j.image || {}),
       zoom:  Object.assign({}, FX_DEFAULT.zoom,  j.zoom  || {}),
       music: Object.assign({}, FX_DEFAULT.music, j.music || {}),
+      reactions: Object.assign({}, FX_DEFAULT.reactions, j.reactions || {}),
     };
   } catch (e) { return JSON.parse(JSON.stringify(FX_DEFAULT)); }
 }
@@ -292,7 +295,11 @@ async function renderLocal(opts) {
 
   const chunks = buildChunks(wt);
   const segs = buildSegments(wt, keywords, duration, zoomCfg);
-  const reacts = buildReactions(wt, reactions, duration);
+  // Réactions : mode off (aucune) | natural (1 max, vol 0.3) | on (toutes, vol 0.5)
+  const reactMode = opts.reactionsMode || (fx.reactions && fx.reactions.mode) || 'off';
+  let reacts = (reactMode === 'off') ? [] : buildReactions(wt, reactions, duration);
+  if (reactMode === 'natural') reacts = reacts.slice(0, 1);
+  const reactVol = (reactMode === 'natural') ? 0.3 : REACT_VOL;
 
   // Fichier .ass (écrit seulement si les sous-titres sont activés)
   const tag = path.basename(output).replace(/[^a-z0-9]/gi, '_');
@@ -337,7 +344,7 @@ async function renderLocal(opts) {
   const aLabels = ['[a0]'];
   reacts.forEach((r, i) => {
     const ms = Math.round(r.st * 1000);
-    fc.push(`[${firstReactIdx + i}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
+    fc.push(`[${firstReactIdx + i}:a]adelay=${ms}:all=1,volume=${reactVol}[r${i}]`);
     aLabels.push(`[r${i}]`);
   });
   if (musicOn) {
