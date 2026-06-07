@@ -205,6 +205,15 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
   }
   throw new Error('Shotstack timeout');
 }
+function measureColor(p){ /*coloradapt v1 : mesure saturation + dominante jaune (3 premieres secondes)*/
+  try{
+    const out=require('child_process').execSync('ffmpeg -t 3 -i "'+p+'" -vf "signalstats,metadata=mode=print" -f null - 2>&1 | grep -oE "(SATAVG|UAVG)=[0-9.]+"').toString();
+    const sats=[...out.matchAll(/SATAVG=([\d.]+)/g)].map(m=>+m[1]);
+    const us=[...out.matchAll(/UAVG=([\d.]+)/g)].map(m=>+m[1]);
+    if(!sats.length||!us.length)return null;
+    return{sat:sats.reduce((a,b)=>a+b,0)/sats.length,u:us.reduce((a,b)=>a+b,0)/us.length};
+  }catch(e){return null;}
+}
 async function saveOpen(url,content,ts,num,outDir){
   const p=path.join(outDir,ts+'_p'+num+'.mp4');
   try{const cf=p.replace('.mp4','.txt');const tags=(content.hashtags||[]).map(h=>'#'+h).join(' ');const txt='SCRIPT:\n'+(content.script||'')+'\n\nSHORT:\n'+(content.caption_short||content.caption||'')+'\n\nLONG:\n'+(content.caption_long||'')+'\n\nHASHTAGS:\n'+tags;require('fs').writeFileSync(cf,txt);console.log('Caption saved:',cf);}catch(e){}
@@ -216,9 +225,19 @@ async function saveOpen(url,content,ts,num,outDir){
     const TRIM=0.10; /*trimstart v1 : coupe le debut (pop audio incurable) — video+audio ensemble, synchro intacte*/
     let _af='afade=t=in:ss=0:d=0.12';
     if(_dur>0.5){_af+=',afade=t=out:st='+Math.max(_dur-TRIM-0.15,0).toFixed(2)+':d=0.15';}
-    const _vf='eq=brightness=0:saturation=1'; /*color revert*/
+    /*coloradapt v1 : teinte cible = V5 VALIDEE par Etoile (07/06). Correction dosee selon la video de base.*/
+    const _REF={sat:12.63,yellow:8.06}; // mesures de la video de reference (2026-06-07-00-03_p1)
+    let _vf='eq=contrast=1.03:saturation=0.88,colorbalance=rm=0.02:bm=0.03:bh=0.04,unsharp=5:5:0.35:3:3:0.0'; // = V5 exacte (secours si mesure impossible)
+    const _mc=measureColor(p);
+    if(_mc){
+      const _sf=Math.min(1.0,Math.max(0.80,0.88*_REF.sat/_mc.sat)).toFixed(3);     // plus la base est saturee, plus on desature
+      const _yr=Math.min(2,Math.max(0,(128-_mc.u)/_REF.yellow));                    // ratio de dominante jaune vs reference
+      const _bm=(0.03*_yr).toFixed(3),_bh=(0.04*_yr).toFixed(3);                    // bleu dose selon le jaune reel
+      _vf='eq=contrast=1.03:saturation='+_sf+',colorbalance=rm=0.02:bm='+_bm+':bh='+_bh+',unsharp=5:5:0.35:3:3:0.0';
+      console.log('  couleur adaptative: sat='+_sf+' bm='+_bm+' bh='+_bh);
+    }
     const _tmp=p.replace(/\.mp4$/,'_fix.mp4');
-    _cp.execSync('ffmpeg -y -ss '+TRIM+' -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null'); /*colortag v1 : etiquette bt709 → meme rendu Mac/iPhone/Telegram*/
+    _cp.execSync('ffmpeg -y -ss '+TRIM+' -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 17 -preset medium -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null'); /*colortag v1 + encodage qualite V5 (crf17/medium)*/
     if(_fs.existsSync(_tmp)&&_fs.statSync(_tmp).size>10000){_fs.renameSync(_tmp,p);console.log('  Passe finale OK (anti-pop + couleur).');}
     else{try{if(_fs.existsSync(_tmp))_fs.unlinkSync(_tmp);}catch(_e2){}console.log('  (passe finale ignoree, video brute conservee)');}
   }catch(_e){console.log('  (passe finale ignoree: '+_e.message+')');}
