@@ -767,7 +767,7 @@ async function runLocalTest(){
   if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit).');return;}
   try{
     const {renderLocal}=freshRL();
-    const src=workSrc(); // PHOTO DE TRAVAIL COURANTE (look choisi ou dernier raw)
+    const src=liveSrc(); // item 5 : footage en MOUVEMENT (dernier raw) si dispo, sinon look fixe
     if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
     await send('🧪 Rendu LOCAL gratuit (style + script courants, photo de travail : '+path.basename(src)+')... ~2s');
     const S=previewScript();
@@ -794,11 +794,10 @@ function journey(active){
   return '🧭 '+s.map((x,i)=>i<ci?(x[1]+' ✓'):(i===ci?('<b>'+x[1]+'</b>'):x[1])).join(' → ');
 }
 // ── CARTE V2 (écran d'accueil unique, photo éditée en place) ──
-function recapCaption(){ // = carte
-  const dur=gw.duration||'23s';const c=estimateCost(dur);
+function recapCaption(){ // = carte (allégée : budget/durée création déplacés à la maquette)
+  const dur=gw.duration||'23s';
   const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?('« '+gw.topic+' »'):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto…'));
-  const mins=Math.max(3,Math.round(c.parts*4));
-  return `🎬 <b>NOUVELLE VIDÉO</b>\n👤 ${escH(lookName(gwLook()))}\n💬 ${escH(subj)}\n⏱ ${dur} · 🎨 ${escH(gw.styleName||'Signature')}\n💰 ~${c.total.toFixed(2)}${COST.CURRENCY} · ⏳ ~${mins} min`;
+  return `🎬 <b>NOUVELLE VIDÉO</b>\n👤 ${escH(lookName(gwLook()))}\n💬 ${escH(subj)}\n⏱ ${dur} · 🎨 ${escH(gw.styleName||'Signature')}`;
 }
 function recapKb(){
   return [
@@ -823,10 +822,16 @@ async function recapFrame(){ // aperçu = LOOK courant AVEC le style appliqué (
   if(gwLook())setWorkPhoto(gwLook());
   try{const f=await renderWorkingFrame();return f&&f.frame;}catch(e){return null;}
 }
+let lastCardSig=''; // signature visuelle de la carte (anti-dissolution : pas de re-upload si l'image n'a pas changé)
+function cardSig(){try{return (gwLook()||'raw')+'|'+JSON.stringify(readFx())+'|'+JSON.stringify(readSubs())+'|'+previewPhrase();}catch(e){return Math.random()+'';}}
 async function showRecap(){
+  const sig=cardSig();
+  if(cockpit.mid&&sig===lastCardSig){ // même image -> légende seule (zéro re-upload, zéro dissolution)
+    if(await cockpitCaption(recapCaption(),recapKb())){gw.mid=cockpit.mid;return;}
+  }
   const frame=await recapFrame();
-  if(frame){await cockpitPhoto(frame,recapCaption(),recapKb());gw.mid=cockpit.mid;}
-  else {const r=await send(recapCaption(),recapKb());cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;}
+  if(frame){await cockpitPhoto(frame,recapCaption(),recapKb());gw.mid=cockpit.mid;lastCardSig=sig;}
+  else {const r=await send(recapCaption(),recapKb());cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;lastCardSig='';}
 }
 async function refreshRecap(){ await showRecap(); } // cockpitPhoto édite en place
 // /go = ouvre la CARTE (écran d'accueil V2) : supprime l'ancienne, repart propre, sujet résolu
@@ -910,8 +915,8 @@ function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
   genJob.audio=null;
 }
 async function genAfterScript(){
-  const c=estimateCost(genJob.duration);const s=readSubs();
-  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px · 💰 ~${c.total.toFixed(2)}${COST.CURRENCY}`;
+  const c=estimateCost(genJob.duration);const s=readSubs();const mins=Math.max(3,Math.round(c.parts*4));
+  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px\n💰 ~${c.total.toFixed(2)}${COST.CURRENCY} · ⏳ création ~${mins} min${c.parts>1?' · '+c.parts+' parties':''}`;
   const kb=[
     [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'},{text:'🚀 GO',callback_data:'GJ_GO'}],
     [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
@@ -973,17 +978,17 @@ async function genFinal(){
     if(clips.filter(Boolean).length>1){finalP=path.join(outDir,ts+'_FINAL.mp4');WF.concatClips(clips.filter(Boolean),finalP);}
     await setProg('📦 Archivage du dossier…');
     const genDir=makeGenFolder(ts,job.topic,finalP,partsMeta,clips);
-    await setProg('✅ Terminé !');
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[]})-1;
-    // UN SEUL message : vidéo + légende courte + hashtags (copiables) en caption + actions
+    // La PROGRESSION disparaît : on supprime le message de suivi -> ne restent QUE la vidéo + légendes
+    await delMsg(cockpit.mid);cockpit.mid=null;
     const vidMid=await sendVideoKb(finalP,buildVideoCaption(finalP),videoReadyKb(gfIdx)).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');return null;});
     genFolders[gfIdx].vidMid=vidMid;genFolders[gfIdx].caption=buildVideoCaption(finalP);
     try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
   }catch(e){
-    if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape : <b>'+(genStep||'?')+'</b>.');await send('⛔ Génération annulée. Tu peux relancer quand tu veux.');}
-    else{await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
+    if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape <b>'+(genStep||'?')+'</b>.');}
+    else{await setProg('⛔ L\'étape <b>'+(genStep||'?')+'</b> a planté : '+e.message);}
   }
   genAbort=false;genStep='';state='idle';genJob=null;cockpitReset();
 }
@@ -1154,8 +1159,10 @@ async function renderStillPreview(imgPath){
   return {frame:out,style:{font:sub.font,fontSize:sub.size,oy:sub.oy}};
 }
 // Frame de travail courante (image look -> still ; sinon vidéo raw -> render)
-async function renderWorkingFrame(){
-  const src=workSrc(); if(!src)return null;
+// dernier footage en MOUVEMENT (raw) si dispo, sinon le look de travail (item 5)
+function liveSrc(){const lr=latestRaw();return (lr&&fs.existsSync(lr))?lr:workSrc();}
+async function renderWorkingFrame(srcOverride){
+  const src=srcOverride||workSrc(); if(!src)return null;
   // iCloud : télécharge le fichier si c'est un placeholder (sinon le rendu échoue)
   try{if(fs.statSync(src).size<30000)require('child_process').execSync('brctl download "'+src+'" 2>/dev/null');}catch(e){}
   if(/\.(jpg|jpeg|png|webp)$/i.test(src))return await renderStillPreview(src);
@@ -1391,9 +1398,9 @@ function patchWF(fn){
 // ── /preview : rend ~3s du dernier raw de test avec le STYLE COURANT et envoie 2 frames (gratuit) ──
 async function runPreview(){
   try{
-    const src=workSrc();
+    const src=liveSrc(); // item 5 : footage en mouvement si dispo
     if(!src){await toast('⚠️ Choisis un look 👤');return;}
-    const f=await renderWorkingFrame();
+    const f=await renderWorkingFrame(src);
     if(!f){await toast('❌ Aperçu indispo');return;}
     const st=f.style, fx=readFx();
     const img=fx.image, colored=(img.brightness||img.contrast!==1||img.saturation!==1||img.temperature!==6500||img.sharpness||img.vignette)?'oui':'neutre';
