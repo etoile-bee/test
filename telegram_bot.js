@@ -47,7 +47,9 @@ async function tg(method,body,isForm){
     method:'POST',headers:{'Content-Type':'application/json'},
     body:JSON.stringify({chat_id:CHAT_ID,...body})
   });
-  return r.json();
+  const j=await r.json();
+  try{if(j&&j.ok===false)jlog('⚠️ TG '+method+' REFUS: '+(j.description||'').substring(0,200));}catch(e){}
+  return j;
 }
 function kb(rows){return {reply_markup:{inline_keyboard:rows}};}
 async function send(text,rows){uiLog({dir:'out',type:'msg',screen:screenOf(text),user_action:'',caption_len:(text||'').length,buttons:btnLabels(rows),edited_in_place:false});return tg('sendMessage',{text,parse_mode:'HTML',...(rows?kb(rows):{})} );}
@@ -163,10 +165,15 @@ async function nlPanel(text,rows){
   if(r&&r.ok&&r.result)newlook.panelId=r.result.message_id;
 }
 async function sendAlbum(urls){
-  if(urls.length===1)return sendImgUrl(urls[0]);
-  return tg('sendMediaGroup',{media:urls.map(u=>({type:'photo',media:u}))});
+  for(const u of urls){await sendImgUrl(u);} /*fiabilite : fichiers locaux, a la suite*/
+  return true;
 }
-async function sendImgUrl(u){return tg('sendPhoto',{photo:u});}
+async function sendImgUrl(u){ /*fiable : telechargement local puis upload multipart (les URL Higgsfield passent mal chez Telegram)*/
+  const tmp='/tmp/nlimg'+Date.now()+'.jpg';
+  try{require('child_process').execSync('curl -sL -o "'+tmp+'" "'+u+'"');}catch(e){}
+  try{if(fs.existsSync(tmp)&&fs.statSync(tmp).size>5000){const r=await sendImg(tmp);return r;}}catch(e){jlog('⚠️ sendImgUrl echec: '+e.message);}
+  return tg('sendPhoto',{photo:u});
+}
 /*newlook v7 : VARIANTE B validee — tout-en-un, selections visibles ●, Generer en 1 appui. Regle Etoile : images TEST d'abord, video/HD seulement apres validation visuelle.*/
 function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;} /*selection lisible : ✅ remplace l'emoji de tete*/
 async function nlConfig(){
