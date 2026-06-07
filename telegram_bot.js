@@ -130,6 +130,12 @@ function resolveImg(p){
 function getLooksDir(){
   try{return fs.realpathSync(LOOKS);}catch{return LOOKS;}
 }
+// ── PERSONA (préparation multi-influenceur : 1 carte/dossiers par influenceur) ──
+const PERSONAS_PATH=path.join(BASE,'personas.json');
+function loadPersonas(){try{return JSON.parse(fs.readFileSync(PERSONAS_PATH,'utf8'));}catch(e){return {active:'imany',profiles:{imany:{name:'Imany',looksDir:'looks',outputsDir:'outputs',stylesDir:'styles'}}};}}
+function activePersona(){const p=loadPersonas();return p.profiles[p.active]||{name:'Imany',looksDir:'looks',outputsDir:'outputs'};}
+function setActivePersona(key){const p=loadPersonas();if(p.profiles[key]){p.active=key;try{fs.writeFileSync(PERSONAS_PATH,JSON.stringify(p,null,2));}catch(e){}return true;}return false;}
+function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'outputs'));}
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
@@ -957,7 +963,7 @@ async function genFinal(){
   const abrt=()=>{if(genAbort)throw new Error('ABORT');};
   try{
     const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
-    const outDir=path.join(BASE,'outputs');
+    const outDir=personaOutDir();try{fs.mkdirSync(outDir,{recursive:true});}catch(e){} // dossier de la persona active
     genStep='voix';abrt();
     if(!job.audio){ttsCheck('gen p1',job.script);job.audio=await WF.generateAudio(_sanTTS(job.script),1);}
     genStep='avatar';abrt();await setProg('📝 ✓ · 🎙 ✓ · 🖼 avatar…');
@@ -1471,9 +1477,11 @@ async function handle(upd){
       [{text:'👤 Looks',callback_data:'MENU_LOOKS'},{text:'📦 Modèles',callback_data:'SHOWSTYLES'}],
       [{text:'📤 Prêt à poster',callback_data:'SHOWREADY'},{text:'📁 Fichiers',callback_data:'FILES_HOME'}],
       [{text:'🧪 Test',callback_data:'MENU_TEST'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}],
-      [{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
+      [{text:'👥 Persona : '+activePersona().name,callback_data:'PERSONA'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
       [{text:'◀️ Carte',callback_data:'RC_BACK'}],
     ]);return;}
+    if(d==='PERSONA'){const p=loadPersonas();const rows=Object.keys(p.profiles).map(k=>[{text:(k===p.active?'✅ ':'')+p.profiles[k].name,callback_data:'PERSONA_'+k}]);rows.push([{text:'◀️ Plus',callback_data:'CARD_MORE'}]);await cardMenu('👥 <b>PERSONA</b> (influenceur) — 1 carte/dossiers chacun :',rows);return;}
+    if(d.startsWith('PERSONA_')){const k=d.slice(8);if(setActivePersona(k)){await toast('👥 Persona : '+activePersona().name);}else await toast('⚠️ Profil inconnu');await showRecap();return;}
     if(d.startsWith('RC_CAT_')){const k=d.slice(7);gw.subjectMode='auto';gw.topicCat=k;gw.topic=null;genState.topicCat=k;saveState();await ensureTopic();await refreshRecap();return;}
     if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topicCat=null;gw.topic=null;genState.topicCat=null;saveState();await ensureTopic();await refreshRecap();return;}
     if(d==='RC_SUBJ_MINE'){state='rc_topic_wait';await send('⌨️ Tape ton sujet (ex: « pourquoi il revient quand tu l\'ignores ») :');return;}

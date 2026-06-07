@@ -1,0 +1,13 @@
+{
+  "active": "imany",
+  "profiles": {
+    "imany": {
+      "name": "Imany",
+      "voiceId": "",
+      "looksDir": "looks",
+      "outputsDir": "outputs",
+      "stylesDir": "styles",
+      "note": "Profil par défaut. voiceId vide = utilise ELEVENLABS_VOICE_ID de .env. looksDir/outputsDir relatifs à ~/podcast-workflow."
+    }
+  }
+}
