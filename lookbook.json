@@ -125,17 +125,27 @@
       "category": "business",
       "env": "studio",
       "extra": null
+    },
+    {
+      "id": 11,
+      "date": "2026-06-07",
+      "file": "gen_2026-06-07-21-38_p1.jpg",
+      "category": "casual",
+      "env": "bougies",
+      "extra": null
     }
   ],
   "pricing": {
-    "note": "29 EUR/500 credits (0.058 EUR/cr). Releve Etoile 08/06 (A RECONFIRMER, suppose en CREDITS): 1 photo=0.5 cr, video 30s=10 cr.",
-    "eur_per_credit": 0.058,
+    "note": "Releves Etoile 08/06 (UNITES=CREDITS). 500 cr = 31 USD => 0.062 USD/cr (~0.057 EUR/cr). hd = batch x4 mesure par delta 219.44-212.08. video30s: 10-13 cr, A RECONFIRMER (13 retenu par prudence).",
+    "usd_per_credit": 0.062,
+    "eur_per_credit": 0.057,
     "ops": {
       "eco": 0.5,
       "planche": 0.5,
-      "hd": 2,
+      "hd": 7.36,
       "recreate": 0.5,
-      "video30s": 10
+      "video_test": 4,
+      "video30s": 13
     }
   }
 }
