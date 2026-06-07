@@ -17,9 +17,9 @@ const os = require('os');
 // ============================================================================
 // CONSTANTES ÉDITABLES — style sous-titres validé (Arial Black ~52px @720x1280)
 // ============================================================================
-const FONT = 'Helvetica';     // police des sous-titres (calqué modèle de réf : medium bold, pas Black)
-const FONT_SIZE = 68;         // taille de police à l'échelle 720x1280 (cap ~45px, calqué modèle)
-const OY = 0.27;              // position verticale du sous-titre ≈ fraction depuis le bas (modèle ~0.278)
+const FONT = 'Arial Black';   // police des sous-titres (essayer 'Helvetica' pour comparer)
+const FONT_SIZE = 52;         // taille de police à l'échelle 720x1280
+const OY = 0.347;             // position verticale du sous-titre ≈ fraction depuis le bas
 const LETTER_SPACING = 2;     // letter-spacing en px (champ Spacing de l'ASS)
 
 // ----------------------------------------------------------------------------
