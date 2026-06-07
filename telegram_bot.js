@@ -716,7 +716,7 @@ await send('Ready to generate video?',[
   if(!txt)return;
 
   if(txt==='/start'||txt==='/help'){
-    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/mark [title] viral|good|ok — rate a video');return;
+    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/restart — redémarrer le bot (code à jour)\n/mark [title] viral|good|ok — rate a video');return;
   }
   if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
   if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
@@ -734,6 +734,12 @@ await send('Ready to generate video?',[
     return;
   }
   if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+  if(txt==='/restart'){ /*restartcmd v1 : redemarrage depuis le chat — pm2 relance automatiquement a l'exit*/
+    if(proc||testProc){await send('⛔ Génération ou test en cours — redémarrage refusé. Utilise /stop d\'abord si besoin.');return;}
+    await send('🔄 Redémarrage du bot... (retour dans ~5s avec le code à jour)');
+    setTimeout(()=>{releaseLock();process.exit(0);},800);
+    return;
+  }
   if(txt==='/test'){ /*cmdtest v1 : test sous-titres sandbox depuis Telegram*/
     if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit). Réessaie quand c\'est fini.');return;}
     if(testProc){await send('⏳ Un test tourne déjà, patiente...');return;}
