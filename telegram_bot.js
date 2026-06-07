@@ -841,6 +841,17 @@ process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && 
 process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
 
 setInterval(()=>{},1<<30);
+tg('setMyCommands',{commands:[ /*cmdmenu v1 : les commandes apparaissent dans le menu "/" de Telegram*/
+  {command:'go',description:'🎬 Créer une vidéo'},
+  {command:'stop',description:'⏹ Tout arrêter (génération + test)'},
+  {command:'test',description:'🧪 Test sous-titres gratuit (sandbox)'},
+  {command:'restart',description:'🔄 Redémarrer le bot (code à jour)'},
+  {command:'status',description:'ℹ️ État du bot'},
+  {command:'settings',description:'⚙️ Réglages sous-titres & zoom'},
+  {command:'library',description:'📚 Derniers scripts'},
+  {command:'looks',description:'📸 Looks disponibles'},
+  {command:'ideas',description:'💡 Idées de sujets'},
+]}).catch(()=>{});
 send('🤖 <b>Bot ready!</b>\n\nSend /go to create a video.').then(()=>{
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
