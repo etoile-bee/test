@@ -5,8 +5,8 @@
 //
 //  >>> REGLAGES : tout est dans subtitle_style.js (source unique prod+test) <<< /*substyle v1*/
 const { FONT_SIZE, OY, styleHtml, FONTS, WIDTH, HEIGHT } = require('./subtitle_style.js');
-//  Mots d'exemple affiches successivement :
-const SAMPLE    = ['YOU IGNORED', 'THE RED FLAGS', 'BUT DEEP DOWN', 'YOU KNEW'];
+//  Mots d'exemple — respectent la regle prod : 2 mots MAX, mot seul si 8 lettres ou plus
+const SAMPLE    = ['YOU IGNORED', 'THE RED', 'FLAGS BUT', 'SCREAMING', 'DEEP DOWN', 'YOU KNEW'];
 // ============================================================
 
 require('dotenv').config();
