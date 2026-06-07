@@ -325,19 +325,23 @@ async function renderLocal(opts) {
   }
 
   // --- Audio : voix + réactions (+ musique de fond) mixées + fades anti-pop ---
+  // Si l'input est une IMAGE (look) : pas de piste audio -> on ajoute un silence (anullsrc) comme base.
+  const isImage = /\.(jpg|jpeg|png|webp)$/i.test(String(input));
+  const aBaseIdx = isImage ? 1 : 0;       // index input de la piste audio de base
+  const firstReactIdx = isImage ? 2 : 1;  // 1er input réaction
   const musRel = music.file && (path.isAbsolute(music.file) ? music.file : path.join(MUSIC_DIR, music.file));
   const musicOn = !!(+music.on && musRel && fs.existsSync(musRel));
   const fout = Math.max(duration - FADE_OUT, 0);
   const fadeChain = `afade=t=in:ss=0:d=${FADE_IN}` + (duration > 0.4 ? `,afade=t=out:st=${fout.toFixed(3)}:d=${FADE_OUT}` : '');
-  fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
+  fc.push(`[${aBaseIdx}:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
   const aLabels = ['[a0]'];
   reacts.forEach((r, i) => {
     const ms = Math.round(r.st * 1000);
-    fc.push(`[${i + 1}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
+    fc.push(`[${firstReactIdx + i}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
     aLabels.push(`[r${i}]`);
   });
   if (musicOn) {
-    const mi = 1 + reacts.length; // index de l'input musique (vidéo=0, réactions, puis musique)
+    const mi = firstReactIdx + reacts.length; // index de l'input musique
     const vol = (+music.volume || 0.12).toFixed(3);
     fc.push(`[${mi}:a]aloop=loop=-1:size=2147483647,atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS,volume=${vol}[mus]`);
     aLabels.push('[mus]');
@@ -353,8 +357,10 @@ async function renderLocal(opts) {
   const fcPath = path.join(os.tmpdir(), 'render_local_' + tag + '.fc');
   fs.writeFileSync(fcPath, fc.join(';\n'));
 
-  // --- Inputs ffmpeg ---
-  const args = ['-y', '-i', input];
+  // --- Inputs ffmpeg --- (image -> loop + piste silencieuse)
+  const args = ['-y'];
+  if (isImage) args.push('-loop', '1', '-t', duration.toFixed(3), '-i', input, '-f', 'lavfi', '-t', duration.toFixed(3), '-i', 'anullsrc=channel_layout=stereo:sample_rate=44100');
+  else args.push('-i', input);
   for (const r of reacts) args.push('-i', r.mp3);
   if (musicOn) args.push('-i', musRel);
   args.push(

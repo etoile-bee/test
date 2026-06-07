@@ -151,14 +151,21 @@ async function showLook(){
   if(!gal.files.length){await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.');return;}
   if(gal.idx<0)gal.idx=gal.files.length-1; if(gal.idx>=gal.files.length)gal.idx=0;
   const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
-  // iCloud : tente le téléchargement si le fichier semble être un placeholder
-  try{if(!fs.existsSync(fp)||fs.statSync(fp).size<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}}}catch(e){}
+  // iCloud : télécharge si placeholder/manquant (sync) + petite attente
+  let sz=0;try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}
+  if(sz<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}}
   const rows=[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
   if(galForRecap)rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);
   else rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);
-  await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,rows);
+  if(sz<1000){ // toujours indisponible (placeholder iCloud non téléchargé)
+    await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée depuis iCloud. Ouvre-la une fois dans l'app Fichiers, ou ◀️ ▶️ pour la suivante.`,rows);return;
+  }
+  const r=await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,rows);
+  if(!(r&&r.ok)){ // sendPhoto a échoué (format/poids) -> fallback texte clair
+    await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nAperçu indisponible (${fmtSize(sz)}). Utilise les boutons ci-dessous.`,rows);
+  }
 }
 
 // ── Setup flow ────────────────────────────────────────────────────────────────
@@ -591,7 +598,7 @@ const WF=require('./workflow.js'); // briques de génération (require.main!==mo
 const STATE_PATH=path.join(BASE,'state.json');
 const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[]};
 let genState=Object.assign({},DEFAULT_STATE);
-function loadState(){try{genState=Object.assign({},DEFAULT_STATE,JSON.parse(fs.readFileSync(STATE_PATH,'utf8')));}catch(e){genState=Object.assign({},DEFAULT_STATE);}}
+function loadState(){try{genState=Object.assign({},DEFAULT_STATE,JSON.parse(fs.readFileSync(STATE_PATH,'utf8')));}catch(e){genState=Object.assign({},DEFAULT_STATE);}try{if(genState.look&&fs.existsSync(genState.look))workingSource=genState.look;}catch(e){}}
 function saveState(){try{fs.writeFileSync(STATE_PATH,JSON.stringify(genState,null,2));}catch(e){}}
 function pushLastLook(p){if(!p)return;genState.lastLooks=[p,...(genState.lastLooks||[]).filter(x=>x!==p)].slice(0,3);}
 // ── Coûts estimés (CONFIGURABLES — valeurs raisonnables documentées, à ajuster) ──
@@ -691,14 +698,13 @@ async function runLocalTest(){
   if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit).');return;}
   try{
     const {renderLocal}=require('./render_local');
-    const OUT=path.join(BASE,'outputs');
-    const raws=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
-    if(!raws.length){await send('⚠️ Aucun raw de test dans outputs/ — lance d\'abord un /go pour en générer un.');return;}
-    await send('🧪 Rendu LOCAL gratuit (ffmpeg, style courant)... ~2s');
+    const src=workSrc(); // PHOTO DE TRAVAIL COURANTE (look choisi ou dernier raw)
+    if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
+    await send('🧪 Rendu LOCAL gratuit (ffmpeg, style courant, photo de travail : '+path.basename(src)+')... ~2s');
     const S='HE IGNORES YOU THEN CALLS YOU CRAZY THAT IS MANIPULATION NOT LOVE WALK AWAY';
     const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
     const out='/tmp/localtest_'+Date.now()+'.mp4';
-    const r=await renderLocal({input:raws[0],wordTimings:wt,keywords:['CRAZY','MANIPULATION','AWAY'],reactions:[{after:'THAT IS MANIPULATION NOT LOVE',type:'mhm'}],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
+    const r=await renderLocal({input:src,wordTimings:wt,keywords:['CRAZY','MANIPULATION','AWAY'],reactions:[{after:'THAT IS MANIPULATION NOT LOVE',type:'mhm'}],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
     const st=r.style;
     await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
     await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
@@ -895,8 +901,9 @@ const IMG_PRESETS={
 function musicFiles(){try{return fs.readdirSync(RL.MUSIC_DIR).filter(f=>/\.(mp3|m4a)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_'));}catch(e){return[];}}
 function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);return r[0]||null;}catch(e){return null;}}
 // Source de la frame de travail : un look (image) choisi, sinon le dernier raw vidéo
-let workingSource=null;
+let workingSource=null; // PHOTO DE TRAVAIL COURANTE unifiée (look choisi) ; fallback = dernier raw
 function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingSource:latestRaw();}
+function setWorkPhoto(p){if(p&&fs.existsSync(p))workingSource=p;}
 function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
 // Rend un court clip (WRONG YOURE) avec le STYLE COURANT sur une VIDÉO, renvoie {frame,style}
 async function renderStyleFrame(input){
@@ -1097,24 +1104,15 @@ function patchWF(fn){
 // ── /preview : rend ~3s du dernier raw de test avec le STYLE COURANT et envoie 2 frames (gratuit) ──
 async function runPreview(){
   try{
-    const {renderLocal}=require('./render_local');
-    const OUT=path.join(BASE,'outputs');
-    const raws=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
-    if(!raws.length){await send('⚠️ Aucun raw de test dans outputs/ — lance d\'abord un /go pour en générer un.');return;}
-    await send('👁 Aperçu du style courant... (~2s, gratuit)');
-    const S='SHE SAYS YOU CHANGED BUT CHEMISTRY FADES WHEN RESPECT DIES';
-    const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
-    const out='/tmp/preview_'+Date.now()+'.mp4';
-    const r=await renderLocal({input:raws[0],wordTimings:wt,keywords:['CHANGED','CHEMISTRY','RESPECT'],reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
-    const cp=require('child_process');
-    const f1='/tmp/preview_a.png',f2='/tmp/preview_b.png';
-    cp.execFileSync('ffmpeg',['-y','-ss','1.20','-i',out,'-frames:v','1','-q:v','2',f1],{stdio:'ignore'});
-    cp.execFileSync('ffmpeg',['-y','-ss','3.60','-i',out,'-frames:v','1','-q:v','2',f2],{stdio:'ignore'});
-    const st=r.style, fx=r.fx;
+    const src=workSrc(); // PHOTO DE TRAVAIL COURANTE
+    if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
+    await send('👁 Aperçu du style courant (photo de travail : '+path.basename(src)+')... ~2s');
+    const f=await renderWorkingFrame();
+    if(!f){await send('❌ Aperçu indispo.');return;}
+    const st=f.style, fx=readFx();
     const img=fx.image, colored=(img.brightness||img.contrast!==1||img.saturation!==1||img.temperature!==6500||img.sharpness||img.vignette)?'oui':'neutre';
-    const cap=`🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}\n🎬 zoom ${fx.zoom.on?'ON x'+fx.zoom.intensity:'OFF'} • 🎨 couleur ${colored} • 🎵 ${fx.music.on?fx.music.file:'OFF'}`;
-    await sendImg(f1,cap).catch(()=>{});
-    await sendImg(f2,'👁 Aperçu (pendant zoom) — ajuste via /edit').catch(()=>{});
+    const cap=`🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}\n🎬 zoom ${fx.zoom.on?'ON ×'+fx.zoom.intensity:'OFF'} • 🎨 couleur ${colored} • 🎵 ${fx.music.on?(fx.music.file||'on'):'OFF'}`;
+    await sendImg(f.frame,cap).catch(()=>{});
   }catch(e){await send('❌ Aperçu: '+e.message);}
 }
 
@@ -1139,7 +1137,7 @@ async function handle(upd){
       rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
       await send('👤 <b>LOOK</b> — 3 derniers utilisés ou galerie :',rows);return;
     }
-    if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;}await showRecap();return;}
+    if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await showRecap();return;}
     if(d==='RC_GALLERY'){galForRecap=true;gal.idx=0;await showLook();return;}
     if(d==='RC_BACK'){await showRecap();return;}
     if(d==='RC_STYLE'){
@@ -1317,18 +1315,18 @@ await send('Ready to generate video?',[
     if(d==='GAL_AVATAR'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
-      const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
-      await send('✅ Avatar défini : <b>'+f+'</b>\nIl sera utilisé pour la prochaine vidéo.');return;
+      const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;setWorkPhoto(fp);
+      await send('✅ Avatar + photo de travail : <b>'+f+'</b>\n(/edit, /preview et /test l\'utilisent.)');return;
     }
     if(d==='GAL_GEN'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
-      gwReset();gw.look=path.join(getLooksDir(),f);
+      gwReset();gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);
       await showRecap();return;
     }
     if(d==='GAL_PICK'){
       const list=looksList();const f=list[gal.idx];
-      if(f){gw.look=path.join(getLooksDir(),f);}
+      if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);}
       galForRecap=false;await send('✅ Look choisi : <b>'+(f||'?')+'</b>');await showRecap();return;
     }
     if(d==='GAL_EDIT'){
