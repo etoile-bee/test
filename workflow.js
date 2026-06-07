@@ -264,10 +264,9 @@ async function main(){
     } else if(newUrl.trim().toUpperCase()==='RANDOM'){
       const looksDir=path.join(os.homedir(),'podcast-workflow','looks');
       if(fs.existsSync(looksDir)){
-        const files=fs.readdirSync(looksDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
-        if(files.length>0){
-          const pick=files[Math.floor(Math.random()*files.length)];
-          const pickedPath=path.join(looksDir,pick);
+        const pickedPath=require('./look_picker.js').pickLook(looksDir); /*lookpick v1 : nouveautes d'abord*/
+        if(pickedPath){
+          const pick=path.basename(pickedPath);
           let rawUp=require('child_process').execSync('curl -s -F "file=@'+pickedPath+'" https://tmpfiles.org/api/v1/upload').toString().trim();
           let uploadUrl=JSON.parse(rawUp).data.url.replace("tmpfiles.org/","tmpfiles.org/dl/");
           if(uploadUrl.startsWith('http')){

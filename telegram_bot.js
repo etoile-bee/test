@@ -93,18 +93,8 @@ function resolveImg(p){
 function getLooksDir(){
   try{return fs.realpathSync(LOOKS);}catch{return LOOKS;}
 }
-let _lastPick=null;
-function pickRandom(){
-  try{
-    const dir=getLooksDir();
-    const files=fs.readdirSync(dir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
-    if(!files.length)return null;
-    // Exclude last picked to always show a different one
-    const pool=files.length>1?files.filter(f=>path.join(dir,f)!==_lastPick):files;
-    const pick=pool[Math.floor(Math.random()*pool.length)];
-    _lastPick=path.join(dir,pick);
-    return _lastPick;
-  }catch{return null;}
+function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
+  try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
   let e=fs.readFileSync(ENV_PATH,'utf8');
@@ -150,7 +140,7 @@ async function step1_topic(){
   ]);
 }
 async function step2_look(){
-  const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');try{const files=require('fs').readdirSync(lDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));if(files.length>0){const pick=files[Math.floor(Math.random()*files.length)];setup.photo=require('path').join(lDir,pick);setAvatar(setup.photo);const tmp='/tmp/lk'+Date.now()+'.jpg';try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'\U0001f4f8 Step 1/3 — Look').catch(()=>{});}catch{}}}catch(e){}
+  const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');try{const _pp=require('./look_picker.js').pickLook(lDir);if(_pp){setup.photo=_pp;setAvatar(setup.photo);/*lookpick v1*/const tmp='/tmp/lk'+Date.now()+'.jpg';try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'\U0001f4f8 Step 1/3 — Look').catch(()=>{});}catch{}}}catch(e){}
   state='setup_look';
   //  const cur=process.env.HIGGS_AVATAR_URL||null;
   //  if(cur){try{if(cur.startsWith('http')){await sendImg(cur,'Current look').catch(()=>{});}else{const tc='/tmp/cur'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 800 -s format jpeg "'+cur+'" --out "'+tc+'" 2>/dev/null');await sendImg(tc,'Current look').catch(()=>{});}}catch{}}
@@ -579,10 +569,9 @@ await send('Ready to generate video?',[
       setup.topic=TOPIC_IDEAS[idx][1];
       const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');
       try{
-        const files=require('fs').readdirSync(lDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
-        if(files.length>0){
-          const pick=files[Math.floor(Math.random()*files.length)];
-          setup.photo=require('path').join(lDir,pick);
+        const _pp=require('./look_picker.js').pickLook(lDir); /*lookpick v1*/
+        if(_pp){
+          setup.photo=_pp;
           setAvatar(setup.photo);
           const tmp='/tmp/auto'+Date.now()+'.jpg';
           try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'Look selected').catch(()=>{});}catch{}
@@ -608,10 +597,9 @@ await send('Ready to generate video?',[
           setup.topic=TOPIC_IDEAS[idx][1];
           const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');
           try{
-            const files=require('fs').readdirSync(lDir).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
-            if(files.length>0){
-              const pick=files[Math.floor(Math.random()*files.length)];
-              setup.photo=require('path').join(lDir,pick);
+            const _pp=require('./look_picker.js').pickLook(lDir); /*lookpick v1*/
+            if(_pp){
+              setup.photo=_pp;
               setAvatar(setup.photo);
               const tmp='/tmp/exp'+Date.now()+'.jpg';
               try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'📸 Look').catch(()=>{});}catch{}
