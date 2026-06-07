@@ -625,6 +625,7 @@ function estimateCost(durationStr){
 }
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v*1000)/1000));
 function readFx(){return RL.loadFx();}
+function hasActiveEdits(){try{const i=readFx().image,s=IMG_PRESETS['Signature'];return Object.keys(s).some(k=>Math.abs((+i[k]||0)-(+s[k]||0))>0.001);}catch(e){return false;}}
 function writeFx(fx){fs.writeFileSync(path.join(BASE,'style.json'),JSON.stringify(fx,null,2));}
 // ── Styles sauvegardés (sous-titres + fx) dans ~/podcast-workflow/styles/ ───────
 function stylesDir(){const d=path.join(BASE,'styles');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
@@ -717,7 +718,7 @@ async function runLocalTest(){
     const st=r.style;
     await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
     await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
-    await send('Test (rendu local gratuit). Suite :',[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'}],[{text:'🎬 Générer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
+    await send('Test (rendu local gratuit). Suite :',[[{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'}],[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'}],[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
   }catch(e){await send('❌ Test local : '+e.message);}
 }
 const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
@@ -1075,6 +1076,8 @@ function sectionKb(section){
   if(section==='zoom')return zoomKb();
   if(section==='mus')return musicKb();
   if(section==='react')return reactionsKb();
+  if(section==='imgadj')return imageAdjKb();
+  if(section==='imgfx')return imageFxKb();
   return imageKb();
 }
 function sectionCaption(section){
@@ -1083,7 +1086,9 @@ function sectionCaption(section){
   if(section==='zoom'){const z=readFx().zoom;return `🎬 <b>ZOOMS</b> · ${src}\n${z.on?'ON ×'+z.intensity+' · '+z.duration+'s · 1/'+z.everyN:'OFF'}`;}
   if(section==='mus'){const m=readFx().music;return `🎵 <b>MUSIQUE</b> · ${src}\n${m.on?(m.file||'(aucun)')+' @'+m.volume:'OFF'}`;}
   if(section==='react'){const m=(readFx().reactions||{}).mode||'off';return `🎙 <b>RÉACTIONS</b> · ${src}\nMode : <b>${m==='off'?'OFF':m==='natural'?'Naturel (1 max, douce, sur une pause)':'ON (toutes)'}</b>`;}
-  const i=readFx().image;return `🎨 <b>IMAGE</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K 🔪${i.sharpness} ⬛${i.vignette}`;
+  if(section==='imgadj'){const i=readFx().image;return `🎛 <b>AJUSTER</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K`;}
+  if(section==='imgfx'){const i=readFx().image;return `✨ <b>EFFETS</b> · ${src}\n🔪 Netteté ${i.sharpness} · ⬛ Vignette ${i.vignette}`;}
+  const i=readFx().image;return `🎨 <b>IMAGE</b> · ${src}\n☀️${i.brightness} ◐${i.contrast} 🌈${i.saturation} 🌡${i.temperature}K 🔪${i.sharpness} ⬛${i.vignette}\nChoisis : 🎛 Ajuster · 🎨 Filtres · ✨ Effets`;
 }
 async function openPanel(section){
   editPanel.section=section;editPanel.mid=null;editPrevFrame=null;
@@ -1118,19 +1123,32 @@ async function showPresets(){
   rows.push([{text:'🎨 Section Image',callback_data:'EDIT_IMG'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}]);
   await send('🎨 <b>PRESETS COULEUR</b> — applique en 1 tap (puis 👁 Aperçu) :',rows);
 }
-function imageKb(){
+function imageKb(){ // accueil Image épuré : 3 sous-sections + reset
+  return [
+    [{text:'🎛 Ajuster',callback_data:'EDIT_IMGADJ'},{text:'🎨 Filtres',callback_data:'SHOW_PRESETS'},{text:'✨ Effets',callback_data:'EDIT_IMGFX'}],
+    [{text:'🔄 Revenir à l\'image de base',callback_data:'IMG_RESET'}],
+    ...navRow(),
+  ];
+}
+function imageAdjKb(){
   const i=readFx().image;const sg=v=>(v>0?'+':'')+v;
   const td=i.temperature<6500?'chaud':i.temperature>6500?'froid':'neutre';
-  const keys=Object.keys(IMG_PRESETS);const preRows=[];
-  for(let k=0;k<keys.length;k+=3)preRows.push(keys.slice(k,k+3).map(n=>({text:'🎨 '+n,callback_data:'IMG_PRE_'+n})));
   return [
     [{text:'➖',callback_data:'IMG_BR_DN'},{text:'☀️ Lumière: '+sg(i.brightness),callback_data:'NOOP'},{text:'➕',callback_data:'IMG_BR_UP'}],
     [{text:'➖',callback_data:'IMG_CT_DN'},{text:'◐ Contraste: '+i.contrast,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_CT_UP'}],
     [{text:'➖',callback_data:'IMG_SA_DN'},{text:'🌈 Saturation: '+i.saturation,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SA_UP'}],
     [{text:'🔥',callback_data:'IMG_TE_DN'},{text:'🌡 '+i.temperature+'K ('+td+')',callback_data:'NOOP'},{text:'❄️',callback_data:'IMG_TE_UP'}],
+    [{text:'🔄 Base',callback_data:'IMG_RESET'},{text:'◀️ Image',callback_data:'EDIT_IMG'}],
+    ...navRow(),
+  ];
+}
+function imageFxKb(){
+  const i=readFx().image;
+  return [
     [{text:'➖',callback_data:'IMG_SH_DN'},{text:'🔪 Netteté: '+i.sharpness,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_SH_UP'}],
     [{text:'➖',callback_data:'IMG_VI_DN'},{text:'⬛ Vignette: '+i.vignette,callback_data:'NOOP'},{text:'➕',callback_data:'IMG_VI_UP'}],
-    ...preRows,
+    [{text:'✨ Glow (peau douce)',callback_data:'IMG_PRE_Glow'}],
+    [{text:'🔄 Base',callback_data:'IMG_RESET'},{text:'◀️ Image',callback_data:'EDIT_IMG'}],
     ...navRow(),
   ];
 }
@@ -1219,8 +1237,14 @@ async function handle(upd){
     const d=cb.data;
     // Menu principal
     if(d==='MAIN_MENU'){await showMainMenu();return;}
-    if(d==='MENU_GEN'){gwReset();await send('🎬 Préparation de la carte (sujet auto)...').catch(()=>{});await ensureTopic();await showRecap();return;}
+    if(d==='MENU_GEN'){
+      if(hasActiveEdits()){await send('🎬 Tu as des réglages d\'image actifs. Pour cette nouvelle vidéo :',[[{text:'✅ Garder les réglages',callback_data:'GEN_KEEP'}],[{text:'🔄 Repartir de la base',callback_data:'GEN_RESET'}]]);return;}
+      gwReset();await send('🎬 Préparation de la carte (sujet auto)...').catch(()=>{});await ensureTopic();await showRecap();return;
+    }
+    if(d==='GEN_KEEP'){gwReset();await ensureTopic();await showRecap();return;}
+    if(d==='GEN_RESET'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);gwReset();await ensureTopic();await showRecap();return;}
     if(d==='RC_NEWTOPIC'){gw.topic=null;await ensureTopic();await refreshRecap();return;}
+    if(d==='TEST_GEN'){gwReset();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w))gw.look=w;await send('🚀 Carte de génération (paramètres du test)...').catch(()=>{});await ensureTopic();await showRecap();return;}
     if(d==='EXPRESS_NEW'){gwReset();await recapGo();return;} /*express 1-tap : défauts state.json -> GO direct*/
     // ── Carte récap : lignes modifiables ──
     if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
@@ -1532,6 +1556,9 @@ await send('Ready to generate video?',[
     if(d==='EDIT_MUS'){editSectionCur='mus';await openPanel('mus');return;}
     if(d==='EDIT_REACT'){editSectionCur='react';await openPanel('react');return;}
     if(d==='SHOW_PRESETS'){editSectionCur='img';editPanel.section='img';await showPresets();return;}
+    if(d==='EDIT_IMGADJ'){editSectionCur='img';await openPanel('imgadj');return;}
+    if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
+    if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await send('🔄 Image revenue à la base (Signature). ↩️ Annuler pour récupérer.').catch(()=>{});await refreshPanel();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
