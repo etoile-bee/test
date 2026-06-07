@@ -203,7 +203,7 @@ async function runNewLook(){
     const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
     newlook.urls=r.urls;newlook.recipe=r.recipe;
     clearInterval(_hb);
-    for(const u of r.urls){await sendImgUrl(u);} /*choix Etoile : photos une par une dans le chat*/
+    await sendAlbum(r.urls); /*correction Etoile : toutes les photos a la suite, en defilement, collees au panneau de controle*/
     await nlResults();
   }catch(e){clearInterval(_hb);await nlPanel('❌ <b>Échec génération</b>\n'+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
   newlook.busy=false;
