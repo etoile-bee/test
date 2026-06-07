@@ -38,7 +38,7 @@
 - Toujours demander "on fait le point ?" avant toute génération de vraie vidéo.
 
 ## ÉTAT ACTUEL (2026-06-07)
-- Sous-titres : ✅ VERROUILLÉS par Etoile (substyle v4) = version ÉPAISSE **Archivo Black EMBARQUÉE par URL** (48px, OY=0.32, sans contour ni ombre), police chargée dans CHAQUE edit Shotstack (prod ET test) → rendu déterministe partout. Tags git : `soustitres-valides-v2-archivo` (actuel), `soustitres-valides-v1` (ancien style Arial Black 52px, historique). NE PLUS TOUCHER sans demande explicite.
+- Sous-titres : ✅ VALIDÉS DÉFINITIFS par Etoile (test 2h31 du 07/06) = **Archivo Black 48px EMBARQUÉE par URL, OY=0.28** (texte à 66% hauteur : décolleté, entre menton et mousses, niveau cœur TikTok), sans contour ni ombre. Tags git : `soustitres-valides-v2-archivo` (actuel = a8a8416), `soustitres-valides-v1` (ancien Arial Black, historique). NE PLUS TOUCHER sans demande explicite.
 - Leçon : sans police embarquée, le serveur Shotstack rend tantôt fin tantôt épais selon les polices dispo → toujours embarquer via FONTS de `subtitle_style.js`.
 - `workflow.js` : revue1 appliquée (fix filtre [pause], captions, retry JSON ×3, approbation scripts Parts 2/3 avant dépense, code mort supprimé).
 - `telegram_bot.js` : commande `/test` ajoutée (sandbox, garde-fous) + réglages /settings retargés sur `subtitle_style.js` → ⚠️ REDÉMARRAGE PM2 EN ATTENTE (quand bot libre).
