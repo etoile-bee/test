@@ -186,4 +186,23 @@ function saveRecipe(recipe,file){
 function getRecipe(id){const lb=readLookbook();return lb.saved.find(s=>s.id===+id);}
 function listRecipes(){const lb=readLookbook();return lb.saved.slice(-15).reverse();}
 
-module.exports={ generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit };
+/*probe v1 : decouverte GRATUITE des endpoints (body vide → 404 = inexistant, 4xx validation = existe, rien n'est genere)*/
+async function probeEndpoints(){
+  const fetch=require('node-fetch');
+  const eps=[
+    'bytedance/seedream/v4/text-to-image','bytedance/seedream/v4/edit','bytedance/seedream/v4/image-to-image',
+    'bytedance/seedream/v4-5/text-to-image','bytedance/seedream/v4-5/edit',
+    'bytedance/seedream/v4.5/text-to-image','bytedance/seedream/v4.5/edit',
+    'bytedance/seedream/v5/text-to-image','bytedance/seedream/v5/edit','bytedance/seedream/v5/image-to-image'
+  ];
+  const out=[];
+  for(const ep of eps){
+    try{
+      const r=await fetch('https://platform.higgsfield.ai/'+ep,{method:'POST',headers:{'Authorization':'Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET,'Content-Type':'application/json'},body:'{}'});
+      out.push((r.status===404?'❌ ':'✅ ')+ep+' (HTTP '+r.status+')');
+    }catch(e){out.push('⚠️ '+ep+' ('+e.message+')');}
+  }
+  return out;
+}
+
+module.exports={ generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };

@@ -2128,7 +2128,7 @@ await send('Ready to generate video?',[
   const txt=(msg.text||'').trim();
   if(!txt)return;
   // menu principal automatique à la 1ère interaction de la journée
-  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!/^\/?(go|menu|start)$/i.test(txt))await openCard().catch(()=>{});}}
+  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
 
   if(txt==='/start'||txt==='/menu'){await openCard();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
@@ -2188,6 +2188,16 @@ await send('Ready to generate video?',[
         await send('✅ Vidéo longue prête : '+require('path').basename(r.file)+' ('+r.duration.toFixed(0)+'s, '+r.parts+' parts)');
         await sendVid(r.file).catch(async()=>{await send('⚠️ Trop lourde pour Telegram — voir iCloud → podcast-outputs');});
       }catch(e){await send('❌ Assemblage : '+e.message);}
+    })();
+    return;
+  }
+  if(txt==='/probe'){ /*probe v1 : quels endpoints Seedream existent (gratuit, rien n'est genere)*/
+    (async()=>{
+      try{
+        await send('🔬 Sonde des endpoints Seedream (gratuit)...');
+        const list=await require('./newlook.js').probeEndpoints();
+        await send('<b>Endpoints Higgsfield :</b>\n'+list.join('\n')+'\n\n✅ = existe (je branche le meilleur), ❌ = n\'existe pas');
+      }catch(e){await send('Erreur sonde : '+e.message);}
     })();
     return;
   }
