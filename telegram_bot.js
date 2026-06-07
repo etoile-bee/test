@@ -203,6 +203,7 @@ async function nlResults(){
   if(n>1)keepRow.push({text:'✅ Tout',callback_data:'NL_KEEP_ALL'});
   /*regle Etoile : video et HD se debloquent ICI seulement (apres des images vues) — jamais avant*/
   const rows=[keepRow,
+    ...(newlook.mode==='planche'?[[{text:'✂️ Découper en 3 poses (gratuit, pour le lipsync)',callback_data:'NL_SPLIT'}]]:[]),
     [{text:'🎬 Vidéo avec ce look',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'?[{text:'💎 Version HD finale',callback_data:'NL_HD'}]:[])],
     [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]];
   await nlPanel('🎨 <b>Résultats</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+'\nChaque garde mémorise la recette (/look pour recréer)',rows);
@@ -1976,7 +1977,8 @@ await send('Ready to generate video?',[
     function nlSave(i){
       const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
       const dest=require('path').join(getLooksDir(),'gen_'+stamp+'_p'+(i+1)+'.jpg');
-      require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.urls[i]+'"');
+      if(String(newlook.urls[i]).startsWith('/'))fs.copyFileSync(newlook.urls[i],dest); /*pose decoupee (fichier local)*/
+      else require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.urls[i]+'"');
       try{nlMod().saveRecipe(newlook.recipe,require('path').basename(dest));}catch(e){}
       return dest;
     }
@@ -2001,6 +2003,18 @@ await send('Ready to generate video?',[
       return;
     }
     if(d==='NL_HD'){newlook.urls=[];newlook.mode='hd';runNewLook();return;}
+    if(d==='NL_SPLIT'){ /*split v1 : planche → 3 poses separees pretes pour le lipsync*/
+      (async()=>{
+        try{
+          await nlPanel('✂️ <b>Découpage de la planche en 3 poses…</b> (gratuit)');
+          const files=await nlMod().splitPlanche(newlook.urls[0]);
+          newlook.urls=files;newlook.mode='split';
+          for(const f of files){await sendImg(f);}
+          await nlResults();
+        }catch(e){await nlPanel('❌ Découpage : '+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_SPLIT'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'}]]);}
+      })();
+      return;
+    }
     if(d==='NL_RETRY'){newlook.urls=[];runNewLook();return;}
     if(d==='NL_CANCEL'){newlook.urls=[];await nlPanel('🎨 Terminé — galerie à jour.');newlook.panelId=null;return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/

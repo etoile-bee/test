@@ -195,4 +195,20 @@ async function probeEndpoints(){
   return out;
 }
 
-module.exports={ generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };
+/*split v1 : decoupe une planche (3 cases verticales) en 3 images separees PRETES POUR LE LIPSYNC — gratuit, pixels identiques*/
+async function splitPlanche(url){
+  const cp=require('child_process');
+  const src='/tmp/planche'+Date.now()+'.jpg';
+  cp.execSync('curl -sL -o "'+src+'" "'+url+'"');
+  if(!fs.existsSync(src)||fs.statSync(src).size<5000)throw new Error('telechargement planche echoue');
+  const files=[];
+  for(let i=0;i<3;i++){
+    const out='/tmp/pose'+Date.now()+'_'+(i+1)+'.jpg';
+    cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=iw:ih/3:0:'+(i===0?'0':'ih*'+i+'/3')+'" -q:v 2 "'+out+'" 2>/dev/null');
+    if(fs.existsSync(out)&&fs.statSync(out).size>3000)files.push(out);
+  }
+  if(files.length<3)throw new Error('decoupage incomplet ('+files.length+'/3)');
+  return files;
+}
+
+module.exports={ splitPlanche, generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };
