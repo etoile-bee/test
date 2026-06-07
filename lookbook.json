@@ -126,5 +126,15 @@
       "env": "studio",
       "extra": null
     }
-  ]
+  ],
+  "pricing": {
+    "note": "29 EUR / 500 credits API (taux 0.058 EUR/credit). ops = credits par operation, a calibrer par mesure de solde avant/apres.",
+    "eur_per_credit": 0.058,
+    "ops": {
+      "eco": null,
+      "planche": null,
+      "hd": null,
+      "recreate": null
+    }
+  }
 }
