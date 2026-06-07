@@ -665,7 +665,7 @@ async function maybeAskLookStyle(lookPath,ret){
   const saved=getLookStyle(path.basename(lookPath));
   if(saved&&fxDiffers(saved,readFx().image)){
     lookStylePending={fx:saved,ret};
-    await send('🎨 Ce look a des réglages enregistrés. Réutiliser ?',[
+    await cardMenu('🎨 Ce look a des réglages enregistrés. Réutiliser ?',[
       [{text:'✅ Oui (du look)',callback_data:'LS_REUSE'}],
       [{text:'🔄 Base',callback_data:'LS_BASE'},{text:'🎨 Réglages actuels',callback_data:'LS_KEEP'}],
     ]);
@@ -792,21 +792,23 @@ function journey(active){
   const ci=s.findIndex(x=>x[0]===active);
   return '🧭 '+s.map((x,i)=>i<ci?(x[1]+' ✓'):(i===ci?('<b>'+x[1]+'</b>'):x[1])).join(' → ');
 }
-function recapCaption(){
+// ── CARTE V2 (écran d'accueil unique, photo éditée en place) ──
+function recapCaption(){ // = carte
   const dur=gw.duration||'23s';const c=estimateCost(dur);
-  const cat=gw.topicCat&&MCATS[gw.topicCat]?(MCATS[gw.topicCat].replace(/^[^ ]+ /,'')+' — '):'';
-  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?(cat+'« '+gw.topic+' »'):(cat||'🎲 auto…'));
-  const mins=Math.max(3,Math.round(c.parts*4)); // ~4 min de lipsync Kling par partie
-  return `${journey('recap')}\n\n👤 Look : <b>${escH(lookName(gwLook()))}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
+  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?('« '+gw.topic+' »'):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto…'));
+  const mins=Math.max(3,Math.round(c.parts*4));
+  return `🎬 <b>NOUVELLE VIDÉO</b>\n👤 ${escH(lookName(gwLook()))}\n💬 ${escH(subj)}\n⏱ ${dur} · 🎨 ${escH(gw.styleName||'Signature')}\n💰 ~${c.total.toFixed(2)}${COST.CURRENCY} · ⏳ ~${mins} min`;
 }
 function recapKb(){
   return [
-    [{text:'👤 Changer le look',callback_data:'RC_LOOK'}],
-    [{text:'🎨 Modèle',callback_data:'RC_STYLE'},{text:'💬 Sujet',callback_data:'RC_SUBJ'},{text:'🔄 Autre sujet',callback_data:'RC_NEWTOPIC'}],
-    [{text:'⏱ 15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️ Libre',callback_data:'RC_DUR_FREE'}],
-    [{text:'🚀 GO',callback_data:'RC_GO'},{text:'❌ Annuler',callback_data:'RC_CANCEL'}],
+    [{text:'🚀 Express',callback_data:'EXPRESS_NEW'},{text:'▶️ GO',callback_data:'RC_GO'}],
+    [{text:'👤 Avatar',callback_data:'RC_LOOK'},{text:'💬 Sujet',callback_data:'RC_SUBJ'}],
+    [{text:'⏱ Durée',callback_data:'CARD_DUR'},{text:'🎨 Modèle',callback_data:'RC_STYLE'}],
+    [{text:'☰ Plus',callback_data:'CARD_MORE'}],
   ];
 }
+// Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
+async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
 async function recapFrame(){ // aperçu = LOOK courant AVEC le style appliqué (item 1)
   if(gwLook())setWorkPhoto(gwLook());
   try{const f=await renderWorkingFrame();return f&&f.frame;}catch(e){return null;}
@@ -817,6 +819,8 @@ async function showRecap(){
   else {const r=await send(recapCaption(),recapKb());cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;}
 }
 async function refreshRecap(){ await showRecap(); } // cockpitPhoto édite en place
+// /go = ouvre la CARTE (écran d'accueil V2) : supprime l'ancienne, repart propre, sujet résolu
+async function openCard(){ await delMsg(cockpit.mid); gwReset(); await ensureTopic(); await showRecap(); }
 // ── Orchestration de génération pilotée par le bot (script preview + maquette + GO) ──
 let genJob=null; // job de génération courant
 let genAbort=false; // flag d'annulation (❌ / /stop) vérifié entre étapes + pendant le polling lipsync
@@ -846,7 +850,7 @@ async function recapGo(){
   const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
   genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.topic||null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
   if(gwLook())setAvatar(gwLook());
-  await send('📝 Écriture du script... (gratuit, ~10s)');
+  await cockpitCaption('📝 Écriture du script… (~10s)',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]); // morphe la carte, pas de nouveau message
   await genScriptStep();
 }
 async function showScriptCard(){
@@ -1409,7 +1413,7 @@ async function handle(upd){
     const d=cb.data;
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
-    if(d==='MAIN_MENU'){await showMainMenu();return;}
+    if(d==='MAIN_MENU'){await showRecap();return;} /*V2 : retour à la CARTE (état courant)*/
     if(d==='MENU_GEN'){
       await delMsg(mainMenuMid);mainMenuMid=null; // l'écran Générer REMPLACE le menu (pas d'empilement)
       if(hasActiveEdits()){await send('🎬 Tu as des réglages d\'image actifs. Pour cette nouvelle vidéo :',[[{text:'✅ Garder les réglages',callback_data:'GEN_KEEP'}],[{text:'🔄 Repartir de la base',callback_data:'GEN_RESET'}]]);return;}
@@ -1419,34 +1423,40 @@ async function handle(upd){
     if(d==='GEN_RESET'){const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);gwReset();await ensureTopic();await showRecap();return;}
     if(d==='RC_NEWTOPIC'){if(gw.topic&&!sessionTopics.includes(gw.topic))sessionTopics.push(gw.topic);gw.topic=null;await send('🔄 Nouveau sujet...').catch(()=>{});await ensureTopic();await refreshRecap();return;}
     if(d==='TEST_GEN'){gwReset();const w=workSrc();if(w&&/\.(jpg|jpeg|png|webp)$/i.test(w))gw.look=w;await send('🚀 Carte de génération (paramètres du test)...').catch(()=>{});await ensureTopic();await showRecap();return;}
-    if(d==='EXPRESS_NEW'){await delMsg(mainMenuMid);mainMenuMid=null;gwReset();await recapGo();return;} /*express 1-tap*/
+    if(d==='EXPRESS_NEW'){await recapGo();return;} /*V2 Express : derniers réglages + sujet auto -> script (carte morphée)*/
     // ── Carte récap : lignes modifiables ──
-    if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
+    if(d==='RC_CANCEL'){state='idle';await openCard();return;}
     if(d==='RC_LOOK'){
-      // galerie EN PLACE (un seul message photo, ◀️▶️) démarrant sur le dernier look utilisé
-      galForRecap=true;galMid=null;
-      const last=(genState.lastLooks||[]).find(p=>fs.existsSync(p));
-      const li=last?looksList().indexOf(path.basename(last)):-1;gal.idx=li>=0?li:0;
+      // défile l'avatar DANS LA CARTE elle-même (galMid = la carte), démarre sur le look courant
+      galForRecap=true;galMid=cockpit.mid;
+      const cur=gwLook();const li=cur?looksList().indexOf(path.basename(cur)):-1;gal.idx=li>=0?li:0;
       await showLook();return;
     }
     if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await refreshRecap();return;}
     if(d==='RC_GALLERY'){galForRecap=true;galMid=null;gal.idx=0;await showLook();return;}
-    if(d==='RC_BACK'){await refreshRecap();return;}
-    if(d==='RC_STYLE'){
-      const list=listStyles();
-      const rows=list.map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
-      rows.unshift([{text:'🎨 Modèle actuel (ne pas changer)',callback_data:'RC_ST_CUR'}]);
-      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('🎨 <b>MODÈLE</b> — applique un modèle enregistré :',rows);return;
+    if(d==='RC_BACK'){await showRecap();return;}
+    if(d==='RC_STYLE'){ // sous-menu EN PLACE
+      const rows=listStyles().map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
+      rows.unshift([{text:'🎨 Modèle actuel',callback_data:'RC_ST_CUR'}]);
+      rows.push([{text:'◀️ Carte',callback_data:'RC_BACK'}]);
+      await cardMenu('🎨 <b>MODÈLE</b> :',rows);return;
     }
-    if(d==='RC_ST_CUR'){gw.styleName=null;await refreshRecap();return;}
-    if(d.startsWith('RC_ST_')){const list=listStyles();const f=list[+d.slice(6)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gw.styleName=f.replace(/\.json$/,'');}catch(e){}}await refreshRecap();return;}
-    if(d==='RC_SUBJ'){
+    if(d==='RC_ST_CUR'){gw.styleName=null;await showRecap();return;}
+    if(d.startsWith('RC_ST_')){const list=listStyles();const f=list[+d.slice(6)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gw.styleName=f.replace(/\.json$/,'');}catch(e){}}await showRecap();return;}
+    if(d==='RC_SUBJ'){ // sous-menu EN PLACE
       const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'RC_CAT_'+k}]);
-      rows.unshift([{text:'🎲 Auto (tous sujets)',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'}]);
-      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('💬 <b>SUJET</b> — choisis une catégorie, Auto, ou tape le tien :',rows);return;
+      rows.unshift([{text:'🎲 Auto',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'},{text:'🔄 Autre',callback_data:'RC_NEWTOPIC'}]);
+      rows.push([{text:'◀️ Carte',callback_data:'RC_BACK'}]);
+      await cardMenu('💬 <b>SUJET</b> :',rows);return;
     }
+    if(d==='CARD_DUR'){await cardMenu('⏱ <b>DURÉE</b> :',[[{text:'15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️',callback_data:'RC_DUR_FREE'}],[{text:'◀️ Carte',callback_data:'RC_BACK'}]]);return;}
+    if(d==='CARD_MORE'){await cardMenu('☰ <b>PLUS</b> :',[
+      [{text:'👤 Looks',callback_data:'MENU_LOOKS'},{text:'📦 Modèles',callback_data:'SHOWSTYLES'}],
+      [{text:'📤 Prêt à poster',callback_data:'SHOWREADY'},{text:'📁 Fichiers',callback_data:'FILES_HOME'}],
+      [{text:'🧪 Test',callback_data:'MENU_TEST'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}],
+      [{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
+      [{text:'◀️ Carte',callback_data:'RC_BACK'}],
+    ]);return;}
     if(d.startsWith('RC_CAT_')){const k=d.slice(7);gw.subjectMode='auto';gw.topicCat=k;gw.topic=null;genState.topicCat=k;saveState();await ensureTopic();await refreshRecap();return;}
     if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topicCat=null;gw.topic=null;genState.topicCat=null;saveState();await ensureTopic();await refreshRecap();return;}
     if(d==='RC_SUBJ_MINE'){state='rc_topic_wait';await send('⌨️ Tape ton sujet (ex: « pourquoi il revient quand tu l\'ignores ») :');return;}
@@ -1475,7 +1485,7 @@ async function handle(upd){
     if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
     if(d==='GJ_MOCK'){await genMockup();return;}
     if(d==='GJ_GO'){await genFinal();return;}
-    if(d==='GJ_CANCEL'||d==='GEN_ABORT'){if(genJob&&genJob.running){genAbort=true;await send('⛔ Annulation en cours… (arrêt à la prochaine étape)');}else{genJob=null;state='idle';await send('❌ Annulé.');}return;}
+    if(d==='GJ_CANCEL'||d==='GEN_ABORT'){if(genJob&&genJob.running){genAbort=true;await send('⛔ Annulation en cours… (arrêt à la prochaine étape)');}else{genJob=null;state='idle';await showRecap();}return;}
     // ── Dossier de génération : Postable / À retravailler / Restyler ──
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
@@ -1672,9 +1682,8 @@ await send('Ready to generate video?',[
     if(d==='GAL_PICK'){
       const list=looksList();const f=list[gal.idx];
       if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);if(genJob)genJob.look=gw.look;}
-      galForRecap=false;
-      if(modifyFlow){modifyFlow=false;await send('✅ Look : <b>'+(f||'?')+'</b>').catch(()=>{});cockpitReset();await genAfterScript();return;}
-      await send('✅ Look choisi : <b>'+(f||'?')+'</b>');
+      galForRecap=false;if(galMid)cockpit.mid=galMid; // la galerie ÉTAIT la carte -> on resynchronise
+      if(modifyFlow){modifyFlow=false;cockpitReset();await genAfterScript();return;}
       if(f&&await maybeAskLookStyle(gw.look,'recap'))return; // réglages mémorisés pour ce look ?
       await showRecap();return;
     }
@@ -1965,11 +1974,11 @@ await send('Ready to generate video?',[
   const txt=(msg.text||'').trim();
   if(!txt)return;
   // menu principal automatique à la 1ère interaction de la journée
-  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!/^\/?(go|menu|start)$/i.test(txt))await showMainMenu().catch(()=>{});}}
+  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!/^\/?(go|menu|start)$/i.test(txt))await openCard().catch(()=>{});}}
 
-  if(txt==='/start'||txt==='/menu'){await showMainMenu();return;}
+  if(txt==='/start'||txt==='/menu'){await openCard();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await showMainMenu();return;} /*menu v5 : /go = menu principal*/
+  if(txt==='/go'||txt==='go'){await openCard();return;} /*V2 : /go = la CARTE*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
     if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot
