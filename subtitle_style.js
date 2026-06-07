@@ -5,7 +5,7 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 48;     // taille du texte (plus grand = plus gros)
+const FONT_SIZE = 45;     // taille du texte — reduit de 48 a 45 (-3pt, demande Etoile 07/06)
 const OY        = 0.28;   // hauteur — VALIDÉ par Etoile sur le test de 2h31 (texte a 66% : decollete, niveau coeur TikTok)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
