@@ -150,32 +150,63 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,mode:'eco',busy:false,panelId:null,catLabel:'',envLabel:''}; /*newlook v6 : panneau unique auto-editable (maquette validee Etoile 07/06)*/
-function nlMod(){ /*hot-reload : newlook.js est recharge a CHAQUE appel — les correctifs s'appliquent sans redemarrage*/
+let newlook={urls:[],files:[],idx:0,recipe:null,category:null,env:'bougies',extra:null,mode:'eco',busy:false,mediaId:null,catLabel:'',envLabel:''}; /*v10 : MESSAGE-MEDIA UNIQUE (regle Etoile : un bloc image + commandes, AUCUN autre message sauf anomalie/resultat final)*/
+function nlMod(){ /*hot-reload : newlook.js recharge a chaque appel*/
   try{delete require.cache[require.resolve('./newlook.js')];}catch(e){}
   return require('./newlook.js');
 }
-async function nlPanel(text,rows){
-  const body={text:text,parse_mode:'HTML',...(rows?kb(rows):{reply_markup:{inline_keyboard:[]}})};
-  if(newlook.panelId){
-    const r=await tg('editMessageText',{message_id:newlook.panelId,...body}).catch(()=>null);
-    if(r&&r.ok)return;
-  }
-  const r=await tg('sendMessage',body);
-  if(r&&r.ok&&r.result)newlook.panelId=r.result.message_id;
+let _nlCover=null;
+function nlCover(){ /*image d'accueil du panneau = la reference imany*/
+  if(_nlCover&&fs.existsSync(_nlCover))return _nlCover;
+  try{
+    const dir=require('path').join(getLooksDir(),'references','imany');
+    const f=fs.readdirSync(dir).filter(x=>/\.(jpg|jpeg|png|webp)$/i.test(x))[0];
+    const out='/tmp/nlcover.jpg';
+    require('child_process').execSync('sips -Z 900 -s format jpeg "'+require('path').join(dir,f)+'" --out "'+out+'" 2>/dev/null || ffmpeg -y -i "'+require('path').join(dir,f)+'" -vf scale=900:-2 -q:v 3 "'+out+'" 2>/dev/null');
+    if(fs.existsSync(out)&&fs.statSync(out).size>3000){_nlCover=out;return out;}
+  }catch(e){}
+  return null;
 }
-async function sendAlbum(urls){
-  for(const u of urls){await sendImgUrl(u);} /*fiabilite : fichiers locaux, a la suite*/
+function nlLocal(i){ /*fichier local de l'image i (telecharge au besoin, mis en cache)*/
+  if(newlook.files[i]&&fs.existsSync(newlook.files[i]))return newlook.files[i];
+  const u=newlook.urls[i];
+  if(String(u).startsWith('/')){newlook.files[i]=u;return u;}
+  const tmp='/tmp/nlview_'+i+'_'+Date.now()+'.jpg';
+  try{require('child_process').execSync('curl -sL -o "'+tmp+'" "'+u+'"');}catch(e){}
+  if(fs.existsSync(tmp)&&fs.statSync(tmp).size>5000){newlook.files[i]=tmp;return tmp;}
+  return null;
+}
+async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
+  const FormData=require('form-data');
+  const markup=JSON.stringify({inline_keyboard:rows||[]});
+  if(newlook.mediaId&&file){
+    const fd=new FormData();
+    fd.append('chat_id',CHAT_ID);fd.append('message_id',String(newlook.mediaId));
+    fd.append('media',JSON.stringify({type:'photo',media:'attach://ph',caption:caption,parse_mode:'HTML'}));
+    fd.append('ph',fs.createReadStream(file));
+    fd.append('reply_markup',markup);
+    const r=await tg('editMessageMedia',null,fd).catch(()=>null);
+    if(r&&r.ok)return true;
+    jlog('⚠️ editMessageMedia refus — recreation du panneau');newlook.mediaId=null;
+  }
+  if(newlook.mediaId&&!file){
+    const r=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
+    if(r&&r.ok)return true;
+    newlook.mediaId=null;
+  }
+  const f2=file||nlCover();
+  if(!f2){await send(caption,rows);return false;} /*secours extreme*/
+  const fd2=new FormData();
+  fd2.append('chat_id',CHAT_ID);
+  fd2.append('photo',fs.createReadStream(f2));
+  fd2.append('caption',caption);fd2.append('parse_mode','HTML');
+  fd2.append('reply_markup',markup);
+  const r2=await tg('sendPhoto',null,fd2);
+  if(r2&&r2.ok&&r2.result)newlook.mediaId=r2.result.message_id;
   return true;
 }
-async function sendImgUrl(u){ /*fiable : telechargement local puis upload multipart (les URL Higgsfield passent mal chez Telegram)*/
-  const tmp='/tmp/nlimg'+Date.now()+'.jpg';
-  try{require('child_process').execSync('curl -sL -o "'+tmp+'" "'+u+'"');}catch(e){}
-  try{if(fs.existsSync(tmp)&&fs.statSync(tmp).size>5000){const r=await sendImg(tmp);return r;}}catch(e){jlog('⚠️ sendImgUrl echec: '+e.message);}
-  return tg('sendPhoto',{photo:u});
-}
-/*newlook v7 : VARIANTE B validee — tout-en-un, selections visibles ●, Generer en 1 appui. Regle Etoile : images TEST d'abord, video/HD seulement apres validation visuelle.*/
-function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;} /*selection lisible : ✅ remplace l'emoji de tete*/
+function nlText(caption,rows){return nlMedia(null,caption,rows);} /*caption/boutons seulement, image inchangee*/
+function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;}
 async function nlConfig(){
   const {readLookbook}=nlMod();
   const lb=readLookbook();
@@ -189,40 +220,43 @@ async function nlConfig(){
   rows.push([{text:nlMark('🎲 Surprise (catalogue 204)',newlook.category==='random'&&!newlook.extra),callback_data:'NL_SET_CAT_random'}]);
   rows.push(Object.keys(lb.envs).map(k=>({text:nlMark(lb.envs[k].label,newlook.env===k),callback_data:'NL_SET_ENV_'+k})));
   rows.push([
-    {text:nlMark('🧪 Éco · 💰·',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
-    {text:nlMark('🖼 Planche ×3 · 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
-    {text:nlMark('💎 HD ×4 · 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
+    {text:nlMark('🧪 Éco 💰·',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
+    {text:nlMark('🖼 Planche ×3 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
+    {text:nlMark('💎 HD ×4 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
   ]);
-  rows.push([{text:'▶️ Générer ('+newlook.catLabel.replace(/^[^ ]+ /,'')+' · '+newlook.envLabel.replace(/^[^ ]+ /,'')+' · '+newlook.mode+')',callback_data:'NL_GO'}]);
+  rows.push([{text:'▶️ GÉNÉRER — '+newlook.catLabel.replace(/^[^ ]+ /,'')+' · '+newlook.envLabel.replace(/^[^ ]+ /,'')+' · '+newlook.mode+' (payant)',callback_data:'NL_GO'}]);
   rows.push([{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
-  await nlPanel('🎨 <b>Nouveau look</b>\n① Tenue : '+escH(newlook.catLabel)+' · ② Décor : '+escH(newlook.envLabel)+' · ③ Format : '+newlook.mode+' · ④ Générer\nAppuie pour sélectionner (✅), puis Générer.\n💰 <b>Coûts</b> : toute génération d\'image est PAYANTE (Éco/Planche ≈ le moins cher, HD ≈ 4× plus). Gratuit : /probe et le test sous-titres sandbox.\n<i>Images test d\'abord — HD et vidéo après validation visuelle.</i>',rows);
+  const cur=(newlook.urls.length&&nlLocal(newlook.idx))||null;
+  await nlMedia(cur||nlCover(),'🎨 <b>Nouveau look</b>\n① '+escH(newlook.catLabel)+' · ② '+escH(newlook.envLabel)+' · ③ '+newlook.mode+'\n💰 image = payant · gratuit : /probe, ✂️ découpe, /test',rows);
 }
-async function nlResults(){
+function nlResultRows(){
   const n=newlook.urls.length;
-  const keepRow=newlook.urls.map((u,i)=>({text:'✅ '+(i+1),callback_data:'NL_KEEP_'+i}));
-  if(n>1)keepRow.push({text:'✅ Tout',callback_data:'NL_KEEP_ALL'});
-  /*regle Etoile : video et HD se debloquent ICI seulement (apres des images vues) — jamais avant*/
-  const rows=[keepRow,
-    ...(newlook.mode==='planche'?[[{text:'✂️ Découper en 3 poses (gratuit, pour le lipsync)',callback_data:'NL_SPLIT'}]]:[]),
-    [{text:'🎬 Vidéo avec ce look',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'?[{text:'💎 Version HD finale',callback_data:'NL_HD'}]:[])],
-    [{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]];
-  await nlPanel('🎨 <b>Résultats</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+'\nChaque garde mémorise la recette (/look pour recréer)',rows);
+  const rows=[];
+  if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
+  rows.push([{text:'✅ Garder cette pose',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'✅ Tout garder',callback_data:'NL_KEEP_ALL'}]:[])]);
+  if(newlook.mode==='planche')rows.push([{text:'✂️ Découper en 3 poses (gratuit)',callback_data:'NL_SPLIT'}]);
+  rows.push([{text:'🎬 Vidéo avec cette pose',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD',callback_data:'NL_HD'}]:[])]);
+  rows.push([{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]);
+  return rows;
+}
+async function nlShowResult(){
+  const f=nlLocal(newlook.idx);
+  await nlMedia(f,'🎨 <b>Résultats</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+(newlook.urls.length>1?' · image '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows());
 }
 async function runNewLook(){
   if(newlook.busy){return;}
   newlook.busy=true;
   let _sec=0;
   const _lab={eco:'🧪 Éco (1 pose 720p)',planche:'🖼 Planche (3 poses en 1 image)',hd:'💎 HD (4 portraits 1080p)'}[newlook.mode]||newlook.mode;
-  const _hb=setInterval(()=>{_sec+=30;nlPanel('⏳ <b>Génération en cours…</b> ('+_sec+'s)\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab).catch(()=>{});},30000); /*le panneau s'auto-edite : zero spam*/
+  const _hb=setInterval(()=>{_sec+=30;nlText('⏳ <b>Génération en cours…</b> ('+_sec+'s)\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab).catch(()=>{});},30000);
   try{
-    await nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab+(process.env.HIGGS_SOUL_ID?'':'\n(1ère fois : + création de la référence visage, jusqu\'à ~10 min)'));
+    await nlText('⏳ <b>Génération en cours…</b>\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
     const {generateLook}=nlMod();
-    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
-    newlook.urls=r.urls;newlook.recipe=r.recipe;
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlText('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
+    newlook.urls=r.urls;newlook.files=[];newlook.idx=0;newlook.recipe=r.recipe;
     clearInterval(_hb);
-    await sendAlbum(r.urls); /*correction Etoile : toutes les photos a la suite, en defilement, collees au panneau de controle*/
-    await nlResults();
-  }catch(e){clearInterval(_hb);await nlPanel('❌ <b>Échec génération</b>\n'+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
+    await nlShowResult();
+  }catch(e){clearInterval(_hb);await nlText('❌ <b>Échec génération</b>\n'+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
   newlook.busy=false;
 }
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
@@ -1962,7 +1996,8 @@ await send('Ready to generate video?',[
       if(d==='MU_VOL_DN')m.volume=clampN(m.volume-0.03,0,1);
       writeFx(fx);await refreshPanel();return;
     }
-    // Nouveau look /*newlook v7 : variante B*/
+    // Nouveau look /*v10 : message-media unique — tout se passe dans LE bloc, aucun message envoye*/
+    if(d==='NL_NOOP'){return;}
     if(d.startsWith('NL_SET_CAT_')){
       const c=d.replace('NL_SET_CAT_','');
       newlook.extra=null;
@@ -1972,51 +2007,51 @@ await send('Ready to generate video?',[
     }
     if(d.startsWith('NL_SET_ENV_')){newlook.env=d.replace('NL_SET_ENV_','');nlConfig();return;}
     if(d.startsWith('NL_SET_MODE_')){newlook.mode=d.replace('NL_SET_MODE_','');nlConfig();return;}
-    if(d==='NL_GO'){newlook.urls=[];runNewLook();return;}
+    if(d==='NL_GO'){newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
     if(d==='NL_CONFIG'){nlConfig();return;}
+    if(d==='NL_NAV_P'){if(newlook.urls.length>1){newlook.idx=(newlook.idx-1+newlook.urls.length)%newlook.urls.length;nlShowResult();}return;}
+    if(d==='NL_NAV_N'){if(newlook.urls.length>1){newlook.idx=(newlook.idx+1)%newlook.urls.length;nlShowResult();}return;}
     function nlSave(i){
       const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
       const dest=require('path').join(getLooksDir(),'gen_'+stamp+'_p'+(i+1)+'.jpg');
-      if(String(newlook.urls[i]).startsWith('/'))fs.copyFileSync(newlook.urls[i],dest); /*pose decoupee (fichier local)*/
+      const src=nlLocal(i);
+      if(src)fs.copyFileSync(src,dest);
       else require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.urls[i]+'"');
-      try{nlMod().saveRecipe(newlook.recipe,require('path').basename(dest));}catch(e){}
+      try{nlMod().saveRecipe(newlook.recipe||{},require('path').basename(dest));}catch(e){}
       return dest;
     }
-    if(d.startsWith('NL_KEEP_')&&d!=='NL_KEEP_ALL'){
-      const i=+d.replace('NL_KEEP_','');
-      if(!newlook.urls[i]){await send('Pose introuvable.');return;}
-      try{nlSave(i);await nlResults();await send('✅ Pose '+(i+1)+' dans la galerie (recette /look).');}catch(e){await send('Erreur : '+e.message);}
+    if(d==='NL_KEEP_CUR'){
+      try{nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>Pose '+(newlook.idx+1)+' gardée</b> (galerie + recette /look)\n🎨 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_KEEP_ALL'){
-      try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await send('✅ '+n+' poses dans la galerie (même recette /look).');}catch(e){await send('Erreur : '+e.message);}
+      try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await nlText('✅ <b>'+n+' poses gardées</b> (galerie + recette /look)',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
-    if(d==='NL_VIDEO'){ /*regle Etoile : seulement apres images vues — applique le look et ouvre le flux video*/
-      if(!newlook.urls.length){await send('Génère et valide des images d\'abord.');return;}
-      try{
-        const dest=nlSave(0);
-        setAvatar(dest);
-        await nlPanel('🎬 <b>Look appliqué comme avatar</b> ('+require('path').basename(dest)+')\nLance la vidéo via le menu ci-dessous.');
-        await showMainMenu();
-      }catch(e){await send('Erreur : '+e.message);}
-      return;
-    }
-    if(d==='NL_HD'){newlook.urls=[];newlook.mode='hd';runNewLook();return;}
-    if(d==='NL_SPLIT'){ /*split v1 : planche → 3 poses separees pretes pour le lipsync*/
+    if(d==='NL_SPLIT'){
       (async()=>{
         try{
-          await nlPanel('✂️ <b>Découpage de la planche en 3 poses…</b> (gratuit)');
+          await nlText('✂️ <b>Découpage de la planche en 3 poses…</b> (gratuit)');
           const files=await nlMod().splitPlanche(newlook.urls[0]);
-          newlook.urls=files;newlook.mode='split';
-          for(const f of files){await sendImg(f);}
-          await nlResults();
-        }catch(e){await nlPanel('❌ Découpage : '+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_SPLIT'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'}]]);}
+          newlook.urls=files;newlook.files=files.slice();newlook.idx=0;newlook.mode='split';
+          await nlShowResult();
+        }catch(e){await nlText('❌ Découpage : '+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_SPLIT'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'}]]);}
       })();
       return;
     }
-    if(d==='NL_RETRY'){newlook.urls=[];runNewLook();return;}
-    if(d==='NL_CANCEL'){newlook.urls=[];await nlPanel('🎨 Terminé — galerie à jour.');newlook.panelId=null;return;}
+    if(d==='NL_VIDEO'){
+      if(!newlook.urls.length){await nlText('⚠️ Génère et valide des images d\'abord.',nlResultRows());return;}
+      try{
+        const dest=nlSave(newlook.idx);
+        setAvatar(dest);
+        await nlMedia(nlLocal(newlook.idx),'🎬 <b>Pose appliquée comme avatar</b>\nLance la vidéo : /go',[[{text:'▶️ Ouvrir le menu vidéo',callback_data:'NEW_GO'}],[{text:'◀️ Retour aux résultats',callback_data:'NL_BACKRES'}]]);
+      }catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
+      return;
+    }
+    if(d==='NL_BACKRES'){nlShowResult();return;}
+    if(d==='NL_HD'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
+    if(d==='NL_RETRY'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
+    if(d==='NL_CANCEL'){await nlText('🎨 Terminé — galerie à jour. /newlook pour recommencer.');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
