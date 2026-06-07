@@ -5,11 +5,11 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 52;     // ✅ aligné look validé Arial Black (frames test_local validées par Etoile)
+const FONT_SIZE = 54;     // ✅ aligné look validé Arial Black (frames test_local validées par Etoile)
 const OY        = 0.347;  // ✅ aligné look validé Arial Black (position subref v2)
 //  (optionnel)
 const LETTER    = '2px';  // espacement entre lettres (subref v2 : letter-spacing 2px)
-const ZOOM      = 1.0;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)
+const ZOOM      = 1.04;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)
 const FONT      = 'Arial Black'; // police du rendu local libass (bouton 🔤 Telegram) — ex: Archivo Black, Helvetica
 const SUBS      = 1;      // 1 = sous-titres incrustés ; 0 = vidéo propre (captions ajoutées dans TikTok)
 // ============================================================

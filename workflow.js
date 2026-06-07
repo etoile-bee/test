@@ -170,16 +170,16 @@ async function renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num
   for(const kw of sorted){
     const zs=Math.max(kw.start-0.05,cur);
     // segment plan large avant le mot-cle
-    if(zs>cur+0.05)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:zs-cur,scale:1.0});
+    if(zs>cur+0.05)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:zs-cur,scale:1.04});
     // segment zoom sur le mot-cle, intensite alternee
     const z=ZOOMS[ki%ZOOMS.length];ki++;
     const ze=Math.min(zs+2.5,duration); /*zoom2*/ // zoom plus frequent
     vc.push({asset:{type:'video',src:lipsyncUrl,trim:zs},start:zs,length:ze-zs,scale:z});
     cur=ze;
   }
-  if(cur<duration-0.1)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:duration-cur,scale:1.0});
+  if(cur<duration-0.1)vc.push({asset:{type:'video',src:lipsyncUrl,trim:cur},start:cur,length:duration-cur,scale:1.04});
   if(vc.length===0)vc=[{asset:{type:'video',src:lipsyncUrl},start:0,length:duration}];
-  vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.0}]; const _reactClips=[]; /*reactions v1*/
+  vc.forEach(function(_c){if(_c.asset&&_c.asset.type==='video')_c.asset.volume=0;}); const _audioBed=[{asset:{type:'video',src:lipsyncUrl,volume:1},start:0,length:duration,scale:1.04}]; const _reactClips=[]; /*reactions v1*/
   try{
     if(reactions&&reactions.length){
       const _norm=s=>String(s||'').toUpperCase().replace(/[.,!?;:'"\u2014\u2013-]/g,'').split(/\s+/).filter(Boolean);
