@@ -905,6 +905,7 @@ async function genMockup(){
   if(!raw){await send('⚠️ Pas d\'ancien footage. Utilise 🚀 GO direct.');return;}
   await cockpitCaption('🎙 Voix + rendu maquette…',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]);
   try{
+    ttsCheck('maquette',genJob.script);
     genJob.audio=await WF.generateAudio(genJob.script,1);
     const out='/tmp/mockup_'+Date.now()+'.mp4';
     await freshRL().renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
@@ -933,14 +934,14 @@ async function genFinal(){
     const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
     const outDir=path.join(BASE,'outputs');
     genStep='voix';abrt();
-    if(!job.audio)job.audio=await WF.generateAudio(job.script,1);
+    if(!job.audio){ttsCheck('gen p1',job.script);job.audio=await WF.generateAudio(job.script,1);}
     genStep='avatar';abrt();await setProg('📝 ✓ · 🎙 ✓ · 🖼 avatar…');
     const imageUrl=await WF.prepareImage();
     const clips=[];const prevScripts=[job.script];const partsMeta=[];
     for(let i=1;i<=job.parts;i++){
       let c,audio;
       if(i===1){c=job.c1;audio=job.audio;}
-      else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
+      else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);ttsCheck('gen p'+i,c.script);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
       genStep='lipsync '+i+'/'+job.parts;abrt();await setProg('🎬 Lipsync '+i+'/'+job.parts+'… (~3-5 min)');
       const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i,abortNow);
       const rawi=await WF.saveLipsyncRaw(lip,i,ts,outDir);
@@ -1095,6 +1096,14 @@ function setWorkPhoto(p){if(p&&fs.existsSync(p))workingSource=p;}
 function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
 // Texte d'aperçu : script courant de la session s'il existe, sinon démo
 const DEMO_SCRIPT='SHE SAYS YOU CHANGED BUT CHEMISTRY FADES';
+// 🔒 Garde-fou TTS : refuse tout texte suspect (statut/commande/mot unique/trop court) avant ElevenLabs
+const TTS_BAD=/^[\/]?(status|running|idle|lipsync|rendu|voix|avatar|script|maquette|done|ok|pending|completed|failed|queued|processing|undefined|null|stop|menu|go|restart|test|preview|edit|looks)$/i;
+function validTTS(t){t=String(t||'').trim();if(t.length<15)return false;if(!/\s/.test(t))return false;if(TTS_BAD.test(t))return false;return true;}
+// Loggue le texte exact envoyé au TTS (preuve dans ui_journal) + bloque si suspect
+function ttsCheck(where,text){
+  uiLog({dir:'out',type:'tts',screen:where,user_action:String(text||'').slice(0,80),caption_len:(text||'').length,buttons:[],edited_in_place:false});
+  if(!validTTS(text))throw new Error('Texte TTS suspect en '+where+' : « '+String(text||'').slice(0,40)+' » — génération bloquée (le script n\'a pas été validé correctement).');
+}
 // L'aperçu/preview LIT le script validé s'il existe (lecture seule, ne l'écrase JAMAIS), sinon démo.
 function previewScript(){return (genJob&&genJob.script)?genJob.script:DEMO_SCRIPT;}
 function previewPhrase(){return previewScript().replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).slice(0,2).join(' ').toUpperCase().replace(/[^A-Z ]/g,'')||'WRONG YOURE';}
@@ -1899,8 +1908,12 @@ await send('Ready to generate video?',[
     if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}
     return;
   }
+  // 🔒 Une COMMANDE (/...) ne doit JAMAIS être capturée comme script/sujet/durée -> on libère l'attente
+  if(msg.text&&/^\//.test(msg.text.trim())&&['gj_edit_wait','gjm_dur_wait','rc_topic_wait','rc_dur_wait'].includes(state)){state='idle';}
   if(state==='gj_edit_wait'&&msg.text){
-    if(genJob){genJob.script=msg.text.trim();genJob.c1=Object.assign({},genJob.c1,{script:genJob.script});genJob.audio=null;}
+    const nt=msg.text.trim();
+    if(!validTTS(nt)){await send('⚠️ Texte trop court ou suspect (« '+nt.slice(0,30)+' »). Renvoie le script complet (≥ 15 caractères).');return;}
+    if(genJob){genJob.script=nt;genJob.c1=Object.assign({},genJob.c1,{script:genJob.script});genJob.audio=null;}
     state='idle';
     if(genJob)await showScriptCard();else await send('✅ Script remplacé.');
     return;

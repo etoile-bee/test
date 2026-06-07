@@ -58,6 +58,10 @@ async function generateScript(topic,words){
 const VOICE_JITTER={stability:0.45,style:0.30,range:0.06};
 function jitterVoice(){const j=()=>(Math.random()*2-1)*VOICE_JITTER.range;return{stability:+Math.min(0.7,Math.max(0.30,VOICE_JITTER.stability+j())).toFixed(3),style:+Math.min(0.6,Math.max(0.15,VOICE_JITTER.style+j())).toFixed(3)};}
 async function generateAudio(script,num){
+  // 🔒 Dernier rempart : refuse un texte TTS suspect (statut/commande/mot unique/trop court)
+  const _s=String(script||'').trim();
+  if(_s.length<15||!/\s/.test(_s)||/^[\/]?(status|running|idle|lipsync|rendu|voix|avatar|script|maquette|done|ok|undefined|null|stop|menu|go)$/i.test(_s))
+    throw new Error('generateAudio: texte suspect « '+_s.slice(0,40)+' » bloqué');
   const vj=jitterVoice();
   console.log('\n🎙  Audio Part '+num+' (ElevenLabs Imany, stab='+vj.stability+' style='+vj.style+')...');
   const mp3='/tmp/wf_'+num+'.mp3',wav='/tmp/wf_'+num+'.wav';
