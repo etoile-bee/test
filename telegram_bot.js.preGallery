@@ -117,44 +117,6 @@ async function dlPhoto(fileId){
   fs.writeFileSync(fp,buf);
   return fp;
 }
-// ── Galerie de looks ────────────────────────────────────────────────────────────
-function trashDir(){const t=path.join(getLooksDir(),'_trash');try{fs.mkdirSync(t,{recursive:true});}catch(e){}return t;}
-function looksList(){try{return fs.readdirSync(getLooksDir()).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_')).sort();}catch(e){return[];}}
-function tsName(){const d=new Date();const p=n=>String(n).padStart(2,'0');return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());}
-async function dlPhotoNamed(fileId,name){
-  const r=await tg('getFile',{file_id:fileId});
-  const url=`https://api.telegram.org/file/bot${TOKEN}/${r.result.file_path}`;
-  const buf=await (await fetch(url)).buffer();
-  const fp=path.join(getLooksDir(),name);
-  fs.writeFileSync(fp,buf);return fp;
-}
-// envoie une photo locale AVEC boutons inline
-async function sendPhotoKb(fp,caption,rows){
-  try{
-    let f=fp;
-    try{const st=fs.statSync(fp);if(st.size>9000000){const small='/tmp/prev'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 1280 -s format jpeg "'+fp+'" --out "'+small+'" 2>/dev/null');if(fs.existsSync(small))f=small;}}catch(e){}
-    const FormData=require('form-data');const form=new FormData();
-    form.append('chat_id',CHAT_ID);
-    form.append('photo',fs.readFileSync(f),{filename:'look.jpg',contentType:'image/jpeg'});
-    if(caption)form.append('caption',caption);
-    if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
-    const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendPhoto',{method:'POST',body:form});
-    return r.json();
-  }catch(e){console.error('sendPhotoKb',e.message);return send((caption||'📸')+' (image indisponible)',rows);}
-}
-let gal={files:[],idx:0};
-let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
-async function showLook(){
-  gal.files=looksList();
-  if(!gal.files.length){await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.');return;}
-  if(gal.idx<0)gal.idx=gal.files.length-1; if(gal.idx>=gal.files.length)gal.idx=0;
-  const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
-  // iCloud : tente le téléchargement si le fichier semble être un placeholder
-  try{if(!fs.existsSync(fp)||fs.statSync(fp).size<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}}}catch(e){}
-  await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,[
-    [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
-  ]);
-}
 
 // ── Setup flow ────────────────────────────────────────────────────────────────
 const TOPIC_IDEAS=[
@@ -783,34 +745,6 @@ await send('Ready to generate video?',[
       wfInput(ans);state='running';
       //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
     }
-    // Galerie de looks
-    if(d==='GAL_PREV'){gal.idx--;await showLook();return;}
-    if(d==='GAL_NEXT'){gal.idx++;await showLook();return;}
-    if(d==='GAL_AVATAR'){
-      const list=looksList();const f=list[gal.idx];
-      if(!f){await send('⚠️ Look introuvable.');return;}
-      const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
-      await send('✅ Avatar défini : <b>'+f+'</b>\nIl sera utilisé pour la prochaine vidéo.');return;
-    }
-    if(d==='GAL_DEL'){
-      const list=looksList();const f=list[gal.idx];
-      if(!f){await send('⚠️ Rien à supprimer.');return;}
-      const src=path.join(getLooksDir(),f);const dst=path.join(trashDir(),f);
-      try{fs.renameSync(src,dst);}catch(e){try{fs.copyFileSync(src,dst);fs.unlinkSync(src);}catch(e2){await send('❌ Échec suppression : '+e2.message);return;}}
-      await send('🗑 <b>'+f+'</b> déplacé dans <code>looks/_trash/</code> (réversible — rien n\'est perdu).');
-      const after=looksList();if(gal.idx>=after.length)gal.idx=after.length-1;
-      await showLook();return;
-    }
-    if(d==='ADD_LOOK'||d==='ADD_LOOK_AVATAR'){
-      if(!pendingPhotoId){await send('⚠️ Aucune photo en attente — renvoie une photo.');return;}
-      try{
-        const fp=await dlPhotoNamed(pendingPhotoId,'look_'+tsName()+'.jpg');pendingPhotoId=null;
-        if(d==='ADD_LOOK_AVATAR'){setAvatar(fp);setup.photo=fp;await send('✅ Ajouté aux looks + défini comme avatar : <b>'+path.basename(fp)+'</b>');}
-        else await send('✅ Ajouté aux looks : <b>'+path.basename(fp)+'</b>');
-      }catch(e){await send('❌ '+e.message);}
-      return;
-    }
-    if(d==='ADD_IGNORE'){pendingPhotoId=null;await send('Ok, photo ignorée.');return;}
     // Menu /edit unifié
     if(d==='EDIT_HOME'){await showEditHome();return;}
     if(d==='EDIT_SUBS'){await showSettings();return;}
@@ -945,16 +879,6 @@ await send('Ready to generate video?',[
     await mRecap();
     return;
   }
-  // Photo reçue hors des flux de génération -> proposer de l'ajouter aux looks
-  if(msg.photo){
-    pendingPhotoId=msg.photo[msg.photo.length-1].file_id;
-    await send('📸 Photo reçue. Que veux-tu en faire ?',[
-      [{text:'➕ Ajouter aux looks',callback_data:'ADD_LOOK'}],
-      [{text:'🖼 Ajouter + utiliser comme avatar',callback_data:'ADD_LOOK_AVATAR'}],
-      [{text:'❌ Ignorer',callback_data:'ADD_IGNORE'}],
-    ]);
-    return;
-  }
   const txt=(msg.text||'').trim();
   if(!txt)return;
 
@@ -1015,7 +939,12 @@ await send('Ready to generate video?',[
       await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
     }catch{await send('No library yet.');}return;
   }
-  if(txt==='/looks'){gal.idx=0;await showLook();return;}
+  if(txt==='/looks'){
+    try{
+      const files=fs.readdirSync(getLooksDir()).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f));
+      await send('📸 <b>'+files.length+' looks</b> available.\n\nUse /go → Random to browse them.');
+    }catch{await send('No looks found.');}return;
+  }
   if(txt==='/ideas'){
     await send('⏳ Generating ideas...');
     try{
