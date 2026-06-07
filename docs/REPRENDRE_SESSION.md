@@ -1,12 +1,23 @@
 # Reprendre CETTE session (podcast-bot) et suivre le code en direct
 
-## Repères de la session
+## ⚠️ Cette conversation = 2 moitiés (compactée en cours de route)
+La session a démarré (« créer le rendu ffmpeg 100% local »), puis a été compactée et a CONTINUÉ
+dans un nouveau fichier. Pour la reprendre et continuer, c'est la **moitié vivante** qu'il faut.
+
+| Moitié | Session id | Fichier .jsonl | Rôle |
+|---|---|---|---|
+| **Ouverture → ~01:09** | `1ab8aacd-2271-46a7-a322-60110fde5463` | `…/1ab8aacd-….jsonl` | le tout début verbatim (à RELIRE seulement) |
+| **~01:09 → maintenant** | `2e2b4bdc-4482-44d4-a621-2aee99b94efd` | `…/2e2b4bdc-….jsonl` | **la session VIVANTE → à REPRENDRE** |
+
+## Repères
 - **Projet** : `~/podcast-workflow`
-- **ID session Claude Code** : `1ab8aacd-2271-46a7-a322-60110fde5463`
-- **Transcript complet** (plaintext, tout l'historique code) :
-  `~/.claude/projects/-Users-fayrouzn-podcast-workflow/1ab8aacd-2271-46a7-a322-60110fde5463.jsonl`
+- **👉 Session à REPRENDRE (vivante)** : `2e2b4bdc-4482-44d4-a621-2aee99b94efd`
+- **Session « ouverture » (lecture du début)** : `1ab8aacd-2271-46a7-a322-60110fde5463`
+- **Dossier transcripts** : `~/.claude/projects/-Users-fayrouzn-podcast-workflow/`
 - **Wrapper Cowork (local-agent-mode)** : `35b0ae54-…/d6226c0d-…`
 - **État du code figé** : tag git `etat-2026-06-08-v2stable` → commit `0326749`
+
+> Le plus simple : **nomme la session vivante** (voir ①) → tu la reprends par son nom, sans te soucier des ids.
 
 > Cowork (onglet Cowork) = cloud Anthropic. Onglet **Code** = Claude Code **local** (`~/.claude/projects/`).
 > Notre session vit en local → elle se reprend comme une session Claude Code normale.
@@ -29,9 +40,9 @@ Dans cette session, tape simplement :
 ### B. Au terminal (le plus fiable, indépendant de l'UI)
 ```bash
 cd ~/podcast-workflow
-claude --resume podcast-bot-v2          # par le nom (après l'avoir nommée)
-# ou par l'ID :
-claude --resume 1ab8aacd-2271-46a7-a322-60110fde5463
+claude --resume podcast-bot-v2          # par le nom (après l'avoir nommée) — RECOMMANDÉ
+# ou par l'ID de la session VIVANTE :
+claude --resume 2e2b4bdc-4482-44d4-a621-2aee99b94efd
 ```
 Sans argument, `claude --resume` ouvre un **sélecteur** : flèches pour choisir, `/` pour chercher, `Space` pour aperçu, `Ctrl+R` pour renommer, `Entrée` pour reprendre.
 → Reprend **exactement** la même session avec tout l'historique (identique à l'app, juste en terminal).
@@ -40,7 +51,8 @@ Sans argument, `claude --resume` ouvre un **sélecteur** : flèches pour choisir
 - **Dans l'app (onglet Code)** : une fois la session rouverte, tu vois en temps réel chaque action de l'agent (édits de fichiers, commandes, etc.) au fil de l'eau — c'est la vue « live » que tu avais.
 - **En plus / en parallèle (terminal)** : tu peux suivre le transcript brut qui s'écrit en continu :
   ```bash
-  tail -f ~/.claude/projects/-Users-fayrouzn-podcast-workflow/1ab8aacd-2271-46a7-a322-60110fde5463.jsonl
+  # la session VIVANTE :
+  tail -f ~/.claude/projects/-Users-fayrouzn-podcast-workflow/2e2b4bdc-4482-44d4-a621-2aee99b94efd.jsonl
   ```
 
 ## ④ Revenir à l'ÉTAT DU CODE (pas la conversation)
