@@ -55,15 +55,14 @@
 ## ✅ V1 VALIDÉE (tag git `v1-validee`, 07/06 ~4h30) — base figée
 Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.25, couleur V5 adaptative (desat only), trim 0.10s, bt709, sans réactions, lookpick nouveautés d'abord. Toute évolution = nouvelle branche de travail, la v1 reste récupérable.
 
-## CE QU'IL RESTE À FAIRE (ordre recommandé)
-0. 🔔 RAPPEL ETOILE : passer en revue ENSEMBLE tous les réglages par défaut (style.json/fx : réactions, zooms, musique, durée, sous-titres…) — demandé le 07/06 au soir.
-1. ⚠️ Redémarrer le bot (commande sécurisée ci-dessus) — TOUJOURS PAS FAIT : active `/test`, `/stop` "partout", `/settings` retargés, lookpick côté bot.
-2. Publication TikTok automatique (clés dans .env, code à écrire — OAuth + Content Posting API, prérequis : app TikTok déclarée). Le chaînon manquant du 100% auto.
-3. Remplacer tmpfiles.org par un stockage privé (S3/R2) — fiabilité + confidentialité, indispensable avant monétisation.
-4. 🆕 Galerie de looks dans le bot (parcourir/choisir, pas seulement random).
-5. Multi-personas : extraire la config par influenceuse (voix, looks, thème, prompts, compte) — le moteur reste unique.
-6. Boucle d'apprentissage : brancher /mark (62 scripts, 0 noté) → le générateur de sujets privilégie ce qui performe.
-7. Décider du sort du dashboard web (server.js) : ressusciter comme interface produit ou supprimer.
+## CE QU'IL RESTE À FAIRE (backlog précis, validé par Etoile le 08/06)
+0. ⚠️ /restart à faire pour activer les derniers livrés : RÉCAP avant paiement, Enregistrer/Refaire pareil/Autre look, planche entière, légende copiable sans titre, Partie suivante en fin, bt709 rendu local.
+1. Points validés PAS ENCORE codés : ⑦ "garder ces réglages par défaut ?" après résultat · previews à CHAQUE step (même édition) · menu durée 15s→2min · 📅 calendrier "à poster le"+/calendar+📤 posté avec refaire/rééditer · bouton 📝 Légendes sur résultat vidéo · option "animer la planche" 5-6s intro/outro (= réactions lipsync réutilisables).
+2. Maquette à proposer (règle maquette) : BANQUE DE RÉACTIONS (clips lipsync 3-6s réutilisables par look) + INDEX MÉDIA media_index.json (catalogue auto de chaque fichier : type, chemin, recette, usages).
+3. Prix : vidéo HD 30s = 10 ou 13 cr À RECONFIRMER par Etoile (13 retenu). Tout le reste calibré (voir lookbook.pricing).
+4. Revue ENSEMBLE de tous les réglages par défaut (style.json/fx) — rappel demandé.
+5. Publication TikTok auto (clés .env, code à écrire) + stockage privé (remplacer tmpfiles) + multi-personas + boucle /mark + sort du dashboard server.js.
+6. Planches "outfit blanc" : prompt planche mixte déjà calqué sur les captures validées ; Etoile peut renvoyer les originales si le rendu dévie.
 
 ## PRÉFÉRENCE SOUS-TITRES (modèle visé)
 - Style référence : photo "CHEMISTRY FADES" = grotesque type Arial/Helvetica, TOUT BLANC, lettres espacées, ombre douce (PAS de gros contour noir), au HAUT DE LA MOUSSE DU MICRO (pas au cou).
@@ -85,6 +84,7 @@ Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.2
 - Infra de travail : `bot_journal.log` = conversation bot↔Etoile lisible par Claude en direct ; hot-reload de newlook.js (correctifs sans restart) ; /restart depuis le chat.
 - Modèles dispo aussi : nano-banana (édition par référence) — candidat /benchlook.
 
+- **2026-06-07/08 nuit (Cowork, session 2 — passation)** : Système looks FINAL certifié banc d'essai (tests/sim_panel.js = preuve : 1 panneau, 0 parasite). Moteur seedream /v1 + réf imany, panneau média unique style ÉDITION, accueil compact + sous-menus, RÉCAP avant paiement, planche mixte podcast, recréation 9:16 au choix, Enregistrer/Refaire pareil/Autre look, archive totale + /gens + /look + /prompt + /probe + /assemble + /restart + journal bot_journal.log (lisible par Claude en direct) + hot-reload newlook.js. Réactions OFF défaut. Prix calibrés (0.5cr photo, 7.36cr HDx4, 4cr vidéo test, 10-13cr vidéo 30s ; 500cr=31USD). Règles gravées : maquette d'abord, style ÉDITION partout, un seul écran, images test d'abord, suivi/5 actions. Bot très enrichi en parallèle par session Dispatch (éditeur /edit, rendu local, /posted, cover...). REPRENDRE PAR : backlog section RESTE À FAIRE.
 ## HISTORIQUE DES SESSIONS (ne pas supprimer — ajouter en haut)
 - **2026-06-07 (suite nuit)** : Calibrage final validé par tests successifs mesurés. Sous-titres verrouillés : Archivo Black 45px embarquée, OY=0.25 (68%, pendentif), tag `soustitres-valides-v2-archivo`. Couleur verrouillée : teinte V5 adaptative (`color_style.js`, source unique prod+test, coloradapt v2 `aa606ff`), étiquette bt709 (fix jaune téléphone). Trim 0.10s + réactions OFF + `/stop` "partout" (stopall v1) + `/test` Telegram. TEST FINAL OK (couleur+sous-titres fidèles). Reste : vidéo de validation complète → tag v1-validee.
 - **2026-06-06/07 (Cowork, 1ère session)** : Setup Cowork (plugins Marketing/Adobe/Small Business). Accès direct aux 3 dossiers. Commits : `76a30d9` (état avant), `a26b161` revue1 (5 fix workflow.js), `3e5800c`+`a7f5aef` test sync subref v2, `7af9202` cmdtest v1 (/test Telegram), `8fb8c55` substyle v1 (source unique `subtitle_style.js`, fix /settings position). Purge "mauvaise personne" : 8 fichiers supprimés (3 tg_*.jpg looks, raw+p1+txt 21-21, TEST_soustitres.mp4, selfie terrasse). `999f229` trimstart v1 (coupe 0.10s debut, pop audio — VALIDÉ sur démo DEMO_trim_0.1s.mp4). `04078ba` réactions audio OFF (demande Etoile). `6888f34` + tag `soustitres-valides-v1` : SOUS-TITRES VALIDÉS ET VERROUILLÉS par Etoile sur DEMO_trim_0.1s (style prod Arial Black 52px/OY 0.347) — fausse piste Archivo annulée, le sandbox rend mal la police, référence = prod. Résultat attendu de la session suivante : redémarrage bot fait, puis UNE vraie vidéo de validation complète → tag v1-validee.
