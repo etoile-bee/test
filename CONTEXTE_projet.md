@@ -44,6 +44,7 @@
 - `telegram_bot.js` : commande `/test` ajoutée (sandbox, garde-fous) + réglages /settings retargés sur `subtitle_style.js` → ⚠️ REDÉMARRAGE PM2 EN ATTENTE (quand bot libre).
 - Avatar `.env` : la bonne influenceuse (hf_20260531_191302...). Purge faite : tous les fichiers de la "mauvaise personne" (session 21h10-21h28 du 06/06) + selfie terrasse supprimés.
 - Son : trimstart v1 VALIDÉ par Etoile (démo écoutée) — 0.10s coupées en début de chaque vidéo dans la passe finale (pop audio réglé). Réglage : const TRIM dans saveOpen.
+- Couleur : ✅ teinte V5 VALIDÉE par Etoile (07/06, DEMO_couleur_V5) = désat -12%, bleu tons moyens/clairs, +contraste, netteté douce, étiquette bt709 (fin du jaune téléphone). Correction ADAPTATIVE (coloradapt v1) : dosée via signalstats selon la saturation/jaune de la vidéo de base, référence _REF dans saveOpen. Encodage crf17/medium.
 
 ## CE QU'IL RESTE À FAIRE
 1. Redémarrer le bot (commande sécurisée ci-dessus) → active `/test` et les réglages /settings retargés.
