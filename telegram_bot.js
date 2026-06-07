@@ -146,12 +146,12 @@ async function sendPhotoKb(fp,caption,rows){
 let gal={files:[],idx:0};
 let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Choisir pour la vidéo »
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
+let galMid=null; // message de la galerie -> navigation EN PLACE (jamais d'empilement)
 async function showLook(){
   gal.files=looksList();
-  if(!gal.files.length){await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
   if(gal.idx<0)gal.idx=gal.files.length-1; if(gal.idx>=gal.files.length)gal.idx=0;
   const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
-  // iCloud : télécharge si placeholder/manquant (sync) + petite attente
   let sz=0;try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}
   if(sz<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}}
   const rows=[
@@ -159,14 +159,18 @@ async function showLook(){
   ];
   if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
   else {rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
-  if(sz<1000){ // toujours indisponible (placeholder iCloud non téléchargé)
-    await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée depuis iCloud. Ouvre-la une fois dans l'app Fichiers, ou ◀️ ▶️ pour la suivante.`,rows);return;
+  const cap=`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`;
+  if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
+    if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
+    galMid=null;await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows);return;
   }
-  const r=await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,rows);
-  if(!(r&&r.ok)){ // sendPhoto a échoué (format/poids) -> fallback texte clair
-    await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nAperçu indisponible (${fmtSize(sz)}). Utilise les boutons ci-dessous.`,rows);
-  }
+  // navigation EN PLACE (editMessageMedia) si un message galerie existe déjà
+  if(galMid&&await editPhotoKb(galMid,fp,cap,rows))return;
+  const r=await sendPhotoKb(fp,cap,rows);
+  galMid=(r&&r.result&&r.result.message_id)||null;
+  if(!(r&&r.ok)){galMid=null;await send(`⚠️ <b>${name}</b> — aperçu indisponible (${fmtSize(sz)}).`,rows);}
 }
+async function tgEditText(mid,text,rows){try{const d=await tg('editMessageText',{message_id:mid,text,parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});return d&&d.ok;}catch(e){return false;}}
 
 // ── Setup flow ────────────────────────────────────────────────────────────────
 const TOPIC_IDEAS=[
@@ -710,8 +714,7 @@ async function runLocalTest(){
     const st=r.style;
     await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
     await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
-    await offerReadyToPost(out).catch(()=>{});
-    await send('Ajuste via /edit puis 👁 Preview ou 🧪 Test.').catch(()=>{});
+    await send('Test (rendu local gratuit). Suite :',[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'}],[{text:'🎬 Générer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
   }catch(e){await send('❌ Test local : '+e.message);}
 }
 const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
@@ -979,6 +982,8 @@ async function renderStillPreview(imgPath){
 // Frame de travail courante (image look -> still ; sinon vidéo raw -> render)
 async function renderWorkingFrame(){
   const src=workSrc(); if(!src)return null;
+  // iCloud : télécharge le fichier si c'est un placeholder (sinon le rendu échoue)
+  try{if(fs.statSync(src).size<30000)require('child_process').execSync('brctl download "'+src+'" 2>/dev/null');}catch(e){}
   if(/\.(jpg|jpeg|png|webp)$/i.test(src))return await renderStillPreview(src);
   return await renderStyleFrame(src);
 }
@@ -1164,8 +1169,9 @@ async function runPreview(){
     if(!f){await send('❌ Aperçu indispo.');return;}
     const st=f.style, fx=readFx();
     const img=fx.image, colored=(img.brightness||img.contrast!==1||img.saturation!==1||img.temperature!==6500||img.sharpness||img.vignette)?'oui':'neutre';
-    const cap=`🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}\n🎬 zoom ${fx.zoom.on?'ON ×'+fx.zoom.intensity:'OFF'} • 🎨 couleur ${colored} • 🎵 ${fx.music.on?(fx.music.file||'on'):'OFF'}`;
+    const cap=`👁 Aperçu — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}\n🎬 zoom ${fx.zoom.on?'ON ×'+fx.zoom.intensity:'OFF'} • 🎨 couleur ${colored} • 🎵 ${fx.music.on?(fx.music.file||'on'):'OFF'}`;
     await sendImg(f.frame,cap).catch(()=>{});
+    await send('Suite :',[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'🧪 Test vidéo',callback_data:'MENU_TEST'}],[{text:'🎬 Générer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
   }catch(e){await send('❌ Aperçu: '+e.message);}
 }
 
@@ -1184,13 +1190,14 @@ async function handle(upd){
     // ── Carte récap : lignes modifiables ──
     if(d==='RC_CANCEL'){state='idle';await send('❌ Annulé.');await showMainMenu();return;}
     if(d==='RC_LOOK'){
-      const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));
-      if(ll.length)await send('👤 <b>LOOK</b> — tes derniers utilisés (aperçus) :');
-      for(let i=0;i<ll.length;i++){let fp=ll[i];try{if(fs.statSync(fp).size<30000)require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}await sendPhotoKb(fp,path.basename(ll[i]),[[{text:'✅ Utiliser ce look',callback_data:'RC_LL_'+i}]]).catch(()=>{});}
-      await send(ll.length?'Ou ouvre la galerie complète :':'👤 <b>LOOK</b> — ouvre la galerie :',[[{text:'👤 Galerie complète',callback_data:'RC_GALLERY'}],[{text:'◀️ Récap',callback_data:'RC_BACK'}]]);return;
+      // galerie EN PLACE (un seul message photo, ◀️▶️) démarrant sur le dernier look utilisé
+      galForRecap=true;galMid=null;
+      const last=(genState.lastLooks||[]).find(p=>fs.existsSync(p));
+      const li=last?looksList().indexOf(path.basename(last)):-1;gal.idx=li>=0?li:0;
+      await showLook();return;
     }
     if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await showRecap();return;}
-    if(d==='RC_GALLERY'){galForRecap=true;gal.idx=0;await showLook();return;}
+    if(d==='RC_GALLERY'){galForRecap=true;galMid=null;gal.idx=0;await showLook();return;}
     if(d==='RC_BACK'){await showRecap();return;}
     if(d==='RC_STYLE'){
       const list=listStyles();
@@ -1233,7 +1240,7 @@ async function handle(upd){
       }catch(e){await send('❌ Restyle : '+e.message);}
       return;
     }
-    if(d==='MENU_LOOKS'){gal.idx=0;await showLook();return;}
+    if(d==='MENU_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
     if(d.startsWith('FPAGE_')){const m=d.slice(6).match(/^(\w+)_(\d+)$/);if(m)await showFileList(m[1],+m[2]);return;}
@@ -1371,7 +1378,7 @@ await send('Ready to generate video?',[
     if(d==='MM_LOOK_UPLOAD'){state='m_upload_wait';await send('📷 Send a photo now (as a photo message):');return;}
     if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*restart v1*/
     if(d==='CHG_TOPIC'){await step1_topic();return;}
-    if(d==='CHG_LOOK'){galForRecap=false;gal.idx=0;await showLook();return;}
+    if(d==='CHG_LOOK'){galForRecap=false;galMid=null;gal.idx=0;await showLook();return;}
     if(d==='CANCEL'){state='idle';await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     // Workflow answers
     if(d.startsWith('A_')&&proc){
@@ -1386,7 +1393,10 @@ await send('Ready to generate video?',[
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
       const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;setWorkPhoto(fp);
-      await send('✅ Avatar + photo de travail : <b>'+f+'</b>\n(/edit, /preview et /test l\'utilisent.)');return;
+      await send('✅ Look <b>'+f+'</b> = avatar + photo de travail.\nÉdition, aperçu et test l\'utilisent maintenant.',[
+        [{text:'🎨 Retour à l\'édition',callback_data:'EDIT_HOME'}],
+        [{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+      ]);return;
     }
     if(d==='GAL_GEN'){
       const list=looksList();const f=list[gal.idx];
@@ -1481,7 +1491,7 @@ await send('Ready to generate video?',[
     if(d==='EDIT_MUS'){editSectionCur='mus';await openPanel('mus');return;}
     if(d==='EDIT_REACT'){editSectionCur='react';await openPanel('react');return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
-    if(d==='EDIT_LOOKS'){gal.idx=0;await showLook();return;}
+    if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
     if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
@@ -1659,7 +1669,7 @@ await send('Ready to generate video?',[
   const txt=(msg.text||'').trim();
   if(!txt)return;
   // menu principal automatique à la 1ère interaction de la journée
-  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(txt!=='/start'&&txt!=='/menu')await showMainMenu().catch(()=>{});}}
+  {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!/^\/?(go|menu|start)$/i.test(txt))await showMainMenu().catch(()=>{});}}
 
   if(txt==='/start'||txt==='/menu'){await showMainMenu();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
@@ -1702,7 +1712,7 @@ await send('Ready to generate video?',[
       await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
     }catch{await send('No library yet.');}return;
   }
-  if(txt==='/looks'){gal.idx=0;await showLook();return;}
+  if(txt==='/looks'){galMid=null;gal.idx=0;await showLook();return;}
   if(txt==='/ideas'){
     await send('⏳ Generating ideas...');
     try{
