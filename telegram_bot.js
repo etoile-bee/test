@@ -114,7 +114,8 @@ function buildVideoCaption(vp){const c=parseCaps(readCapTxt(vp));let cap='✅ <b
 function videoReadyKb(gfIdx){return [
   [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
   [{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Cover',callback_data:'COVER_OPEN_'+gfIdx}],
-  [{text:'📋 Légende longue',callback_data:'GF_LONG_'+gfIdx},{text:'📁 Dossier',callback_data:'GF_FILES_'+gfIdx}],
+  [{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+gfIdx},{text:'📋 Légende',callback_data:'GF_LONG_'+gfIdx}],
+  [{text:'📁 Dossier',callback_data:'GF_FILES_'+gfIdx}],
 ];}
 async function answerCB(id){return tg('answerCallbackQuery',{callback_query_id:id});}
 
@@ -980,7 +981,7 @@ async function genFinal(){
     const genDir=makeGenFolder(ts,job.topic,finalP,partsMeta,clips);
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
-    const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[]})-1;
+    const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[],ts,words:job.words,imageUrl,prevScripts:prevScripts.slice(),partN:job.parts})-1;
     // La PROGRESSION disparaît : on supprime le message de suivi -> ne restent QUE la vidéo + légendes
     await delMsg(cockpit.mid);cockpit.mid=null;
     const vidMid=await sendVideoKb(finalP,buildVideoCaption(finalP),videoReadyKb(gfIdx)).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');return null;});
@@ -1506,6 +1507,28 @@ async function handle(upd){
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));await send('📁 Fichiers de cette génération ('+files.length+') :');for(const f of files)await sendFile(path.join(gf.dir,f));}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_ADDPART_')){
+      const gf=genFolders[+d.slice(11)];if(!gf||!gf.imageUrl||!gf.prevScripts){await send('⚠️ Contexte indisponible (relance une génération).');return;}
+      if(genJob&&genJob.running){await send('⏳ Une génération est déjà en cours.');return;}
+      const i=gf.prevScripts.length+1;const prog=await send('➕ <b>Partie '+i+'</b> · script…');const pm=prog&&prog.result&&prog.result.message_id;
+      const sp=async t=>{try{if(pm)await tg('editMessageText',{message_id:pm,text:t,parse_mode:'HTML'});}catch(e){}};
+      try{
+        freshRL();const c=await WF.generateScript(WF.partPrompt(gf.topic,i,i,gf.prevScripts),gf.words);
+        ttsCheck('addpart',c.script);await sp('➕ Partie '+i+' · voix + lipsync… (~3-5 min)');
+        const audio=await WF.generateAudio(_sanTTS(c.script),i);
+        const lip=await WF.generateLipsync(gf.imageUrl,audio.audioUrl,i);
+        const rawi=await WF.saveLipsyncRaw(lip,i,gf.ts,path.join(BASE,'outputs'));
+        await sp('➕ Partie '+i+' · rendu…');
+        const vid=await WF.renderVideo(lip,audio.wordTimings,c.keywords,audio.duration,i,c.reactions,rawi);
+        const p=await WF.saveOpen(vid,c,gf.ts,i,path.join(BASE,'outputs'));
+        const newFinal=path.join(BASE,'outputs',gf.ts+'_FINAL.mp4');WF.concatClips([gf.finalP,p].filter(Boolean),newFinal);
+        gf.finalP=newFinal;gf.prevScripts.push(c.script);gf.partN=i;
+        try{fs.copyFileSync(newFinal,path.join(gf.dir,'final.mp4'));fs.copyFileSync(rawi,path.join(gf.dir,'raw_p'+i+'.mp4'));}catch(e){}
+        await delMsg(pm);
+        const idx=+d.slice(11);gf.vidMid=await sendVideoKb(newFinal,buildVideoCaption(newFinal),videoReadyKb(idx));
+      }catch(e){await sp('⛔ Partie '+i+' a planté : '+e.message);}
+      return;
+    }
     if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'📁 Dossier',callback_data:'GF_FILES_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
     if(d.startsWith('GF_SHORT_')){const ix=+d.slice(9);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:(gf.caption||buildVideoCaption(gf.finalP)).slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});return;}catch(e){}}return;}
     if(d==='LCAP_LEGACY'){if(setup.lastVideo){const c=parseCaps(readCapTxt(setup.lastVideo));await send('📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':''));}else await send('⚠️ Aucune vidéo récente.');return;}
