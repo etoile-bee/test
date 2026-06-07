@@ -87,6 +87,7 @@ function buildPrompt(lb,opts){
     +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))
     +'\n'+lb.style_rules
     +'\n'+(lb.texture_rules||'')
+    +'\n'+(lb.realism_rules||'')
     +'\n'+env.prompt
     +'\n'+pose;
 }
