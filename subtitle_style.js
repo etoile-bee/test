@@ -5,8 +5,8 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 45;     // taille du texte — retour a 45 (42 trop petit, demande Etoile 07/06)
-const OY        = 0.25;   // hauteur — descendu legerement (cible ~69% : pendentif/clavicule)
+const FONT_SIZE = 45.5;   // taille du texte — +0.5pt (demande Etoile 07/06)
+const OY        = 0.23;   // hauteur — encore un peu plus bas (demande Etoile 07/06)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
