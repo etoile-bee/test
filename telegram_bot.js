@@ -783,9 +783,7 @@ async function runLocalTest(){
     const kw=wt.filter((_,i)=>i%4===2).map(x=>x.text).slice(0,3); // quelques mots-clés pour les zooms
     const r=await renderLocal({input:src,wordTimings:wt,keywords:kw,reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
     const st=r.style;
-    await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
-    await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
-    await send('Test (rendu local gratuit). Suite :',[[{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'}],[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'}],[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]).catch(()=>{});
+    await sendVideoKb(out,`🧪 <b>Test</b> (gratuit) · 🔤 ${fontLabel(st.font)} ${st.fontSize}px`,[[{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'}],[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]).catch(async()=>{await send('⚠️ Vidéo trop lourde.').catch(()=>{});});
   }catch(e){await send('❌ Test local : '+e.message);}
 }
 const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
