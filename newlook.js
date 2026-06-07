@@ -92,31 +92,65 @@ function buildPrompt(lb,opts){
     +'\n'+pose;
 }
 
-// Genere 4 poses. opts={category, env, extra}. Retourne {urls, prompt, recipe}
+/*v8 : moteur SEEDREAM v4 (celui qu'Etoile utilise a la main, rendu valide) + reference photo directe — Soul abandonne*/
+let _refUrl=null;
+async function getRefUrl(client,log){
+  if(_refUrl)return _refUrl;
+  const dir=refsDir();
+  const f=fs.readdirSync(dir).filter(x=>/\.(jpg|jpeg|png|webp)$/i.test(x))[0];
+  if(!f)throw new Error('aucune photo dans looks/references/imany/');
+  const tmp='/tmp/sdref_'+Date.now()+'.jpg';
+  try{require('child_process').execSync('sips -Z 1536 -s format jpeg "'+path.join(dir,f)+'" --out "'+tmp+'" 2>/dev/null || ffmpeg -y -i "'+path.join(dir,f)+'" -vf scale=1536:-2 -q:v 2 "'+tmp+'" 2>/dev/null');}catch(e){}
+  const buf=fs.readFileSync(fs.existsSync(tmp)?tmp:path.join(dir,f));
+  try{fs.unlinkSync(tmp);}catch(e){}
+  _refUrl=await client.uploadImage(buf,'jpeg');
+  log('Photo de référence envoyée.');
+  return _refUrl;
+}
+function archiveAll(urls,recipe){ /*TOUTES les generations sont gardees localement, selectionnees ou non*/
+  try{
+    const dir=path.join(BASE,'outputs','generations');
+    fs.mkdirSync(dir,{recursive:true});
+    const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+    urls.forEach((u,i)=>{try{require('child_process').execSync('curl -s -o "'+path.join(dir,stamp+'_'+(recipe.category||'libre')+'_'+(i+1)+'.jpg')+'" "'+u+'"');}catch(e){}});
+  }catch(e){}
+}
+
+// Genere selon le mode. opts={category, env, extra, mode:'eco'|'planche'|'hd'}. Retourne {urls, prompt, recipe}
 async function generateLook(opts,log){
   log=log||console.log;
   opts=opts||{};
   const lb=readLookbook();
   const client=getClient();
-  const soulId=await ensureSoulId(client,log);
-  if(!lb.categories[opts.category]&&!opts.extra)opts.category=Object.keys(lb.categories)[0];
+  if(!lb.categories[opts.category]&&!opts.extra&&opts.category!=='random')opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
-  /*v6 : 3 modes — eco (1 pose 720p, calibrage pas cher), planche (1 image 1080p = 3 poses du meme look), hd (4 portraits 1080p)*/
-  const mode=opts.mode||(opts.eco?'eco':'hd');
-  const jobSet=await client.generate('/v1/text2image/soul',{
-    prompt:prompt,
-    custom_reference_id:soulId,
-    custom_reference_strength:1,
-    width_and_height:'1536x2048',
-    quality:mode==='eco'?'720p':'1080p',
-    batch_size:mode==='hd'?4:1
-  },{withPolling:true});
+  const mode=opts.mode||'planche';
+  const refUrl=await getRefUrl(client,log);
+  const {higgsfield,config}=require('@higgsfield/client/v2');
+  config({credentials:process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET});
+  /*seedream v4 edit : prompt + photo de reference = le process manuel exact d'Etoile*/
+  const endpoints=['bytedance/seedream/v4/edit','bytedance/seedream/v4/image-to-image'];
+  let lastErr=null,jobSet=null;
+  for(const ep of endpoints){
+    try{
+      jobSet=await higgsfield.subscribe(ep,{input:{
+        prompt:prompt,
+        aspect_ratio:'9:16',
+        input_images:[{type:'image_url',image_url:refUrl}],
+        batch_size:mode==='hd'?4:1
+      },withPolling:true});
+      if(jobSet)break;
+    }catch(e){lastErr=e;log('('+ep.split('/').pop()+' indisponible : '+(e.message||e)+')');}
+  }
+  if(!jobSet)throw new Error('Seedream inaccessible — '+(lastErr&&lastErr.message||'erreur inconnue'));
   const jobs=(jobSet&&jobSet.jobs)||[];
   if(!jobs.length)throw new Error('réponse vide de Higgsfield');
   if(jobs.every(j=>j.status==='nsfw'))throw new Error('images refusées par la modération (crédits remboursés) — reformule');
   const urls=jobs.filter(j=>j.status==='completed'&&j.results).map(j=>(j.results.raw&&j.results.raw.url)||(j.results.min&&j.results.min.url)).filter(Boolean);
   if(!urls.length)throw new Error('génération échouée (statuts: '+jobs.map(j=>j.status).join(',')+')');
-  return{urls:urls,prompt:prompt,recipe:{category:opts.category||null,env:opts.env||'bougies',extra:opts.extra||null,eco:!!opts.eco}};
+  const recipe={category:opts.category||null,env:opts.env||'bougies',extra:opts.extra||null,mode:mode,engine:'seedream-v4'};
+  archiveAll(urls,recipe);
+  return{urls:urls,prompt:prompt,recipe:recipe};
 }
 
 /*newlook v4 : catalogue 204 tenues + rotation anti-repetition (pas de doublon avant cycle complet ; conseil applique : jamais le meme look a moins de 12 videos)*/
