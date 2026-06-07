@@ -1,11 +1,11 @@
 {
   "image": {
-    "brightness": -0.03,
-    "contrast": 1,
-    "saturation": 0.85,
-    "temperature": 6500,
+    "brightness": 0.06,
+    "contrast": 1.04,
+    "saturation": 0.95,
+    "temperature": 5600,
     "sharpness": 0,
-    "vignette": 0
+    "vignette": 1
   },
   "zoom": {
     "on": 1,
@@ -18,5 +18,8 @@
     "on": 1,
     "file": "",
     "volume": 0.12
+  },
+  "reactions": {
+    "mode": "on"
   }
 }

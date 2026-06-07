@@ -72,7 +72,7 @@ const FX_DEFAULT = {
   image: { brightness: 0.02, contrast: 1.04, saturation: 1.0, temperature: 5600, sharpness: 0, vignette: 1 },
   zoom:  { on: 1, intensity: 1.0, duration: 2.5, everyN: 1, base: 1.0 },
   music: { on: 0, file: '', volume: 0.12 },
-  reactions: { mode: 'off' }, // off | natural (1 max, vol 0.3) | on (toutes)
+  reactions: { mode: 'natural' }, // off | natural (1 max, dans une pause, fondu+pitch) | on (toutes)
 };
 function loadFx() {
   try {
@@ -183,9 +183,21 @@ function buildSegments(wt, keywords, duration, z) {
 // ----------------------------------------------------------------------------
 // 3) Réactions : place chaque mp3 à la fin de la phrase cible (réplique l.164-185)
 // ----------------------------------------------------------------------------
-function buildReactions(wt, reactions, duration) {
+// Pauses du discours (creux entre mots) : { at, gap, mid }
+function speechGaps(wt) {
+  const g = [];
+  for (let i = 0; i < wt.length - 1; i++) { const d = wt[i + 1].start - wt[i].end; if (d >= 0.18) g.push({ at: wt[i].end, gap: d, mid: (wt[i].end + wt[i + 1].start) / 2 }); }
+  return g;
+}
+function probeDur(file) { try { return parseFloat(execFileSync('ffprobe', ['-v', 'error', '-show_entries', 'format=duration', '-of', 'default=nw=1:nk=1', file]).toString().trim()) || 0.5; } catch (e) { return 0.5; } }
+function pickVariant(type) { // variante aléatoire si reactions/<type>2.mp3… existe, sinon <type>.mp3
+  try { const all = fs.readdirSync(REACTIONS_DIR).filter(f => new RegExp('^' + type + '\\d*\\.(mp3|m4a)$', 'i').test(f)); if (all.length) return path.join(REACTIONS_DIR, all[Math.floor(Math.random() * all.length)]); } catch (e) {}
+  const def = path.join(REACTIONS_DIR, type + '.mp3'); return fs.existsSync(def) ? def : null;
+}
+function buildReactions(wt, reactions, duration, mode) {
   const out = [];
   if (!reactions || !reactions.length) return out;
+  const gaps = speechGaps(wt);
   for (const rx of reactions.slice(0, 2)) {
     const type = String(rx.type || '').toLowerCase();
     if (REACT_TYPES.indexOf(type) < 0) continue;
@@ -197,14 +209,25 @@ function buildReactions(wt, reactions, duration) {
       for (let i = 0; i + n <= wt.length; i++) {
         let ok = true;
         for (let j = 0; j < n; j++) { if (wt[i + j].text !== tail[j]) { ok = false; break; } }
-        if (ok) endT = wt[i + n - 1].end; // dernière occurrence (comme renderVideo)
+        if (ok) endT = wt[i + n - 1].end;
       }
     }
     if (endT === null) continue;
-    const mp3 = path.join(REACTIONS_DIR, type + '.mp3');
-    if (!fs.existsSync(mp3)) continue;
-    const st = Math.min(Math.max(endT + 0.05, 0), Math.max(duration - 0.4, 0));
-    out.push({ type, st, mp3, length: REACT_LEN });
+    const mp3 = pickVariant(type);
+    if (!mp3) continue;
+    let st = endT + 0.05, vol = REACT_VOL, pitch = 1.0;
+    if (mode === 'natural') {
+      // UNIQUEMENT dans un vrai creux : pause la plus proche après endT, sinon la plus grande
+      const after = gaps.filter(g => g.at >= endT - 0.1).sort((a, b) => a.at - b.at)[0];
+      const big = gaps.slice().sort((a, b) => b.gap - a.gap)[0];
+      const pause = after || big;
+      if (!pause) continue; // pas de vrai creux -> on ne colle PAS la réaction sur la voix
+      st = pause.mid - 0.1;
+      vol = +(0.25 + Math.random() * 0.10).toFixed(3); // 0.25–0.35 (~-12 à -9 dB sous la voix)
+      pitch = +(1 + (Math.random() * 0.06 - 0.03)).toFixed(3); // ±3 % pour éviter la répétition
+    }
+    st = Math.min(Math.max(st, 0), Math.max(duration - 0.4, 0));
+    out.push({ type, st, mp3, vol, pitch, dur: probeDur(mp3) });
   }
   return out;
 }
@@ -295,11 +318,10 @@ async function renderLocal(opts) {
 
   const chunks = buildChunks(wt);
   const segs = buildSegments(wt, keywords, duration, zoomCfg);
-  // Réactions : mode off (aucune) | natural (1 max, vol 0.3) | on (toutes, vol 0.5)
+  // Réactions : off (aucune) | natural (1 max, dans une pause, fondu+pitch+jitter) | on (toutes)
   const reactMode = opts.reactionsMode || (fx.reactions && fx.reactions.mode) || 'off';
-  let reacts = (reactMode === 'off') ? [] : buildReactions(wt, reactions, duration);
+  let reacts = (reactMode === 'off') ? [] : buildReactions(wt, reactions, duration, reactMode);
   if (reactMode === 'natural') reacts = reacts.slice(0, 1);
-  const reactVol = (reactMode === 'natural') ? 0.3 : REACT_VOL;
 
   // Fichier .ass (écrit seulement si les sous-titres sont activés)
   const tag = path.basename(output).replace(/[^a-z0-9]/gi, '_');
@@ -339,12 +361,21 @@ async function renderLocal(opts) {
   const musRel = music.file && (path.isAbsolute(music.file) ? music.file : path.join(MUSIC_DIR, music.file));
   const musicOn = !!(+music.on && musRel && fs.existsSync(musRel));
   const fout = Math.max(duration - FADE_OUT, 0);
-  const fadeChain = `afade=t=in:ss=0:d=${FADE_IN}` + (duration > 0.4 ? `,afade=t=out:st=${fout.toFixed(3)}:d=${FADE_OUT}` : '');
+  // fades anti-pop + normalisation loudness -14 LUFS (standard TikTok)
+  const fadeChain = `afade=t=in:ss=0:d=${FADE_IN}` + (duration > 0.4 ? `,afade=t=out:st=${fout.toFixed(3)}:d=${FADE_OUT}` : '') + `,loudnorm=I=-14:TP=-1.5:LRA=11`;
   fc.push(`[${aBaseIdx}:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
   const aLabels = ['[a0]'];
   reacts.forEach((r, i) => {
     const ms = Math.round(r.st * 1000);
-    fc.push(`[${firstReactIdx + i}:a]adelay=${ms}:all=1,volume=${reactVol}[r${i}]`);
+    const vol = (r.vol != null ? r.vol : REACT_VOL);
+    const pitch = (r.pitch && Math.abs(r.pitch - 1) > 0.001) ? r.pitch : null;
+    const rdur = r.dur || 0.5;
+    const fo = Math.max(rdur - 0.08, 0.05).toFixed(3);
+    // pitch ±3% sans changer la durée (asetrate puis atempo inverse) + fondu doux 80ms (anti-artefact)
+    let chain = '';
+    if (pitch) chain += `asetrate=44100*${pitch},aresample=44100,atempo=${(1 / pitch).toFixed(4)},`;
+    chain += `afade=t=in:ss=0:d=0.08,afade=t=out:st=${fo}:d=0.08,volume=${vol},adelay=${ms}:all=1`;
+    fc.push(`[${firstReactIdx + i}:a]${chain}[r${i}]`);
     aLabels.push(`[r${i}]`);
   });
   if (musicOn) {

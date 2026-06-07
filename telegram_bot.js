@@ -120,7 +120,7 @@ async function dlPhoto(fileId){
 }
 // ── Galerie de looks ────────────────────────────────────────────────────────────
 function trashDir(){const t=path.join(getLooksDir(),'_trash');try{fs.mkdirSync(t,{recursive:true});}catch(e){}return t;}
-function looksList(){try{return fs.readdirSync(getLooksDir()).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_')).sort();}catch(e){return[];}}
+function looksList(){try{const d=getLooksDir();return fs.readdirSync(d).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_')).map(f=>{let m=0;try{m=fs.statSync(path.join(d,f)).mtimeMs;}catch(e){}return {f,m};}).sort((a,b)=>b.m-a.m).map(x=>x.f);}catch(e){return[];}}
 function tsName(){const d=new Date();const p=n=>String(n).padStart(2,'0');return ''+d.getFullYear()+p(d.getMonth()+1)+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());}
 async function dlPhotoNamed(fileId,name){
   const r=await tg('getFile',{file_id:fileId});
@@ -671,7 +671,7 @@ async function showStyles(){
   if(!styleList.length){await send('📂 Aucun style sauvegardé.\nDans /edit, appuie sur « 💾 Sauvegarder ce style ».');return;}
   const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🎬',callback_data:'LOADGEN_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
   rows.push([{text:'◀️ Menu',callback_data:'EDIT_HOME'}]);
-  await send('📂 <b>MES STYLES</b>\n\n📂 charger · 🎬 générer avec · 🗑 supprimer',rows);
+  await send('📂 <b>MODÈLES</b>\n\n📂 charger · 🎬 générer avec · 🗑 supprimer',rows);
 }
 // ── Prêt à poster : copie vidéo + légendes + snapshot style dans outputs/ready_to_post/ ──
 function readyDir(){const d=path.join(BASE,'outputs','ready_to_post');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
@@ -721,12 +721,13 @@ const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — gén�
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
-function gwReset(){gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topic:null,duration:genState.duration||'23s',mid:null};}
+function gwReset(){gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
 function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
 function recapCaption(){
   const dur=gw.duration||'23s';const c=estimateCost(dur);
-  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):'🎲 auto';
-  return `🎬 <b>NOUVELLE VIDÉO</b>\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(avatar actuel)'}</b>\n🎨 Style : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût estimé : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b>  (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})`;
+  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto');
+  const mins=Math.max(3,Math.round(c.parts*4)); // ~4 min de lipsync Kling par partie
+  return `🎬 <b>NOUVELLE VIDÉO</b>\n\n👤 Look : <b>${gwLook()?path.basename(gwLook()):'(photo actuelle)'}</b>\n🎨 Modèle : <b>${gw.styleName||'actuel'}</b>\n💬 Sujet : <b>${subj}</b>\n⏱ Durée : <b>${dur}</b>${c.parts>1?` (${c.parts} parties)`:''}\n\n💰 Coût : <b>~${c.total.toFixed(2)}${COST.CURRENCY}</b> (voix ${c.el.toFixed(2)} + lipsync ${c.kling.toFixed(2)})\n⏳ Création : <b>~${mins} min</b>`;
 }
 function recapKb(){
   return [
@@ -736,37 +737,43 @@ function recapKb(){
     [{text:'🚀 GO',callback_data:'RC_GO'},{text:'❌ Annuler',callback_data:'RC_CANCEL'}],
   ];
 }
+async function recapFrame(){ // aperçu = LOOK courant AVEC le style appliqué (item 1)
+  if(gwLook())setWorkPhoto(gwLook());
+  try{const f=await renderWorkingFrame();return f&&f.frame;}catch(e){return null;}
+}
 async function showRecap(){
-  const lk=gwLook();
-  if(lk){const r=await sendPhotoKb(lk,recapCaption(),recapKb());gw.mid=(r&&r.result&&r.result.message_id)||null;}
+  const frame=await recapFrame();
+  if(frame){const r=await sendPhotoKb(frame,recapCaption(),recapKb());gw.mid=(r&&r.result&&r.result.message_id)||null;}
   else {await send(recapCaption(),recapKb());gw.mid=null;}
 }
 async function refreshRecap(){
-  const lk=gwLook();
-  if(gw.mid&&lk){const ok=await editPhotoKb(gw.mid,lk,recapCaption(),recapKb());if(ok)return;}
+  const frame=await recapFrame();
+  if(gw.mid&&frame){if(await editPhotoKb(gw.mid,frame,recapCaption(),recapKb()))return;}
   await showRecap();
 }
 // ── Orchestration de génération pilotée par le bot (script preview + maquette + GO) ──
 let genJob=null; // job de génération courant
 function genBusy(){return !!(proc||genJob&&genJob.running);}
-async function autoPickTopic(){
+const CAT_FOCUS={redflags:'red flags, toxic men, manipulation, control, disrespect',attach:'attachment styles, anxious attachment, avoidant men, fear of intimacy',worth:'self-worth, self-respect, knowing your value, stop settling',healing:'breakups, no contact, healing, moving on, grief',situ:'situationships, dating games, mixed signals, breadcrumbing, why men pull away',feminine:'feminine energy, soft life, high-value mindset, letting him chase'};
+async function autoPickTopic(cat){
   const Anthropic=require('@anthropic-ai/sdk');const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
-  let used='';try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));used=(lib.scripts||[]).map(s=>s.title).join(', ');}catch(e){}
-  const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:100,messages:[{role:'user',content:'TikTok relationship coach women 20-40. ONLY romantic relationship topics: red flags, toxic men, attachment styles, self-worth, breakups, why men pull away, dating mistakes, narcissists. Pick ONE viral topic not yet covered. Already covered: '+used+'. Return ONLY the title in English, no quotes, no bold.'}]});
+  let used=[];try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));used=(lib.scripts||[]).map(s=>s.title);}catch(e){}
+  const focus=cat&&CAT_FOCUS[cat]?('STRICTLY within this theme: '+CAT_FOCUS[cat]+'.'):'romantic relationship topics (red flags, attachment, self-worth, breakups, situationships, feminine energy).';
+  const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:120,messages:[{role:'user',content:'TikTok relationship coach for women 20-40. Pick ONE fresh, viral topic — '+focus+'\nIMPORTANT anti-repetition: it MUST be clearly DIFFERENT (different angle AND different wording) from every title already done below. Avoid any topic that overlaps with them.\nAlready done ('+used.length+'): '+used.join(' | ')+'\nReturn ONLY the new title in English, no quotes, no bold.'}]});
   return r.content[0].text.trim().replace(/^["'*]+|["'*]+$/g,'');
 }
 // Démarre depuis la carte récap : écrit le 1er script et l'affiche pour validation
 async function recapGo(){
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
   const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
-  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topic:gw.subjectMode==='mine'?(gw.topic||null):null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
+  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.subjectMode==='mine'?(gw.topic||null):null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
   if(gwLook())setAvatar(gwLook());
   await send('📝 Écriture du script... (gratuit, ~10s)');
   await genScriptStep();
 }
 async function genScriptStep(){
   try{
-    if(!genJob.topic)genJob.topic=await autoPickTopic();
+    if(!genJob.topic)genJob.topic=await autoPickTopic(genJob.topicCat);
     const prompt=genJob.parts>1?WF.partPrompt(genJob.topic,1,genJob.parts,[]):genJob.topic;
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
@@ -883,7 +890,7 @@ async function showMainMenu(){
   await send('🏠 <b>MENU</b>\n\nQue veux-tu faire ?',[
     [{text:'🎬 Générer une vidéo',callback_data:'MENU_GEN'},{text:'⚡ Express',callback_data:'EXPRESS_NEW'}],
     [{text:'🎨 Éditer le look',callback_data:'EDIT_HOME'},{text:'👤 Looks',callback_data:'MENU_LOOKS'}],
-    [{text:'💾 Mes styles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
+    [{text:'💾 Modèles',callback_data:'SHOWSTYLES'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}],
     [{text:'📁 Fichiers',callback_data:'FILES_HOME'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🧪 Test',callback_data:'MENU_TEST'}],
     [{text:'🛑 Stop',callback_data:'TECH_STOP'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
   ]);
@@ -904,11 +911,12 @@ function fmtSize(b){return b>1e6?(b/1e6).toFixed(1)+' Mo':Math.max(1,b/1e3|0)+' 
 function fmtDate(ms){const d=new Date(ms);const p=n=>String(n).padStart(2,'0');return p(d.getDate())+'/'+p(d.getMonth()+1)+' '+p(d.getHours())+':'+p(d.getMinutes());}
 let fileList=[];
 async function showFilesMenu(){
-  await send('📁 <b>FICHIERS</b>\n\n📱 Tout le dossier <code>outputs</code> est aussi visible dans l\'app <b>Fichiers</b> de l\'iPhone (iCloud → podcast-outputs).\n\nChoisis une catégorie :',[
+  await send('📁 <b>FICHIERS</b>\n\n📱 <b>Sur iPhone</b> : app <b>Fichiers</b> → <b>iCloud Drive</b> → <b>podcast-outputs</b>\n(générations, ready_to_post, a_retravailler, raws, légendes — tout y est en synchro auto).\n\nOu tape une catégorie pour recevoir un fichier ici :',[
     [{text:'🎬 Vidéos',callback_data:'FCAT_vid'},{text:'🖼 Images',callback_data:'FCAT_img'}],
     [{text:'📄 Légendes',callback_data:'FCAT_txt'},{text:'📤 Prêt à poster',callback_data:'FCAT_ready'}],
     [{text:'👤 Looks',callback_data:'FCAT_looks'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
   ]);
+  await send('🔗 Lien direct (peut s\'ouvrir dans Fichiers selon iOS) :\nshareddocuments://com~apple~CloudDocs/podcast-outputs').catch(()=>{});
 }
 async function showFileList(cat,page){
   fileList=fileCat(cat);
@@ -1079,10 +1087,17 @@ async function showEditHome(){
   await send('🎛 <b>ÉDITION DU LOOK</b>\n\n📸 Photo de travail : <b>'+workSrcLabel()+'</b>\nChoisis une section :',[
     [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
     [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
-    [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
-    [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Mes styles',callback_data:'SHOWSTYLES'}],
+    [{text:'🎨 Presets',callback_data:'SHOW_PRESETS'},{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'}],
+    [{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
+    [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Modèles',callback_data:'SHOWSTYLES'}],
     [{text:'👁 Aperçu complet',callback_data:'EDIT_PREVIEW'}],
   ]);
+}
+async function showPresets(){
+  const keys=Object.keys(IMG_PRESETS);const rows=[];
+  for(let k=0;k<keys.length;k+=3)rows.push(keys.slice(k,k+3).map(n=>({text:'🎨 '+n,callback_data:'IMG_PRE_'+n})));
+  rows.push([{text:'🎨 Section Image',callback_data:'EDIT_IMG'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}]);
+  await send('🎨 <b>PRESETS COULEUR</b> — applique en 1 tap (puis 👁 Aperçu) :',rows);
 }
 function imageKb(){
   const i=readFx().image;const sg=v=>(v>0?'+':'')+v;
@@ -1196,24 +1211,30 @@ async function handle(upd){
       const li=last?looksList().indexOf(path.basename(last)):-1;gal.idx=li>=0?li:0;
       await showLook();return;
     }
-    if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await showRecap();return;}
+    if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await refreshRecap();return;}
     if(d==='RC_GALLERY'){galForRecap=true;galMid=null;gal.idx=0;await showLook();return;}
-    if(d==='RC_BACK'){await showRecap();return;}
+    if(d==='RC_BACK'){await refreshRecap();return;}
     if(d==='RC_STYLE'){
       const list=listStyles();
-      const rows=list.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
-      rows.unshift([{text:'🎨 Style actuel (ne pas changer)',callback_data:'RC_ST_CUR'}]);
+      const rows=list.map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
+      rows.unshift([{text:'🎨 Modèle actuel (ne pas changer)',callback_data:'RC_ST_CUR'}]);
       rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-      await send('🎨 <b>STYLE</b> — applique un style enregistré :',rows);return;
+      await send('🎨 <b>MODÈLE</b> — applique un modèle enregistré :',rows);return;
     }
-    if(d==='RC_ST_CUR'){gw.styleName=null;await showRecap();return;}
-    if(d.startsWith('RC_ST_')){const list=listStyles();const f=list[+d.slice(6)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gw.styleName=f.replace(/\.json$/,'');}catch(e){}}await showRecap();return;}
-    if(d==='RC_SUBJ'){await send('💬 <b>SUJET</b>',[[{text:'🎲 Auto',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'}],[{text:'◀️ Récap',callback_data:'RC_BACK'}]]);return;}
-    if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topic=null;await showRecap();return;}
+    if(d==='RC_ST_CUR'){gw.styleName=null;await refreshRecap();return;}
+    if(d.startsWith('RC_ST_')){const list=listStyles();const f=list[+d.slice(6)];if(f){try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gw.styleName=f.replace(/\.json$/,'');}catch(e){}}await refreshRecap();return;}
+    if(d==='RC_SUBJ'){
+      const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'RC_CAT_'+k}]);
+      rows.unshift([{text:'🎲 Auto (tous sujets)',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'}]);
+      rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
+      await send('💬 <b>SUJET</b> — choisis une catégorie, Auto, ou tape le tien :',rows);return;
+    }
+    if(d.startsWith('RC_CAT_')){const k=d.slice(7);gw.subjectMode='auto';gw.topicCat=k;gw.topic=null;genState.topicCat=k;saveState();await refreshRecap();return;}
+    if(d==='RC_SUBJ_AUTO'){gw.subjectMode='auto';gw.topicCat=null;gw.topic=null;genState.topicCat=null;saveState();await refreshRecap();return;}
     if(d==='RC_SUBJ_MINE'){state='rc_topic_wait';await send('⌨️ Tape ton sujet (ex: « pourquoi il revient quand tu l\'ignores ») :');return;}
-    if(d==='RC_DUR_15'){gw.duration='15s';await showRecap();return;}
-    if(d==='RC_DUR_23'){gw.duration='23s';await showRecap();return;}
-    if(d==='RC_DUR_30'){gw.duration='30s';await showRecap();return;}
+    if(d==='RC_DUR_15'){gw.duration='15s';genState.duration='15s';saveState();await refreshRecap();return;}
+    if(d==='RC_DUR_23'){gw.duration='23s';genState.duration='23s';saveState();await refreshRecap();return;}
+    if(d==='RC_DUR_30'){gw.duration='30s';genState.duration='30s';saveState();await refreshRecap();return;}
     if(d==='RC_DUR_FREE'){state='rc_dur_wait';await send('⌨️ Durée en secondes (5–180). Au-delà de ~30s = plusieurs parties assemblées.');return;}
     if(d==='RC_GO'){await recapGo();return;}
     // ── Étape script / maquette / GO ──
@@ -1462,17 +1483,17 @@ await send('Ready to generate video?',[
       return;
     }
     // Styles sauvegardés
-    if(d==='SAVESTYLE'){const n=saveStyleAuto();await send('💾 Style sauvegardé : <b>'+n+'</b>\nRecharge-le via 📂 Mes styles.');return;}
+    if(d==='SAVESTYLE'){const n=saveStyleAuto();await send('💾 Style sauvegardé : <b>'+n+'</b>\nRecharge-le via 📂 Modèles.');return;}
     if(d==='SHOWSTYLES'){await showStyles();return;}
     if(d.startsWith('LOADSTYLE_')){
       const i=+d.slice(10);const f=styleList[i];
-      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
+      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Modèles).');return;}
       try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));editPrevFrame=null;applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
       return;
     }
     if(d.startsWith('LOADGEN_')){
       const i=+d.slice(8);const f=styleList[i];
-      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
+      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Modèles).');return;}
       try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));gwReset();gw.styleName=f.replace(/\.json$/,'');await showRecap();}catch(e){await send('❌ '+e.message);}
       return;
     }
@@ -1490,6 +1511,7 @@ await send('Ready to generate video?',[
     if(d==='EDIT_ZOOM'){editSectionCur='zoom';await openPanel('zoom');return;}
     if(d==='EDIT_MUS'){editSectionCur='mus';await openPanel('mus');return;}
     if(d==='EDIT_REACT'){editSectionCur='react';await openPanel('react');return;}
+    if(d==='SHOW_PRESETS'){editSectionCur='img';editPanel.section='img';await showPresets();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
@@ -1637,13 +1659,13 @@ await send('Ready to generate video?',[
   }
   if(state==='rc_topic_wait'&&msg.text){
     gw.topic=msg.text.trim();gw.subjectMode='mine';state='idle';
-    await send('✅ Sujet : '+gw.topic);await showRecap();return;
+    gw.subjectMode='mine';await send('✅ Sujet : '+gw.topic);await refreshRecap();return;
   }
   if(state==='rc_dur_wait'&&msg.text){
     let n=parseInt((msg.text.match(/\d+/)||[])[0]||'',10);
     if(!n||n<5){await send('⚠️ Donne un nombre de secondes (5–180).');return;}
     if(n>180)n=180;
-    gw.duration=n+'s';state='idle';await showRecap();return;
+    gw.duration=n+'s';genState.duration=gw.duration;saveState();state='idle';await refreshRecap();return;
   }
   if(state==='m_topic_wait'&&msg.text){
     setup.topic=msg.text.trim(); setup.topicCat=null;
@@ -1784,7 +1806,7 @@ tg('setMyCommands',{commands:[ /*cmdmenu v2 : les commandes apparaissent dans le
   {command:'looks',description:'👤 Galerie de looks'},
   {command:'posted',description:'📤 Vidéos prêtes à poster'},
   {command:'files',description:'📁 Fichiers (vidéos, images, légendes, looks)'},
-  {command:'styles',description:'💾 Mes styles enregistrés'},
+  {command:'styles',description:'💾 Modèles enregistrés'},
   {command:'preview',description:'👁 Aperçu gratuit du look'},
   {command:'test',description:'🧪 Rendu local gratuit'},
   {command:'settings',description:'⚙️ Réglages sous-titres'},
