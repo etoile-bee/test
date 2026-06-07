@@ -63,6 +63,42 @@ function loadStyle() {
   } catch (e) { return {}; }
 }
 
+// ----------------------------------------------------------------------------
+// style.json : réglages Image (couleur), Zooms, Musique — pilotés par /edit du bot
+// ----------------------------------------------------------------------------
+const MUSIC_DIR = path.join(__dirname, 'music');
+const FX_DEFAULT = {
+  image: { brightness: 0, contrast: 1.0, saturation: 1.0, temperature: 6500, sharpness: 0, vignette: 0 },
+  zoom:  { on: 1, intensity: 1.0, duration: 2.5, everyN: 1, base: 1.0 },
+  music: { on: 0, file: '', volume: 0.12 },
+};
+function loadFx() {
+  try {
+    const p = path.join(__dirname, 'style.json');
+    if (!fs.existsSync(p)) return JSON.parse(JSON.stringify(FX_DEFAULT));
+    const j = JSON.parse(fs.readFileSync(p, 'utf8'));
+    return {
+      image: Object.assign({}, FX_DEFAULT.image, j.image || {}),
+      zoom:  Object.assign({}, FX_DEFAULT.zoom,  j.zoom  || {}),
+      music: Object.assign({}, FX_DEFAULT.music, j.music || {}),
+    };
+  } catch (e) { return JSON.parse(JSON.stringify(FX_DEFAULT)); }
+}
+// Chaîne de filtres couleur ffmpeg (vide si tout neutre)
+function buildColorFilter(img) {
+  img = img || {};
+  const f = [];
+  const b = +img.brightness || 0, c = img.contrast != null ? +img.contrast : 1, s = img.saturation != null ? +img.saturation : 1;
+  if (b !== 0 || c !== 1 || s !== 1) f.push(`eq=brightness=${b.toFixed(3)}:contrast=${c.toFixed(3)}:saturation=${s.toFixed(3)}`);
+  const t = img.temperature != null ? +img.temperature : 6500;
+  if (t !== 6500) f.push(`colortemperature=temperature=${Math.round(t)}:mix=1:pl=0`);
+  const sh = +img.sharpness || 0;
+  if (sh > 0) f.push(`unsharp=5:5:${sh.toFixed(2)}:5:5:0`);
+  const vg = +img.vignette || 0;
+  if (vg > 0) f.push(`vignette=angle=${(Math.PI / 5 * (1 + vg * 0.4)).toFixed(4)}`);
+  return f.join(',');
+}
+
 // Normalise les wordTimings : { text, start, end, duration } (gère .text ou .word)
 function normTimings(wordTimings) {
   return (wordTimings || [])
@@ -110,20 +146,29 @@ function buildChunks(wt) {
 // ----------------------------------------------------------------------------
 // 2) Segments de zoom (réplique renderVideo l.147-162), rendus contigus [0,duration]
 // ----------------------------------------------------------------------------
-function buildSegments(wt, keywords, duration, baseZoom) {
-  const base = (baseZoom && isFinite(+baseZoom) && +baseZoom > 1) ? +baseZoom : 1.0; // zoom plancher (Telegram)
+function buildSegments(wt, keywords, duration, z) {
+  z = z || {};
+  const on = z.on != null ? +z.on : 1;
+  const base = (z.base && isFinite(+z.base) && +z.base > 1) ? +z.base : 1.0; // zoom plancher
+  const intensity = z.intensity != null ? +z.intensity : 1.0;                 // multiplie l'amplitude des zooms
+  const zlen = z.duration != null ? +z.duration : ZOOM_LEN;                    // durée d'un zoom (s)
+  const everyN = Math.max(1, Math.round(z.everyN || 1));                       // 1 = tous les mots-clés, 2 = 1 sur 2
+  // Zooms désactivés : un seul plan plein au zoom de base
+  if (!on) return [{ start: 0, end: duration, scale: base }];
   const kws = new Set((keywords || []).map(k => String(k).toUpperCase()));
-  const sorted = wt.filter(w => kws.has(w.text)).sort((a, b) => a.start - b.start);
+  let sorted = wt.filter(w => kws.has(w.text)).sort((a, b) => a.start - b.start);
+  if (everyN > 1) sorted = sorted.filter((_, i) => i % everyN === 0);
   const segs = [];
   let cur = 0, ki = 0;
   for (const kw of sorted) {
     let zs = Math.max(kw.start - 0.05, cur);
     if (zs > cur + 0.05) segs.push({ start: cur, end: zs, scale: base }); // plan "large" = zoom de base
     else zs = cur; // snap : pas de trou noir dans le concat local
-    const z = Math.max(ZOOMS[ki % ZOOMS.length], base); ki++;
-    const ze = Math.min(zs + ZOOM_LEN, duration);
+    const zRaw = ZOOMS[ki % ZOOMS.length];
+    const z2 = Math.max(1 + (zRaw - 1) * intensity, base); ki++; // intensité ajustable
+    const ze = Math.min(zs + zlen, duration);
     if (ze <= zs) continue;
-    segs.push({ start: zs, end: ze, scale: z });
+    segs.push({ start: zs, end: ze, scale: z2 });
     cur = ze;
   }
   if (cur < duration - 0.1) segs.push({ start: cur, end: duration, scale: base });
@@ -228,8 +273,15 @@ async function renderLocal(opts) {
   const fontSize = opts.fontSize != null ? opts.fontSize : (style.fontSize != null ? style.fontSize : FONT_SIZE);
   const oy = opts.oy != null ? opts.oy : (style.oy != null ? style.oy : OY);
   const letterSpacing = opts.letterSpacing != null ? opts.letterSpacing : (style.letterSpacing != null ? style.letterSpacing : LETTER_SPACING);
-  const baseZoom = opts.zoom != null ? opts.zoom : (style.zoom != null ? style.zoom : null);
   const subsOn = opts.subs != null ? (+opts.subs ? 1 : 0) : (style.subs != null ? style.subs : 1); // sous-titres ON par défaut
+
+  // Réglages fx (style.json) : Image (couleur), Zooms, Musique — surchargeables par opts
+  const fx = loadFx();
+  const img = Object.assign({}, fx.image, opts.image || {});
+  const music = Object.assign({}, fx.music, opts.music || {});
+  const zoomCfg = Object.assign({}, fx.zoom, opts.zoomCfg || {});
+  if (opts.zoom != null) zoomCfg.base = +opts.zoom; // surcharge directe (la base vit dans style.json zoom.base)
+  const colorFilter = buildColorFilter(img);
 
   const wt = normTimings(wordTimings);
 
@@ -239,7 +291,7 @@ async function renderLocal(opts) {
   if (speechEnd > 1 && speechEnd < duration) duration = speechEnd + 0.35;
 
   const chunks = buildChunks(wt);
-  const segs = buildSegments(wt, keywords, duration, baseZoom);
+  const segs = buildSegments(wt, keywords, duration, zoomCfg);
   const reacts = buildReactions(wt, reactions, duration);
 
   // Fichier .ass (écrit seulement si les sous-titres sont activés)
@@ -260,7 +312,9 @@ async function renderLocal(opts) {
     fc.push(`[v${i}]trim=start=${s.start.toFixed(3)}:end=${s.end.toFixed(3)},setpts=PTS-STARTPTS,scale=${zw}:${zh},crop=${W}:${H}:${cx}:${cy},setsar=1[c${i}]`);
   });
   // concat des segments
-  fc.push(`${segs.map((_, i) => `[c${i}]`).join('')}concat=n=${segs.length}:v=1:a=0[vc]`);
+  fc.push(`${segs.map((_, i) => `[c${i}]`).join('')}concat=n=${segs.length}:v=1:a=0[vcc]`);
+  // étalonnage couleur AVANT les sous-titres (le texte blanc n'est pas désaturé/teinté)
+  if (colorFilter) fc.push(`[vcc]${colorFilter}[vc]`); else fc.push(`[vcc]null[vc]`);
   // sous-titres : burn-in libass si SUBS=1, sinon vidéo propre (pour ajouter les captions dans TikTok)
   if (subsOn) {
     fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing }));
@@ -270,20 +324,29 @@ async function renderLocal(opts) {
     fc.push(`[vc]format=yuv420p[vout]`);
   }
 
-  // --- Audio : piste lipsync + réactions mixées + fades anti-pop ---
+  // --- Audio : voix + réactions (+ musique de fond) mixées + fades anti-pop ---
+  const musRel = music.file && (path.isAbsolute(music.file) ? music.file : path.join(MUSIC_DIR, music.file));
+  const musicOn = !!(+music.on && musRel && fs.existsSync(musRel));
   const fout = Math.max(duration - FADE_OUT, 0);
   const fadeChain = `afade=t=in:ss=0:d=${FADE_IN}` + (duration > 0.4 ? `,afade=t=out:st=${fout.toFixed(3)}:d=${FADE_OUT}` : '');
-  if (reacts.length) {
-    fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
-    reacts.forEach((r, i) => {
-      const ms = Math.round(r.st * 1000);
-      fc.push(`[${i + 1}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
-    });
-    const ins = ['[a0]', ...reacts.map((_, i) => `[r${i}]`)].join('');
-    fc.push(`${ins}amix=inputs=${reacts.length + 1}:normalize=0:duration=first[amx]`);
+  fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
+  const aLabels = ['[a0]'];
+  reacts.forEach((r, i) => {
+    const ms = Math.round(r.st * 1000);
+    fc.push(`[${i + 1}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
+    aLabels.push(`[r${i}]`);
+  });
+  if (musicOn) {
+    const mi = 1 + reacts.length; // index de l'input musique (vidéo=0, réactions, puis musique)
+    const vol = (+music.volume || 0.12).toFixed(3);
+    fc.push(`[${mi}:a]aloop=loop=-1:size=2147483647,atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS,volume=${vol}[mus]`);
+    aLabels.push('[mus]');
+  }
+  if (aLabels.length > 1) {
+    fc.push(`${aLabels.join('')}amix=inputs=${aLabels.length}:normalize=0:duration=first[amx]`);
     fc.push(`[amx]${fadeChain}[aout]`);
   } else {
-    fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS,${fadeChain}[aout]`);
+    fc.push(`[a0]${fadeChain}[aout]`);
   }
 
   // filter_complex via fichier (évite l'échappement shell)
@@ -293,6 +356,7 @@ async function renderLocal(opts) {
   // --- Inputs ffmpeg ---
   const args = ['-y', '-i', input];
   for (const r of reacts) args.push('-i', r.mp3);
+  if (musicOn) args.push('-i', musRel);
   args.push(
     '-filter_complex_script', fcPath,
     '-map', '[vout]', '-map', '[aout]',
@@ -307,13 +371,15 @@ async function renderLocal(opts) {
   const styleSrc = (style.fontSize != null || style.oy != null || style.letterSpacing != null || style.zoom != null || style.font != null || style.subs != null) ? 'subtitle_style.js' : 'défauts';
   if (!quiet) {
     console.log(`  render_local: ${segs.length} segments, ${subsOn ? chunks.length + ' sous-titres' : 'SANS sous-titres'}, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s`);
-    console.log(`  style (${styleSrc}) : police "${font}", taille ${fontSize}px, OY ${oy}, spacing ${letterSpacing}px, subs ${subsOn ? 'ON' : 'OFF'}${baseZoom ? ', zoom base ' + baseZoom : ''}`);
+    console.log(`  style (${styleSrc}) : police "${font}", taille ${fontSize}px, OY ${oy}, spacing ${letterSpacing}px, subs ${subsOn ? 'ON' : 'OFF'}`);
+    console.log(`  zoom ${zoomCfg.on ? 'ON x' + (zoomCfg.intensity) + ' ' + zoomCfg.duration + 's 1/' + zoomCfg.everyN + ' base ' + zoomCfg.base : 'OFF'} | couleur ${colorFilter || 'neutre'} | musique ${musicOn ? path.basename(musRel) + ' @' + music.volume : 'OFF'}`);
     reacts.forEach(r => console.log(`  reaction ${r.type} @${r.st.toFixed(2)}s`));
   }
 
   execFileSync(FFMPEG, args, { stdio: quiet ? 'ignore' : ['ignore', 'inherit', 'inherit'] });
   return { output, duration, segments: segs.length, subtitles: subsOn ? chunks.length : 0, reactions: reacts.length, assPath: subsOn ? assPath : null,
-    style: { font, fontSize, oy, letterSpacing, baseZoom, subs: subsOn, source: styleSrc } };
+    style: { font, fontSize, oy, letterSpacing, baseZoom: zoomCfg.base, subs: subsOn, source: styleSrc },
+    fx: { image: img, zoom: zoomCfg, music: { on: musicOn ? 1 : 0, file: musicOn ? path.basename(musRel) : '', volume: music.volume } } };
 }
 
-module.exports = { renderLocal, buildChunks, buildSegments, buildReactions, buildAss, normTimings, secToAss };
+module.exports = { renderLocal, buildChunks, buildSegments, buildReactions, buildAss, normTimings, secToAss, loadFx, buildColorFilter, FX_DEFAULT, MUSIC_DIR };

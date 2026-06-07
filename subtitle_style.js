@@ -5,7 +5,7 @@
 //  C'est le style des tests valides de 16h-17h50 le 06/06 (epais, net, sans contour).
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
-const FONT_SIZE = 78;     // ✅ calqué modèle, police Archivo Black (cap ~42px @720x1280)
+const FONT_SIZE = 76;     // ✅ calqué modèle, police Archivo Black (cap ~42px @720x1280)
 const OY        = 0.27;   // ✅ calqué modèle (bas du texte ~0.28 depuis le bas)
 //  (optionnel)
 const LETTER    = '2px';  // espacement entre lettres (proche du modèle)

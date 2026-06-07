@@ -1,0 +1,5 @@
+{
+  "image": { "brightness": 0, "contrast": 1.0, "saturation": 1.0, "temperature": 6500, "sharpness": 0, "vignette": 0 },
+  "zoom":  { "on": 1, "intensity": 1.0, "duration": 2.5, "everyN": 1, "base": 1.0 },
+  "music": { "on": 0, "file": "", "volume": 0.12 }
+}
