@@ -159,7 +159,7 @@ async function sendAlbum(urls){
 }
 async function sendImgUrl(u){return tg('sendPhoto',{photo:u});}
 /*newlook v7 : VARIANTE B validee — tout-en-un, selections visibles ●, Generer en 1 appui. Regle Etoile : images TEST d'abord, video/HD seulement apres validation visuelle.*/
-function nlMark(t,on){return on?'• '+t+' •':t;}
+function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;} /*selection lisible : ✅ remplace l'emoji de tete*/
 async function nlConfig(){
   const {readLookbook}=nlMod();
   const lb=readLookbook();
@@ -173,13 +173,13 @@ async function nlConfig(){
   rows.push([{text:nlMark('🎲 Surprise (catalogue 204)',newlook.category==='random'&&!newlook.extra),callback_data:'NL_SET_CAT_random'}]);
   rows.push(Object.keys(lb.envs).map(k=>({text:nlMark(lb.envs[k].label,newlook.env===k),callback_data:'NL_SET_ENV_'+k})));
   rows.push([
-    {text:nlMark('🧪 Éco',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
-    {text:nlMark('🖼 Planche ×3',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
-    {text:nlMark('💎 HD ×4',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
+    {text:nlMark('🧪 Éco · 💰·',newlook.mode==='eco'),callback_data:'NL_SET_MODE_eco'},
+    {text:nlMark('🖼 Planche ×3 · 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
+    {text:nlMark('💎 HD ×4 · 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
   ]);
   rows.push([{text:'▶️ Générer ('+newlook.catLabel.replace(/^[^ ]+ /,'')+' · '+newlook.envLabel.replace(/^[^ ]+ /,'')+' · '+newlook.mode+')',callback_data:'NL_GO'}]);
   rows.push([{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
-  await nlPanel('🎨 <b>Nouveau look</b>\nTenue · Décor · Format — appuie pour sélectionner (●), puis Générer.\n<i>Règle : images test d\'abord — la HD et la vidéo se débloquent après validation visuelle.</i>',rows);
+  await nlPanel('🎨 <b>Nouveau look</b>\nAppuie pour sélectionner (✅), puis Générer.\n💰 <b>Coûts</b> : toute génération d\'image est PAYANTE (Éco/Planche ≈ le moins cher, HD ≈ 4× plus). Gratuit : /probe et le test sous-titres sandbox.\n<i>Images test d\'abord — HD et vidéo après validation visuelle.</i>',rows);
 }
 async function nlResults(){
   const n=newlook.urls.length;
@@ -203,7 +203,7 @@ async function runNewLook(){
     const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlPanel('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
     newlook.urls=r.urls;newlook.recipe=r.recipe;
     clearInterval(_hb);
-    await sendAlbum(r.urls); /*album en defilement : une seule bulle*/
+    for(const u of r.urls){await sendImgUrl(u);} /*choix Etoile : photos une par une dans le chat*/
     await nlResults();
   }catch(e){clearInterval(_hb);await nlPanel('❌ <b>Échec génération</b>\n'+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
   newlook.busy=false;
