@@ -218,7 +218,7 @@ async function saveOpen(url,content,ts,num,outDir){
     if(_dur>0.5){_af+=',afade=t=out:st='+Math.max(_dur-TRIM-0.15,0).toFixed(2)+':d=0.15';}
     const _vf='eq=brightness=0:saturation=1'; /*color revert*/
     const _tmp=p.replace(/\.mp4$/,'_fix.mp4');
-    _cp.execSync('ffmpeg -y -ss '+TRIM+' -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null');
+    _cp.execSync('ffmpeg -y -ss '+TRIM+' -i "'+p+'" -vf "'+_vf+'" -af "'+_af+'" -c:v libx264 -crf 18 -preset veryfast -pix_fmt yuv420p -colorspace bt709 -color_primaries bt709 -color_trc bt709 -c:a aac -b:a 192k "'+_tmp+'" 2>/dev/null'); /*colortag v1 : etiquette bt709 → meme rendu Mac/iPhone/Telegram*/
     if(_fs.existsSync(_tmp)&&_fs.statSync(_tmp).size>10000){_fs.renameSync(_tmp,p);console.log('  Passe finale OK (anti-pop + couleur).');}
     else{try{if(_fs.existsSync(_tmp))_fs.unlinkSync(_tmp);}catch(_e2){}console.log('  (passe finale ignoree, video brute conservee)');}
   }catch(_e){console.log('  (passe finale ignoree: '+_e.message+')');}
