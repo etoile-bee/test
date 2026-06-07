@@ -6,7 +6,7 @@
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
 const FONT_SIZE = 48;     // taille du texte (plus grand = plus gros)
-const OY        = 0.30;   // hauteur (plus grand = plus haut) — descendu de 0.32 a 0.30 (07/06)
+const OY        = 0.28;   // hauteur (plus grand = plus haut) — descendu 0.32→0.30→0.28 (07/06)
 //  (optionnel)
 const LETTER    = '0px';  // espacement entre lettres
 // ============================================================
