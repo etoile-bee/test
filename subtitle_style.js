@@ -6,7 +6,7 @@
 //
 //  >>> LES 2 CHIFFRES A REGLER <<<
 const FONT_SIZE = 76;     // ✅ calqué modèle, police Archivo Black (cap ~42px @720x1280)
-const OY        = 0.33;   // ✅ calqué modèle (bas du texte ~0.28 depuis le bas)
+const OY        = 0.27;   // ✅ calqué modèle (bas du texte ~0.28 depuis le bas)
 //  (optionnel)
 const LETTER    = '2px';  // espacement entre lettres (proche du modèle)
 const ZOOM      = 1.20;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)

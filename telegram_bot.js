@@ -139,6 +139,25 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
+let newlook={url:null,prompt:null,busy:false}; /*newlook v1*/
+async function runNewLook(customPrompt){
+  if(newlook.busy){await send('⏳ Un look est déjà en cours de génération, patiente...');return;}
+  newlook.busy=true;
+  try{
+    await send('🎨 Génération d\'un nouveau look (même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~30-90s':'\n⏳ 1ère fois : création de la référence visage en plus (~2-3 min)'));
+    const {generateLook}=require('./newlook.js');
+    const r=await generateLook(customPrompt,m=>{send('• '+m).catch(()=>{});});
+    newlook.url=r.url;newlook.prompt=customPrompt||null;
+    const tmp='/tmp/newlook'+Date.now()+'.jpg';
+    require('child_process').execSync('curl -s -o "'+tmp+'" "'+r.url+'"');
+    await sendImg(tmp,'🎨 Nouveau look');
+    await send('On le garde ?',[
+      [{text:'✅ Garder',callback_data:'NL_KEEP'},{text:'🔄 Refaire',callback_data:'NL_RETRY'}],
+      [{text:'❌ Annuler',callback_data:'NL_CANCEL'}]
+    ]);
+  }catch(e){await send('❌ Échec génération look : '+e.message).catch(()=>{});}
+  newlook.busy=false;
+}
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
   let e=fs.readFileSync(ENV_PATH,'utf8');
   if(/^HIGGS_AVATAR_URL=.*/m.test(e)){
@@ -1144,6 +1163,7 @@ async function renderStyleFrame(input){
   const wt=words.map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.45).toFixed(3),end:+((i+1)*0.45).toFixed(3),duration:0.45})).filter(x=>x.text);
   const out='/tmp/sf_'+Date.now()+'.mp4';const dur=wt.length?wt[wt.length-1].end+0.3:1.4;
   let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:[wt[1]?wt[1].text:''],reactions:[],output:out,quiet:true,duration:dur});}catch(e){return null;}
+  if(!r||r.duration==null)return null; // 🔒 jamais d'exception 'duration of null' -> pas d'échec silencieux de la carte
   const frame='/tmp/sf_'+Date.now()+'_'+Math.floor(r.duration*100)+'.png';
   try{require('child_process').execFileSync('ffmpeg',['-y','-ss',Math.min(0.6,dur/2).toFixed(2),'-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return null;}
   return {frame,style:r.style};
@@ -1874,6 +1894,19 @@ await send('Ready to generate video?',[
       if(d==='MU_VOL_DN')m.volume=clampN(m.volume-0.03,0,1);
       writeFx(fx);await refreshPanel();return;
     }
+    // Nouveau look /*newlook v1*/
+    if(d==='NL_KEEP'){
+      if(!newlook.url){await send('Rien à garder.');return;}
+      try{
+        const stamp=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
+        const dest=require('path').join(getLooksDir(),'gen_'+stamp+'.jpg');
+        require('child_process').execSync('curl -s -o "'+dest+'" "'+newlook.url+'"');
+        await send('✅ Look enregistré ('+require('path').basename(dest)+') — il sera proposé en premier au prochain choix de look.');
+      }catch(e){await send('Erreur enregistrement : '+e.message);}
+      newlook.url=null;return;
+    }
+    if(d==='NL_RETRY'){const p=newlook.prompt;newlook.url=null;runNewLook(p);return;}
+    if(d==='NL_CANCEL'){newlook.url=null;await send('Annulé — rien n\'a été ajouté.');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
@@ -2063,6 +2096,11 @@ await send('Ready to generate video?',[
       if(!sc.length){await send('No scripts yet.');return;}
       await send('📚 <b>Recent scripts:</b>\n\n'+sc.map((s,i)=>`${i+1}. ${s.title} [${s.performance||'—'}]`).join('\n'));
     }catch{await send('No library yet.');}return;
+  }
+  if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v1 : genere un look meme visage, validation avant ajout*/
+    const cp=txt.replace(/^\/newlook\s*/,'').trim()||null;
+    runNewLook(cp); // async volontaire : le bot reste reactif pendant la generation
+    return;
   }
   if(txt==='/looks'){galMid=null;gal.idx=0;await showLook();return;}
   if(txt==='/ideas'){
