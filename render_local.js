@@ -1,0 +1,284 @@
+// render_local.js — Rendu vidéo 100% LOCAL (ffmpeg + libass).
+// Remplace renderVideo()/Shotstack de workflow.js : sous-titres .ass burn-in,
+// zooms dynamiques sur mots-clés, lit/réactions mixées, fades anti-pop, 720x1280 30fps h264.
+//
+// Réplique fidèle de renderVideo(lipsyncUrl, wordTimings, keywords, duration, num, reactions)
+// mais en local : pas d'upload, pas d'API. lipsyncUrl devient un chemin de fichier local.
+//
+// Usage module :
+//   const { renderLocal } = require('./render_local');
+//   await renderLocal({ input, wordTimings, keywords, duration, reactions, output });
+
+const { execFileSync } = require('child_process');
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+
+// ============================================================================
+// CONSTANTES ÉDITABLES — style sous-titres validé (Arial Black ~52px @720x1280)
+// ============================================================================
+const FONT = 'Arial Black';   // police des sous-titres (essayer 'Helvetica' pour comparer)
+const FONT_SIZE = 52;         // taille de police à l'échelle 720x1280
+const OY = 0.347;             // position verticale du sous-titre ≈ fraction depuis le bas
+const LETTER_SPACING = 2;     // letter-spacing en px (champ Spacing de l'ASS)
+
+// ----------------------------------------------------------------------------
+// Constantes de rendu (alignées sur renderVideo / passe finale de workflow.js)
+// ----------------------------------------------------------------------------
+const W = 720, H = 1280, FPS = 30;
+const GAP = 0.02;             // trou minimal entre 2 sous-titres
+const LONG = 7;               // un mot > 7 lettres reste seul (pas de groupe de 2)
+const ZOOMS = [1.10, 1.18, 1.12, 1.20, 1.14, 1.16]; // intensités de zoom alternées
+const ZOOM_LEN = 2.5;         // durée d'un zoom sur mot-clé (s)
+const REACT_VOL = 0.5;        // volume des réactions
+const REACT_LEN = 1.2;        // longueur d'une réaction (s)
+const FADE_IN = 0.12, FADE_OUT = 0.15; // fades audio anti-pop
+const REACT_TYPES = ['mhm', 'yeah', 'right', 'hmm'];
+const REACTIONS_DIR = path.join(os.homedir(), 'podcast-workflow', 'reactions');
+const FFMPEG = process.env.FFMPEG_BIN || 'ffmpeg';
+
+// ----------------------------------------------------------------------------
+// Helpers
+// ----------------------------------------------------------------------------
+const even = n => { n = Math.round(n); return n % 2 ? n + 1 : n; };
+const wtext = w => String(w.text || w.word || '').toUpperCase();
+const normWord = s => String(s || '').toUpperCase().replace(/[.,!?;:'"—–-]/g, '').split(/\s+/).filter(Boolean);
+
+// Normalise les wordTimings : { text, start, end, duration } (gère .text ou .word)
+function normTimings(wordTimings) {
+  return (wordTimings || [])
+    .filter(w => !/^\[pause\]$/i.test(String(w.text || w.word || '')))
+    .map(w => {
+      const text = wtext(w);
+      const start = +w.start || 0;
+      const end = (w.end != null) ? +w.end : start + (+w.duration || 0);
+      return { text, start, end, duration: end - start };
+    });
+}
+
+// secondes -> H:MM:SS.cs (format temps ASS)
+function secToAss(t) {
+  if (t < 0) t = 0;
+  const h = Math.floor(t / 3600);
+  const m = Math.floor((t % 3600) / 60);
+  const s = Math.floor(t % 60);
+  const cs = Math.round((t - Math.floor(t)) * 100);
+  const cs2 = cs >= 100 ? 99 : cs;
+  return `${h}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}.${String(cs2).padStart(2, '0')}`;
+}
+
+// ----------------------------------------------------------------------------
+// 1) Découpage des sous-titres en chunks 1-2 mots (réplique renderVideo l.116-136)
+// ----------------------------------------------------------------------------
+function buildChunks(wt) {
+  const chunks = [];
+  let i = 0;
+  while (i < wt.length) {
+    const w = wt[i], w2 = wt[i + 1];
+    let group;
+    if (w2 && w.text.length <= LONG && w2.text.length <= LONG) { group = [w, w2]; i += 2; }
+    else { group = [w]; i += 1; }
+    const after = wt[i]; // mot qui suit le groupe
+    const start = group[0].start;
+    let end = group[group.length - 1].end;
+    if (after) end = after.start - GAP;   // le sous-titre tient jusqu'au mot suivant
+    if (end <= start) end = start + 0.12;
+    chunks.push({ text: group.map(g => g.text).join(' '), start, length: Math.max(end - start, 0.12) });
+  }
+  return chunks;
+}
+
+// ----------------------------------------------------------------------------
+// 2) Segments de zoom (réplique renderVideo l.147-162), rendus contigus [0,duration]
+// ----------------------------------------------------------------------------
+function buildSegments(wt, keywords, duration) {
+  const kws = new Set((keywords || []).map(k => String(k).toUpperCase()));
+  const sorted = wt.filter(w => kws.has(w.text)).sort((a, b) => a.start - b.start);
+  const segs = [];
+  let cur = 0, ki = 0;
+  for (const kw of sorted) {
+    let zs = Math.max(kw.start - 0.05, cur);
+    if (zs > cur + 0.05) segs.push({ start: cur, end: zs, scale: 1.0 });
+    else zs = cur; // snap : pas de trou noir dans le concat local
+    const z = ZOOMS[ki % ZOOMS.length]; ki++;
+    const ze = Math.min(zs + ZOOM_LEN, duration);
+    if (ze <= zs) continue;
+    segs.push({ start: zs, end: ze, scale: z });
+    cur = ze;
+  }
+  if (cur < duration - 0.1) segs.push({ start: cur, end: duration, scale: 1.0 });
+  else if (segs.length && segs[segs.length - 1].end < duration) segs[segs.length - 1].end = duration;
+  if (!segs.length) segs.push({ start: 0, end: duration, scale: 1.0 });
+  return segs;
+}
+
+// ----------------------------------------------------------------------------
+// 3) Réactions : place chaque mp3 à la fin de la phrase cible (réplique l.164-185)
+// ----------------------------------------------------------------------------
+function buildReactions(wt, reactions, duration) {
+  const out = [];
+  if (!reactions || !reactions.length) return out;
+  for (const rx of reactions.slice(0, 2)) {
+    const type = String(rx.type || '').toLowerCase();
+    if (REACT_TYPES.indexOf(type) < 0) continue;
+    const key = normWord(rx.after);
+    if (!key.length) continue;
+    let endT = null;
+    for (let n = Math.min(3, key.length); n >= 1 && endT === null; n--) {
+      const tail = key.slice(key.length - n);
+      for (let i = 0; i + n <= wt.length; i++) {
+        let ok = true;
+        for (let j = 0; j < n; j++) { if (wt[i + j].text !== tail[j]) { ok = false; break; } }
+        if (ok) endT = wt[i + n - 1].end; // dernière occurrence (comme renderVideo)
+      }
+    }
+    if (endT === null) continue;
+    const mp3 = path.join(REACTIONS_DIR, type + '.mp3');
+    if (!fs.existsSync(mp3)) continue;
+    const st = Math.min(Math.max(endT + 0.05, 0), Math.max(duration - 0.4, 0));
+    out.push({ type, st, mp3, length: REACT_LEN });
+  }
+  return out;
+}
+
+// ----------------------------------------------------------------------------
+// 4) Génération du fichier .ass (libass) — style validé, burn-in
+// ----------------------------------------------------------------------------
+function buildAss(chunks, opts = {}) {
+  const font = opts.font || FONT;
+  const size = opts.fontSize || FONT_SIZE;
+  const spacing = opts.letterSpacing != null ? opts.letterSpacing : LETTER_SPACING;
+  const oy = opts.oy != null ? opts.oy : OY;
+  const marginV = Math.round(oy * H);
+
+  // Couleurs ASS = &HAABBGGRR (AA: 00=opaque, FF=transparent)
+  const white = '&H00FFFFFF';
+  const shadow = '&H73000000'; // noir ~55% opaque -> ombre douce (pas de gros contour noir)
+  // Bold=-1, BorderStyle=1, Outline=1 BLANC (épaissit, façon text-stroke), Shadow=2 (ombre douce)
+  const styleLine =
+    `Style: Main,${font},${size},${white},${white},${white},${shadow},-1,0,0,0,100,100,${spacing},0,1,1,2,2,40,40,${marginV},1`;
+
+  const header =
+`[Script Info]
+ScriptType: v4.00+
+PlayResX: ${W}
+PlayResY: ${H}
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+${styleLine}
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+`;
+
+  const esc = t => String(t).toUpperCase()
+    .replace(/\\/g, '')        // pas de backslash (éviterait un override ASS)
+    .replace(/[{}]/g, '')      // pas d'override accidentel
+    .replace(/\r?\n/g, '\\N');
+  const events = chunks.map(c =>
+    `Dialogue: 0,${secToAss(c.start)},${secToAss(c.start + c.length)},Main,,0,0,0,,${esc(c.text)}`
+  ).join('\n');
+
+  return header + events + '\n';
+}
+
+// ----------------------------------------------------------------------------
+// 5) Rendu principal : compose le filter_complex et lance ffmpeg
+// ----------------------------------------------------------------------------
+async function renderLocal(opts) {
+  const {
+    input,                 // chemin du mp4 lipsync (ex-lipsyncUrl)
+    wordTimings,
+    keywords = [],
+    reactions = [],
+    output,                // chemin de sortie .mp4
+    font, fontSize, oy, letterSpacing,
+    quiet = false,
+  } = opts;
+
+  if (!input || !fs.existsSync(input)) throw new Error('render_local: input introuvable: ' + input);
+  if (!output) throw new Error('render_local: output requis');
+
+  const wt = normTimings(wordTimings);
+
+  // Durée : couper la fin qui traîne (réplique l.113-115)
+  let duration = +opts.duration || (wt.length ? wt[wt.length - 1].end + 1.5 : 23);
+  const speechEnd = wt.reduce((m, w) => Math.max(m, w.end || 0), 0);
+  if (speechEnd > 1 && speechEnd < duration) duration = speechEnd + 0.35;
+
+  const chunks = buildChunks(wt);
+  const segs = buildSegments(wt, keywords, duration);
+  const reacts = buildReactions(wt, reactions, duration);
+
+  // Fichier .ass
+  const tag = path.basename(output).replace(/[^a-z0-9]/gi, '_');
+  const assPath = path.join(os.tmpdir(), 'render_local_' + tag + '.ass');
+  fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing }));
+
+  // --- Construction du filter_complex ---
+  const fc = [];
+  // base normalisée 720x1280 30fps
+  fc.push(`[0:v]scale=${W}:${H}:force_original_aspect_ratio=increase,crop=${W}:${H},fps=${FPS},setsar=1[base]`);
+  // split en autant de segments
+  const labels = segs.map((_, i) => `[v${i}]`);
+  fc.push(`[base]split=${segs.length}${labels.join('')}`);
+  // trim + zoom (scale up + crop centré) par segment
+  segs.forEach((s, i) => {
+    const zw = even(W * s.scale), zh = even(H * s.scale);
+    const cx = Math.round((zw - W) / 2), cy = Math.round((zh - H) / 2);
+    fc.push(`[v${i}]trim=start=${s.start.toFixed(3)}:end=${s.end.toFixed(3)},setpts=PTS-STARTPTS,scale=${zw}:${zh},crop=${W}:${H}:${cx}:${cy},setsar=1[c${i}]`);
+  });
+  // concat des segments
+  fc.push(`${segs.map((_, i) => `[c${i}]`).join('')}concat=n=${segs.length}:v=1:a=0[vc]`);
+  // burn-in des sous-titres (libass)
+  fc.push(`[vc]ass=${assPath}[vs]`);
+  fc.push(`[vs]format=yuv420p[vout]`);
+
+  // --- Audio : piste lipsync + réactions mixées + fades anti-pop ---
+  const fout = Math.max(duration - FADE_OUT, 0);
+  const fadeChain = `afade=t=in:ss=0:d=${FADE_IN}` + (duration > 0.4 ? `,afade=t=out:st=${fout.toFixed(3)}:d=${FADE_OUT}` : '');
+  if (reacts.length) {
+    fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS[a0]`);
+    reacts.forEach((r, i) => {
+      const ms = Math.round(r.st * 1000);
+      fc.push(`[${i + 1}:a]adelay=${ms}:all=1,volume=${REACT_VOL}[r${i}]`);
+    });
+    const ins = ['[a0]', ...reacts.map((_, i) => `[r${i}]`)].join('');
+    fc.push(`${ins}amix=inputs=${reacts.length + 1}:normalize=0:duration=first[amx]`);
+    fc.push(`[amx]${fadeChain}[aout]`);
+  } else {
+    fc.push(`[0:a]atrim=0:${duration.toFixed(3)},asetpts=PTS-STARTPTS,${fadeChain}[aout]`);
+  }
+
+  // filter_complex via fichier (évite l'échappement shell)
+  const fcPath = path.join(os.tmpdir(), 'render_local_' + tag + '.fc');
+  fs.writeFileSync(fcPath, fc.join(';\n'));
+
+  // --- Inputs ffmpeg ---
+  const args = ['-y', '-i', input];
+  for (const r of reacts) args.push('-i', r.mp3);
+  args.push(
+    '-filter_complex_script', fcPath,
+    '-map', '[vout]', '-map', '[aout]',
+    '-r', String(FPS),
+    '-c:v', 'libx264', '-crf', '18', '-preset', 'veryfast', '-pix_fmt', 'yuv420p',
+    '-c:a', 'aac', '-b:a', '192k',
+    '-movflags', '+faststart',
+    '-t', duration.toFixed(3),
+    output
+  );
+
+  if (!quiet) {
+    console.log(`  render_local: ${segs.length} segments, ${chunks.length} sous-titres, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s, police "${font || FONT}"`);
+    reacts.forEach(r => console.log(`  reaction ${r.type} @${r.st.toFixed(2)}s`));
+  }
+
+  execFileSync(FFMPEG, args, { stdio: quiet ? 'ignore' : ['ignore', 'inherit', 'inherit'] });
+  return { output, duration, segments: segs.length, subtitles: chunks.length, reactions: reacts.length, assPath };
+}
+
+module.exports = { renderLocal, buildChunks, buildSegments, buildReactions, buildAss, normTimings, secToAss };
