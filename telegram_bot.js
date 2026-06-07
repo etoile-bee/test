@@ -764,6 +764,9 @@ async function refreshRecap(){
 }
 // ── Orchestration de génération pilotée par le bot (script preview + maquette + GO) ──
 let genJob=null; // job de génération courant
+let genAbort=false; // flag d'annulation (❌ / /stop) vérifié entre étapes + pendant le polling lipsync
+let genStep=''; // étape courante (pour le message « annulé à l'étape X »)
+function abortNow(){return genAbort;}
 function genBusy(){return !!(proc||genJob&&genJob.running);}
 const CAT_FOCUS={redflags:'red flags, toxic men, manipulation, control, disrespect',attach:'attachment styles, anxious attachment, avoidant men, fear of intimacy',worth:'self-worth, self-respect, knowing your value, stop settling',healing:'breakups, no contact, healing, moving on, grief',situ:'situationships, dating games, mixed signals, breadcrumbing, why men pull away',feminine:'feminine energy, soft life, high-value mindset, letting him chase'};
 let sessionTopics=[]; // sujets déjà tirés/refusés cette session -> exclusion anti-répétition
@@ -857,29 +860,29 @@ async function genMockup(){
 async function genFinal(){
   if(!genJob){await send('⚠️ Aucun script en attente.');return;}
   if(proc||genJob.running){await send('⏳ Déjà en cours.');return;}
-  genJob.running=true;state='running';freshRL(); // recharge render_local à jour (cache partagé avec WF.renderVideo)
+  genJob.running=true;state='running';genAbort=false;freshRL(); // render_local à jour (cache partagé WF.renderVideo)
   const job=genJob;
-  // GARDE-FOU séparation stricte : la vraie génération n'utilise QUE le script validé du wizard
-  if(!job||!job.script||job.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé — repasse par 🚀 GO → écran Script.');state='idle';genJob=null;return;}
-  const prog=await send('📊 <b>GÉNÉRATION</b>\n📝 Script ✓\n🎙 Voix…');
+  if(!job||!job.script||job.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé — repasse par 🚀 GO.');state='idle';genJob=null;return;}
+  const prog=await send('📊 Génération…\n📝 ✓ · 🎙 Voix…',[[{text:'⛔ Annuler',callback_data:'GEN_ABORT'}]]);
   const progMid=prog&&prog.result&&prog.result.message_id;
-  const setProg=async t=>{try{if(progMid)await tg('editMessageText',{message_id:progMid,text:'📊 <b>GÉNÉRATION</b>\n'+t,parse_mode:'HTML'});}catch(e){}};
+  const setProg=async t=>{try{if(progMid)await tg('editMessageText',{message_id:progMid,text:'📊 '+t,parse_mode:'HTML',reply_markup:{inline_keyboard:[[{text:'⛔ Annuler',callback_data:'GEN_ABORT'}]]}});}catch(e){}};
+  const abrt=()=>{if(genAbort)throw new Error('ABORT');};
   try{
     const ts=new Date().toISOString().slice(0,16).replace(/[:T]/g,'-');
     const outDir=path.join(BASE,'outputs');
-    await setProg('📝 Script ✓\n🎙 Voix…');
+    genStep='voix';abrt();
     if(!job.audio)job.audio=await WF.generateAudio(job.script,1);
-    await setProg('📝 ✓ · 🎙 Voix ✓\n🖼 Préparation avatar…');
+    genStep='avatar';abrt();await setProg('📝 ✓ · 🎙 ✓ · 🖼 avatar…');
     const imageUrl=await WF.prepareImage();
     const clips=[];const prevScripts=[job.script];const partsMeta=[];
     for(let i=1;i<=job.parts;i++){
       let c,audio;
       if(i===1){c=job.c1;audio=job.audio;}
-      else{await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
-      await setProg('📝 ✓ · 🎙 ✓ · 🖼 ✓\n🎬 Lipsync partie '+i+'/'+job.parts+'… (~3-5 min, patiente)');
-      const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i);
+      else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);audio=await WF.generateAudio(c.script,i);prevScripts.push(c.script);}
+      genStep='lipsync '+i+'/'+job.parts;abrt();await setProg('🎬 Lipsync '+i+'/'+job.parts+'… (~3-5 min)');
+      const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i,abortNow);
       const rawi=await WF.saveLipsyncRaw(lip,i,ts,outDir);
-      await setProg('🎬 Lipsync '+i+'/'+job.parts+' ✓\n✨ Rendu local…');
+      genStep='rendu '+i;abrt();await setProg('🎬 Lipsync '+i+' ✓ · ✨ rendu…');
       const vid=await WF.renderVideo(lip,audio.wordTimings,c.keywords,audio.duration,i,c.reactions,rawi);
       const p=await WF.saveOpen(vid,c,ts,i,outDir);
       clips.push(p);partsMeta.push({raw:rawi,wordTimings:audio.wordTimings,keywords:c.keywords,reactions:c.reactions});
@@ -893,14 +896,17 @@ async function genFinal(){
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     await sendVid(finalP).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');});
     const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[]})-1;
-    await send('✅ <b>Vidéo prête !</b>\n📁 Dossier : <code>generations/'+path.basename(genDir)+'/</code> (final + raw + légendes + style).\n💾 Pour enregistrer : appui long sur la vidéo ci-dessus, ou 📁 Fichiers.',[
+    await send('✅ <b>Vidéo prête !</b>\n📁 <code>generations/'+path.basename(genDir)+'/</code>',[
       [{text:'✅ Postable',callback_data:'GF_POST_'+gfIdx},{text:'🔧 À retravailler',callback_data:'GF_REWORK_'+gfIdx}],
-      [{text:'🎨 Restyler (gratuit)',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Choisir la cover',callback_data:'COVER_OPEN_'+gfIdx}],
+      [{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+gfIdx},{text:'🖼 Cover',callback_data:'COVER_OPEN_'+gfIdx}],
       [{text:'📁 Fichiers',callback_data:'GF_FILES_'+gfIdx},{text:'♻️ Régénérer',callback_data:'MENU_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
     ]);
     try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
-  }catch(e){await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
-  state='idle';genJob=null;
+  }catch(e){
+    if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape : <b>'+(genStep||'?')+'</b>.');await send('⛔ Génération annulée. Tu peux relancer quand tu veux.');}
+    else{await setProg('❌ Échec : '+e.message);await send('❌ Génération : '+e.message);}
+  }
+  genAbort=false;genStep='';state='idle';genJob=null;
 }
 // ── Dossier par génération + restyle gratuit ────────────────────────────────────
 function gslug(s){return String(s||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'video';}
@@ -1342,7 +1348,7 @@ async function handle(upd){
     if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
     if(d==='GJ_MOCK'){await genMockup();return;}
     if(d==='GJ_GO'){await genFinal();return;}
-    if(d==='GJ_CANCEL'){genJob=null;state='idle';await send('❌ Annulé.');return;}
+    if(d==='GJ_CANCEL'||d==='GEN_ABORT'){if(genJob&&genJob.running){genAbort=true;await send('⛔ Annulation en cours… (arrêt à la prochaine étape)');}else{genJob=null;state='idle';await send('❌ Annulé.');}return;}
     // ── Dossier de génération : Postable / À retravailler / Restyler ──
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
@@ -1388,8 +1394,9 @@ async function handle(upd){
     }
     if(d==='TECH_STOP'){
       let stopped=false;
+      if(genJob&&genJob.running){genAbort=true;stopped=true;}
       if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
-      if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} genJob=null;
+      if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} if(!(genJob&&genJob.running))genJob=null;
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
       state='idle';await send(stopped?'⏹ Stoppé.':'Rien en cours.');return;
     }
@@ -1804,10 +1811,11 @@ await send('Ready to generate video?',[
   if(txt==='/start'||txt==='/menu'){await showMainMenu();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await showMainMenu();return;} /*menu v5 : /go = menu principal*/
-  if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
+  if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
+    if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot
     if(proc){try{proc.kill('SIGKILL');}catch(e){} proc=null;stopped=true;}
-    if(testProc){try{testProc.kill('SIGKILL');}catch(e){} testProc=null;stopped=true;} genJob=null;
+    if(testProc){try{testProc.kill('SIGKILL');}catch(e){} testProc=null;stopped=true;} if(!(genJob&&genJob.running))genJob=null;
     const _k=require('child_process');
     try{_k.execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
     try{_k.execSync('pkill -9 -f "node.*test_soustitres.js" 2>/dev/null');stopped=true;}catch(e){}

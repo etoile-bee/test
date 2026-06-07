@@ -110,7 +110,9 @@ async function prepareImage(){
   if(!u.startsWith('http'))throw new Error('Image upload failed');
   console.log('  OK:',u);return u;
 }
-async function generateLipsync(imageUrl,audioUrl,num){
+async function generateLipsync(imageUrl,audioUrl,num,abortFn){
+  const chk=()=>{if(abortFn&&abortFn())throw new Error('ABORT');};
+  chk();
   console.log('\n🎬 Lipsync Part '+num+' (Kling)...');
   const res=await fetch(HIGGS_BASE+'/v1/speak/kling',{
     method:'POST',headers:{'Authorization':HIGGS_AUTH,'Content-Type':'application/json'},
@@ -121,7 +123,9 @@ async function generateLipsync(imageUrl,audioUrl,num){
   const jobId=data.id||data.job_id||data.request_id;
   console.log('  Job:',jobId);
   for(let i=0;i<540;i++){
+    chk();
     await sleep(5000);
+    chk();
     const p=await fetch(HIGGS_BASE+'/requests/'+jobId+'/status',{headers:{'Authorization':HIGGS_AUTH}});
     if(!p.ok)continue;
     const d=await p.json();
