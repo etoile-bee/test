@@ -2,7 +2,7 @@
   "image": {
     "brightness": -0.03,
     "contrast": 1,
-    "saturation": 1,
+    "saturation": 0.75,
     "temperature": 6500,
     "sharpness": 0,
     "vignette": 0

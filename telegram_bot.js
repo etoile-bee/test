@@ -739,9 +739,39 @@ async function sendVsReference(){
 async function afterEdit(section){
   await sendBeforeAfter();
   if(section==='subs')await showSettings();
-  else if(section==='img')await showEditImage();
   else if(section==='zoom')await showEditZoom();
   else if(section==='mus')await showEditMusic();
+}
+// ── Panneau IMAGE édité EN PLACE (un seul message, editMessageMedia) ─────────────
+let editPanel={mid:null};
+async function editPhotoKb(mid,fp,caption,rows){
+  try{
+    const FormData=require('form-data');const form=new FormData();
+    form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
+    form.append('media',JSON.stringify({type:'photo',media:'attach://photo',caption:caption,parse_mode:'HTML'}));
+    form.append('photo',fs.readFileSync(fp),{filename:'p.jpg',contentType:'image/jpeg'});
+    if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
+    const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
+    const d=await r.json();return !!(d&&d.ok);
+  }catch(e){return false;}
+}
+async function sendImagePanel(){
+  const f=await renderStyleFrame();
+  if(!f){await send('🎨 <b>IMAGE</b> — règle, l\'AVANT/APRÈS s\'affiche à chaque pas.',imageKb());editPanel.mid=null;return;}
+  editPrevFrame=f.frame;
+  const r=await sendPhotoKb(f.frame,'🎨 IMAGE — l\'aperçu se met à jour ICI à chaque réglage',imageKb());
+  editPanel.mid=(r&&r.result&&r.result.message_id)||null;
+}
+async function updateImagePanel(){
+  const after=await renderStyleFrame();
+  if(!after){return;}
+  const comp='/tmp/iap_'+Date.now()+'.png';
+  if(editPrevFrame&&fs.existsSync(editPrevFrame)){try{hstackLabeled(editPrevFrame,after.frame,'AVANT','APRES',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
+  else fs.copyFileSync(after.frame,comp);
+  editPrevFrame=after.frame;
+  let ok=false;
+  if(editPanel.mid)ok=await editPhotoKb(editPanel.mid,comp,'🎨 IMAGE — AVANT | APRÈS',imageKb());
+  if(!ok){const r=await sendPhotoKb(comp,'🎨 IMAGE — AVANT | APRÈS',imageKb());editPanel.mid=(r&&r.result&&r.result.message_id)||null;}
 }
 async function showEditHome(){
   await send('🎛 <b>ÉDITION DU LOOK</b>\n\nChoisis une section à régler :',[
@@ -1046,7 +1076,7 @@ await send('Ready to generate video?',[
     // Menu /edit unifié
     if(d==='EDIT_HOME'){editPrevFrame=null;await showEditHome();return;}
     if(d==='EDIT_SUBS'){await showSettings();await captureBaseline();return;}
-    if(d==='EDIT_IMG'){await showEditImage();await captureBaseline();return;}
+    if(d==='EDIT_IMG'){editPanel.mid=null;await sendImagePanel();return;}
     if(d==='EDIT_ZOOM'){await showEditZoom();await captureBaseline();return;}
     if(d==='EDIT_MUS'){await showEditMusic();await captureBaseline();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
@@ -1067,7 +1097,7 @@ await send('Ready to generate video?',[
       if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+0.5,0,4);
       if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-0.5,0,4);
       if(d.startsWith('IMG_PRE_')){const n=d.slice(8);if(IMG_PRESETS[n])fx.image=Object.assign({},IMG_PRESETS[n]);}
-      writeFx(fx);await afterEdit('img');return;
+      writeFx(fx);await updateImagePanel();return;
     }
     if(d.startsWith('ZM_')){
       const fx=readFx(),z=fx.zoom;
