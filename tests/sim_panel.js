@@ -58,7 +58,7 @@ require(path.join(__dirname,'..','telegram_bot.js'));
   await new Promise(r=>setTimeout(r,1500)); // demarrage
   const startupCount=calls.filter(c=>c.method==='sendMessage'||c.method==='sendPhoto').length;
   // SCENARIO ETOILE
-  const steps=['/newlook','NL_MENU_CAT','NL_SET_CAT_soiree','NL_MENU_ENV','NL_SET_ENV_jour','NL_MENU_MODE','NL_SET_MODE_planche','NL_SET_MODE_planche','NL_GO','NL_NAV_N','NL_NAV_N','NL_KEEP_CUR','NL_RE_0','NL_KEEP_CUR','NL_CANCEL'];
+  const steps=['/newlook','NL_MENU_CAT','NL_SET_CAT_soiree','NL_MENU_ENV','NL_SET_ENV_jour','NL_MENU_MODE','NL_SET_MODE_planche','NL_SET_MODE_planche','NL_GO','NL_GO2','NL_NAV_N','NL_NAV_N','NL_KEEP_CUR','NL_RE_0','NL_KEEP_CUR','NL_CANCEL'];
   for(const st of steps){
     updatesQueue.push(st.startsWith('/')?U.msg(st):U.cb(st));
     await new Promise(r=>setTimeout(r,1400));

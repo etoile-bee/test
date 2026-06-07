@@ -242,7 +242,7 @@ async function nlConfig(){ /*ACCUEIL compact (architecture validee Etoile) : eta
   const rows=[
     [{text:'👗 '+newlook.catLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_CAT'},{text:'🌆 '+newlook.envLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_ENV'}],
     [{text:'🎛 '+newlook.mode+' '+cost,callback_data:'NL_MENU_MODE'},{text:'🎲 Surprise',callback_data:'NL_SET_CAT_random'}],
-    [{text:'▶️ Générer 💰',callback_data:'NL_GO'},{text:'❌',callback_data:'NL_CANCEL'}]
+    [{text:'→ ▶️ Générer',callback_data:'NL_GO'},{text:'❌',callback_data:'NL_CANCEL'}]
   ];
   const cur=(newlook.urls.length&&nlLocal(newlook.idx))||null;
   await nlMedia(cur||nlCover(),'🎨 <b>NOUVEAU LOOK</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode,rows);
@@ -273,9 +273,10 @@ function nlResultRows(){
   const n=newlook.urls.length;
   const rows=[];
   if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
-  rows.push([{text:'✅ Garder',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'✅ Tout',callback_data:'NL_KEEP_ALL'}]:[])]);
+  rows.push([{text:'💾 Enregistrer',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'💾 Tout enregistrer',callback_data:'NL_KEEP_ALL'}]:[])]);
   if(newlook.mode==='planche')rows.push([{text:'🪄 9:16 →',callback_data:'NL_NOOP'},{text:'1 💰',callback_data:'NL_RE_0'},{text:'2 💰',callback_data:'NL_RE_1'},{text:'3 💰',callback_data:'NL_RE_2'},{text:'×3 💰💰',callback_data:'NL_RE_ALL'}]);
-  rows.push([{text:'🎬 Vidéo',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD 💰💰',callback_data:'NL_HD'}]:[]),{text:'🔄 Refaire',callback_data:'NL_RETRY'}]);
+  rows.push([{text:'🎬 Vidéo',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD',callback_data:'NL_HD'}]:[])]);
+  rows.push([{text:'🔁 Refaire pareil',callback_data:'NL_RETRY'},{text:'🆕 Autre look',callback_data:'NL_OTHER'}]);
   rows.push([{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]);
   return rows;
 }
@@ -1698,7 +1699,7 @@ async function handle(upd){
       return;
     }
     if(d.startsWith('GF_BACK_')){const ix=+d.slice(8);const gf=genFolders[ix];if(gf&&gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:buildVideoCaption(gf.finalP),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});}catch(e){}}return;}
-    if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'◀️ Retour',callback_data:'GF_BACK_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
+    if(d.startsWith('GF_LONG_')){const ix=+d.slice(8);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}const c=parseCaps(readCapTxt(gf.finalP));const lg='<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':'');const kb=[[{text:'↩️ Légende courte',callback_data:'GF_SHORT_'+ix}],[{text:'◀️ Retour',callback_data:'GF_BACK_'+ix}]];if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:lg.slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:kb}});return;}catch(e){}}await send(lg,kb);return;}
     if(d.startsWith('GF_SHORT_')){const ix=+d.slice(9);const gf=genFolders[ix];if(!gf){await send('⚠️ Introuvable.');return;}if(gf.vidMid){try{await tg('editMessageCaption',{message_id:gf.vidMid,caption:(gf.caption||buildVideoCaption(gf.finalP)).slice(0,1020),parse_mode:'HTML',reply_markup:{inline_keyboard:videoReadyKb(ix)}});return;}catch(e){}}return;}
     if(d==='LCAP_LEGACY'){if(setup.lastVideo){const c=parseCaps(readCapTxt(setup.lastVideo));await send('📋 <b>Légende longue</b>\n\n<code>'+escH(c.long||c.short||'(vide)')+'</code>'+(c.tags?'\n\n<code>'+escH(c.tags)+'</code>':''));}else await send('⚠️ Aucune vidéo récente.');return;}
     if(d.startsWith('COVER_OPEN_')){covState={gfIdx:+d.slice(11),idx:0,mid:null};await showCover();return;}
@@ -2051,7 +2052,21 @@ await send('Ready to generate video?',[
     if(d==='NL_MENU_MODE'){nlMenuMode();return;}
     if(d.startsWith('NL_SET_ENV_')){newlook.env=d.replace('NL_SET_ENV_','');nlConfig();return;}
     if(d.startsWith('NL_SET_MODE_')){newlook.mode=d.replace('NL_SET_MODE_','');nlConfig();return;}
-    if(d==='NL_GO'){newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
+    if(d==='NL_GO'){ /*step RECAP : on sait QUOI et COMBIEN avant de payer*/
+      const lb2=nlMod().readLookbook();
+      const ops=(lb2.pricing&&lb2.pricing.ops)||{};
+      const epc=(lb2.pricing&&lb2.pricing.eur_per_credit)||0.058;
+      const cr=ops[newlook.mode];
+      const prix=cr?('≈'+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer';
+      const nimg=newlook.mode==='hd'?'4 images':newlook.mode==='planche'?'1 planche (plusieurs poses)':'1 image';
+      await nlText('🧾 <b>RÉCAP</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+' · '+nimg+' · '+prix,[
+        [{text:'→ ✅ GÉNÉRER MAINTENANT',callback_data:'NL_GO2'}],
+        [{text:'◀️ Précédent',callback_data:'NL_CONFIG'}]
+      ]);
+      return;
+    }
+    if(d==='NL_GO2'){newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
+    if(d==='NL_OTHER'){const o=nlMod().pickOutfit(newlook.category!=='random'?newlook.category:null);newlook.extra=o.prompt;newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
     if(d==='NL_CONFIG'){nlConfig();return;}
     if(d==='NL_NAV_P'){if(newlook.urls.length>1){newlook.idx=(newlook.idx-1+newlook.urls.length)%newlook.urls.length;nlShowResult();}return;}
     if(d==='NL_NAV_N'){if(newlook.urls.length>1){newlook.idx=(newlook.idx+1)%newlook.urls.length;nlShowResult();}return;}
