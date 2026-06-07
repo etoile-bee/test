@@ -229,24 +229,23 @@ async function nlConfig(){
     {text:nlMark('🖼 Planche ×3 💰·',newlook.mode==='planche'),callback_data:'NL_SET_MODE_planche'},
     {text:nlMark('💎 HD ×4 💰💰💰',newlook.mode==='hd'),callback_data:'NL_SET_MODE_hd'}
   ]);
-  rows.push([{text:'▶️ GÉNÉRER — '+newlook.catLabel.replace(/^[^ ]+ /,'')+' · '+newlook.envLabel.replace(/^[^ ]+ /,'')+' · '+newlook.mode+' (payant)',callback_data:'NL_GO'}]);
-  rows.push([{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
+  rows.push([{text:'▶️ Générer 💰',callback_data:'NL_GO'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]);
   const cur=(newlook.urls.length&&nlLocal(newlook.idx))||null;
-  await nlMedia(cur||nlCover(),'🎨 <b>Nouveau look</b>\n① '+escH(newlook.catLabel)+' · ② '+escH(newlook.envLabel)+' · ③ '+newlook.mode+'\n💰 image = payant · gratuit : /probe, ✂️ découpe, /test',rows);
+  await nlMedia(cur||nlCover(),'🎨 <b>NOUVEAU LOOK</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode,rows);
 }
 function nlResultRows(){
   const n=newlook.urls.length;
   const rows=[];
   if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
-  rows.push([{text:'✅ Garder cette pose',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'✅ Tout garder',callback_data:'NL_KEEP_ALL'}]:[])]);
-  if(newlook.mode==='planche')rows.push([{text:'🪄 9:16 pose 1 💰',callback_data:'NL_RE_0'},{text:'🪄 2 💰',callback_data:'NL_RE_1'},{text:'🪄 3 💰',callback_data:'NL_RE_2'},{text:'🪄 les 3 💰💰💰',callback_data:'NL_RE_ALL'}]);
-  rows.push([{text:'🎬 Vidéo avec cette pose',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD',callback_data:'NL_HD'}]:[])]);
-  rows.push([{text:'🔄 Refaire',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]);
+  rows.push([{text:'✅ Garder',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'✅ Tout',callback_data:'NL_KEEP_ALL'}]:[])]);
+  if(newlook.mode==='planche')rows.push([{text:'🪄 9:16 →',callback_data:'NL_NOOP'},{text:'1 💰',callback_data:'NL_RE_0'},{text:'2 💰',callback_data:'NL_RE_1'},{text:'3 💰',callback_data:'NL_RE_2'},{text:'×3 💰💰',callback_data:'NL_RE_ALL'}]);
+  rows.push([{text:'🎬 Vidéo',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD 💰💰',callback_data:'NL_HD'}]:[]),{text:'🔄 Refaire',callback_data:'NL_RETRY'}]);
+  rows.push([{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fini',callback_data:'NL_CANCEL'}]);
   return rows;
 }
 async function nlShowResult(){
   const f=nlLocal(newlook.idx);
-  await nlMedia(f,'🎨 <b>Résultats</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+(newlook.urls.length>1?' · image '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows());
+  await nlMedia(f,'🎞 <b>RÉSULTATS</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+(newlook.urls.length>1?' · '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows());
 }
 async function runNewLook(){
   if(newlook.busy){return;}
