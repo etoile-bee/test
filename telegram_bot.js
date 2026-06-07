@@ -737,7 +737,9 @@ await send('Ready to generate video?',[
   if(txt==='/restart'){ /*restartcmd v1 : redemarrage depuis le chat — pm2 relance automatiquement a l'exit*/
     if(proc||testProc){await send('⛔ Génération ou test en cours — redémarrage refusé. Utilise /stop d\'abord si besoin.');return;}
     await send('🔄 Redémarrage du bot... (retour dans ~5s avec le code à jour)');
-    setTimeout(()=>{releaseLock();process.exit(0);},800);
+    /*restartcmd v2 : ACK de l'update aupres de Telegram AVANT de mourir — sinon /restart est relivre en boucle*/
+    try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
+    releaseLock();process.exit(0);
     return;
   }
   if(txt==='/test'){ /*cmdtest v1 : test sous-titres sandbox depuis Telegram*/
@@ -852,6 +854,8 @@ tg('setMyCommands',{commands:[ /*cmdmenu v1 : les commandes apparaissent dans le
   {command:'looks',description:'📸 Looks disponibles'},
   {command:'ideas',description:'💡 Idées de sujets'},
 ]}).catch(()=>{});
-send('🤖 <b>Bot ready!</b>\n\nSend /go to create a video.').then(()=>{
+/*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
+(async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
+send('🤖 <b>Bot ready!</b>\n\nSend /go to create a video.')).then(()=>{
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
