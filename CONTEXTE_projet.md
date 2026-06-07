@@ -55,6 +55,7 @@
 Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.25, couleur V5 adaptative (desat only), trim 0.10s, bt709, sans réactions, lookpick nouveautés d'abord. Toute évolution = nouvelle branche de travail, la v1 reste récupérable.
 
 ## CE QU'IL RESTE À FAIRE (ordre recommandé)
+0. 🔔 RAPPEL ETOILE : passer en revue ENSEMBLE tous les réglages par défaut (style.json/fx : réactions, zooms, musique, durée, sous-titres…) — demandé le 07/06 au soir.
 1. ⚠️ Redémarrer le bot (commande sécurisée ci-dessus) — TOUJOURS PAS FAIT : active `/test`, `/stop` "partout", `/settings` retargés, lookpick côté bot.
 2. Publication TikTok automatique (clés dans .env, code à écrire — OAuth + Content Posting API, prérequis : app TikTok déclarée). Le chaînon manquant du 100% auto.
 3. Remplacer tmpfiles.org par un stockage privé (S3/R2) — fiabilité + confidentialité, indispensable avant monétisation.
