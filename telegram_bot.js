@@ -252,15 +252,15 @@ async function runNewLook(){
   newlook.busy=true;
   let _sec=0;
   const _lab={eco:'🧪 Éco (1 pose 720p)',planche:'🖼 Planche (3 poses en 1 image)',hd:'💎 HD (4 portraits 1080p)'}[newlook.mode]||newlook.mode;
-  const _hb=setInterval(()=>{_sec+=30;nlText('⏳ <b>Génération en cours…</b> ('+_sec+'s)\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab).catch(()=>{});},30000);
+  const _hb=setInterval(()=>{_sec+=30;nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab+' · '+_sec+'s').catch(()=>{});},30000);
   try{
-    await nlText('⏳ <b>Génération en cours…</b>\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
+    await nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
     const {generateLook}=nlMod();
-    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlText('⏳ <b>Génération en cours…</b>\n'+escH(m)).catch(()=>{});});
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlText('⏳ <b>GÉNÉRATION</b> · '+escH(m)).catch(()=>{});});
     newlook.urls=r.urls;newlook.files=[];newlook.idx=0;newlook.recipe=r.recipe;
     clearInterval(_hb);
     await nlShowResult();
-  }catch(e){clearInterval(_hb);await nlText('❌ <b>Échec génération</b>\n'+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
+  }catch(e){clearInterval(_hb);await nlText('❌ <b>ERREUR</b> · '+escH(e.message),[[{text:'🔄 Réessayer',callback_data:'NL_RETRY'},{text:'⚙️ Réglages',callback_data:'NL_CONFIG'},{text:'❌ Fermer',callback_data:'NL_CANCEL'}]]).catch(()=>{});}
   newlook.busy=false;
 }
 function setAvatar(fp){ // setAvatar robuste : crée la ligne si absente
@@ -2025,11 +2025,11 @@ await send('Ready to generate video?',[
       return dest;
     }
     if(d==='NL_KEEP_CUR'){
-      try{nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>Pose '+(newlook.idx+1)+' gardée</b> (galerie + recette /look)\n🎨 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      try{nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_KEEP_ALL'){
-      try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await nlText('✅ <b>'+n+' poses gardées</b> (galerie + recette /look)',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
     if(d.startsWith('NL_RE_')){ /*recreate v1 : choix LIBRE de la/des pose(s) a recreer en 9:16 natif (payant, 1 credit/pose)*/
@@ -2039,7 +2039,7 @@ await send('Ready to generate video?',[
           const planche=newlook.urls[0];
           const out=[];
           for(const i of which){
-            await nlText('🪄 <b>Recréation 9:16 — pose '+(i+1)+'…</b> ('+(out.length+1)+'/'+which.length+', payant)');
+            await nlText('🪄 <b>9:16</b> · pose '+(i+1)+' · '+(out.length+1)+'/'+which.length+' 💰');
             out.push(await nlMod().recreatePose(planche,i,m=>{nlText('🪄 '+escH(m)).catch(()=>{});}));
           }
           newlook.urls=out;newlook.files=[];newlook.idx=0;newlook.mode='hd';
@@ -2051,7 +2051,7 @@ await send('Ready to generate video?',[
     if(d==='NL_SPLIT'){
       (async()=>{
         try{
-          await nlText('✂️ <b>Découpage de la planche en 3 poses…</b> (gratuit)');
+          await nlText('✂️ <b>DÉCOUPE</b> · 3 poses · gratuit');
           const files=await nlMod().splitPlanche(newlook.urls[0]);
           newlook.urls=files;newlook.files=files.slice();newlook.idx=0;newlook.mode='split';
           await nlShowResult();
@@ -2064,14 +2064,14 @@ await send('Ready to generate video?',[
       try{
         const dest=nlSave(newlook.idx);
         setAvatar(dest);
-        await nlMedia(nlLocal(newlook.idx),'🎬 <b>Pose appliquée comme avatar</b>\nLance la vidéo : /go',[[{text:'▶️ Ouvrir le menu vidéo',callback_data:'NEW_GO'}],[{text:'◀️ Retour aux résultats',callback_data:'NL_BACKRES'}]]);
+        await nlMedia(nlLocal(newlook.idx),'🎬 <b>AVATAR APPLIQUÉ</b> · lance la vidéo',[[{text:'▶️ Ouvrir le menu vidéo',callback_data:'NEW_GO'}],[{text:'◀️ Retour aux résultats',callback_data:'NL_BACKRES'}]]);
       }catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_BACKRES'){nlShowResult();return;}
     if(d==='NL_HD'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
     if(d==='NL_RETRY'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
-    if(d==='NL_CANCEL'){await nlText('🎨 Terminé — galerie à jour. /newlook pour recommencer.');return;}
+    if(d==='NL_CANCEL'){await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
