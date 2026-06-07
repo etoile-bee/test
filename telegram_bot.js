@@ -485,6 +485,7 @@ function launch(){
             setup.lastVideo=vp; await sendVid(vp).catch(async()=>{
               await send('⚠️ Vidéo trop lourde pour Telegram — voir iCloud → podcast-outputs').catch(()=>{});
             });
+            await offerReadyToPost(vp).catch(()=>{});
             // (video unique : envoyee une seule fois via sendVid, bouton Save dessous)
             // === miniature : extraire une frame de la video via qlmanage (macOS)
             let thumbPath=null;
@@ -618,6 +619,30 @@ async function showStyles(){
   const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
   rows.push([{text:'◀️ Menu',callback_data:'EDIT_HOME'}]);
   await send('📂 <b>MES STYLES</b>\n\nCharge ou supprime un style :',rows);
+}
+// ── Prêt à poster : copie vidéo + légendes + snapshot style dans outputs/ready_to_post/ ──
+function readyDir(){const d=path.join(BASE,'outputs','ready_to_post');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
+let sentVideos=[]; // vidéos envoyées dans le chat (pour le bouton « Prêt à poster »)
+async function offerReadyToPost(vp){
+  if(!vp)return;const idx=sentVideos.push(vp)-1;
+  await send('Garder cette vidéo ?',[[{text:'✅ Prêt à poster',callback_data:'READY_'+idx}]]).catch(()=>{});
+}
+function doReadyToPost(vp){
+  if(!vp||!fs.existsSync(vp))throw new Error('vidéo introuvable');
+  const dir=readyDir();const base=path.basename(vp,'.mp4');
+  const dst=path.join(dir,path.basename(vp));
+  fs.copyFileSync(vp,dst);
+  const txt=vp.replace(/\.mp4$/,'.txt');
+  if(fs.existsSync(txt))fs.copyFileSync(txt,path.join(dir,base+'.txt'));
+  fs.writeFileSync(path.join(dir,base+'.style.json'),JSON.stringify(snapshotStyle(),null,2));
+  return dst;
+}
+let readyList=[];
+async function showReady(){
+  try{readyList=fs.readdirSync(readyDir()).filter(f=>/\.mp4$/i.test(f)).sort().reverse();}catch(e){readyList=[];}
+  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide pour l\'instant.\nSur une vidéo livrée, appuie sur « ✅ Prêt à poster » → elle est copiée dans <code>outputs/ready_to_post/</code> (visible dans Fichiers iCloud sur iPhone).');return;}
+  const rows=readyList.slice(0,20).map((f,i)=>[{text:'♻️ '+f.replace(/\.mp4$/,'').slice(0,32),callback_data:'REUSE_'+i}]);
+  await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\n\n📱 Dossier <code>outputs/ready_to_post/</code> (iCloud).\n♻️ Reprendre le style d\'une vidéo :',rows);
 }
 const IMG_PRESETS={
   'Naturel':{brightness:0,contrast:1,saturation:1,temperature:6500,sharpness:0,vignette:0},
@@ -892,6 +917,22 @@ await send('Ready to generate video?',[
       return;
     }
     if(d==='ADD_IGNORE'){pendingPhotoId=null;await send('Ok, photo ignorée.');return;}
+    // Prêt à poster
+    if(d.startsWith('READY_')){
+      const i=+d.slice(6);const vp=sentVideos[i];
+      if(!vp){await send('⚠️ Vidéo introuvable (relance-la).');return;}
+      try{const dst=doReadyToPost(vp);await send('✅ Copié dans <code>outputs/ready_to_post/</code> :\n<b>'+path.basename(dst)+'</b>\n📱 Visible dans Fichiers (iCloud) sur iPhone. Légendes + style enregistrés avec.');}catch(e){await send('❌ '+e.message);}
+      return;
+    }
+    if(d==='SHOWREADY'){await showReady();return;}
+    if(d.startsWith('REUSE_')){
+      const i=+d.slice(6);const f=readyList[i];
+      if(!f){await send('⚠️ Entrée introuvable (rouvre 📤).');return;}
+      const sj=path.join(readyDir(),f.replace(/\.mp4$/,'.style.json'));
+      if(!fs.existsSync(sj)){await send('⚠️ Pas de snapshot de style pour cette vidéo.');return;}
+      try{applySnapshot(JSON.parse(fs.readFileSync(sj,'utf8')));await send('✅ Style repris depuis <b>'+f.replace(/\.mp4$/,'')+'</b>.');await sendCompareNow();}catch(e){await send('❌ '+e.message);}
+      return;
+    }
     // Styles sauvegardés
     if(d==='SAVESTYLE'){const n=saveStyleAuto();await send('💾 Style sauvegardé : <b>'+n+'</b>\nRecharge-le via 📂 Mes styles.');return;}
     if(d==='SHOWSTYLES'){await showStyles();return;}
@@ -1098,12 +1139,14 @@ await send('Ready to generate video?',[
       const st=r.style;
       await send(`✅ Rendu local : 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • zoom ${st.baseZoom||1} • 💬 ${st.subs?'ON':'OFF'}`).catch(()=>{});
       await sendVid(out).catch(async()=>{await send('⚠️ Vidéo trop lourde pour Telegram.').catch(()=>{});});
-      await send('Ajuste via /settings (🔤 police, taille, position, zoom, 💬 sous-titres) puis /preview ou /test.').catch(()=>{});
+      await offerReadyToPost(out).catch(()=>{});
+      await send('Ajuste via /edit puis /preview ou /test.').catch(()=>{});
     }catch(e){await send('❌ Test local : '+e.message);}
     return;
   }
   if(txt==='/edit'){await showEditHome();return;}
   if(txt==='/styles'){await showStyles();return;}
+  if(txt==='/posted'){await showReady();return;}
   if(txt==='/settings'){await showSettings();return;}
   if(txt==='/preview'){await runPreview();return;}
   if(txt==='/library'){
