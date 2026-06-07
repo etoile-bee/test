@@ -143,6 +143,7 @@ let newlook={urls:[],recipe:null,category:null,env:'bougies',extra:null,busy:fal
 async function runNewLook(){
   if(newlook.busy){await send('⏳ Une génération de looks est déjà en cours, patiente...');return;}
   newlook.busy=true;
+  const _hb=setInterval(()=>{send('⏳ Génération de look toujours en cours...').catch(()=>{});},180000); /*heartbeat 3 min*/
   try{
     await send('🎨 Génération de 4 poses (même visage)...'+(process.env.HIGGS_SOUL_ID?'\n⏳ ~1-2 min':'\n⏳ 1ère fois : création de la référence visage en plus (jusqu\'à ~10 min)'));
     const {generateLook}=require('./newlook.js');
@@ -160,6 +161,7 @@ async function runNewLook(){
       [{text:'❌ Fini',callback_data:'NL_CANCEL'}]
     ]);
   }catch(e){await send('❌ Échec génération looks : '+e.message).catch(()=>{});}
+  clearInterval(_hb);
   newlook.busy=false;
 }
 async function newLookCatMenu(){
@@ -2129,6 +2131,19 @@ await send('Ready to generate video?',[
     newlook.extra=txt.replace(/^\/newlook\s*/,'').trim()||null;
     if(newlook.extra)newLookEnvMenu(); // tenue donnee a la main → reste juste le decor
     else newLookCatMenu();
+    return;
+  }
+  if(txt==='/assemble'||txt.startsWith('/assemble ')){ /*assemble v1 : concatene les parts du dernier trio (ou horodatage donne) en 1 video longue*/
+    const arg=txt.replace(/^\/assemble\s*/,'').trim()||null;
+    (async()=>{
+      try{
+        await send('🧩 Assemblage des parts en cours...');
+        const {assemble}=require('./assemble.js');
+        const r=assemble(arg);
+        await send('✅ Vidéo longue prête : '+require('path').basename(r.file)+' ('+r.duration.toFixed(0)+'s, '+r.parts+' parts)');
+        await sendVid(r.file).catch(async()=>{await send('⚠️ Trop lourde pour Telegram — voir iCloud → podcast-outputs');});
+      }catch(e){await send('❌ Assemblage : '+e.message);}
+    })();
     return;
   }
   if(txt==='/look'||txt.startsWith('/look ')){ /*newlook v4 : recreer un look garde depuis sa recette*/
