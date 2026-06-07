@@ -95,6 +95,14 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
   const dest = path.join(os.homedir(), 'podcast-workflow', 'outputs', 'TEST_soustitres.mp4');
   execSync('curl -s -o "' + dest + '" "' + out + '"');
+  /*coloradapt v2 : meme passe couleur que la prod (source unique color_style.js) → le test montre la VRAIE teinte finale*/
+  try{
+    const COLOR=require('./color_style.js');
+    const vf=COLOR.buildVf(dest);
+    const tmp=dest.replace(/\.mp4$/,'_c.mp4');
+    execSync('ffmpeg -y -i "'+dest+'" -vf "'+vf+'"'+COLOR.ENCODE+'-c:a aac -b:a 192k "'+tmp+'" 2>/dev/null');
+    if(fs.existsSync(tmp)&&fs.statSync(tmp).size>10000){fs.renameSync(tmp,dest);console.log('Passe couleur V5 appliquee (comme la prod).');}
+  }catch(e){console.log('(passe couleur ignoree: '+e.message+')');}
   console.log('Sauve :', dest);
   try { execSync('open "' + dest + '"'); } catch(e){}
   console.log('\nPour ajuster : change FONT_SIZE / OY en haut du fichier, relance. GRATUIT.');
