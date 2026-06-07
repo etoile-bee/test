@@ -730,9 +730,19 @@ await send('Ready to generate video?',[
     await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/mark [title] viral|good|ok — rate a video');return;
   }
   if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
-  if(txt==='/stop'){
-    if(proc){proc.kill();proc=null;state='idle';await send('⏹ Stopped.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);}
-    else await send('Nothing running.');return;
+  if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
+    let stopped=false;
+    if(proc){try{proc.kill('SIGKILL');}catch(e){} proc=null;stopped=true;}
+    if(testProc){try{testProc.kill('SIGKILL');}catch(e){} testProc=null;stopped=true;}
+    const _k=require('child_process');
+    try{_k.execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
+    try{_k.execSync('pkill -9 -f "node.*test_soustitres.js" 2>/dev/null');stopped=true;}catch(e){}
+    try{_k.execSync('pkill -9 -f "curl.*tmpfiles" 2>/dev/null');}catch(e){}
+    try{_k.execSync('pkill -9 -f "ffmpeg.*/tmp/wf_" 2>/dev/null');}catch(e){}
+    state='idle';
+    if(stopped)await send('⏹ Stopped — generation et test arretes partout.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);
+    else await send('Nothing running.');
+    return;
   }
   if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
   if(txt==='/test'){ /*cmdtest v1 : test sous-titres sandbox depuis Telegram*/
