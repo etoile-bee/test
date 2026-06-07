@@ -153,6 +153,11 @@ async function dlPhoto(fileId){
   fs.writeFileSync(fp,buf);
   return fp;
 }
+// Compresse une image > ~9 Mo (limite Telegram photo = 10 Mo) -> renvoie un chemin envoyable
+function shrinkIfBig(fp){
+  try{const st=fs.statSync(fp);if(st.size>9000000){const small='/tmp/shrink'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 1280 -s format jpeg "'+fp+'" --out "'+small+'" 2>/dev/null');if(fs.existsSync(small)&&fs.statSync(small).size<10485760)return small;}}catch(e){}
+  return fp;
+}
 // ── Galerie de looks ────────────────────────────────────────────────────────────
 function trashDir(){const t=path.join(getLooksDir(),'_trash');try{fs.mkdirSync(t,{recursive:true});}catch(e){}return t;}
 function looksList(){try{const d=getLooksDir();return fs.readdirSync(d).filter(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_')).map(f=>{let m=0;try{m=fs.statSync(path.join(d,f)).mtimeMs;}catch(e){}return {f,m};}).sort((a,b)=>b.m-a.m).map(x=>x.f);}catch(e){return[];}}
@@ -196,10 +201,10 @@ async function showLook(){
   let sz=0;try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}
   if(sz<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}}
   const rows=[
-    [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
+    [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
-  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
-  else {rows.push([{text:'🎨 Éditer ce look',callback_data:'GAL_EDIT'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
+  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
+  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
@@ -1180,6 +1185,7 @@ let editPanel={mid:null,section:'img'};
 async function editPhotoKb(mid,fp,caption,rows){
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
+    fp=shrinkIfBig(fp); // 🔑 sinon editMessageMedia rejette les fichiers > 10 Mo -> empilement
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
     form.append('media',JSON.stringify({type:'photo',media:'attach://photo',caption:caption,parse_mode:'HTML'}));
