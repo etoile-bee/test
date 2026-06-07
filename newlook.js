@@ -190,15 +190,15 @@ function listRecipes(){const lb=readLookbook();return lb.saved.slice(-15).revers
 async function probeEndpoints(){
   const fetch=require('node-fetch');
   const eps=[
-    'bytedance/seedream/v4/text-to-image','bytedance/seedream/v4/edit','bytedance/seedream/v4/image-to-image',
-    'bytedance/seedream/v4-5/text-to-image','bytedance/seedream/v4-5/edit',
-    'bytedance/seedream/v4.5/text-to-image','bytedance/seedream/v4.5/edit',
-    'bytedance/seedream/v5/text-to-image','bytedance/seedream/v5/edit','bytedance/seedream/v5/image-to-image'
+    '/v1/text2image/soul',
+    '/v1/text2image/seedream','/v1/text2image/seedream4','/v1/text2image/seedream-4','/v1/text2image/seedream45','/v1/text2image/seedream-4-5',
+    '/v1/image2image/seedream','/v1/edit/seedream','/v1/seedream/edit','/v1/seedream/text2image',
+    '/v1/text2image/flux','/v1/text2image/nano-banana'
   ];
   const out=[];
   for(const ep of eps){
     try{
-      const r=await fetch('https://platform.higgsfield.ai/'+ep,{method:'POST',headers:{'Authorization':'Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET,'Content-Type':'application/json'},body:'{}'});
+      const r=await fetch('https://platform.higgsfield.ai'+(ep.startsWith('/')?ep:'/'+ep),{method:'POST',headers:{'Authorization':'Key '+process.env.HIGGSFIELD_KEY_ID+':'+process.env.HIGGSFIELD_KEY_SECRET,'Content-Type':'application/json'},body:'{}'});
       out.push((r.status===404?'❌ ':'✅ ')+ep+' (HTTP '+r.status+')');
     }catch(e){out.push('⚠️ '+ep+' ('+e.message+')');}
   }
