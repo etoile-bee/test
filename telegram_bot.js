@@ -29,7 +29,16 @@ function uiLog(e){try{
 function btnLabels(rows){try{return (rows||[]).flat().map(b=>b&&b.text).filter(Boolean);}catch(e){return [];}}
 function screenOf(t){if(!t)return '';const b=String(t).match(/<b>(.*?)<\/b>/);if(b)return b[1].replace(/<[^>]+>/g,'').slice(0,40);return String(t).replace(/<[^>]+>/g,'').split('\n')[0].slice(0,40);}
 // ── Telegram helpers ──────────────────────────────────────────────────────────
+const JOURNAL=path.join(BASE,'bot_journal.log'); /*miroir permanent lisible par Claude*/
+function jlog(line){
+  try{
+    const L='['+new Date().toISOString().slice(11,19)+'] '+String(line).replace(/\n/g,' | ').substring(0,500)+'\n';
+    try{if(fs.existsSync(JOURNAL)&&fs.statSync(JOURNAL).size>1000000)fs.renameSync(JOURNAL,JOURNAL+'.old');}catch(e){}
+    fs.appendFileSync(JOURNAL,L);
+  }catch(e){}
+}
 async function tg(method,body,isForm){
+  try{if(body&&(body.text||body.caption))jlog('BOT→ '+method+' : '+(body.text||body.caption));else if(method!=='getUpdates')jlog('BOT→ '+method);}catch(e){}
   if(isForm){
     const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{method:'POST',body:isForm});
     return r.json();
@@ -1501,7 +1510,8 @@ async function handle(upd){
     await answerCB(cb.id);
     if(String(cb.message.chat.id)!==CHAT_ID)return;
     switchChat(String(cb.message.chat.id)); // no-op en mono-chat ; bascule l'état si multi-user activé
-    const d=cb.data;lastCbId=cb.id;
+    const d=cb.data;
+    jlog('ETOILE→ [bouton] '+d);lastCbId=cb.id;
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
     if(d==='MAIN_MENU'){await showRecap();return;} /*V2 : retour à la CARTE (état courant)*/
@@ -2130,6 +2140,7 @@ await send('Ready to generate video?',[
     return;
   }
   const txt=(msg.text||'').trim();
+  if(txt)jlog('ETOILE→ '+txt);
   if(!txt)return;
   // menu principal automatique à la 1ère interaction de la journée
   {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
