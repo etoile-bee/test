@@ -57,8 +57,6 @@ function loadStyle() {
     if (s.OY != null && isFinite(+s.OY)) out.oy = +s.OY;
     if (s.LETTER != null) { const n = parseFloat(String(s.LETTER)); if (isFinite(n)) out.letterSpacing = n; }
     if (s.ZOOM != null && isFinite(+s.ZOOM)) out.zoom = +s.ZOOM; // zoom de base optionnel
-    if (s.FONT != null && String(s.FONT).trim()) out.font = String(s.FONT).trim(); // police libass
-    if (s.SUBS != null) out.subs = (+s.SUBS) ? 1 : 0; // 1 = burn-in, 0 = vidéo propre
     return out;
   } catch (e) { return {}; }
 }
@@ -224,12 +222,11 @@ async function renderLocal(opts) {
 
   // Résolution des réglages : opts explicites > subtitle_style.js (boutons Telegram) > constantes en tête
   const style = loadStyle();
-  const font = opts.font || (style.font != null ? style.font : FONT); // police : opts > subtitle_style.js (bouton 🔤) > défaut
+  const font = opts.font || FONT; // la police reste le choix validé de render_local (Arial Black)
   const fontSize = opts.fontSize != null ? opts.fontSize : (style.fontSize != null ? style.fontSize : FONT_SIZE);
   const oy = opts.oy != null ? opts.oy : (style.oy != null ? style.oy : OY);
   const letterSpacing = opts.letterSpacing != null ? opts.letterSpacing : (style.letterSpacing != null ? style.letterSpacing : LETTER_SPACING);
   const baseZoom = opts.zoom != null ? opts.zoom : (style.zoom != null ? style.zoom : null);
-  const subsOn = opts.subs != null ? (+opts.subs ? 1 : 0) : (style.subs != null ? style.subs : 1); // sous-titres ON par défaut
 
   const wt = normTimings(wordTimings);
 
@@ -242,9 +239,10 @@ async function renderLocal(opts) {
   const segs = buildSegments(wt, keywords, duration, baseZoom);
   const reacts = buildReactions(wt, reactions, duration);
 
-  // Fichier .ass (écrit seulement si les sous-titres sont activés)
+  // Fichier .ass
   const tag = path.basename(output).replace(/[^a-z0-9]/gi, '_');
   const assPath = path.join(os.tmpdir(), 'render_local_' + tag + '.ass');
+  fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing }));
 
   // --- Construction du filter_complex ---
   const fc = [];
@@ -261,14 +259,9 @@ async function renderLocal(opts) {
   });
   // concat des segments
   fc.push(`${segs.map((_, i) => `[c${i}]`).join('')}concat=n=${segs.length}:v=1:a=0[vc]`);
-  // sous-titres : burn-in libass si SUBS=1, sinon vidéo propre (pour ajouter les captions dans TikTok)
-  if (subsOn) {
-    fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing }));
-    fc.push(`[vc]ass=${assPath}[vs]`);
-    fc.push(`[vs]format=yuv420p[vout]`);
-  } else {
-    fc.push(`[vc]format=yuv420p[vout]`);
-  }
+  // burn-in des sous-titres (libass)
+  fc.push(`[vc]ass=${assPath}[vs]`);
+  fc.push(`[vs]format=yuv420p[vout]`);
 
   // --- Audio : piste lipsync + réactions mixées + fades anti-pop ---
   const fout = Math.max(duration - FADE_OUT, 0);
@@ -304,16 +297,16 @@ async function renderLocal(opts) {
     output
   );
 
-  const styleSrc = (style.fontSize != null || style.oy != null || style.letterSpacing != null || style.zoom != null || style.font != null || style.subs != null) ? 'subtitle_style.js' : 'défauts';
+  const styleSrc = (style.fontSize != null || style.oy != null || style.letterSpacing != null || style.zoom != null) ? 'subtitle_style.js' : 'défauts';
   if (!quiet) {
-    console.log(`  render_local: ${segs.length} segments, ${subsOn ? chunks.length + ' sous-titres' : 'SANS sous-titres'}, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s`);
-    console.log(`  style (${styleSrc}) : police "${font}", taille ${fontSize}px, OY ${oy}, spacing ${letterSpacing}px, subs ${subsOn ? 'ON' : 'OFF'}${baseZoom ? ', zoom base ' + baseZoom : ''}`);
+    console.log(`  render_local: ${segs.length} segments, ${chunks.length} sous-titres, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s`);
+    console.log(`  style (${styleSrc}) : police "${font}", taille ${fontSize}px, OY ${oy}, spacing ${letterSpacing}px${baseZoom ? ', zoom base ' + baseZoom : ''}`);
     reacts.forEach(r => console.log(`  reaction ${r.type} @${r.st.toFixed(2)}s`));
   }
 
   execFileSync(FFMPEG, args, { stdio: quiet ? 'ignore' : ['ignore', 'inherit', 'inherit'] });
-  return { output, duration, segments: segs.length, subtitles: subsOn ? chunks.length : 0, reactions: reacts.length, assPath: subsOn ? assPath : null,
-    style: { font, fontSize, oy, letterSpacing, baseZoom, subs: subsOn, source: styleSrc } };
+  return { output, duration, segments: segs.length, subtitles: chunks.length, reactions: reacts.length, assPath,
+    style: { font, fontSize, oy, letterSpacing, baseZoom, source: styleSrc } };
 }
 
 module.exports = { renderLocal, buildChunks, buildSegments, buildReactions, buildAss, normTimings, secToAss };

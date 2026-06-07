@@ -500,40 +500,18 @@ function launch(){
   });
 }
 
-// ── Polices dispo (libass/coretext) ─────────────────────────────────────────────
-// Familles candidates : on ne propose que celles réellement installées (fc-match résout vers elles-mêmes).
-const FONT_CANDIDATES=[
-  {label:'Arial Black',family:'Arial Black'},
-  {label:'Archivo Black',family:'Archivo Black'},
-  {label:'Helvetica Bold',family:'Helvetica'}, // gras via le flag Bold de l'.ass
-  {label:'Montserrat ExtraBold',family:'Montserrat ExtraBold'},
-];
-function fontInstalled(fam){
-  try{
-    const o=require('child_process').execSync('fc-match "'+String(fam).replace(/"/g,'')+'"',{stdio:['ignore','pipe','ignore']}).toString();
-    return new RegExp('"'+fam.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'"','i').test(o);
-  }catch(e){return false;}
-}
-function availFonts(){const a=FONT_CANDIDATES.filter(f=>fontInstalled(f.family));return a.length?a:[FONT_CANDIDATES[0]];}
-function fontLabel(family){const f=FONT_CANDIDATES.find(x=>x.family===family);return f?f.label:family;}
-
 // ── Settings ──────────────────────────────────────────────────────────────────
 async function showSettings(){
-  /*substyle v1 : taille+position+police+subs dans subtitle_style.js (source unique), zoom dans workflow.js*/
+  /*substyle v1 : taille+position lues dans subtitle_style.js (source unique), zoom dans workflow.js*/
   const s=fs.readFileSync(path.join(BASE,'subtitle_style.js'),'utf8');
   const c=fs.readFileSync(path.join(BASE,'workflow.js'),'utf8');
   const size=s.match(/FONT_SIZE\s*=\s*([\d.]+)/)?.[1]||'?';
   const y=s.match(/OY\s*=\s*([\d.]+)/)?.[1]||'?';
   const zoom=c.match(/scale:([\d.]+)\}/)?.[1]||'?';
-  const font=s.match(/const\s+FONT\s*=\s*['"]([^'"]+)['"]/)?.[1]||'Arial Black';
-  const subs=(s.match(/const\s+SUBS\s*=\s*([01])/)?.[1]||'1')==='1';
-  await send(`⚙️ <b>Réglages sous-titres</b>\n\n🔤 Police: <b>${fontLabel(font)}</b>\n📝 Taille: ${size}px\n📍 Position y: ${y}\n🔍 Zoom: ${zoom}x\n💬 Sous-titres: <b>${subs?'ON':'OFF (vidéo propre pour TikTok)'}</b>`,[
-    [{text:'🔤 Police suivante',callback_data:'S_FONT'}],
-    [{text:'A+ Plus gros',callback_data:'S_SIZE_UP'},{text:'A- Plus petit',callback_data:'S_SIZE_DN'}],
-    [{text:'⬆️ Monter',callback_data:'S_Y_UP'},{text:'⬇️ Descendre',callback_data:'S_Y_DN'}],
-    [{text:'🔍+ Zoom',callback_data:'S_Z_UP'},{text:'🔍- Dézoom',callback_data:'S_Z_DN'}],
-    [{text:subs?'💬 Sous-titres: OFF':'💬 Sous-titres: ON',callback_data:'S_SUBS'}],
-    [{text:'👁 Aperçu (/preview)',callback_data:'S_PREVIEW'}],
+  await send(`⚙️ <b>Current Settings</b>\n\n📝 Subtitle size: ${size}px\n📍 Position y: ${y}\n🔍 Zoom: ${zoom}x`,[
+    [{text:'A+ Bigger',callback_data:'S_SIZE_UP'},{text:'A- Smaller',callback_data:'S_SIZE_DN'}],
+    [{text:'⬆️ Move up',callback_data:'S_Y_UP'},{text:'⬇️ Move down',callback_data:'S_Y_DN'}],
+    [{text:'🔍+ More zoom',callback_data:'S_Z_UP'},{text:'🔍- Less zoom',callback_data:'S_Z_DN'}],
   ]);
 }
 function patchWF(fn){
@@ -541,28 +519,6 @@ function patchWF(fn){
   let c=fs.readFileSync(wfp,'utf8');
   c=fn(c);
   fs.writeFileSync(wfp,c);
-}
-// ── /preview : rend ~3s du dernier raw de test avec le STYLE COURANT et envoie 2 frames (gratuit) ──
-async function runPreview(){
-  try{
-    const {renderLocal}=require('./render_local');
-    const OUT=path.join(BASE,'outputs');
-    const raws=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);
-    if(!raws.length){await send('⚠️ Aucun raw de test dans outputs/ — lance d\'abord un /go pour en générer un.');return;}
-    await send('👁 Aperçu du style courant... (~2s, gratuit)');
-    const S='SHE SAYS YOU CHANGED BUT CHEMISTRY FADES WHEN RESPECT DIES';
-    const wt=S.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42}));
-    const out='/tmp/preview_'+Date.now()+'.mp4';
-    const r=await renderLocal({input:raws[0],wordTimings:wt,keywords:['CHANGED','CHEMISTRY','RESPECT'],reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
-    const cp=require('child_process');
-    const f1='/tmp/preview_a.png',f2='/tmp/preview_b.png';
-    cp.execFileSync('ffmpeg',['-y','-ss','1.20','-i',out,'-frames:v','1','-q:v','2',f1],{stdio:'ignore'});
-    cp.execFileSync('ffmpeg',['-y','-ss','3.60','-i',out,'-frames:v','1','-q:v','2',f2],{stdio:'ignore'});
-    const st=r.style;
-    const cap=`🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy} • zoom ${st.baseZoom||1} • 💬 ${st.subs?'ON':'OFF'}`;
-    await sendImg(f1,cap).catch(()=>{});
-    await sendImg(f2,'👁 Aperçu (pendant zoom) — ajuste via /settings').catch(()=>{});
-  }catch(e){await send('❌ Aperçu: '+e.message);}
 }
 
 // ── Update handler ────────────────────────────────────────────────────────────
@@ -691,31 +647,16 @@ await send('Ready to generate video?',[
       //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
     }
     // Settings /*substyle v1 : taille+position patchees dans subtitle_style.js, zoom dans workflow.js*/
-    if(d==='S_PREVIEW'){await runPreview();return;}
     if(d.startsWith('S_')){
-      const sp=path.join(BASE,'subtitle_style.js');
       if(d==='S_SIZE_UP'||d==='S_SIZE_DN'||d==='S_Y_UP'||d==='S_Y_DN'){
+        const sp=path.join(BASE,'subtitle_style.js');
         let s=fs.readFileSync(sp,'utf8');
         if(d==='S_SIZE_UP'){const v=+(s.match(/FONT_SIZE\s*=\s*([\d.]+)/)?.[1]||45)+2;s=s.replace(/FONT_SIZE\s*=\s*[\d.]+/,'FONT_SIZE = '+v);}
         if(d==='S_SIZE_DN'){const v=+(s.match(/FONT_SIZE\s*=\s*([\d.]+)/)?.[1]||45)-2;s=s.replace(/FONT_SIZE\s*=\s*[\d.]+/,'FONT_SIZE = '+v);}
         if(d==='S_Y_UP'){const v=(+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.347)+0.02).toFixed(3);s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v);}
         if(d==='S_Y_DN'){const v=(+(s.match(/OY\s*=\s*([\d.]+)/)?.[1]||0.347)-0.02).toFixed(3);s=s.replace(/OY\s*=\s*[\d.]+/,'OY        = '+v);}
         fs.writeFileSync(sp,s);
-      }else if(d==='S_FONT'){
-        // cycle de police (écrit FONT dans subtitle_style.js, lu par render_local)
-        let s=fs.readFileSync(sp,'utf8');
-        const cur=s.match(/const\s+FONT\s*=\s*['"]([^'"]+)['"]/)?.[1]||'Arial Black';
-        const av=availFonts();
-        let idx=av.findIndex(f=>f.family===cur);
-        const next=av[(idx+1)%av.length];
-        s=s.replace(/const(\s+)FONT(\s*)=\s*['"][^'"]*['"]/,"const$1FONT$2= '"+next.family+"'");
-        fs.writeFileSync(sp,s);
-      }else if(d==='S_SUBS'){
-        let s=fs.readFileSync(sp,'utf8');
-        const cur=+(s.match(/const\s+SUBS\s*=\s*([01])/)?.[1]||1);
-        s=s.replace(/const(\s+)SUBS(\s*)=\s*[01]/,'const$1SUBS$2= '+(cur?0:1));
-        fs.writeFileSync(sp,s);
-      }else if(d==='S_Z_UP'||d==='S_Z_DN'){
+      }else{
         // bouton zoom : patche workflow.js (fallback Shotstack) ET ZOOM dans subtitle_style.js (rendu local)
         const wfp=path.join(BASE,'workflow.js');
         let v=+(fs.readFileSync(wfp,'utf8').match(/scale:([\d.]+)\}/)?.[1]||1.0);
@@ -724,6 +665,7 @@ await send('Ready to generate video?',[
         if(v<1)v=1; // garde-fou : pas de de-zoom sous 1.0
         const vs=v.toFixed(2);
         patchWF(c=>c.replace(/scale:[\d.]+\}/g,'scale:'+vs+'}'));
+        const sp=path.join(BASE,'subtitle_style.js');
         let s=fs.readFileSync(sp,'utf8');
         if(/const\s+ZOOM\s*=/.test(s)){s=s.replace(/const(\s+)ZOOM(\s*)=\s*[\d.]+/,'const$1ZOOM$2= '+vs);fs.writeFileSync(sp,s);}
       }
@@ -780,7 +722,7 @@ await send('Ready to generate video?',[
   if(!txt)return;
 
   if(txt==='/start'||txt==='/help'){
-    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — police, taille, position, zoom, sous-titres ON/OFF\n/preview — aperçu gratuit du style courant (frames)\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/restart — redémarrer le bot (code à jour)\n/mark [title] viral|good|ok — rate a video');return;
+    await send('🎬 <b>Podcast Bot Commands</b>\n\n/go — create new video\n/stop — stop workflow\n/status — check status\n/settings — subtitles & zoom\n/library — recent scripts\n/looks — available looks\n/ideas — new topic ideas\n/test — test sous-titres sandbox (gratuit)\n/restart — redémarrer le bot (code à jour)\n/mark [title] viral|good|ok — rate a video');return;
   }
   if(txt==='/go'||txt==='go'){await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*menu v4*/
   if(txt==='/stop'){ /*stopall v1 : tue TOUT, partout — workflow, test, et leurs enfants curl/ffmpeg*/
@@ -829,7 +771,6 @@ await send('Ready to generate video?',[
     return;
   }
   if(txt==='/settings'){await showSettings();return;}
-  if(txt==='/preview'){await runPreview();return;}
   if(txt==='/library'){
     try{
       const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));
@@ -914,8 +855,7 @@ tg('setMyCommands',{commands:[ /*cmdmenu v1 : les commandes apparaissent dans le
   {command:'test',description:'🧪 Test sous-titres gratuit (sandbox)'},
   {command:'restart',description:'🔄 Redémarrer le bot (code à jour)'},
   {command:'status',description:'ℹ️ État du bot'},
-  {command:'settings',description:'⚙️ Police, taille, position, zoom, sous-titres ON/OFF'},
-  {command:'preview',description:'👁 Aperçu gratuit du style courant'},
+  {command:'settings',description:'⚙️ Réglages sous-titres & zoom'},
   {command:'library',description:'📚 Derniers scripts'},
   {command:'looks',description:'📸 Looks disponibles'},
   {command:'ideas',description:'💡 Idées de sujets'},

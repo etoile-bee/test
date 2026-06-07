@@ -10,8 +10,6 @@ const OY        = 0.347;  // ✅ aligné look validé Arial Black (position subr
 //  (optionnel)
 const LETTER    = '2px';  // espacement entre lettres (subref v2 : letter-spacing 2px)
 const ZOOM      = 1.0;    // zoom de base du rendu local (piloté par le bouton 🔍 Telegram ; 1.0 = look validé)
-const FONT      = 'Arial Black'; // police du rendu local libass (bouton 🔤 Telegram) — ex: Archivo Black, Helvetica
-const SUBS      = 1;      // 1 = sous-titres incrustés ; 0 = vidéo propre (captions ajoutées dans TikTok)
 // ============================================================
 
 const FONT_URL  = 'https://github.com/google/fonts/raw/main/ofl/archivoblack/ArchivoBlack-Regular.ttf';
@@ -27,4 +25,4 @@ function styleHtml(text){
 // Embarquee dans timeline.fonts de CHAQUE edit Shotstack (prod ET test) — garantie d'uniformite
 const FONTS = [ { src: FONT_URL } ];
 
-module.exports = { FONT_SIZE, OY, LETTER, ZOOM, FONT, SUBS, styleHtml, FONTS, WIDTH: 720, HEIGHT: 175 };
+module.exports = { FONT_SIZE, OY, LETTER, ZOOM, styleHtml, FONTS, WIDTH: 720, HEIGHT: 175 };
