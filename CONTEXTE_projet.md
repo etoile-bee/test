@@ -33,6 +33,9 @@
   `pgrep -f "workflow.js" >/dev/null && echo "⛔ video en cours, NE PAS redemarrer" || pm2 restart podcast-bot`
 
 ## MÉTHODE DE TRAVAIL (à respecter)
+- ⭐ RÈGLE ÉTOILE (07/06, "garde-le bien en mémoire") : toute proposition d'interface ou de modification de flux est d'abord présentée en MAQUETTE VISUELLE (widget) → Etoile choisit → on implémente. On avance comme ça jusqu'à instruction contraire.
+- ⭐ RÈGLE D'OR UI (07/06) : UN SEUL ÉCRAN DE DÉFILEMENT POUR TOUT — un panneau unique qui s'auto-édite (jamais de spam de messages), résultats en album. Variante B validée : tenue/décor/format sélectionnables sur le même écran (●), Générer en 1 appui.
+- ⭐ RÈGLE COÛT IMAGES (07/06) : toujours des images TEST (éco 720p) d'abord — la HD et la vidéo ne se débloquent qu'APRÈS validation visuelle des images, jamais directement.
 - Via Cowork : Claude a accès direct à `~/podcast-workflow/`, `podcast-looks/` et `podcast-outputs/` → il édite les fichiers lui-même, commit git avant/après chaque patch. Plus de téléchargement de patchs.
 - Rollback : `git log --oneline` puis `git checkout <hash> -- <fichier>`.
 - Limites de l'environnement Claude : pas d'accès réseau Shotstack/tmpfiles (les tests s'exécutent sur le Mac ou via `/test`), pas de pm2 (redémarrages = Etoile).
