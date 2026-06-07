@@ -44,23 +44,6 @@ const even = n => { n = Math.round(n); return n % 2 ? n + 1 : n; };
 const wtext = w => String(w.text || w.word || '').toUpperCase();
 const normWord = s => String(s || '').toUpperCase().replace(/[.,!?;:'"—–-]/g, '').split(/\s+/).filter(Boolean);
 
-// Lit subtitle_style.js (source unique pilotée par les boutons Telegram /settings) :
-// FONT_SIZE (taille), OY (position), LETTER (espacement), ZOOM (optionnel).
-// Renvoie {} si le fichier est absent/illisible -> les constantes en tête restent les défauts.
-function loadStyle() {
-  try {
-    const p = require.resolve('./subtitle_style.js');
-    delete require.cache[p]; // relit toujours le fichier courant (le bot le patche à chaud)
-    const s = require(p);
-    const out = {};
-    if (s.FONT_SIZE != null && isFinite(+s.FONT_SIZE)) out.fontSize = +s.FONT_SIZE;
-    if (s.OY != null && isFinite(+s.OY)) out.oy = +s.OY;
-    if (s.LETTER != null) { const n = parseFloat(String(s.LETTER)); if (isFinite(n)) out.letterSpacing = n; }
-    if (s.ZOOM != null && isFinite(+s.ZOOM)) out.zoom = +s.ZOOM; // zoom de base optionnel
-    return out;
-  } catch (e) { return {}; }
-}
-
 // Normalise les wordTimings : { text, start, end, duration } (gère .text ou .word)
 function normTimings(wordTimings) {
   return (wordTimings || [])
@@ -108,25 +91,24 @@ function buildChunks(wt) {
 // ----------------------------------------------------------------------------
 // 2) Segments de zoom (réplique renderVideo l.147-162), rendus contigus [0,duration]
 // ----------------------------------------------------------------------------
-function buildSegments(wt, keywords, duration, baseZoom) {
-  const base = (baseZoom && isFinite(+baseZoom) && +baseZoom > 1) ? +baseZoom : 1.0; // zoom plancher (Telegram)
+function buildSegments(wt, keywords, duration) {
   const kws = new Set((keywords || []).map(k => String(k).toUpperCase()));
   const sorted = wt.filter(w => kws.has(w.text)).sort((a, b) => a.start - b.start);
   const segs = [];
   let cur = 0, ki = 0;
   for (const kw of sorted) {
     let zs = Math.max(kw.start - 0.05, cur);
-    if (zs > cur + 0.05) segs.push({ start: cur, end: zs, scale: base }); // plan "large" = zoom de base
+    if (zs > cur + 0.05) segs.push({ start: cur, end: zs, scale: 1.0 });
     else zs = cur; // snap : pas de trou noir dans le concat local
-    const z = Math.max(ZOOMS[ki % ZOOMS.length], base); ki++;
+    const z = ZOOMS[ki % ZOOMS.length]; ki++;
     const ze = Math.min(zs + ZOOM_LEN, duration);
     if (ze <= zs) continue;
     segs.push({ start: zs, end: ze, scale: z });
     cur = ze;
   }
-  if (cur < duration - 0.1) segs.push({ start: cur, end: duration, scale: base });
+  if (cur < duration - 0.1) segs.push({ start: cur, end: duration, scale: 1.0 });
   else if (segs.length && segs[segs.length - 1].end < duration) segs[segs.length - 1].end = duration;
-  if (!segs.length) segs.push({ start: 0, end: duration, scale: base });
+  if (!segs.length) segs.push({ start: 0, end: duration, scale: 1.0 });
   return segs;
 }
 
@@ -214,19 +196,12 @@ async function renderLocal(opts) {
     keywords = [],
     reactions = [],
     output,                // chemin de sortie .mp4
+    font, fontSize, oy, letterSpacing,
     quiet = false,
   } = opts;
 
   if (!input || !fs.existsSync(input)) throw new Error('render_local: input introuvable: ' + input);
   if (!output) throw new Error('render_local: output requis');
-
-  // Résolution des réglages : opts explicites > subtitle_style.js (boutons Telegram) > constantes en tête
-  const style = loadStyle();
-  const font = opts.font || FONT; // la police reste le choix validé de render_local (Arial Black)
-  const fontSize = opts.fontSize != null ? opts.fontSize : (style.fontSize != null ? style.fontSize : FONT_SIZE);
-  const oy = opts.oy != null ? opts.oy : (style.oy != null ? style.oy : OY);
-  const letterSpacing = opts.letterSpacing != null ? opts.letterSpacing : (style.letterSpacing != null ? style.letterSpacing : LETTER_SPACING);
-  const baseZoom = opts.zoom != null ? opts.zoom : (style.zoom != null ? style.zoom : null);
 
   const wt = normTimings(wordTimings);
 
@@ -236,7 +211,7 @@ async function renderLocal(opts) {
   if (speechEnd > 1 && speechEnd < duration) duration = speechEnd + 0.35;
 
   const chunks = buildChunks(wt);
-  const segs = buildSegments(wt, keywords, duration, baseZoom);
+  const segs = buildSegments(wt, keywords, duration);
   const reacts = buildReactions(wt, reactions, duration);
 
   // Fichier .ass
@@ -297,16 +272,13 @@ async function renderLocal(opts) {
     output
   );
 
-  const styleSrc = (style.fontSize != null || style.oy != null || style.letterSpacing != null || style.zoom != null) ? 'subtitle_style.js' : 'défauts';
   if (!quiet) {
-    console.log(`  render_local: ${segs.length} segments, ${chunks.length} sous-titres, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s`);
-    console.log(`  style (${styleSrc}) : police "${font}", taille ${fontSize}px, OY ${oy}, spacing ${letterSpacing}px${baseZoom ? ', zoom base ' + baseZoom : ''}`);
+    console.log(`  render_local: ${segs.length} segments, ${chunks.length} sous-titres, ${reacts.length} réaction(s), durée ${duration.toFixed(2)}s, police "${font || FONT}"`);
     reacts.forEach(r => console.log(`  reaction ${r.type} @${r.st.toFixed(2)}s`));
   }
 
   execFileSync(FFMPEG, args, { stdio: quiet ? 'ignore' : ['ignore', 'inherit', 'inherit'] });
-  return { output, duration, segments: segs.length, subtitles: chunks.length, reactions: reacts.length, assPath,
-    style: { font, fontSize, oy, letterSpacing, baseZoom, source: styleSrc } };
+  return { output, duration, segments: segs.length, subtitles: chunks.length, reactions: reacts.length, assPath };
 }
 
 module.exports = { renderLocal, buildChunks, buildSegments, buildReactions, buildAss, normTimings, secToAss };
