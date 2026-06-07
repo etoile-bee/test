@@ -541,10 +541,11 @@ function launch(){
 // ── Polices dispo (libass/coretext) ─────────────────────────────────────────────
 // Familles candidates : on ne propose que celles réellement installées (fc-match résout vers elles-mêmes).
 const FONT_CANDIDATES=[
-  {label:'Arial Black',family:'Arial Black'},
+  {label:'Helvetica Bold',family:'Helvetica'},        // gras via le flag Bold de l'.ass
+  {label:'Helvetica Neue Bold',family:'Helvetica Neue'},
   {label:'Archivo Black',family:'Archivo Black'},
-  {label:'Helvetica Bold',family:'Helvetica'}, // gras via le flag Bold de l'.ass
-  {label:'Montserrat ExtraBold',family:'Montserrat ExtraBold'},
+  {label:'Arial Black',family:'Arial Black'},
+  {label:'Montserrat',family:'Montserrat'},            // ExtraBold approx via flag Bold (police variable)
 ];
 function fontInstalled(fam){
   try{
@@ -588,6 +589,37 @@ const IMG_PRESETS={
   'Soft':{brightness:0.05,contrast:0.96,saturation:1.05,temperature:6000,sharpness:0,vignette:1},
 };
 function musicFiles(){try{return fs.readdirSync(RL.MUSIC_DIR).filter(f=>/\.(mp3|m4a)$/i.test(f)&&!f.startsWith('.')&&!f.startsWith('_'));}catch(e){return[];}}
+function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirSync(OUT).filter(f=>/_raw_p\d+\.mp4$/i.test(f)).map(f=>path.join(OUT,f)).sort((a,b)=>fs.statSync(b).mtimeMs-fs.statSync(a).mtimeMs);return r[0]||null;}catch(e){return null;}}
+// Rend un court clip avec le STYLE COURANT et envoie l'image composite [RÉFÉRENCE | RENDU]
+async function sendCompareNow(){
+  const raw=latestRaw();
+  if(!raw){await send('⚠️ Côte-à-côte indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
+  const {renderLocal}=require('./render_local');
+  const words='WRONG YOURE';
+  const wt=words.split(' ').map((w,i)=>({text:w.toUpperCase(),start:+(i*0.5).toFixed(3),end:+((i+1)*0.5).toFixed(3),duration:0.5}));
+  const out='/tmp/cmp_'+Date.now()+'.mp4';
+  let r;try{r=await renderLocal({input:raw,wordTimings:wt,keywords:['WRONG'],reactions:[],output:out,quiet:true,duration:1.4});}catch(e){await send('❌ Aperçu: '+e.message);return;}
+  const cp=require('child_process');const frame='/tmp/cmpframe.png';
+  try{cp.execFileSync('ffmpeg',['-y','-ss','0.6','-i',out,'-frames:v','1','-q:v','2',frame],{stdio:'ignore'});}catch(e){return;}
+  const ref=path.join(BASE,'reference_model.png');const comp='/tmp/compare_'+Date.now()+'.png';
+  if(fs.existsSync(ref)){
+    try{
+      const FF='/System/Library/Fonts/Helvetica.ttc';
+      cp.execFileSync('ffmpeg',['-y','-i',ref,'-i',frame,'-filter_complex',
+        "[0:v]scale=-1:1000,drawtext=fontfile="+FF+":text=REFERENCE:x=12:y=12:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.6[a];[1:v]scale=-1:1000,drawtext=fontfile="+FF+":text=RENDU:x=12:y=12:fontsize=36:fontcolor=yellow:box=1:boxcolor=black@0.6[b];[a][b]hstack",comp],{stdio:'ignore'});
+    }catch(e){fs.copyFileSync(frame,comp);}
+  }else{fs.copyFileSync(frame,comp);}
+  const st=r.style;
+  await sendImg(comp,`↔️ RÉFÉRENCE | RENDU — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
+}
+// Après un réglage : envoie le côte-à-côte PUIS re-affiche les contrôles de la section
+async function afterEdit(section){
+  await sendCompareNow();
+  if(section==='subs')await showSettings();
+  else if(section==='img')await showEditImage();
+  else if(section==='zoom')await showEditZoom();
+  else if(section==='mus')await showEditMusic();
+}
 async function showEditHome(){
   await send('🎛 <b>ÉDITION DU LOOK</b>\n\nChoisis une section à régler :',[
     [{text:'💬 Sous-titres',callback_data:'EDIT_SUBS'},{text:'🎨 Image',callback_data:'EDIT_IMG'}],
@@ -810,6 +842,16 @@ await send('Ready to generate video?',[
       }catch(e){await send('❌ '+e.message);}
       return;
     }
+    if(d==='REF_SET'){
+      if(!pendingPhotoId){await send('⚠️ Aucune photo en attente — renvoie une photo.');return;}
+      try{
+        const r=await tg('getFile',{file_id:pendingPhotoId});
+        const buf=await (await fetch(`https://api.telegram.org/file/bot${TOKEN}/${r.result.file_path}`)).buffer();
+        fs.writeFileSync(path.join(BASE,'reference_model.png'),buf);pendingPhotoId=null;
+        await send('🎯 Référence mise à jour. Le côte-à-côte de /edit l\'utilisera.');
+      }catch(e){await send('❌ '+e.message);}
+      return;
+    }
     if(d==='ADD_IGNORE'){pendingPhotoId=null;await send('Ok, photo ignorée.');return;}
     // Menu /edit unifié
     if(d==='EDIT_HOME'){await showEditHome();return;}
@@ -833,7 +875,7 @@ await send('Ready to generate video?',[
       if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+1,0,5);
       if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-1,0,5);
       if(d.startsWith('IMG_PRE_')){const n=d.slice(8);if(IMG_PRESETS[n])fx.image=Object.assign({},IMG_PRESETS[n]);}
-      writeFx(fx);await showEditImage();return;
+      writeFx(fx);await afterEdit('img');return;
     }
     if(d.startsWith('ZM_')){
       const fx=readFx(),z=fx.zoom;
@@ -843,7 +885,7 @@ await send('Ready to generate video?',[
       if(d==='ZM_DU_UP')z.duration=clampN(z.duration+0.5,0.5,6);
       if(d==='ZM_DU_DN')z.duration=clampN(z.duration-0.5,0.5,6);
       if(d==='ZM_FREQ')z.everyN=z.everyN>=2?1:2;
-      writeFx(fx);await showEditZoom();return;
+      writeFx(fx);await afterEdit('zoom');return;
     }
     if(d.startsWith('MU_')){
       const fx=readFx(),m=fx.music,files=musicFiles();
@@ -851,7 +893,7 @@ await send('Ready to generate video?',[
       if(d==='MU_FILE'){if(files.length){let idx=files.indexOf(m.file);m.file=files[(idx+1)%files.length];}}
       if(d==='MU_VOL_UP')m.volume=clampN(m.volume+0.03,0,1);
       if(d==='MU_VOL_DN')m.volume=clampN(m.volume-0.03,0,1);
-      writeFx(fx);await showEditMusic();return;
+      writeFx(fx);await afterEdit('mus');return;
     }
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
@@ -896,7 +938,7 @@ await send('Ready to generate video?',[
         let s=fs.readFileSync(sp,'utf8');
         if(/const\s+ZOOM\s*=/.test(s)){s=s.replace(/const(\s+)ZOOM(\s*)=\s*[\d.]+/,'const$1ZOOM$2= '+vs);fs.writeFileSync(sp,s);}
       }
-      await showSettings();return;
+      await afterEdit('subs');return;
     }
     return;
   }
@@ -951,6 +993,7 @@ await send('Ready to generate video?',[
     await send('📸 Photo reçue. Que veux-tu en faire ?',[
       [{text:'➕ Ajouter aux looks',callback_data:'ADD_LOOK'}],
       [{text:'🖼 Ajouter + utiliser comme avatar',callback_data:'ADD_LOOK_AVATAR'}],
+      [{text:'🎯 Définir comme référence (côte-à-côte)',callback_data:'REF_SET'}],
       [{text:'❌ Ignorer',callback_data:'ADD_IGNORE'}],
     ]);
     return;

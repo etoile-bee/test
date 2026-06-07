@@ -11,3 +11,5 @@ reactions/
 nohup.out
 *.log
 .DS_Store
+reference_model.png
+styles/
