@@ -154,6 +154,7 @@ async function showLook(){
   try{if(!fs.existsSync(fp)||fs.statSync(fp).size<30000){try{require('child_process').execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}}}catch(e){}
   await sendPhotoKb(fp,`🖼 Look ${gal.idx+1}/${gal.files.length}\n${name}`,[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'},{text:'▶️',callback_data:'GAL_NEXT'}],
+    [{text:'🎬 Générer avec ce look',callback_data:'GAL_GEN'}],
   ]);
 }
 
@@ -618,9 +619,9 @@ let styleList=[];
 async function showStyles(){
   styleList=listStyles();
   if(!styleList.length){await send('📂 Aucun style sauvegardé.\nDans /edit, appuie sur « 💾 Sauvegarder ce style ».');return;}
-  const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
+  const rows=styleList.map((f,i)=>[{text:'📂 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🎬',callback_data:'LOADGEN_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
   rows.push([{text:'◀️ Menu',callback_data:'EDIT_HOME'}]);
-  await send('📂 <b>MES STYLES</b>\n\nCharge ou supprime un style :',rows);
+  await send('📂 <b>MES STYLES</b>\n\n📂 charger · 🎬 générer avec · 🗑 supprimer',rows);
 }
 // ── Prêt à poster : copie vidéo + légendes + snapshot style dans outputs/ready_to_post/ ──
 function readyDir(){const d=path.join(BASE,'outputs','ready_to_post');try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
@@ -1012,6 +1013,12 @@ await send('Ready to generate video?',[
       const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
       await send('✅ Avatar défini : <b>'+f+'</b>\nIl sera utilisé pour la prochaine vidéo.');return;
     }
+    if(d==='GAL_GEN'){
+      const list=looksList();const f=list[gal.idx];
+      if(!f){await send('⚠️ Look introuvable.');return;}
+      const fp=path.join(getLooksDir(),f);setAvatar(fp);setup.photo=fp;
+      await send('✅ Look <b>'+f+'</b> sélectionné. On génère !');await showGenerateMenu();return;
+    }
     if(d==='GAL_DEL'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Rien à supprimer.');return;}
@@ -1064,6 +1071,12 @@ await send('Ready to generate video?',[
       const i=+d.slice(10);const f=styleList[i];
       if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
       try{const snap=JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8'));editPrevFrame=null;applySnapshot(snap);await send('✅ Style chargé : <b>'+f.replace(/\.json$/,'')+'</b>');await sendBeforeAfter();}catch(e){await send('❌ '+e.message);}
+      return;
+    }
+    if(d.startsWith('LOADGEN_')){
+      const i=+d.slice(8);const f=styleList[i];
+      if(!f){await send('⚠️ Style introuvable (rouvre 📂 Mes styles).');return;}
+      try{applySnapshot(JSON.parse(fs.readFileSync(path.join(stylesDir(),f),'utf8')));await send('✅ Style <b>'+f.replace(/\.json$/,'')+'</b> appliqué. On génère !');await showGenerateMenu();}catch(e){await send('❌ '+e.message);}
       return;
     }
     if(d.startsWith('DELSTYLE_')){
