@@ -220,8 +220,9 @@ function nlDisp(file){ /*affichage panneau SANS DEFILEMENT : version 4:5 ancree 
   }catch(e){}
   return file;
 }
-async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
-  if(file&&newlook.mode!=='planche')file=nlDisp(file); /*regle Etoile : planche affichee ENTIERE, jamais rognee*/
+async function nlMedia(file,caption,rows,raw){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
+  /*[apercu-reel] raw=true -> image BRUTE telle que generee (plein 9:16, aucun crop/scale) ; sinon cover config en 4:5 sans defilement*/
+  if(file&&!raw&&newlook.mode!=='planche')file=nlDisp(file); /*regle Etoile : planche affichee ENTIERE, jamais rognee*/
   const FormData=require('form-data');
   const markup=JSON.stringify({inline_keyboard:rows||[]});
   const sig=_sig('nl',file||'',caption,rows);
@@ -321,7 +322,7 @@ function nlResultRows(){
 }
 async function nlShowResult(){
   const f=nlLocal(newlook.idx);
-  await nlMedia(f,'🎞 <b>RÉSULTATS</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+(newlook.urls.length>1?' · '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows());
+  await nlMedia(f,'🎞 <b>RÉSULTATS</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+(newlook.urls.length>1?' · '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows(),true); /*[apercu-reel] image BRUTE 9:16, zéro re-traitement*/
 }
 async function nlPayRecap(mode,label,okCb,backCb){ /*règle d'or : QUOI + COMBIEN avant chaque action payante*/
   const lb2=nlMod().readLookbook();const ops=(lb2.pricing&&lb2.pricing.ops)||{};const epc=(lb2.pricing&&lb2.pricing.eur_per_credit)||0.058;
@@ -1677,7 +1678,7 @@ async function resSteps(){ /*menu Étapes : remonter n'importe quelle catégorie
 }
 function navRow(){return [
   [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
-  [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
+  [{text:'🗑 Tout effacer',callback_data:'IMG_CLEAR'},{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
   [{text:'↔️ Avant/Après',callback_data:'BEFORE_AFTER'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}],
 ];}
 function reactionsKb(){
@@ -2193,6 +2194,7 @@ async function handle(upd){
     if(d==='EDIT_IMGADJ'){editSectionCur='img';await openPanel('imgadj');return;}
     if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
     if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanelBA();return;}
+    if(d==='IMG_CLEAR'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Naturel']);writeFx(fx);await toast('🗑 Tout effacé — image brute (aucun filtre)');await refreshPanelBA();return;} /*[3] reset STRICT vers l'original (ΔRGB=0)*/
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;gal.page=0;galFrom='edit';await showGallery();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
