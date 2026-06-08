@@ -1427,8 +1427,10 @@ async function cockpitCaption(caption,rows){
 // UN message unique : photos gardées + vidéos livrées, nav ‹›, ré-édition, menu Étapes.
 let results={mid:null,items:[],idx:0};
 const RESULTS_PATH=path.join(BASE,'results_bloc.json');
-function resLoad(){try{const j=JSON.parse(fs.readFileSync(RESULTS_PATH,'utf8'));results.items=(j.items||[]).filter(it=>it&&it.path&&fs.existsSync(it.path));results.idx=Math.max(0,results.items.length-1);}catch(e){}}
-function resSave(){try{fs.writeFileSync(RESULTS_PATH,JSON.stringify({items:results.items.slice(-30)}));}catch(e){}}
+function resLoad(){try{const j=JSON.parse(fs.readFileSync(RESULTS_PATH,'utf8'));results.items=(j.items||[]).filter(it=>it&&it.path&&fs.existsSync(it.path));results.idx=Math.max(0,results.items.length-1);
+  if(j.mids){results.mid=j.mids.results||null;if(j.mids.video)cockpit.mid=j.mids.video;if(j.mids.photo)newlook.mediaId=j.mids.photo;} /*les 3 blocs SURVIVENT au restart (sinon empilement)*/
+}catch(e){}}
+function resSave(){try{fs.writeFileSync(RESULTS_PATH,JSON.stringify({items:results.items.slice(-30),mids:{photo:newlook.mediaId,video:cockpit.mid,results:results.mid}}));}catch(e){}}
 function resKb(it){
   const n=results.items.length;const rows=[];
   if(n>1)rows.push([{text:'‹',callback_data:'RES_PREV'},{text:(results.idx+1)+' / '+n,callback_data:'NOOP'},{text:'›',callback_data:'RES_NEXT'}]);
@@ -2574,5 +2576,6 @@ tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
 send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
-  loadState();resLoad();console.log('Bot running...');poll();
+  loadState();resLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
+  console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
