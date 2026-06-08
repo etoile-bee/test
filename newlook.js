@@ -133,7 +133,7 @@ async function generateLook(opts,log){
   const client=getClient();
   if(!lb.categories[opts.category]&&!opts.extra&&opts.category!=='random')opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
-  const mode=opts.mode||'planche';
+  const mode=opts.mode||'eco'; /*[fix] défaut = ÉCO (un seul sujet) ; la planche (multi-angles) ne se déclenche QUE si explicitement choisie*/
   const refUrl=await getRefUrl(client,log);
   /*v9 FINAL : /v1/text2image/seedream (schema revele par sonde : params.prompt + params.input_images) — meme client v1 que Kling/Soul*/
   log('moteur : seedream (/v1, reference imany)');
