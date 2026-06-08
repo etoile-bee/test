@@ -12,7 +12,54 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 **Boutons :**
 - L1: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
 - L2: [🎨 Restyler](GF_RESTYLE_) · [🖼 Cover](COVER_OPEN_)
-- L3: [📋 Légende longue](GF_LONG_) · [📁 Dossier](GF_FILES_)
+- L3: [📋 Légende](GF_LONG_) · [📁 Dossier](GF_FILES_)
+- L4: [➕ Partie suivante](GF_ADDPART_)
+
+## nlConfig
+
+**Texte :** `🎨 <b>NOUVEAU LOOK</b> · `
+
+**Boutons :**
+- L1: [🎲 Surprise](NL_SET_CAT_random)
+- L2: [→ ▶️ Générer](NL_GO) · [❌](NL_CANCEL)
+
+## nlMenuCat
+
+**Texte :** `👗 <b>TENUE</b> · actuelle : `
+
+**Boutons :**
+- L1: [◀️ Retour](NL_CONFIG)
+
+## nlMenuEnv
+
+**Texte :** `🌆 <b>DÉCOR</b> · actuel : `
+
+**Boutons :**
+- L1: [◀️ Retour](NL_CONFIG)
+
+## nlMenuMode
+
+**Texte :** `🎛 <b>FORMAT</b> · actuel : `
+
+**Boutons :**
+- L1: [◀️ Retour](NL_CONFIG)
+
+## nlResultRows
+
+**Boutons :**
+- L1: [‹](NL_NAV_P) · [›](NL_NAV_N)
+- L2: [💾 Enregistrer](NL_KEEP_CUR) · [💾 Tout enregistrer](NL_KEEP_ALL)
+- L3: [🪄 9:16 →](NL_NOOP) · [1 💰](NL_RE_0) · [2 💰](NL_RE_1) · [3 💰](NL_RE_2) · [×3 💰💰](NL_RE_ALL)
+- L4: [🎬 Vidéo](NL_VIDEO) · [💎 HD](NL_HD)
+- L5: [🔁 Refaire pareil](NL_RETRY) · [🆕 Autre look](NL_OTHER)
+- L6: [⚙️ Réglages](NL_CONFIG) · [❌ Fini](NL_CANCEL)
+
+## runNewLook
+
+**Texte :** `⏳ <b>GÉNÉRATION</b> · `
+
+**Boutons :**
+- L1: [🔄 Réessayer](NL_RETRY) · [⚙️ Réglages](NL_CONFIG) · [❌ Fermer](NL_CANCEL)
 
 ## showLook
 
@@ -20,9 +67,9 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 
 **Boutons :**
 - L1: [◀️ Menu](MAIN_MENU)
-- L2: [◀️](GAL_PREV) · [✅ Avatar](GAL_AVATAR) · [🗑](GAL_DEL) · [▶️](GAL_NEXT)
-- L3: [✅ Choisir pour la vidéo](GAL_PICK) · [◀️ Récap](RC_BACK)
-- L4: [🎨 Éditer ce look](GAL_EDIT) · [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
+- L2: [◀️](GAL_PREV) · [🎨 Éditer](GAL_EDIT) · [▶️](GAL_NEXT)
+- L3: [✅ Choisir pour la vidéo](GAL_PICK) · [✅ Avatar](GAL_AVATAR) · [🗑](GAL_DEL) · [◀️ Récap](RC_BACK)
+- L4: [✅ Avatar](GAL_AVATAR) · [🎬 Générer avec](GAL_GEN) · [🗑](GAL_DEL) · [◀️ Édition](EDIT_HOME) · [◀️ Carte](MAIN_MENU)
 
 ## step1_topic
 
@@ -132,8 +179,7 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 **Texte :** `⏳ Une génération est déjà en cours — je ne relance pas (anti-doublon). Attends la fin, ou /stop.`
 
 **Boutons :**
-- L1: [✅ Prêt à poster](READY_) · [📋 Légende longue](LCAP_LEGACY)
-- L2: [🔄 Nouvelle vidéo](NEW_GO)
+- L1: [🔄 Nouvelle vidéo](NEW_GO)
 
 ## showSettings
 
@@ -148,8 +194,6 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 - L6: [👁 Aperçu](EDIT_PREVIEW) · [🎯 vs Réf](CMP_REF) · [◀️ Menu](EDIT_HOME)
 
 ## maybeAskLookStyle
-
-**Texte :** `🎨 Ce look a des réglages enregistrés. Réutiliser ?`
 
 **Boutons :**
 - L1: [✅ Oui (du look)](LS_REUSE)
@@ -168,7 +212,7 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 
 **Boutons :**
 - L1: [🎬](LOADGEN_) · [🗑](DELSTYLE_)
-- L2: [◀️ Menu](EDIT_HOME)
+- L2: [◀️ Carte](MAIN_MENU) · [🎨 Édition](EDIT_HOME)
 
 ## offerReadyToPost
 
@@ -186,20 +230,13 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 - L2: [♻️](REUSE_)
 - L3: [◀️ Menu](MAIN_MENU)
 
-## runLocalTest
-
-**Texte :** `⛔ Une vidéo est en cours — /test refusé (anti-conflit).`
-
-**Boutons :**
-- L1: [🚀 Générer pour de vrai](TEST_GEN) · [🎨 Éditer](EDIT_HOME) · [👁 Aperçu](EDIT_PREVIEW) · [◀️ Menu](MAIN_MENU)
-
 ## recapKb
 
 **Boutons :**
-- L1: [👤 Changer le look](RC_LOOK)
-- L2: [🎨 Modèle](RC_STYLE) · [💬 Sujet](RC_SUBJ) · [🔄 Autre sujet](RC_NEWTOPIC)
-- L3: [⏱ 15s](RC_DUR_15) · [23s](RC_DUR_23) · [30s](RC_DUR_30) · [⌨️ Libre](RC_DUR_FREE)
-- L4: [🚀 GO](RC_GO) · [❌ Annuler](RC_CANCEL)
+- L1: [🚀 Express](EXPRESS_NEW) · [▶️ GO](RC_GO)
+- L2: [👤 Avatar](RC_LOOK) · [💬 Sujet](RC_SUBJ)
+- L3: [⏱ Durée](CARD_DUR) · [🎨 Modèle](RC_STYLE)
+- L4: [☰ Plus](CARD_MORE)
 
 ## showRecap
 
@@ -209,7 +246,8 @@ _(pas de boutons inline)_
 
 **Texte :** `⏳ Une génération est déjà en cours — /stop d\`
 
-_(pas de boutons inline)_
+**Boutons :**
+- L1: [⛔ Annuler](GJ_CANCEL)
 
 ## showScriptCard
 
@@ -224,17 +262,20 @@ _(pas de boutons inline)_
 
 ## genScriptStep
 
-**Texte :** `❌ Script: `
+**Texte :** `❌ <b>Script impossible</b>\n`
 
-_(pas de boutons inline)_
+**Boutons :**
+- L1: [🔄 Réessayer](RC_GO) · [◀️ Carte](MAIN_MENU)
 
 ## genHooks
 
 **Texte :** `⚠️ Aucun script.`
 
 **Boutons :**
-- L1: [🅰 Hook A](GJ_HOOK_0) · [🅱 Hook B](GJ_HOOK_1)
-- L2: [◀️ Garder le script actuel](GJ_SHOWSCRIPT)
+- L1: [⛔ Annuler](GJ_SHOWSCRIPT)
+- L2: [🅰 Hook A](GJ_HOOK_0) · [🅱 Hook B](GJ_HOOK_1)
+- L3: [◀️ Garder le script actuel](GJ_SHOWSCRIPT)
+- L4: [◀️ Script](GJ_SHOWSCRIPT)
 
 ## genAfterScript
 
@@ -260,10 +301,10 @@ _(pas de boutons inline)_
 
 ## showCover
 
-**Texte :** `⚠️ Covers indisponibles.`
+**Texte :** `🖼 <b>COVER</b> `
 
 **Boutons :**
-- L1: [◀️](COVER_PREV) · [✅ Choisir cette cover](COVER_PICK) · [▶️](COVER_NEXT) · [◀️ Retour](MAIN_MENU)
+- L1: [◀️](COVER_PREV) · [✅ Choisir cette cover](COVER_PICK) · [▶️](COVER_NEXT) · [◀️ Résultats](RES_BACK)
 
 ## showMainMenu
 
@@ -292,35 +333,61 @@ _(pas de boutons inline)_
 - L2: [◀️](FPAGE_) · [▶️](FPAGE_)
 - L3: [◀️ Catégories](FILES_HOME)
 
+## resKb
+
+**Boutons :**
+- L1: [‹](RES_PREV) · [›](RES_NEXT)
+- L2: [✅ Postable](GF_POST_) · [🎨 Restyler](GF_RESTYLE_)
+- L3: [🖼 Cover](COVER_OPEN_) · [📋 Légende](GF_LONG_) · [📁 Dossier](GF_FILES_)
+- L4: [➕ Partie suivante](GF_ADDPART_)
+- L5: [🎨 Ré-éditer](RES_EDIT) · [🎬 Vidéo avec](RES_GEN)
+- L6: [🔁 Refaire pareil](NL_RETRY) · [🆕 Autre look](NL_OTHER)
+- L7: [✅ Prêt à poster](READY_) · [📋 Légende longue](LCAP_LEGACY)
+- L8: [🚀 Générer pour de vrai](TEST_GEN) · [🎨 Éditer](EDIT_HOME)
+- L9: [🧭 Étapes](RES_STEPS) · [📤 Prêt à poster](SHOWREADY)
+
+## showResults
+
+**Texte :** `🗂 <b>RÉSULTATS</b>\n\nEncore vide — les photos gardées 💾 et les vidéos livrées s\`
+
+**Boutons :**
+- L1: [🧭 Étapes](RES_STEPS)
+
+## resSteps
+
+**Texte :** `🧭 <b>ÉTAPES</b> — remonter une catégorie :`
+
+**Boutons :**
+- L1: [📸 Bloc photo](NL_CONFIG) · [🎬 Bloc vidéo (carte)](MAIN_MENU)
+- L2: [👤 Avatar](RC_LOOK) · [💬 Sujet](RC_SUBJ) · [⏱ Durée](CARD_DUR)
+- L3: [📝 Script](GJ_SHOWSCRIPT) · [🎨 Édition](EDIT_HOME)
+- L4: [🧪 Test gratuit](MENU_TEST) · [📤 Export](SHOWREADY)
+- L5: [◀️ Résultats](RES_BACK)
+
 ## navRow
 
 **Boutons :**
 - L1: [👤 Looks (changer la photo)](EDIT_LOOKS)
 - L2: [↩️ Annuler](UNDO_EDIT) · [✔️ Valider](VALIDATE_STYLE)
-- L3: [↔️ Avant/Après](BEFORE_AFTER) · [🎯 vs Réf](CMP_REF) · [◀️ Menu](EDIT_HOME)
-
-## openPanel
-
-_(pas de boutons inline)_
+- L3: [↔️ Avant/Après](BEFORE_AFTER) · [🎯 vs Réf](CMP_REF) · [◀️ Édition](EDIT_HOME)
 
 ## showEditHome
 
-**Texte :** `🎛 <b>ÉDITION DU LOOK</b>\n\n📸 Photo de travail : <b>`
+**Texte :** `🎛 <b>ÉDITION</b> · `
 
 **Boutons :**
-- L1: [👤 Looks (changer la photo)](EDIT_LOOKS)
-- L2: [💬 Sous-titres](EDIT_SUBS) · [🎨 Image](EDIT_IMG)
-- L3: [🎨 Presets](SHOW_PRESETS) · [🎬 Zooms](EDIT_ZOOM)
-- L4: [🎵 Musique](EDIT_MUS) · [🎙 Réactions](EDIT_REACT)
-- L5: [💾 Sauvegarder](SAVESTYLE) · [📂 Modèles](SHOWSTYLES)
-- L6: [👁 Aperçu complet](EDIT_PREVIEW)
+- L1: [👤 Looks](EDIT_LOOKS) · [💬 Sous-titres](EDIT_SUBS)
+- L2: [🎨 Image](EDIT_IMG) · [🎨 Presets](SHOW_PRESETS)
+- L3: [🎬 Zooms](EDIT_ZOOM) · [🎵 Musique](EDIT_MUS) · [🎙 Réactions](EDIT_REACT)
+- L4: [💾 Sauvegarder](SAVESTYLE) · [📂 Modèles](SHOWSTYLES)
+- L5: [👁 Aperçu](EDIT_PREVIEW) · [◀️ Carte](MAIN_MENU)
 
 ## showPresets
 
-**Texte :** `🎨 <b>PRESETS COULEUR</b> — applique en 1 tap (puis 👁 Aperçu) :`
+**Texte :** `🎨 <b>PRESETS COULEUR</b> — 1 tap :`
 
 **Boutons :**
-- L1: [🎨 Section Image](EDIT_IMG) · [◀️ Édition](EDIT_HOME)
+- L1: [🎨 Image](EDIT_IMG) · [◀️ Édition](EDIT_HOME)
 
 ## imageKb
 
@@ -385,10 +452,10 @@ _(pas de boutons inline)_
 
 ## runPreview
 
-**Texte :** `⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.`
+**Texte :** `👁 <b>APERÇU</b> — 🔤 ${fontLabel(st.font)} ${st.fontSize}px · 🎬 zoom ${fx.zoom.on?`
 
 **Boutons :**
-- L1: [🎨 Éditer](EDIT_HOME) · [🧪 Test vidéo](MENU_TEST) · [🎬 Générer](MENU_GEN) · [◀️ Menu](MAIN_MENU)
+- L1: [🎨 Éditer](EDIT_HOME) · [🧪 Test](MENU_TEST) · [▶️ GO](MENU_GEN) · [◀️ Carte](MAIN_MENU)
 
 ## handle
 
@@ -396,35 +463,46 @@ _(pas de boutons inline)_
 
 **Boutons :**
 - L1: [✅ Garder les réglages](GEN_KEEP) · [🔄 Repartir de la base](GEN_RESET)
-- L2: [🎨 Modèle actuel (ne pas changer)](RC_ST_CUR)
-- L3: [◀️ Récap](RC_BACK)
-- L4: [🎲 Auto (tous sujets)](RC_SUBJ_AUTO) · [⌨️ Le mien](RC_SUBJ_MINE)
-- L5: [◀️ Récap](RC_BACK)
-- L6: [✏️ Texte](GJ_EDIT) · [🎨 Modèle](GJM_STYLE) · [👤 Look](GJM_LOOK) · [⏱ Durée](GJM_DUR) · [◀️ Retour](GJ_SHOWSCRIPT)
-- L7: [◀️ Retour au script](GJ_SHOWSCRIPT)
-- L8: [↩️ Légende courte](GF_SHORT_) · [📁 Dossier](GF_FILES_)
-- L9: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
-- L10: [🎨 Éditer encore](EDIT_HOME) · [🎨 Restyler à nouveau](GF_RESTYLE_)
-- L11: [ℹ️ Statut](TECH_STATUS)
-- L12: [🔄 Redémarrer le bot](TECH_RESTART)
-- L13: [⏹ Tout arrêter](TECH_STOP)
-- L14: [◀️ Menu](MAIN_MENU)
-- L15: [Generate Video](SCRIPT_OK) · [Regenerate](AUTO_ALL) · [Cancel](CANCEL)
-- L16: [🔄 Nouvelle vidéo](NEW_GO)
-- L17: [⚡ Sur-mesure](MANUAL_GO) · [🎲 Aléatoire](AUTO_ALL) · [🚀 Express](EXPRESS_GO)
-- L18: [🔄 Nouvelle vidéo](NEW_GO)
-- L19: [🎨 Édition](EDIT_HOME)
-- L20: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
-- L21: [📋 Légende longue](POSTLONG_)
-- L22: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
-- L23: [📷 Upload](MM_LOOK_UPLOAD)
-- L24: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
-- L25: [➕ Ajouter aux looks](ADD_LOOK)
-- L26: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
-- L27: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
-- L28: [❌ Ignorer](ADD_IGNORE)
-- L29: [🔄 Nouvelle vidéo](NEW_GO)
+- L2: [🎨 Modèle actuel](RC_ST_CUR)
+- L3: [◀️ Carte](RC_BACK)
+- L4: [🎲 Auto](RC_SUBJ_AUTO) · [⌨️ Le mien](RC_SUBJ_MINE) · [🔄 Autre](RC_NEWTOPIC)
+- L5: [◀️ Carte](RC_BACK)
+- L6: [15s](RC_DUR_15) · [23s](RC_DUR_23) · [30s](RC_DUR_30) · [⌨️](RC_DUR_FREE) · [◀️ Carte](RC_BACK)
+- L7: [👤 Looks](MENU_LOOKS) · [📦 Modèles](SHOWSTYLES)
+- L8: [📤 Prêt à poster](SHOWREADY) · [📁 Fichiers](FILES_HOME)
+- L9: [🧪 Test](MENU_TEST) · [👁 Preview](EDIT_PREVIEW) · [🎨 Éditer](EDIT_HOME)
+- L10: [⚙️ Technique](MENU_TECH) · [❓ Aide](MENU_HELP)
+- L11: [◀️ Carte](RC_BACK)
+- L12: [◀️ Plus](CARD_MORE)
+- L13: [✏️ Texte](GJ_EDIT) · [🎨 Modèle](GJM_STYLE) · [👤 Look](GJM_LOOK) · [⏱ Durée](GJM_DUR) · [◀️ Retour](GJ_SHOWSCRIPT)
+- L14: [◀️ Retour au script](GJ_SHOWSCRIPT)
+- L15: [↩️ Légende courte](GF_SHORT_) · [◀️ Retour](GF_BACK_)
+- L16: [✅ Postable](GF_POST_) · [🔧 À retravailler](GF_REWORK_)
+- L17: [🎨 Éditer encore](EDIT_HOME) · [🎨 Restyler à nouveau](GF_RESTYLE_)
+- L18: [◀️ Plus](CARD_MORE)
+- L19: [ℹ️ Statut](TECH_STATUS)
+- L20: [🔄 Redémarrer le bot](TECH_RESTART)
+- L21: [⏹ Tout arrêter](TECH_STOP)
+- L22: [◀️ Menu](MAIN_MENU)
+- L23: [Generate Video](SCRIPT_OK) · [Regenerate](AUTO_ALL) · [Cancel](CANCEL)
+- L24: [🔄 Nouvelle vidéo](NEW_GO)
+- L25: [🔄 Nouvelle vidéo](NEW_GO)
+- L26: [🎨 Édition](EDIT_HOME)
+- L27: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
+- L28: [📋 Légende longue](POSTLONG_)
+- L29: [→ ✅ GÉNÉRER MAINTENANT](NL_GO2)
+- L30: [◀️ Précédent](NL_CONFIG)
+- L31: [🔄 Réessayer](NL_SPLIT) · [⚙️ Réglages](NL_CONFIG)
+- L32: [▶️ Ouvrir le menu vidéo](NEW_GO) · [◀️ Retour aux résultats](NL_BACKRES)
+- L33: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
+- L34: [📷 Upload](MM_LOOK_UPLOAD)
+- L35: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
+- L36: [➕ Ajouter aux looks](ADD_LOOK)
+- L37: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
+- L38: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
+- L39: [❌ Ignorer](ADD_IGNORE)
+- L40: [🔄 Nouvelle vidéo](NEW_GO)
 
 
 ---
-_51 écrans extraits._
+_58 écrans extraits._
