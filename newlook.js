@@ -89,7 +89,7 @@ function buildPrompt(lb,opts){
   const env=lb.envs[opts.env]||lb.envs.bougies;
   /*v6 : mode planche = UNE image contenant 3 poses du MEME look (sinon : un portrait par image)*/
   const pose=opts.mode==='planche'
-    ?'One single image laid out as an editorial podcast contact sheet (mixed grid): several frames of the SAME woman in the SAME outfit, same accessories, same makeup, same hairstyle — MIX wide seated shots at the microphone (podcast ambiance, set visible) AND tighter chest-up close-ups, varied natural poses and head angles. Real podcast studio atmosphere in every frame. No text, no typography, thin frame separations only.'
+    ?'One single vertical 9:16 image divided into EXACTLY THREE equal horizontal frames stacked top, middle and bottom, like a clean fashion contact sheet. The SAME woman in all three frames — identical outfit, accessories, makeup, hairstyle, studio, decor and lighting — but a DIFFERENT camera angle, pose AND facial expression in each frame (frame 1: facing the camera, chest-up; frame 2: side profile speaking into the microphone; frame 3: three-quarter view). EXACTLY ONE woman per frame, ONE single face per frame. Consistent chest-up framing scale across the three frames (no wide-vs-extreme-closeup mismatch). Thin, even separator lines between the three frames. NO inset, NO picture-in-picture, NO thumbnail, NO second face, NO duplicated small portrait, NO collage, NO irregular grid, NO text, no typography.'
     :lb.pose_rules;
   return defaultPrompt()
     +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))
