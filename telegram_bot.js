@@ -713,7 +713,7 @@ function launch(){
           const vp=m[1].trim();
           setTimeout(async()=>{
             setup.lastVideo=vp;const _i=sentVideos.push(vp)-1;
-            await sendVideoKb(vp,buildVideoCaption(vp),[[{text:'✅ Prêt à poster',callback_data:'READY_'+_i}],[{text:'📋 Légende longue',callback_data:'LCAP_LEGACY'}]]).catch(async()=>{
+            await resAdd({type:'video',path:vp,readyIdx:_i,label:''}).catch(async()=>{ /*3 blocs : livraison legacy → BLOC RÉSULTATS*/
               await send('⚠️ Vidéo trop lourde — voir iCloud → podcast-outputs').catch(()=>{});
             });
           },2000);
@@ -944,10 +944,10 @@ async function runLocalTest(){
     const kw=wt.filter((_,i)=>i%4===2).map(x=>x.text).slice(0,3); // quelques mots-clés pour les zooms
     const r=await renderLocal({input:src,wordTimings:wt,keywords:kw,reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
     const st=r.style;
-    await sendVideoKb(out,`🧪 <b>Test</b> (gratuit) · 🔤 ${fontLabel(st.font)} ${st.fontSize}px`,[[{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'}],[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]).catch(async()=>{await send('⚠️ Vidéo trop lourde.').catch(()=>{});});
+    await resAdd({type:'video',path:out,label:`🧪 <b>Test</b> (gratuit) · 🔤 ${fontLabel(st.font)} ${st.fontSize}px`}).catch(async()=>{await send('⚠️ Vidéo trop lourde.').catch(()=>{});}); /*3 blocs : le test va au BLOC RÉSULTATS*/
   }catch(e){await send('❌ Test local : '+e.message);}
 }
-const HELP_TXT='🎬 <b>Commandes</b>\n\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
+const HELP_TXT='🎬 <b>Commandes</b>\n\n/studio — les 3 blocs (photo · vidéo · résultats)\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
@@ -1147,16 +1147,18 @@ async function genFinal(){
     try{const lib=JSON.parse(fs.readFileSync(LIBRARY,'utf8'));lib.scripts.push({id:Date.now().toString(),title:job.topic,date:ts.slice(0,10),script:job.script,performance:null});fs.writeFileSync(LIBRARY,JSON.stringify(lib,null,2));}catch(e){}
     if(job.look)genState.look=job.look;genState.duration=job.duration;genState.styleName=job.styleName;genState.subjectMode=job.subjectMode;pushLastLook(job.look);saveState();
     const gfIdx=genFolders.push({dir:genDir,finalP,topic:job.topic,covers:[],ts,words:job.words,imageUrl,prevScripts:prevScripts.slice(),partN:job.parts})-1;
-    // La PROGRESSION disparaît : on supprime le message de suivi -> ne restent QUE la vidéo + légendes
-    await delMsg(cockpit.mid);cockpit.mid=null;
-    const vidMid=await sendVideoKb(finalP,buildVideoCaption(finalP),videoReadyKb(gfIdx)).catch(async()=>{await send('⚠️ Vidéo trop lourde — voir /files.');return null;});
-    genFolders[gfIdx].vidMid=vidMid;genFolders[gfIdx].caption=buildVideoCaption(finalP);
+    // 3 BLOCS : la vidéo finale atterrit dans le BLOC RÉSULTATS (édité en place), le cockpit redevient la carte
+    let vidMid=null;
+    try{vidMid=await resAdd({type:'video',path:finalP,gfIdx,label:escHtml(job.topic||'')});}catch(e){await send('⚠️ Vidéo trop lourde — voir /files.');}
+    genFolders[gfIdx].vidMid=vidMid||results.mid;genFolders[gfIdx].caption=buildVideoCaption(finalP);
     try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
   }catch(e){
     if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape <b>'+(genStep||'?')+'</b>.');}
     else{await setProg('⛔ L\'étape <b>'+(genStep||'?')+'</b> a planté : '+e.message);}
   }
-  genAbort=false;genStep='';state='idle';genJob=null;cockpitReset();
+  genAbort=false;genStep='';state='idle';genJob=null;
+  const _cm=cockpit.mid;gwReset();cockpit.mid=_cm;lastCardSig=''; /*3 blocs : on GARDE le message cockpit et on le remorphe en carte*/
+  await ensureTopic().catch(()=>{});await showRecap().catch(()=>{});
 }
 // ── Dossier par génération + restyle gratuit ────────────────────────────────────
 function gslug(s){return String(s||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'video';}
@@ -1420,6 +1422,75 @@ async function cockpitCaption(caption,rows){
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{if(cockpit.mid){const r=await tg('editMessageCaption',{message_id:cockpit.mid,caption:cap1024(caption),parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});if(r&&r.ok)return true;}}catch(e){}
   return false;
+}
+// ── BLOC 3 — RÉSULTATS (architecture 3 blocs statiques validée Etoile 08/06) ──
+// UN message unique : photos gardées + vidéos livrées, nav ‹›, ré-édition, menu Étapes.
+let results={mid:null,items:[],idx:0};
+const RESULTS_PATH=path.join(BASE,'results_bloc.json');
+function resLoad(){try{const j=JSON.parse(fs.readFileSync(RESULTS_PATH,'utf8'));results.items=(j.items||[]).filter(it=>it&&it.path&&fs.existsSync(it.path));results.idx=Math.max(0,results.items.length-1);}catch(e){}}
+function resSave(){try{fs.writeFileSync(RESULTS_PATH,JSON.stringify({items:results.items.slice(-30)}));}catch(e){}}
+function resKb(it){
+  const n=results.items.length;const rows=[];
+  if(n>1)rows.push([{text:'‹',callback_data:'RES_PREV'},{text:(results.idx+1)+' / '+n,callback_data:'NOOP'},{text:'›',callback_data:'RES_NEXT'}]);
+  if(it&&it.type==='video'&&it.gfIdx!=null){
+    rows.push([{text:'✅ Postable',callback_data:'GF_POST_'+it.gfIdx},{text:'🎨 Restyler',callback_data:'GF_RESTYLE_'+it.gfIdx}]);
+    rows.push([{text:'🖼 Cover',callback_data:'COVER_OPEN_'+it.gfIdx},{text:'📋 Légende',callback_data:'GF_LONG_'+it.gfIdx},{text:'📁 Dossier',callback_data:'GF_FILES_'+it.gfIdx}]);
+    rows.push([{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+it.gfIdx}]);
+  }else if(it&&it.type==='photo'){
+    rows.push([{text:'🎨 Ré-éditer',callback_data:'RES_EDIT'},{text:'🎬 Vidéo avec',callback_data:'RES_GEN'}]);
+  }else if(it&&it.type==='video'){
+    if(it.readyIdx!=null)rows.push([{text:'✅ Prêt à poster',callback_data:'READY_'+it.readyIdx},{text:'📋 Légende longue',callback_data:'LCAP_LEGACY'}]);
+    else rows.push([{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}]);
+  }
+  rows.push([{text:'🧭 Étapes',callback_data:'RES_STEPS'},{text:'📤 Prêt à poster',callback_data:'SHOWREADY'}]);
+  return rows;
+}
+function resCaptionOf(it){
+  const n=results.items.length;const pos=n>1?' · '+(results.idx+1)+'/'+n:'';
+  if(it.type==='video'&&it.gfIdx!=null)return cap1024(buildVideoCaption(it.path)+pos);
+  return cap1024((it.type==='video'?'🎬':'📸')+' <b>RÉSULTATS</b>'+pos+(it.label?'\n'+it.label:''));
+}
+async function showResults(){
+  if(!results.items.length){
+    const cap='🗂 <b>RÉSULTATS</b>\n\nEncore vide — les photos gardées 💾 et les vidéos livrées s\'affichent ici.';
+    const rows=[[{text:'🧭 Étapes',callback_data:'RES_STEPS'}]];
+    if(results.mid&&await tgEditText(results.mid,cap,rows))return;
+    const r=await send(cap,rows);results.mid=(r&&r.result&&r.result.message_id)||null;return;
+  }
+  if(results.idx<0)results.idx=results.items.length-1;
+  if(results.idx>=results.items.length)results.idx=0;
+  const it=results.items[results.idx];
+  const cap=resCaptionOf(it),rows=resKb(it);
+  if(results.mid){
+    const ok=it.type==='video'?await editVideoKb(results.mid,it.path,cap,rows):await editPhotoKb(results.mid,it.path,cap,rows);
+    if(ok)return;
+    results.mid=null;jlog('⚠️ bloc résultats perdu — recréation unique');
+  }
+  if(it.type==='video'){results.mid=await sendVideoKb(it.path,cap,rows)||null;}
+  else{const r=await sendPhotoKb(it.path,cap,rows);results.mid=(r&&r.result&&r.result.message_id)||null;}
+}
+async function resAdd(it){ /*toute livraison atterrit dans le bloc 3 (anti-doublon par chemin)*/
+  results.items=results.items.filter(x=>x.path!==it.path);
+  results.items.push(Object.assign({ts:Date.now()},it));
+  while(results.items.length>30)results.items.shift();
+  results.idx=results.items.length-1;resSave();
+  await showResults().catch(()=>{});
+  return results.mid;
+}
+async function resSteps(){ /*menu Étapes : remonter n'importe quelle catégorie, par bloc*/
+  const rows=[
+    [{text:'📸 Bloc photo',callback_data:'NL_CONFIG'},{text:'🎬 Bloc vidéo (carte)',callback_data:'MAIN_MENU'}],
+    [{text:'👤 Avatar',callback_data:'RC_LOOK'},{text:'💬 Sujet',callback_data:'RC_SUBJ'},{text:'⏱ Durée',callback_data:'CARD_DUR'}],
+    [{text:'📝 Script',callback_data:'GJ_SHOWSCRIPT'},{text:'🎨 Édition',callback_data:'EDIT_HOME'}],
+    [{text:'🧪 Test gratuit',callback_data:'MENU_TEST'},{text:'📤 Export',callback_data:'SHOWREADY'}],
+    [{text:'◀️ Résultats',callback_data:'RES_BACK'}],
+  ];
+  if(results.mid){
+    const r=await tg('editMessageCaption',{message_id:results.mid,caption:'🧭 <b>ÉTAPES</b> — remonter une catégorie :',parse_mode:'HTML',reply_markup:{inline_keyboard:rows}}).catch(()=>null);
+    if(r&&r.ok)return;
+    if(await tgEditText(results.mid,'🧭 <b>ÉTAPES</b> — remonter une catégorie :',rows))return;
+  }
+  const r2=await send('🧭 <b>ÉTAPES</b> — remonter une catégorie :',rows);results.mid=(r2&&r2.result&&r2.result.message_id)||null;
 }
 function navRow(){return [
   [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
@@ -2080,11 +2151,26 @@ await send('Ready to generate video?',[
       return dest;
     }
     if(d==='NL_KEEP_CUR'){
-      try{nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      try{const dest=nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());if(dest)await resAdd({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)});}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_KEEP_ALL'){
-      try{let n=0;for(let i=0;i<newlook.urls.length;i++){nlSave(i);n++;}await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      try{let n=0;for(let i=0;i<newlook.urls.length;i++){const dest=nlSave(i);if(dest){results.items=results.items.filter(x=>x.path!==dest);results.items.push({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · pose '+(i+1),ts:Date.now()});}n++;}while(results.items.length>30)results.items.shift();results.idx=results.items.length-1;resSave();await showResults().catch(()=>{});await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      return;
+    }
+    if(d==='RES_PREV'){results.idx--;await showResults();return;}
+    if(d==='RES_NEXT'){results.idx++;await showResults();return;}
+    if(d==='RES_BACK'){await showResults();return;}
+    if(d==='RES_STEPS'){await resSteps();return;}
+    if(d==='RES_EDIT'){
+      const it=results.items[results.idx];
+      if(it&&it.type==='photo'){try{setWorkPhoto(it.path);}catch(e){}await showEditHome();}
+      else await toast('Sélectionne une photo d\'abord');
+      return;
+    }
+    if(d==='RES_GEN'){
+      const it=results.items[results.idx];
+      if(it&&it.type==='photo'){gw.look=it.path;genState.look=it.path;saveState();try{setAvatar(it.path);}catch(e){}await ensureTopic();await showRecap();await toast('Photo envoyée au bloc vidéo');}
       return;
     }
     if(d.startsWith('NL_RE_')){ /*recreate v1 : choix LIBRE de la/des pose(s) a recreer en 9:16 natif (payant, 1 credit/pose)*/
@@ -2276,6 +2362,15 @@ await send('Ready to generate video?',[
   // menu principal automatique à la 1ère interaction de la journée
   {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
 
+  if(txt==='/studio'){ /*3 BLOCS STATIQUES (validé Etoile 08/06) : repose proprement photo + vidéo + résultats en bas du chat*/
+    await delMsg(newlook.mediaId);newlook.mediaId=null;
+    await delMsg(cockpit.mid);cockpitReset();lastCardSig='';
+    await delMsg(results.mid);results.mid=null;
+    await nlConfig();            // BLOC 1 — PHOTO
+    gwReset();await ensureTopic();await showRecap(); // BLOC 2 — VIDÉO
+    await showResults();         // BLOC 3 — RÉSULTATS
+    return;
+  }
   if(txt==='/start'||txt==='/menu'){await openCard();return;}
   if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await openCard();return;} /*V2 : /go = la CARTE*/
@@ -2479,5 +2574,5 @@ tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
 send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
-  loadState();console.log('Bot running...');poll();
+  loadState();resLoad();console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});

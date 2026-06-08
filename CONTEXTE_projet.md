@@ -57,7 +57,14 @@
 Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.25, couleur V5 adaptative (desat only), trim 0.10s, bt709, sans réactions, lookpick nouveautés d'abord. Toute évolution = nouvelle branche de travail, la v1 reste récupérable.
 
 ## 🏗️ CHANTIER EN COURS (08/06 soir, validé Etoile) — REFONTE 3 BLOCS STATIQUES
-- Architecture validée sur maquette : **3 messages statiques permanents qui s'auto-éditent** = Bloc 1 PHOTO (catégorie/décor/galerie/éditeur photo/test💰) · Bloc 2 VIDÉO (sujet/durée/script/édition/export/générer💰) · Bloc 3 RÉSULTATS (album photos+vidéos, ré-éditer→rouvre le bloc concerné, refaire pareil/autre look, menu Étapes pour remonter toute catégorie). Jamais plus de 3 messages ; sous-écrans dans leur bloc ; confirmations en toast (plan V2_EDIT_PLAN.md). TOUTES les options existantes (~80 callbacks inventoriés) doivent être reprises, réorganisation step by step ensuite.
+- Architecture validée sur maquette : **3 messages statiques permanents qui s'auto-éditent** = Bloc 1 PHOTO (panneau newlook existant) · Bloc 2 VIDÉO (cockpit existant) · Bloc 3 RÉSULTATS (NOUVEAU). Jamais plus de 3 messages ; sous-écrans dans leur bloc ; confirmations en toast (plan V2_EDIT_PLAN.md).
+- ✅ IMPLÉMENTÉ (session Cowork 08/06, node --check OK, **PAS ENCORE TESTÉ NI RESTART**) :
+  · BLOC 3 dans telegram_bot.js : `results{mid,items,idx}` persistant (results_bloc.json, max 30), `showResults()` édite EN PLACE (photo↔vidéo via editPhotoKb/editVideoKb), `resAdd()` = toute livraison y atterrit (anti-doublon), `resSteps()` = menu 🧭 Étapes (renvoie vers chaque catégorie des blocs 1/2).
+  · Livraisons routées vers bloc 3 : photos gardées 💾 (NL_KEEP_CUR/ALL), vidéo finale genFinal (gfIdx → boutons Postable/Restyler/Cover/Légende/Dossier/Partie suivante), test local 🧪 (TEST_GEN/Éditer), livraison legacy launch() (readyIdx → Prêt à poster).
+  · genFinal ne supprime plus le cockpit : il le remorphe en carte (bloc 2 reste).
+  · Nouveaux callbacks : RES_PREV/NEXT/BACK/STEPS/EDIT (photo→setWorkPhoto+EDIT_HOME)/GEN (photo→gw.look+carte).
+  · Commande **/studio** : supprime les 3 anciens blocs et repose Bloc1+Bloc2+Bloc3 en bas du chat. resLoad() au boot.
+- PROCHAINE ÉTAPE : `pgrep -f "workflow.js" >/dev/null && echo "⛔" || pm2 restart podcast-bot` puis tester /studio (parcours complet test→garde photo→vidéo). Ensuite : réorganisation fine step by step des commandes dans chaque bloc.
 - Tarifs mesurés 08/06 : 1 photo HD = 1 photo éco = 0.48cr ; 500cr=31.25USD (0.0625USD/cr, crédits API dédiés, pas abonnement) ; vidéo HD : test à 0? À CONFIRMER. → lookbook.pricing à jour.
 - +30 looks `pdf60` (outfit+makeup+hairstyle du PDF "60 prompts lipsync avatar") dans outfits_catalog.json (ids 205-234), racine newlook_prompt.txt intacte. Regards A/B + negative prompt du PDF notés, NON intégrés (pas demandé).
 - ⚠️ Crédits API Anthropic du bot ÉPUISÉS (erreur 400 "credit balance too low" → coupure vidéo express). Recharge = Etoile, console.anthropic.com.
