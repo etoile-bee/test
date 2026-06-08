@@ -20,9 +20,11 @@ class FormData{append(){}}
 const fsM={statSync:()=>({mtimeMs:111}),readFileSync:()=>Buffer.from('x')};
 const cockpit={mid:null};
 const sendPhotoKb=async()=>{ C.sendPhoto++; return {result:{message_id:999}}; };
-const F=new Function('tg','fetch','FormData','fs','shrinkIfBig','jlog','uiLog','screenOf','btnLabels','cap1024','TOKEN','CHAT_ID','cockpit','sendPhotoKb',
+const staleBloc={cockpit:false,photo:false,results:false}; // [stale-fix] ids non perimes ici -> freshBloc no-op
+const freshBloc=async()=>{};
+const F=new Function('tg','fetch','FormData','fs','shrinkIfBig','jlog','uiLog','screenOf','btnLabels','cap1024','TOKEN','CHAT_ID','cockpit','sendPhotoKb','staleBloc','freshBloc',
   hb+'\n'+extractFn('editPhotoKb')+'\n'+extractFn('cockpitCaption')+'\n'+extractFn('cockpitPhoto')+'\nreturn {editPhotoKb,cockpitCaption,cockpitPhoto,_sig,sigSame,peek:m=>_msgSig[m]};')
-  (tg,mockFetch,FormData,fsM,x=>x,()=>{},()=>{},()=>'',()=>[],s=>String(s||''),'T','C',cockpit,sendPhotoKb);
+  (tg,mockFetch,FormData,fsM,x=>x,()=>{},()=>{},()=>'',()=>[],s=>String(s||''),'T','C',cockpit,sendPhotoKb,staleBloc,freshBloc);
 
 let pass=0,fail=0;
 function check(label,cond,got){ (cond?pass++:fail++); console.log((cond?'✅':'❌')+' '+label+(cond?'':'  (obtenu: '+JSON.stringify(got)+')')); }

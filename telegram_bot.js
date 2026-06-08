@@ -253,6 +253,7 @@ async function nlMedia(file,caption,rows,raw){ /*LE message unique : photo + cap
   /*[apercu-reel] raw=true -> image BRUTE telle que generee (plein 9:16, aucun crop/scale) ; sinon cover config en 4:5 sans defilement*/
   /*[affichage-entier] Etoile : AUCUN recadrage à l'affichage — l'image (look/planche/cover) est montrée ENTIÈRE en 9:16, jamais coupée. (nlDisp 4:5 retiré)*/
   const FormData=require('form-data');
+  await freshBloc('photo',()=>newlook.mediaId,()=>newlook.mediaId=null); /*[stale-fix]*/
   const markup=JSON.stringify({inline_keyboard:rows||[]});
   const sig=_sig('nl',file||'',caption,rows);
   if(newlook.mediaId&&sigSame(newlook.mediaId,sig))return true; /*panneau déjà exactement dans cet état -> ON NE FAIT RIEN*/
@@ -1606,6 +1607,9 @@ async function editPhotoKb(mid,fp,caption,rows){
 // ── COCKPIT : UN seul message de contrôle pour tout le wizard (photo↔vidéo via editMessageMedia) ──
 let cockpit={mid:null};
 function cockpitReset(){cockpit.mid=null;}
+/*[stale-fix] Au redemarrage, resLoad() restaure des message_id de la session precedente. Les editer en place vise un message ENTERRE dans l'historique (Etoile ne voit RIEN). On marque ces ids "perimes" : au 1er affichage de chaque bloc, on supprime l'ancien et on en recree un FRAIS, visible en bas. Ensuite, edition en place normale.*/
+let staleBloc={cockpit:false,photo:false,results:false};
+async function freshBloc(which,getMid,clearMid){ if(staleBloc[which]){staleBloc[which]=false;const m=getMid();if(m){await delMsg(m);clearMid();}} }
 function cap1024(s){s=String(s||'');return s.length>1024?s.slice(0,1000)+'…':s;}
 async function editVideoKb(mid,fp,caption,rows){
   const sig=_sig('video',fp,cap1024(caption),rows);
@@ -1637,6 +1641,7 @@ async function editVideoKb(mid,fp,caption,rows){
 // remplace le média du cockpit par une PHOTO (édite en place, sinon nouveau message)
 async function cockpitPhoto(fp,caption,rows){
   caption=cap1024(caption);
+  await freshBloc('cockpit',()=>cockpit.mid,()=>cockpit.mid=null); /*[stale-fix]*/
   if(cockpit.mid&&await editPhotoKb(cockpit.mid,fp,caption,rows))return cockpit.mid;
   const r=await sendPhotoKb(fp,caption,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;return cockpit.mid;
 }
@@ -1653,6 +1658,7 @@ async function cockpitVideo(fp,caption,rows){
 // met à jour SEULEMENT le texte/boutons du cockpit (sans toucher le média)
 async function cockpitCaption(caption,rows){
   caption=cap1024(caption);
+  await freshBloc('cockpit',()=>cockpit.mid,()=>cockpit.mid=null); /*[stale-fix] cockpit.mid=null -> renvoie false -> le caller (cardMenu) cree un message frais*/
   const sig=_sig('cap',null,caption,rows);
   if(sigSame(cockpit.mid,sig))return true; // déjà affiché à l'identique
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
@@ -1669,7 +1675,7 @@ async function cockpitCaption(caption,rows){
 let results={mid:null,items:[],idx:0};
 const RESULTS_PATH=path.join(BASE,'results_bloc.json');
 function resLoad(){try{const j=JSON.parse(fs.readFileSync(RESULTS_PATH,'utf8'));results.items=(j.items||[]).filter(it=>it&&it.path&&fs.existsSync(it.path));results.idx=Math.max(0,results.items.length-1);
-  if(j.mids){results.mid=j.mids.results||null;if(j.mids.video)cockpit.mid=j.mids.video;if(j.mids.photo)newlook.mediaId=j.mids.photo;} /*les 3 blocs SURVIVENT au restart (sinon empilement)*/
+  if(j.mids){results.mid=j.mids.results||null;if(results.mid)staleBloc.results=true;if(j.mids.video){cockpit.mid=j.mids.video;staleBloc.cockpit=true;}if(j.mids.photo){newlook.mediaId=j.mids.photo;staleBloc.photo=true;}} /*[stale-fix] les ids survivent au restart mais sont marques perimes : recree frais au 1er affichage (sinon edition invisible dans l'historique)*/
 }catch(e){}}
 function resSave(){try{fs.writeFileSync(RESULTS_PATH,JSON.stringify({items:results.items.slice(-30),mids:{photo:newlook.mediaId,video:cockpit.mid,results:results.mid}}));}catch(e){}}
 function resKb(it){
@@ -1695,6 +1701,7 @@ function resCaptionOf(it){
   return cap1024((it.type==='video'?'🎬':'📸')+' <b>RÉSULTATS</b>'+pos+(it.label?'\n'+it.label:''));
 }
 async function showResults(){
+  await freshBloc('results',()=>results.mid,()=>results.mid=null); /*[stale-fix]*/
   if(!results.items.length){
     const cap='🗂 <b>RÉSULTATS</b>\n\nEncore vide — les photos gardées 💾 et les vidéos livrées s\'affichent ici.';
     const rows=[[{text:'🧭 Étapes',callback_data:'RES_STEPS'}]];
