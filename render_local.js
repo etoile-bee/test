@@ -312,7 +312,10 @@ async function renderLocal(opts) {
   // Le zoom dynamique (mouvement) ne sert que sur la VRAIE vidéo lipsync. Surchargable via opts.zoomCfg/opts.zoom.
   const _isImageInput = /\.(jpg|jpeg|png|webp)$/i.test(String(input));
   if (_isImageInput && opts.zoomCfg == null && opts.zoom == null) { zoomCfg.on = 0; zoomCfg.base = 1.0; }
-  const colorFilter = buildColorFilter(img);
+  let colorFilter = buildColorFilter(img);
+  // [B image-intacte] Une IMAGE fixe (look/photo) NE reçoit AUCUN grading couleur : elle reste telle quelle (+ sous-titres).
+  // Le grading (dé-jaune V5 / réglages) ne s'applique qu'à la vraie vidéo lipsync (footage Kling). Surchargable via opts.image.
+  if (_isImageInput && opts.image == null) colorFilter = '';
 
   const wt = normTimings(wordTimings);
 

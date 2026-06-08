@@ -1037,7 +1037,7 @@ let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
 // Édite l'écran d'édition EN PLACE (photo de travail + boutons), comme la carte
 async function editScreen(caption,rows){
-  let frame=null;try{const f=await renderWorkingFrame();frame=f&&f.frame;if(f)editPrevFrame=f.frame;}catch(e){}
+  let frame=null;try{const f=await renderWorkingFrame(null,true);frame=f&&f.frame;if(f)editPrevFrame=f.frame;}catch(e){} /*éditeur : grading visible*/
   if(frame){await cockpitPhoto(frame,caption,rows);editPanel.mid=cockpit.mid;}
   else if(!await cockpitCaption(caption,rows)){const r=await send(caption,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;editPanel.mid=cockpit.mid;}
 }
@@ -1446,13 +1446,14 @@ async function renderStyleFrame(input){
   return {frame,style:r.style};
 }
 // Aperçu STILL sur une IMAGE (look) : couleur + sous-titres incrustés, via les helpers de render_local
-async function renderStillPreview(imgPath){
+async function renderStillPreview(imgPath,grade){
   const rl=freshRL();
   const sub=readSubs(),fx=readFx(),W=720,H=1280;
   const assPath='/tmp/still_'+Date.now()+'.ass';
   const subsOn=sub.subs!==0;
   if(subsOn)fs.writeFileSync(assPath,rl.buildAss([{text:previewPhrase(),start:0,length:99}],{font:sub.font,fontSize:sub.size,oy:sub.oy,letterSpacing:parseFloat(sub.letter)||0}));
-  const color=rl.buildColorFilter(fx.image);
+  // [B image-intacte] AUCUN grading couleur sur un still par défaut (image telle quelle) — grade=true seulement dans l'éditeur d'image
+  const color=grade?rl.buildColorFilter(fx.image):'';
   let vf='scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1';
   if(color)vf+=','+color;
   if(subsOn)vf+=',ass='+assPath;
@@ -1463,11 +1464,11 @@ async function renderStillPreview(imgPath){
 // Frame de travail courante (image look -> still ; sinon vidéo raw -> render)
 // dernier footage en MOUVEMENT (raw) si dispo, sinon le look de travail (item 5)
 function liveSrc(){const lr=latestRaw();return (lr&&fs.existsSync(lr))?lr:workSrc();}
-async function renderWorkingFrame(srcOverride){
+async function renderWorkingFrame(srcOverride,grade){
   const src=srcOverride||workSrc(); if(!src)return null;
   // iCloud : télécharge le fichier si c'est un placeholder (sinon le rendu échoue)
   try{if(fs.statSync(src).size<30000)require('child_process').execSync('brctl download "'+src+'" 2>/dev/null');}catch(e){}
-  if(/\.(jpg|jpeg|png|webp)$/i.test(src))return await renderStillPreview(src);
+  if(/\.(jpg|jpeg|png|webp)$/i.test(src))return await renderStillPreview(src,grade); // grade=true uniquement depuis l'éditeur d'image
   return await renderStyleFrame(src);
 }
 function hstackLabeled(leftPng,rightPng,leftLabel,rightLabel,outPng){
@@ -1476,10 +1477,10 @@ function hstackLabeled(leftPng,rightPng,leftLabel,rightLabel,outPng){
     `[0:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${leftLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[a];[1:v]scale=-1:1000,drawtext=fontfile=${FF}:text=${rightLabel}:x=12:y=12:fontsize=34:fontcolor=yellow:box=1:boxcolor=black@0.6[b];[a][b]hstack`,outPng],{stdio:'ignore'});
 }
 let editPrevFrame=null; // frame "AVANT" pour le before/after
-async function captureBaseline(){ const f=await renderWorkingFrame(); editPrevFrame=f?f.frame:null; }
+async function captureBaseline(){ const f=await renderWorkingFrame(null,true); editPrevFrame=f?f.frame:null; }
 // Après un réglage : envoie AVANT|APRÈS puis re-affiche les contrôles
 async function sendBeforeAfter(){
-  const after=await renderWorkingFrame();
+  const after=await renderWorkingFrame(null,true); /*éditeur image : grading visible*/
   if(!after){await send('⚠️ Aperçu indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
   const comp='/tmp/ba_'+Date.now()+'.png';
   if(editPrevFrame&&fs.existsSync(editPrevFrame)){
@@ -1490,7 +1491,7 @@ async function sendBeforeAfter(){
   await sendImg(comp,`↔️ AVANT | APRÈS — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
 }
 async function sendVsReference(){
-  const after=await renderWorkingFrame();
+  const after=await renderWorkingFrame(null,true); /*éditeur image : grading visible*/
   if(!after){await send('⚠️ Aperçu indispo (aucun raw).');return;}
   const ref=path.join(BASE,'reference_model.png');const comp='/tmp/vr_'+Date.now()+'.png';
   if(fs.existsSync(ref)){try{hstackLabeled(ref,after.frame,'REFERENCE','RENDU',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
@@ -1713,7 +1714,7 @@ async function refreshPanel(){
 async function refreshPanelBA(){
   const section=editPanel.section||'img';
   const prev=editPrevFrame; // frame affichée AVANT ce réglage (posée par le refresh précédent)
-  const after=await renderWorkingFrame();
+  const after=await renderWorkingFrame(null,true); /*éditeur image : grading visible*/
   if(!after){await refreshPanel();return;}
   let media=after.frame,cap=sectionCaption(section);
   if(prev&&fs.existsSync(prev)&&prev!==after.frame){
