@@ -2420,6 +2420,7 @@ await send('Ready to generate video?',[
   if(txt==='/newlook'||txt.startsWith('/newlook ')){ /*newlook v7 : variante B — panneau tout-en-un (maquette validee Etoile)*/
     newlook.extra=txt.replace(/^\/newlook\s*/,'').trim()||null;
     newlook.panelId=null;newlook.urls=[];newlook.mode='eco'; /*regle : on repart toujours en test eco*/
+    await delMsg(newlook.mediaId);newlook.mediaId=null; /*la COMMANDE repose le panneau EN BAS (sinon il edite un vieux message hors ecran = "rien ne se passe")*/
     nlConfig();
     return;
   }
@@ -2528,9 +2529,13 @@ await send('Ready to generate video?',[
 // ── Poll ──────────────────────────────────────────────────────────────────────
 async function poll(){
   try{
-    const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=10`);
+    /*anti-surdité : si getUpdates reste suspendu (réseau/veille), on coupe à 30s au lieu de geler la boucle POUR TOUJOURS*/
+    const r=await Promise.race([
+      fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=10`),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('poll timeout 30s')),30000))
+    ]);
     if(r.ok){const d=await r.json();if(d.ok)for(const u of d.result){offset=u.update_id+1;await handle(u).catch(e=>console.error('err:',e.message));}}
-  }catch{}
+  }catch(e){try{if(/poll timeout/.test(e.message))jlog('⚠️ getUpdates suspendu >30s — boucle relancée');}catch(_){}}
   setTimeout(poll,1000);
 }
 
