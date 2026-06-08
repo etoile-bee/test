@@ -1122,11 +1122,11 @@ async function ensureTopic(){
     gw.topic=t;gw.topicLocal=true;jlog('⚠️ sujet auto API KO ('+apiNice(e)+') — fallback local');
   }
 }
-async function recapGo(){
+async function recapGo(auto){
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
   await ensureTopic();
   const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
-  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.topic||null,styleName:gw.styleName,look:gwLook(),audio:null,running:false};
+  genJob={duration:dur,parts:plan.n,words:plan.words,subjectMode:gw.subjectMode,topicCat:gw.topicCat||null,topic:gw.topic||null,styleName:gw.styleName,look:gwLook(),audio:null,running:false,auto:!!auto}; /*[C3] auto = aller direct au récap coût*/
   if(gwLook())setAvatar(gwLook());
   await cockpitCaption('📝 Écriture du script… (~10s)',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]); // morphe la carte, pas de nouveau message
   await genScriptStep();
@@ -1153,7 +1153,7 @@ async function genScriptStep(){
     const prompt=genJob.parts>1?WF.partPrompt(genJob.topic,1,genJob.parts,[]):genJob.topic;
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
-    await showScriptCard();
+    if(genJob.auto)await genAfterScript(); /*[C3] Auto : direct au récap coût (script auto-validé)*/ else await showScriptCard();
   }catch(e){await cardMenu('❌ <b>Script impossible</b>\n'+escHtml(apiNice(e)),[[{text:'🔄 Réessayer',callback_data:'RC_GO'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);genJob=null;}
 }
 async function genHooks(){
@@ -1374,6 +1374,15 @@ async function showStudio(){
     [{text:'👗 Looks',callback_data:'MENU_LOOKS'},{text:'👤 Avatars',callback_data:'MENU_LOOKS'}],
     [{text:'🖼 Photos',callback_data:'FCAT_img'},{text:'🎬 Vidéos',callback_data:'FCAT_vid'}],
     [{text:'🏛 Décors',callback_data:'STUDIO_DECORS'},{text:'🕘 Historique',callback_data:'STUDIO_HIST'}],
+    [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
+  ]);
+}
+// [C3] CRÉER = point d'entrée unique génération -> choix du mode (en place)
+async function showCreer(){
+  await cardMenu('🚀 <b>CRÉER</b> — choisis le mode :',[
+    [{text:'⚡ Express',callback_data:'CREER_EXPRESS'}],
+    [{text:'✏️ Sur-mesure',callback_data:'CREER_SURMESURE'}],
+    [{text:'🤖 Auto',callback_data:'CREER_AUTO'}],
     [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
   ]);
 }
@@ -1904,7 +1913,10 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
-    if(d==='HOME_CREER'){await openCard();return;} /*[C1] Créer -> carte génération (C3 ajoutera le choix de mode)*/
+    if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
+    if(d==='CREER_EXPRESS'){await recapGo(false);return;} /*[C3] Express : derniers réglages + sujet auto -> script éditable*/
+    if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO*/
+    if(d==='CREER_AUTO'){await recapGo(true);return;} /*[C3] Auto : tout auto -> récap coût à valider (pas de script card)*/
     if(d==='HOME_STUDIO'){await showStudio();return;} /*[C2] Studio -> sous-menu épuré*/
     if(d==='STUDIO_DECORS'){const lb=nlMod().readLookbook();const lignes=Object.keys(lb.envs||{}).map(k=>'• '+lb.envs[k].label).join('\n');await cardMenu('🏛 <b>DÉCORS disponibles</b>\n'+lignes+'\n\n<i>(choix du décor à la génération via /newlook)</i>',[[{text:'◀️ Retour',callback_data:'HOME_STUDIO'}]]);return;}
     if(d==='STUDIO_HIST'){ /*[C2] historique = dernières générations (réutilise la logique /gens, message unique)*/
@@ -2068,9 +2080,9 @@ async function handle(upd){
     }
     // [chantier2] FLUX UNIFIÉ : toutes les entrées de génération legacy (wizard anglais T_/L_/D_,
     // GO/SCRIPT_OK/AUTO_ALL/EXPRESS_GO) redirigent vers LA CARTE (openCard) — anti-bypass, zéro anglais.
-    if(d==='T_AUTO'||/^T_\d+$/.test(d)||d==='L_KEEP'||d==='L_RANDOM'||d==='L_UPLOAD'||d==='D_25'||d==='D_40'||d==='D_65'||d==='GO'||d==='SCRIPT_OK'||d==='AUTO_ALL'||d==='EXPRESS_GO'){await openCard();return;}
+    if(d==='T_AUTO'||/^T_\d+$/.test(d)||d==='L_KEEP'||d==='L_RANDOM'||d==='L_UPLOAD'||d==='D_25'||d==='D_40'||d==='D_65'||d==='GO'||d==='SCRIPT_OK'||d==='AUTO_ALL'||d==='EXPRESS_GO'){await showCreer();return;} /*[C3] GO ambigu -> Créer*/
         if(d==='SAVE_VID'){/*botfixes v1*/ if(setup.lastVideo&&fs.existsSync(setup.lastVideo)){try{const FormData=require('form-data');const fdv=new FormData();fdv.append('chat_id',CHAT_ID);fdv.append('document',fs.createReadStream(setup.lastVideo));fdv.append('caption','🎬 Fichier video');await tg('sendDocument',null,fdv).catch(()=>{});}catch(e){}}else{await send('Fichier introuvable.').catch(()=>{});}return;}
-    if(d==='MANUAL_GO'){await openCard();return;} /*[chantier2] legacy -> carte*/
+    if(d==='MANUAL_GO'){await showCreer();return;} /*[C3] legacy -> Créer*/
     if(d==='MM_LOOK_KEEP'){if(setup.editing){setup.editing=null;await mRecap();}else{await mDur();}return;}
     if(d==='MM_DUR_10'){setup.duration='10s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_20'){setup.duration='20s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
@@ -2084,7 +2096,7 @@ async function handle(upd){
     if(d==='MM_TOPIC_CATS'){await mCats();return;}
     if(d==='MM_CAT_random'){setup.topicCat=null;await mTopic('');return;}
     if(d.match(/^MM_CAT_/)){await mTopic(d.slice(7));return;}
-    if(d==='MM_START'){await openCard();return;} /*[chantier2] legacy gen -> carte (anti-bypass)*/
+    if(d==='MM_START'){await showCreer();return;} /*[C3] legacy gen -> Créer*/
     if(d==='MM_NEW'){await mLook(true);return;}
     if(d==='MM_CANCEL'){state='idle';setup.editing=null;await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     if(d==='MM_EDIT'){await mEditMenu();return;}
