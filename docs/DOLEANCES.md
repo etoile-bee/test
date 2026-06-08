@@ -14,3 +14,15 @@ Statuts : `🆕 nouveau` · `🔁 récurrent` · `🔎 en analyse` · `🛠 à c
 | 2026-06-08 | *(exemple — à remplacer)* le texte des sous-titres me paraît trop haut | après validation du verrou 76px/OY0.370, sur une vidéo 40s | 🆕 nouveau |
 
 <!-- Ajouter les nouvelles lignes JUSTE SOUS l'en-tête du tableau, au-dessus des plus anciennes. -->
+
+---
+
+## À TRAITER APRÈS UN VRAI TEST PAYANT (note Etoile 08/06)
+
+À faire une fois qu'Etoile aura lancé un parcours complet payant (photo + vidéo réelle) :
+
+1. **Fusionner preview + test en UNE option « 👁 APERÇU (gratuit) »** + un bouton **« GÉNÉRER »** qui précise clairement gratuit/payant selon le choix. (Aujourd'hui `/preview` et `/test` sont deux entrées distinctes ; à unifier.)
+2. **Clarifier le menu de validation de génération** (photo ET vidéo) : libellés et étapes de confirmation explicites (quoi, combien, gratuit/payant) avant toute dépense.
+3. **Refaire un parcours utilisateur complet** (de zéro à la vidéo livrée) et **lister les frictions** restantes une fois les corrections récentes en main (zoom/couleur stills, 9:16, nb photos, référence Imany).
+
+Statut : 💤 après test payant.
