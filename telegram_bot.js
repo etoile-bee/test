@@ -444,65 +444,8 @@ const TOPIC_IDEAS=[
   ['💎 Soft life','Feminine energy and why men chase you less when you chase them'],
 ];
 
-async function step1_topic(){
-  state='setup_topic';
-  setup={topic:null,photo:null,duration:'25s'};
-  await send('🎬 <b>New Video — Step 1/3: Topic</b>\n\nType your own or choose a theme:',[
-    [{text:'🎲 Auto-pick',callback_data:'T_AUTO'}],
-    [{text:TOPIC_IDEAS[0][0],callback_data:'T_0'},{text:TOPIC_IDEAS[1][0],callback_data:'T_1'},{text:TOPIC_IDEAS[2][0],callback_data:'T_2'}],
-    [{text:TOPIC_IDEAS[3][0],callback_data:'T_3'},{text:TOPIC_IDEAS[4][0],callback_data:'T_4'},{text:TOPIC_IDEAS[5][0],callback_data:'T_5'}],
-    [{text:TOPIC_IDEAS[6][0],callback_data:'T_6'}],
-  ]);
-}
-async function step2_look(){
-  const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');try{const _pp=require('./look_picker.js').pickLook(lDir);if(_pp){setup.photo=_pp;setAvatar(setup.photo);/*lookpick v1*/const tmp='/tmp/lk'+Date.now()+'.jpg';try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'\U0001f4f8 Step 1/3 — Look').catch(()=>{});}catch{}}}catch(e){}
-  state='setup_look';
-  //  const cur=process.env.HIGGS_AVATAR_URL||null;
-  //  if(cur){try{if(cur.startsWith('http')){await sendImg(cur,'Current look').catch(()=>{});}else{const tc='/tmp/cur'+Date.now()+'.jpg';require('child_process').execSync('sips -Z 800 -s format jpeg "'+cur+'" --out "'+tc+'" 2>/dev/null');await sendImg(tc,'Current look').catch(()=>{});}}catch{}}
-  await send('📸 <b>Step 2/3: Look</b>\n\nKeep current or pick a new one:',[
-    [{text:'✅ Keep current',callback_data:'L_KEEP'},{text:'🎲 Random',callback_data:'L_RANDOM'}],
-    [{text:'📷 Upload a photo',callback_data:'L_UPLOAD'}],
-  ]);
-}
-async function pickAndShow(){
-  state='setup_look';
-  const p=pickRandom();
-  if(!p){await send('No looks found');await step3_duration();return;}
-  setup.photo=p;
-  const tmp='/tmp/lk'+Date.now()+'.jpg';
-  try{
-    require('child_process').execSync('sips -Z 800 -s format jpeg "'+p+'" --out "'+tmp+'" 2>/dev/null');
-    await sendImg(tmp,'Like this look?');
-  }catch(e){
-    console.error('preview fail:',e.message);
-    await send('Look: '+require('path').basename(p));
-  }
-  await send('Keep or pick another?',[
-    [{text:'Use this look',callback_data:'L_KEEP'},{text:'Pick another',callback_data:'L_RANDOM'}],
-  ]);
-}
-async function step3_duration(){
-  state='setup_dur';
-  await send('⏱ <b>Step 3/3: Duration</b>',[
-    [{text:'Short 0-25s',callback_data:'D_25'},{text:'Medium 25-40s',callback_data:'D_40'},{text:'Long 40-65s',callback_data:'D_65'}],
-  ]);
-}
-async function showSummary(){
-  state='setup_confirm';
-  const t=setup.topic||'🎲 Auto-pick';
-  const p=setup.photo?path.basename(setup.photo).substring(0,30):'(current)';
-  const d=setup.duration;
-  // Show look preview
-  const previewPath=setup.photo||(process.env.HIGGS_AVATAR_URL||null);
-  if(previewPath){
-    const rp=resolveImg(previewPath);
-    if(rp)await sendImg(rp,'📸 Look for this video').catch(()=>{});
-  }
-  await send(`✅ <b>Ready to generate!</b>\n\n📌 Topic: ${t}\n📸 Look: ${p}\n⏱ Duration: ${d}`,[
-    [{text:'▶️ Start now',callback_data:'GO'},{text:'🔀 Change topic',callback_data:'CHG_TOPIC'}],
-    [{text:'📸 Change look',callback_data:'CHG_LOOK'},{text:'❌ Cancel',callback_data:'CANCEL'}],
-  ]);
-}
+// [chantier2] Wizard anglais legacy (step1/2/3 + showSummary) SUPPRIMÉ — flux unifié sur la carte.
+// Toutes les entrées de génération mènent désormais à openCard (voie carte conforme).
 
 // ── Manual mode (nouveau) ───────────────────────────────────────────────────
 async function mDur(){
@@ -1958,89 +1901,11 @@ async function handle(upd){
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
       state='idle';await send(stopped?'⏹ Stoppé.':'Rien en cours.');return;
     }
-    // Topic selection
-    if(d==='T_AUTO'){const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);setup.topic=TOPIC_IDEAS[idx][1];await showSummary();return;}
-    if(d.match(/^T_\d+$/)){const i=+d.slice(2);setup.topic=TOPIC_IDEAS[i][1];await send('✅ Topic: '+TOPIC_IDEAS[i][1]);await step2_look();return;}
-    // Look
-    if(d==='L_KEEP'){await step3_duration();return;}
-    if(d==='L_RANDOM'){await pickAndShow();return;}
-    if(d==='L_UPLOAD'){state='upload_wait';await send('📷 Send me a photo now (as a photo message):');return;}
-    // Duration
-    if(d==='D_25'){setup.duration='25s';await step1_topic();return;}
-    if(d==='D_40'){setup.duration='40s';await step1_topic();return;}
-    if(d==='D_65'){setup.duration='65s';await step1_topic();return;}
-    // Summary actions
-    if(d==='GO'){
-      await send('Writing script...');
-      try{
-        const Anthropic=require('@anthropic-ai/sdk');
-        const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
-        const words=setup.duration==='65s'?'160-180':setup.duration==='40s'?'90-110':'55-60';
-        const t=setup.topic||'relationship red flags women should know';
-        const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:300,
-          messages:[{role:'user',content:'TikTok script for relationship coach women 20-40. Topic: "'+t+'". EXACTLY '+words+' words. Shocking hook first. Max 8 words per sentence. Add [pause] after hook. No em dashes. Return ONLY the script, nothing else.'}]
-        });
-        const script=r.content[0].text.trim();
-        setup.approvedScript=script.replace(/\[pause\]/gi,'');
-        await send('Topic: '+t+'\n\nScript:\n\n'+script.replace(/\[pause\]/gi,'[...]'));
-await send('Ready to generate video?',[
-          [{text:'Generate Video',callback_data:'SCRIPT_OK'},{text:'Regenerate',callback_data:'AUTO_ALL'},{text:'Cancel',callback_data:'CANCEL'}]
-        ]);
-      }catch(e){
-        launch();await send('Script preview failed, launching...');
-      }
-      return;
-    }
-      if(d==='SCRIPT_OK'){isAuto=true;autoAnswers=['NO','NO','YES','YES'];/*parts demandees a la main*/launch();return;}
-    if(d==='AUTO_ALL'){
-      isAuto=false;
-      setup={topic:null,photo:null,duration:'40s'};
-      const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);
-      setup.topic=TOPIC_IDEAS[idx][1];
-      const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');
-      try{
-        const _pp=require('./look_picker.js').pickLook(lDir); /*lookpick v1*/
-        if(_pp){
-          setup.photo=_pp;
-          setAvatar(setup.photo);
-          const tmp='/tmp/auto'+Date.now()+'.jpg';
-          try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'Look selected').catch(()=>{});}catch{}
-        }
-      }catch(e){}
-      await send('Writing script...');
-      try{
-        const Anthropic=require('@anthropic-ai/sdk');
-        const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
-        const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:300,
-          messages:[{role:'user',content:'TikTok script relationship coach women 20-40. Topic: "'+setup.topic+'". 90-110 words. Shocking hook first. Max 8 words per sentence. Add [pause] after hook. No em dashes. Return ONLY the script.'}]
-        });
-        const script=r.content[0].text.trim().replace(/\[pause\]/gi,'');
-        setup.script=script; /*auto recap v1*/
-        await mRecap();
-      }catch(e){await send('Error: '+e.message);state='idle';}
-      return;
-    }
-    if(d==='EXPRESS_GO'){ /*express v1*/
-          isAuto=true;
-          setup={topic:null,photo:null,duration:'40s'};
-          const idx=Math.floor(Math.random()*TOPIC_IDEAS.length);
-          setup.topic=TOPIC_IDEAS[idx][1];
-          const lDir=require('path').join(require('os').homedir(),'podcast-workflow','looks');
-          try{
-            const _pp=require('./look_picker.js').pickLook(lDir); /*lookpick v1*/
-            if(_pp){
-              setup.photo=_pp;
-              setAvatar(setup.photo);
-              const tmp='/tmp/exp'+Date.now()+'.jpg';
-              try{require('child_process').execSync('sips -Z 800 -s format jpeg "'+setup.photo+'" --out "'+tmp+'" 2>/dev/null');await sendImg(tmp,'📸 Look').catch(()=>{});}catch{}
-            }
-          }catch(e){}
-          autoAnswers=['NO','NO','YES','YES'];
-          await send('🚀 Express — aucune validation. Les étapes vont défiler jusqu’à la vidéo. (parties 2 et 3 proposées à la fin)').catch(()=>{});
-          launch();return;
-        }
+    // [chantier2] FLUX UNIFIÉ : toutes les entrées de génération legacy (wizard anglais T_/L_/D_,
+    // GO/SCRIPT_OK/AUTO_ALL/EXPRESS_GO) redirigent vers LA CARTE (openCard) — anti-bypass, zéro anglais.
+    if(d==='T_AUTO'||/^T_\d+$/.test(d)||d==='L_KEEP'||d==='L_RANDOM'||d==='L_UPLOAD'||d==='D_25'||d==='D_40'||d==='D_65'||d==='GO'||d==='SCRIPT_OK'||d==='AUTO_ALL'||d==='EXPRESS_GO'){await openCard();return;}
         if(d==='SAVE_VID'){/*botfixes v1*/ if(setup.lastVideo&&fs.existsSync(setup.lastVideo)){try{const FormData=require('form-data');const fdv=new FormData();fdv.append('chat_id',CHAT_ID);fdv.append('document',fs.createReadStream(setup.lastVideo));fdv.append('caption','🎬 Fichier video');await tg('sendDocument',null,fdv).catch(()=>{});}catch(e){}}else{await send('Fichier introuvable.').catch(()=>{});}return;}
-    if(d==='MANUAL_GO'){await mLook(true);return;}
+    if(d==='MANUAL_GO'){await openCard();return;} /*[chantier2] legacy -> carte*/
     if(d==='MM_LOOK_KEEP'){if(setup.editing){setup.editing=null;await mRecap();}else{await mDur();}return;}
     if(d==='MM_DUR_10'){setup.duration='10s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
     if(d==='MM_DUR_20'){setup.duration='20s';if(setup.editing){setup.editing=null;setup.script=null;await mRecap();}else{await mTopic();}return;}
@@ -2054,7 +1919,7 @@ await send('Ready to generate video?',[
     if(d==='MM_TOPIC_CATS'){await mCats();return;}
     if(d==='MM_CAT_random'){setup.topicCat=null;await mTopic('');return;}
     if(d.match(/^MM_CAT_/)){await mTopic(d.slice(7));return;}
-    if(d==='MM_START'){console.error('=== DEBUG MM_START clique, photo='+setup.photo);setup.approvedScript=setup.script;isAuto=true;autoAnswers=['NO','NO','YES','YES'];/*parts demandees a la main*/await send('🚀 Génération lancée...');launch();return;}
+    if(d==='MM_START'){await openCard();return;} /*[chantier2] legacy gen -> carte (anti-bypass)*/
     if(d==='MM_NEW'){await mLook(true);return;}
     if(d==='MM_CANCEL'){state='idle';setup.editing=null;await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     if(d==='MM_EDIT'){await mEditMenu();return;}
@@ -2068,7 +1933,7 @@ await send('Ready to generate video?',[
     if(d==='MM_LOOK_ANOTHER'){await mLook(false);return;}
     if(d==='MM_LOOK_UPLOAD'){state='m_upload_wait';await send('📷 Send a photo now (as a photo message):');return;}
     if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await openCard();return;} /*3 blocs : Nouvelle vidéo = LA CARTE (l'ancien chooser Sur-mesure/Aléatoire empilait et contournait récap+maquette)*/
-    if(d==='CHG_TOPIC'){await step1_topic();return;}
+    if(d==='CHG_TOPIC'){await openCard();return;} /*[chantier2] legacy -> carte*/
     if(d==='CHG_LOOK'){galForRecap=false;galMid=null;gal.idx=0;await showLook();return;}
     if(d==='CANCEL'){state='idle';await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     // Workflow answers
@@ -2435,7 +2300,7 @@ await send('Ready to generate video?',[
       await send('👇 Continue?',[
         [{text:'✅ Use this photo',callback_data:'L_KEEP'},{text:'📷 Send another',callback_data:'L_UPLOAD'}],
       ]);
-    }catch(e){await send('❌ Error saving: '+e.message);await step2_look();}
+    }catch(e){await send('❌ Error saving: '+e.message);await openCard();}
     return;
   }
 
@@ -2657,7 +2522,7 @@ await send('Ready to generate video?',[
     }catch{await send('Error.');}return;
   }
   // Topic typed
-  if(state==='setup_topic'){setup.topic=txt;await send('✅ Topic: '+txt);await step2_look();return;}
+  if(state==='setup_topic'){state='idle';await openCard();return;} /*[chantier2] legacy state -> carte*/
   // Workflow free answer
   if(state==='question'&&proc){wfInput(txt);state='running';await send('Sent: '+txt);return;}
 

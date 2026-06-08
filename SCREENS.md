@@ -71,43 +71,6 @@ _Généré par `gen_screens.js` depuis `telegram_bot.js` — texte exact + bouto
 - L3: [✅ Choisir pour la vidéo](GAL_PICK) · [✅ Avatar](GAL_AVATAR) · [🗑](GAL_DEL) · [◀️ Récap](RC_BACK)
 - L4: [✅ Avatar](GAL_AVATAR) · [🎬 Générer avec](GAL_GEN) · [🗑](GAL_DEL) · [◀️ Édition](EDIT_HOME) · [◀️ Carte](MAIN_MENU)
 
-## step1_topic
-
-**Texte :** `🎬 <b>New Video — Step 1/3: Topic</b>\n\nType your own or choose a theme:`
-
-**Boutons :**
-- L1: [🎲 Auto-pick](T_AUTO)
-
-## step2_look
-
-**Texte :** `\U0001f4f8 Step 1/3 — Look`
-
-**Boutons :**
-- L1: [✅ Keep current](L_KEEP) · [🎲 Random](L_RANDOM)
-- L2: [📷 Upload a photo](L_UPLOAD)
-
-## pickAndShow
-
-**Texte :** `No looks found`
-
-**Boutons :**
-- L1: [Use this look](L_KEEP) · [Pick another](L_RANDOM)
-
-## step3_duration
-
-**Texte :** `⏱ <b>Step 3/3: Duration</b>`
-
-**Boutons :**
-- L1: [Short 0-25s](D_25) · [Medium 25-40s](D_40) · [Long 40-65s](D_65)
-
-## showSummary
-
-**Texte :** `📸 Look for this video`
-
-**Boutons :**
-- L1: [▶️ Start now](GO) · [🔀 Change topic](CHG_TOPIC)
-- L2: [📸 Change look](CHG_LOOK) · [❌ Cancel](CANCEL)
-
 ## mDur
 
 **Texte :** `⏱️ 2/4 — DURÉE`
@@ -484,25 +447,24 @@ _(pas de boutons inline)_
 - L20: [🔄 Redémarrer le bot](TECH_RESTART)
 - L21: [⏹ Tout arrêter](TECH_STOP)
 - L22: [◀️ Menu](MAIN_MENU)
-- L23: [Generate Video](SCRIPT_OK) · [Regenerate](AUTO_ALL) · [Cancel](CANCEL)
+- L23: [🔄 Nouvelle vidéo](NEW_GO)
 - L24: [🔄 Nouvelle vidéo](NEW_GO)
-- L25: [🔄 Nouvelle vidéo](NEW_GO)
-- L26: [🎨 Édition](EDIT_HOME)
-- L27: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
-- L28: [📋 Légende longue](POSTLONG_)
-- L29: [→ ✅ GÉNÉRER MAINTENANT](NL_GO2)
-- L30: [◀️ Précédent](NL_CONFIG)
-- L31: [🔄 Réessayer](NL_SPLIT) · [⚙️ Réglages](NL_CONFIG)
-- L32: [▶️ Ouvrir le menu vidéo](NEW_GO) · [◀️ Retour aux résultats](NL_BACKRES)
-- L33: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
-- L34: [📷 Upload](MM_LOOK_UPLOAD)
-- L35: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
-- L36: [➕ Ajouter aux looks](ADD_LOOK)
-- L37: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
-- L38: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
-- L39: [❌ Ignorer](ADD_IGNORE)
-- L40: [🔄 Nouvelle vidéo](NEW_GO)
+- L25: [🎨 Édition](EDIT_HOME)
+- L26: [🎬 Générer avec](GAL_GEN) · [◀️ Menu](MAIN_MENU)
+- L27: [📋 Légende longue](POSTLONG_)
+- L28: [→ ✅ GÉNÉRER MAINTENANT](NL_GO2)
+- L29: [◀️ Précédent](NL_CONFIG)
+- L30: [🔄 Réessayer](NL_SPLIT) · [⚙️ Réglages](NL_CONFIG)
+- L31: [▶️ Ouvrir le menu vidéo](NEW_GO) · [◀️ Retour aux résultats](NL_BACKRES)
+- L32: [✅ Keep](MM_LOOK_KEEP) · [🔀 Pick another](MM_LOOK_ANOTHER)
+- L33: [📷 Upload](MM_LOOK_UPLOAD)
+- L34: [✅ Use this photo](L_KEEP) · [📷 Send another](L_UPLOAD)
+- L35: [➕ Ajouter aux looks](ADD_LOOK)
+- L36: [🖼 Ajouter + utiliser comme avatar](ADD_LOOK_AVATAR)
+- L37: [🎯 Définir comme référence (côte-à-côte)](REF_SET)
+- L38: [❌ Ignorer](ADD_IGNORE)
+- L39: [🔄 Nouvelle vidéo](NEW_GO)
 
 
 ---
-_58 écrans extraits._
+_53 écrans extraits._
