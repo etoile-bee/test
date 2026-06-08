@@ -180,7 +180,7 @@ function nlRefFile(){ /*[p2] BLINDAGE : priorite imany_reference.* (imany/ ou pa
   const cands=[];
   for(const r of roots){try{for(const x of fs.readdirSync(r)){if(/\.(jpg|jpeg|png|webp)$/i.test(x)){const fp=P.join(r,x);let m=0;try{m=fs.statSync(fp).mtimeMs;}catch(e){}cands.push({fp,x,m});}}}catch(e){}}
   if(!cands.length)return null;
-  const named=cands.filter(c=>/imany_reference/i.test(c.x)).sort((a,b)=>b.m-a.m);
+  const named=cands.filter(c=>/^imany_reference\.(jpe?g|png|webp)$/i.test(c.x)).sort((a,b)=>b.m-a.m); /*nom EXACT (un backup imany_reference_xxx ne capte pas la priorité)*/
   return (named[0]||cands.sort((a,b)=>b.m-a.m)[0]).fp;
 }
 function nlCover(){ /*image d'accueil du panneau = la reference imany*/
