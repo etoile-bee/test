@@ -393,7 +393,7 @@ async function sendPhotoKb(fp,caption,rows){
     return d;
   }catch(e){jlog('⚠️ sendPhotoKb ERR: '+e.message);return send((caption||'📸')+' (image indisponible)',rows);}
 }
-let gal={files:[],idx:0};
+let gal={files:[],idx:0,page:0};
 let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Choisir pour la vidéo »
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
 let galMid=null; // message de la galerie -> navigation EN PLACE (jamais d'empilement)
@@ -408,8 +408,8 @@ async function showLook(){
   const rows=[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
-  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
-  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Carte',callback_data:'MAIN_MENU'}]);}
+  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
+  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Carte',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
@@ -421,6 +421,57 @@ async function showLook(){
   const r=await sendPhotoKb(fp,cap,rows);
   galMid=(r&&r.result&&r.result.message_id)||null;
   if(!(r&&r.ok)){galMid=null;await send(`⚠️ <b>${name}</b> — aperçu indisponible (${fmtSize(sz)}).`,rows);}
+}
+// ── [chantier4] GALERIE EN GRILLE : planche 3x3 de vignettes numérotées (choix en 2-3 taps) ──
+const GAL_PAGE=9; // 3x3
+function buildGallerySheet(pageFiles){ // -> chemin jpg d'une planche 3x3, ou null
+  try{
+    const FF='/System/Library/Fonts/Helvetica.ttc';const dir=getLooksDir();const cp=require('child_process');
+    for(let k=0;k<9;k++){
+      const cell='/tmp/glcell_'+String(k).padStart(2,'0')+'.jpg';
+      if(k<pageFiles.length){
+        const fp=path.join(dir,pageFiles[k]);
+        try{if(fs.statSync(fp).size<30000)cp.execSync('brctl download "'+fp+'" 2>/dev/null');}catch(e){}
+        const num=String(k+1);
+        const nm=String(lookName(fp)||'').replace(/[:'"\\%\n]/g,' ').slice(0,22);
+        // cellule 360x450 FIXE -> coordonnées absolues (ih/iw après crop = « Error reinitializing filters »)
+        const vf="scale=360:450:force_original_aspect_ratio=increase,crop=360:450,"
+          +"drawbox=x=0:y=0:w=74:h=62:color=black@0.55:t=fill,"
+          +"drawtext=fontfile="+FF+":text='"+num+"':x=20:y=4:fontsize=46:fontcolor=white,"
+          +"drawbox=x=0:y=410:w=360:h=40:color=black@0.5:t=fill,"
+          +"drawtext=fontfile="+FF+":text='"+nm+"':x=8:y=416:fontsize=22:fontcolor=white";
+        try{cp.execFileSync('ffmpeg',['-y','-i',fp,'-vf',vf,'-frames:v','1','-q:v','3',cell],{stdio:'ignore'});}
+        catch(e){cp.execFileSync('ffmpeg',['-y','-f','lavfi','-i','color=c=0x33333f:s=360x450:d=0.1','-frames:v','1',cell],{stdio:'ignore'});}
+      }else{
+        cp.execFileSync('ffmpeg',['-y','-f','lavfi','-i','color=c=0x1c1c28:s=360x450:d=0.1','-frames:v','1',cell],{stdio:'ignore'});
+      }
+    }
+    const out='/tmp/glsheet_'+Date.now()+'.jpg';
+    cp.execFileSync('ffmpeg',['-y','-framerate','1','-i','/tmp/glcell_%02d.jpg','-frames:v','1','-vf','tile=3x3:padding=8:margin=8:color=0x1c1c28',out],{stdio:'ignore'});
+    if(fs.existsSync(out)&&fs.statSync(out).size>2000)return out;
+  }catch(e){jlog('⚠️ buildGallerySheet: '+e.message);}
+  return null;
+}
+async function showGallery(){ // vue PLANCHE paginée (édition en place)
+  gal.files=looksList();
+  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  const pages=Math.max(1,Math.ceil(gal.files.length/GAL_PAGE));
+  if(gal.page==null)gal.page=0; if(gal.page<0)gal.page=pages-1; if(gal.page>=pages)gal.page=0;
+  const start=gal.page*GAL_PAGE;const pageFiles=gal.files.slice(start,start+GAL_PAGE);
+  const rows=[];
+  for(let r=0;r<3;r++){const row=[];for(let c=0;c<3;c++){const k=r*3+c;if(k<pageFiles.length)row.push({text:String(k+1),callback_data:'GPICK_'+(start+k)});}if(row.length)rows.push(row);}
+  if(pages>1)rows.push([{text:'◀️ Page',callback_data:'GLP_PREV'},{text:'Page '+(gal.page+1)+'/'+pages,callback_data:'NOOP'},{text:'Page ▶️',callback_data:'GLP_NEXT'}]);
+  if(galForRecap)rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
+  else rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);
+  const cap='🖼 <b>GALERIE</b> · '+gal.files.length+' looks (récents d\'abord) · Page '+(gal.page+1)+'/'+pages+'\nAppuie sur un <b>numéro</b> pour ouvrir le look en grand.';
+  const sheet=buildGallerySheet(pageFiles);
+  if(!sheet){ // secours : planche indispo -> liste texte cliquable
+    const txt=cap+'\n\n'+pageFiles.map((f,k)=>(k+1)+'. '+lookName(path.join(getLooksDir(),f))).join('\n');
+    if(galMid&&await tgEditText(galMid,txt,rows))return;
+    const r0=await send(txt,rows);galMid=(r0&&r0.result&&r0.result.message_id)||null;return;
+  }
+  if(galMid&&await editPhotoKb(galMid,sheet,cap,rows))return;
+  const r=await sendPhotoKb(sheet,cap,rows);galMid=(r&&r.result&&r.result.message_id)||null;
 }
 async function tgEditText(mid,text,rows){
   const sig=_sig('text',null,text,rows);
@@ -1812,7 +1863,8 @@ async function handle(upd){
       // défile l'avatar DANS LA CARTE elle-même (galMid = la carte), démarre sur le look courant
       galForRecap=true;galMid=cockpit.mid;
       const cur=gwLook();const li=cur?looksList().indexOf(path.basename(cur)):-1;gal.idx=li>=0?li:0;
-      await showLook();return;
+      gal.page=Math.floor((gal.idx||0)/GAL_PAGE); /*[chantier4] planche sur la page de l'avatar courant*/
+      await showGallery();return;
     }
     if(d.startsWith('RC_LL_')){const ll=(genState.lastLooks||[]).filter(p=>fs.existsSync(p));const p=ll[+d.slice(6)];if(p){gw.look=p;setWorkPhoto(p);}await refreshRecap();return;}
     if(d==='RC_GALLERY'){galForRecap=true;galMid=null;gal.idx=0;await showLook();return;}
@@ -1919,7 +1971,7 @@ async function handle(upd){
       }catch(e){await send('❌ Restyle : '+e.message);}
       return;
     }
-    if(d==='MENU_LOOKS'){galMid=null;gal.idx=0;galFrom='card';await showLook();return;}
+    if(d==='MENU_LOOKS'){galMid=null;gal.idx=0;gal.page=0;galFrom='card';await showGallery();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
     if(d.startsWith('FPAGE_')){const m=d.slice(6).match(/^(\w+)_(\d+)$/);if(m)await showFileList(m[1],+m[2]);return;}
@@ -1980,7 +2032,7 @@ async function handle(upd){
     if(d==='MM_LOOK_UPLOAD'){state='m_upload_wait';await send('📷 Send a photo now (as a photo message):');return;}
     if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await openCard();return;} /*3 blocs : Nouvelle vidéo = LA CARTE (l'ancien chooser Sur-mesure/Aléatoire empilait et contournait récap+maquette)*/
     if(d==='CHG_TOPIC'){await openCard();return;} /*[chantier2] legacy -> carte*/
-    if(d==='CHG_LOOK'){galForRecap=false;galMid=null;gal.idx=0;await showLook();return;}
+    if(d==='CHG_LOOK'){galForRecap=false;galMid=null;gal.idx=0;gal.page=0;await showGallery();return;}
     if(d==='CANCEL'){state='idle';await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
     // Workflow answers
     if(d.startsWith('A_')&&proc){
@@ -1989,6 +2041,10 @@ async function handle(upd){
       //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
     }
     // Galerie de looks
+    if(d.startsWith('GPICK_')){gal.idx=+d.slice(6);await showLook();return;} /*[chantier4] planche -> look en grand*/
+    if(d==='GGRID'){gal.page=Math.floor((gal.idx||0)/GAL_PAGE);await showGallery();return;} /*[chantier4] retour planche (sur la page du look courant)*/
+    if(d==='GLP_PREV'){await toast('⏳');gal.page--;await showGallery();return;}
+    if(d==='GLP_NEXT'){await toast('⏳');gal.page++;await showGallery();return;}
     if(d==='GAL_PREV'){await toast('⏳');gal.idx--;await showLook();return;}
     if(d==='GAL_NEXT'){await toast('⏳');gal.idx++;await showLook();return;}
     if(d==='GAL_AVATAR'){
@@ -2110,7 +2166,7 @@ async function handle(upd){
     if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
     if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanel();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
-    if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;galFrom='edit';await showLook();return;}
+    if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;gal.page=0;galFrom='edit';await showGallery();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
     if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
@@ -2541,7 +2597,7 @@ async function handle(upd){
     runNewLook();
     return;
   }
-  if(txt==='/looks'){galMid=null;gal.idx=0;await showLook();return;}
+  if(txt==='/looks'){galMid=null;gal.idx=0;gal.page=0;galFrom='card';await showGallery();return;}
   if(txt==='/ideas'){
     await send('⏳ Generating ideas...');
     try{
