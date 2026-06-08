@@ -201,6 +201,35 @@ function nlCover(){ /*image d'accueil du panneau = la reference imany*/
   }catch(e){}
   return null;
 }
+// [C5] CHANGER LA RÉFÉRENCE Imany : copie une image choisie -> looks/references/imany/imany_reference.<ext> (le durcissement nlRefFile la prendra)
+function setImanyRef(src){
+  try{
+    if(!src||!fs.existsSync(src))return null;
+    const dir=path.join(getLooksDir(),'references','imany');try{fs.mkdirSync(dir,{recursive:true});}catch(e){}
+    const ext=((src.match(/\.(jpe?g|png|webp)$/i)||[,'png'])[1]||'png').toLowerCase();
+    // retire les autres imany_reference.* (évite l'ambiguïté ; le nom exact = la référence officielle)
+    try{for(const f of fs.readdirSync(dir))if(/^imany_reference\.(jpe?g|png|webp)$/i.test(f))fs.unlinkSync(path.join(dir,f));}catch(e){}
+    const dest=path.join(dir,'imany_reference.'+ext);
+    fs.copyFileSync(src,dest);
+    _nlCover=null; // invalide l'aperçu d'accueil
+    return dest;
+  }catch(e){jlog('⚠️ setImanyRef: '+e.message);return null;}
+}
+async function refPreview(dest){
+  if(!dest){await cardMenu('❌ Référence non définie.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
+  _nlCover=null;const cv=nlCover();
+  const cap='✅ <b>Nouvelle référence Imany</b> définie · '+escH(path.basename(dest))+'\nElle sera utilisée pour les prochaines générations.';
+  if(cv&&fs.existsSync(cv))await cockpitPhoto(cv,cap,[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);
+  else await cardMenu(cap,[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);
+}
+async function showRefMenu(){
+  await cardMenu('🎯 <b>CHANGER LA RÉFÉRENCE Imany</b>\nSource de la nouvelle photo de référence :',[
+    [{text:'🖼 Pose générée actuelle',callback_data:'REF_FROM_GEN'}],
+    [{text:'👗 Look de la galerie',callback_data:'REF_FROM_GAL'}],
+    [{text:'📤 Envoyer une photo',callback_data:'REF_UPLOAD'}],
+    [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
+  ]);
+}
 function nlLocal(i){ /*fichier local de l'image i (telecharge au besoin, mis en cache)*/
   if(newlook.files[i]&&fs.existsSync(newlook.files[i]))return newlook.files[i];
   const u=newlook.urls[i];
@@ -422,7 +451,7 @@ async function showLook(){
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
   if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
-  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);}
+  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'🎯 Réf',callback_data:'REF_FROM_GAL'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
@@ -2187,6 +2216,11 @@ async function handle(upd){
       return;
     }
     if(d==='ADD_IGNORE'){pendingPhotoId=null;await send('Ok, photo ignorée.');return;}
+    if(d==='REF_FROM_GEN'){const f=newlook.urls.length?nlLocal(newlook.idx):null;if(!f){await cardMenu('⚠️ Aucune pose générée en cours — fais /newlook d\'abord.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}await refPreview(setImanyRef(f));return;} /*[C5] réf depuis une image générée*/
+    if(d==='REF_FROM_GAL'){const list=looksList();const f=list[gal.idx];if(!f){await cardMenu('⚠️ Galerie vide — ouvre 🎬 Studio › 👗 Looks.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}await refPreview(setImanyRef(path.join(getLooksDir(),f)));return;} /*[C5] réf depuis la galerie*/
+    if(d==='REF_UPLOAD'){state='ref_upload_wait';await send('📤 Envoie maintenant la photo à utiliser comme <b>référence Imany</b>.');return;} /*[C5] réf par upload*/
+    if(d==='PROMPT_EDIT'){state='prompt_edit_wait';await send('✏️ Envoie le <b>nouveau prompt complet</b> en un message. (Il remplacera l\'actuel ; l\'ancien sera sauvegardé en .bak.)');return;} /*[C6]*/
+    if(d==='PROMPT_RESET'){try{const pf=path.join(BASE,'newlook_prompt.txt');const df=path.join(BASE,'newlook_prompt.default.txt');if(fs.existsSync(pf))fs.copyFileSync(pf,pf+'.bak');fs.copyFileSync(df,pf);const cur=fs.readFileSync(pf,'utf8').trim();await send('🔄 <b>Prompt réinitialisé au défaut.</b>\n\n<code>'+escH(cur.substring(0,1500))+'</code>',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);}catch(e){await send('❌ '+e.message);}return;} /*[C6]*/
     // Prêt à poster
     if(d.startsWith('READY_')){
       const i=+d.slice(6);const vp=sentVideos[i];
@@ -2482,6 +2516,14 @@ async function handle(upd){
     }catch(e){await send('❌ Erreur: '+e.message);await mLook(false);}
     return;
   }
+  if(state==='prompt_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[C6] nouveau prompt reçu*/
+    try{const pf=path.join(BASE,'newlook_prompt.txt');fs.copyFileSync(pf,pf+'.bak');fs.writeFileSync(pf,msg.text.trim()+'\n');state='idle';await send('✅ <b>Prompt enregistré</b> ('+msg.text.trim().split(/\s+/).length+' mots, ancien en .bak) — actif à la prochaine génération.\n\n<code>'+escH(msg.text.trim().substring(0,1500))+'</code>');}catch(e){state='idle';await send('❌ '+e.message);}
+    return;
+  }
+  if(state==='ref_upload_wait'&&msg.photo){ /*[C5] photo uploadée -> référence Imany*/
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';await refPreview(setImanyRef(fp));}catch(e){state='idle';await send('❌ '+e.message);}
+    return;
+  }
   if(state==='upload_wait'&&msg.photo){
     await send('⏳ Saving photo...');
     try{
@@ -2578,6 +2620,7 @@ async function handle(upd){
   if(txt==='/photos'){await showFileList('img',0);return;} /*[C4] bibliothèque photos*/
   if(txt==='/videos'){await showFileList('vid',0);return;} /*[C4] bibliothèque vidéos*/
   if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
+  if(txt==='/reference'){await showRefMenu();return;} /*[C5] changer la référence Imany*/
   if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await showHome();return;} /*[C1] /go = /menu = menu unifié*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
@@ -2644,13 +2687,17 @@ async function handle(upd){
     const pf=path.join(BASE,'newlook_prompt.txt');
     if(!np){
       let cur='';try{cur=fs.readFileSync(pf,'utf8').trim();}catch(e){}
-      await send('📝 <b>Prompt de base actuel</b> (fichier newlook_prompt.txt) :\n\n<code>'+escH(cur.substring(0,3500))+'</code>\n\nPour le remplacer : <code>/prompt nouveau texte complet</code>');
+      await send('📝 <b>Prompt de base actuel</b> (newlook_prompt.txt) :\n\n<code>'+escH(cur.substring(0,3500))+'</code>',[
+        [{text:'✏️ Modifier',callback_data:'PROMPT_EDIT'}],
+        [{text:'🔄 Réinitialiser au défaut',callback_data:'PROMPT_RESET'}],
+        [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
+      ]); /*[C6] éditeur de prompt : voir + modifier + reset défaut*/
       return;
     }
     try{
       fs.copyFileSync(pf,pf+'.bak');
       fs.writeFileSync(pf,np+'\n');
-      await send('✅ Prompt de base remplacé ('+np.split(/\s+/).length+' mots). Ancien sauvegardé dans newlook_prompt.txt.bak — actif dès la prochaine génération, sans redémarrage.');
+      await send('✅ Prompt remplacé ('+np.split(/\s+/).length+' mots, ancien dans .bak) — actif dès la prochaine génération.\n\n<code>'+escH(np.substring(0,1500))+'</code>');
     }catch(e){await send('Erreur : '+e.message);}
     return;
   }
