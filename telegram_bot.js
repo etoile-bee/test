@@ -342,6 +342,7 @@ async function nlMenuMode(){
 function nlResultRows(){
   const n=newlook.urls.length;
   const rows=[];
+  if(createFlow)rows.push([{text:'✅ Valider ce look → vidéo',callback_data:'CL_OK'}]); /*[flux-look] en création : valider le look généré et continuer vers le script*/
   if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
   rows.push([{text:'✅ Avatar',callback_data:'NL_AVATAR'},{text:'🎨 Éditer',callback_data:'NL_EDIT'}]); /*[pose] actions par pose : Avatar / Éditer (+ Enregistrer + Générer ci-dessous)*/
   rows.push([{text:'💾 Enregistrer',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'💾 Tout enregistrer',callback_data:'NL_KEEP_ALL'}]:[])]);
@@ -438,6 +439,8 @@ async function sendPhotoKb(fp,caption,rows){
 }
 let gal={files:[],idx:0,page:0};
 let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Choisir pour la vidéo »
+let createFlow=null; // [flux-look] {mode:'auto'|'express'} : on est dans l'ÉTAPE LOOK d'une création (avant script). null = pas en création.
+let createUploadPath=null; // [flux-look] photo uploadée en attente de validation comme look
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
 let galMid=null; // message de la galerie -> navigation EN PLACE (jamais d'empilement)
 let galFrom='card'; // d'où la galerie a été ouverte ('edit'|'card') -> le RETOUR ramène AU BON ENDROIT
@@ -451,7 +454,7 @@ async function showLook(){
   const rows=[
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
-  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
+  if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},createFlow?{text:'◀️ Sources',callback_data:'CL_BACK'}:{text:'◀️ Récap',callback_data:'RC_BACK'}]);} /*[flux-look] en création, le retour pointe l'écran Sources*/
   else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'🎯 Réf',callback_data:'REF_FROM_GAL'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
@@ -504,7 +507,8 @@ async function showGallery(){ // vue PLANCHE paginée (édition en place)
   const rows=[];
   for(let r=0;r<3;r++){const row=[];for(let c=0;c<3;c++){const k=r*3+c;if(k<pageFiles.length)row.push({text:String(k+1),callback_data:'GPICK_'+(start+k)});}if(row.length)rows.push(row);}
   if(pages>1)rows.push([{text:'◀️ Page',callback_data:'GLP_PREV'},{text:'Page '+(gal.page+1)+'/'+pages,callback_data:'NOOP'},{text:'Page ▶️',callback_data:'GLP_NEXT'}]);
-  if(galForRecap)rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
+  if(createFlow)rows.push([{text:'🎲 Au hasard',callback_data:'CL_GAL_RAND'},{text:'◀️ Sources',callback_data:'CL_BACK'}]); /*[flux-look] galerie en création*/
+  else if(galForRecap)rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
   else rows.push([{text:'✨ Nouveau look',callback_data:'NL_NEW'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]); /*[Studio→Look] accès direct à la génération de look (/newlook)*/
   const cap='🖼 <b>GALERIE</b> · '+gal.files.length+' looks (récents d\'abord) · Page '+(gal.page+1)+'/'+pages+'\nAppuie sur un <b>numéro</b> pour ouvrir le look en grand.';
   const sheet=buildGallerySheet(pageFiles);
@@ -1407,6 +1411,23 @@ async function showStudio(){
     [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
   ]);
 }
+// [flux-look] ÉTAPE LOOK (Auto + Express) : AVANT le script, choisir la SOURCE du look — tout dans le cockpit, en place.
+async function showLookSource(mode){
+  if(mode)createFlow={mode:mode};
+  const cur=gwLook();const av=cur&&fs.existsSync(cur)?cur:null;
+  const cap='🎨 <b>LOOK</b> — d\'où vient ta star ?'+(av?'\n<i>look courant prêt — ou choisis-en un autre</i>':'');
+  const rows=[
+    [{text:'✨ Nouveau look',callback_data:'CL_NEW'}],
+    [{text:'🖼 Galerie',callback_data:'CL_GAL'},{text:'📤 Upload',callback_data:'CL_UP'}],
+    ...(av?[[{text:'✅ Garder le look courant',callback_data:'CL_KEEP'}]]:[]),
+    [{text:'⛔ Stop',callback_data:'CL_STOP'}],
+  ];
+  if(av)await cockpitPhoto(av,cap,rows); else await cardMenu(cap,rows);
+}
+async function resumeCreate(){ /*[flux-look] look validé -> suite normale du mode (script -> récap/maquette -> GO)*/
+  const m=createFlow&&createFlow.mode;createFlow=null;createUploadPath=null;galForRecap=false;
+  await recapGo(m==='auto');
+}
 // [C3] CRÉER = point d'entrée unique génération -> choix du mode (en place)
 async function showCreer(){
   await cardMenu('🚀 <b>CRÉER</b> — choisis le mode :',[
@@ -1950,9 +1971,31 @@ async function handle(upd){
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
-    if(d==='CREER_EXPRESS'){await recapGo(false);return;} /*[C3] Express : derniers réglages + sujet auto -> script éditable*/
-    if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO*/
-    if(d==='CREER_AUTO'){await recapGo(true);return;} /*[C3] Auto : tout auto -> récap coût à valider (pas de script card)*/
+    if(d==='CREER_EXPRESS'){await showLookSource('express');return;} /*[flux-look] Express : ÉTAPE LOOK puis script éditable*/
+    if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO — full manuel*/
+    if(d==='CREER_AUTO'){await showLookSource('auto');return;} /*[flux-look] Auto : ÉTAPE LOOK puis tout auto -> récap coût à valider*/
+    // [flux-look] ÉTAPE LOOK — sources : Nouveau look / Galerie / Upload (+ garder le courant). Garde-fou : aucun look ni vidéo sans validation explicite.
+    if(d==='CL_STOP'){createFlow=null;createUploadPath=null;galForRecap=false;await showCreer();return;}
+    if(d==='CL_KEEP'){if(gwLook()){await resumeCreate();}else{await showLookSource();}return;}
+    if(d==='CL_GAL'){galForRecap=true;galMid=cockpit.mid;const cur=gwLook();const li=cur?looksList().indexOf(path.basename(cur)):-1;gal.idx=li>=0?li:0;gal.page=Math.floor((gal.idx||0)/GAL_PAGE);await showGallery();return;}
+    if(d==='CL_GAL_RAND'){const list=looksList();if(!list.length){await toast('⚠️ Galerie vide');return;}gal.idx=Math.floor(list.length*((Date.now()%1000)/1000));galMid=cockpit.mid;galForRecap=true;await showLook();return;} /*[flux-look] pioche au hasard dans la galerie -> validation*/
+    if(d==='CL_BACK'){await showLookSource();return;}
+    if(d==='CL_UP'){state='create_look_upload_wait';await send('📤 Envoie maintenant la <b>photo</b> à utiliser comme look (elle sera ajoutée à ta galerie).');return;}
+    if(d==='CL_UP_OK'){ /*[flux-look] photo uploadée validée -> look de la vidéo*/
+      if(createUploadPath&&fs.existsSync(createUploadPath)){gw.look=createUploadPath;setWorkPhoto(createUploadPath);setAvatar(createUploadPath);}
+      await resumeCreate();return;
+    }
+    if(d==='CL_NEW'){ /*[flux-look] génère un NOUVEAU look (surprise) — passe par nlConfig (récap coût + 💲 avant toute dépense). Validation à l'écran résultat (CL_OK).*/
+      const o=nlMod().pickOutfit(null);newlook.category='random';newlook.extra=o.prompt;newlook.catLabel='🎲 Surprise';
+      newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='eco';newlook.count=1;
+      await delMsg(newlook.mediaId);newlook.mediaId=null;
+      await nlConfig();return;
+    }
+    if(d==='CL_OK'){ /*[flux-look] valide le look généré affiché -> look de la vidéo*/
+      if(!newlook.urls.length){await toast('⚠️ Génère un look d\'abord');return;}
+      try{const dest=nlSave(newlook.idx);if(dest){gw.look=dest;setWorkPhoto(dest);setAvatar(dest);}}catch(e){}
+      await resumeCreate();return;
+    }
     if(d==='HOME_STUDIO'){await showStudio();return;} /*[C2] Studio -> sous-menu épuré*/
     if(d==='STUDIO_DECORS'){const lb=nlMod().readLookbook();const lignes=Object.keys(lb.envs||{}).map(k=>'• '+lb.envs[k].label).join('\n');await cardMenu('🏛 <b>DÉCORS disponibles</b>\n'+lignes+'\n\n<i>(choix du décor à la génération via /newlook)</i>',[[{text:'◀️ Retour',callback_data:'HOME_STUDIO'}]]);return;}
     if(d==='STUDIO_HIST'){ /*[C2] historique = dernières générations (réutilise la logique /gens, message unique)*/
@@ -2183,6 +2226,7 @@ async function handle(upd){
       const list=looksList();const f=list[gal.idx];
       if(f){gw.look=path.join(getLooksDir(),f);setWorkPhoto(gw.look);if(genJob)genJob.look=gw.look;}
       galForRecap=false;if(galMid)cockpit.mid=galMid; // la galerie ÉTAIT la carte -> on resynchronise
+      if(createFlow){await resumeCreate();return;} /*[flux-look] look choisi en galerie -> suite création (script)*/
       if(modifyFlow){modifyFlow=false;cockpitReset();await genAfterScript();return;}
       if(f&&await maybeAskLookStyle(gw.look,'recap'))return; // réglages mémorisés pour ce look ?
       await showRecap();return;
@@ -2462,7 +2506,7 @@ async function handle(upd){
     if(d==='NL_HD_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
     if(d==='NL_RETRY'){if(newlook.mode==='split')newlook.mode='planche';await nlPayRecap(newlook.mode,'🔁 Refaire pareil · '+escH(newlook.catLabel),'NL_RETRY_OK','NL_BACKRES');return;}
     if(d==='NL_RETRY_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
-    if(d==='NL_CANCEL'){await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
+    if(d==='NL_CANCEL'){createFlow=null; /*[flux-look] sortir d'une éventuelle création*/ await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
@@ -2540,6 +2584,19 @@ async function handle(upd){
   }
   if(state==='ref_upload_wait'&&msg.photo){ /*[C5] photo uploadée -> référence Imany*/
     try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';await refPreview(setImanyRef(fp));}catch(e){state='idle';await send('❌ '+e.message);}
+    return;
+  }
+  if(state==='create_look_upload_wait'&&msg.photo){ /*[flux-look] photo uploadée -> look de la vidéo (après aperçu + validation)*/
+    try{
+      const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);
+      const dest=path.join(getLooksDir(),'upload_'+new Date().toISOString().slice(0,16).replace(/[:T]/g,'-')+'.jpg'); /*ajout à la galerie = retrouvable*/
+      try{fs.copyFileSync(fp,dest);}catch(e){}
+      createUploadPath=fs.existsSync(dest)?dest:fp;state='idle';
+      await cockpitPhoto(createUploadPath,'📤 <b>LOOK uploadé</b> — on l\'utilise pour la vidéo ?',[
+        [{text:'✅ Valider → vidéo',callback_data:'CL_UP_OK'}],
+        [{text:'🔄 Autre photo',callback_data:'CL_UP'},{text:'⛔ Stop',callback_data:'CL_STOP'}],
+      ]);
+    }catch(e){state='idle';await send('❌ '+e.message);}
     return;
   }
   if(state==='upload_wait'&&msg.photo){
