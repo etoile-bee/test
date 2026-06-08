@@ -413,7 +413,7 @@ let galMid=null; // message de la galerie -> navigation EN PLACE (jamais d'empil
 let galFrom='card'; // d'où la galerie a été ouverte ('edit'|'card') -> le RETOUR ramène AU BON ENDROIT
 async function showLook(){
   gal.files=looksList();
-  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
   if(gal.idx<0)gal.idx=gal.files.length-1; if(gal.idx>=gal.files.length)gal.idx=0;
   const name=gal.files[gal.idx];const fp=path.join(getLooksDir(),name);
   let sz=0;try{sz=fs.existsSync(fp)?fs.statSync(fp).size:0;}catch(e){}
@@ -422,7 +422,7 @@ async function showLook(){
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
   if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
-  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Carte',callback_data:'MAIN_MENU'}]);}
+  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'▦ Grille',callback_data:'GGRID'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
@@ -467,7 +467,7 @@ function buildGallerySheet(pageFiles){ // -> chemin jpg d'une planche 3x3, ou nu
 }
 async function showGallery(){ // vue PLANCHE paginée (édition en place)
   gal.files=looksList();
-  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
   const pages=Math.max(1,Math.ceil(gal.files.length/GAL_PAGE));
   if(gal.page==null)gal.page=0; if(gal.page<0)gal.page=pages-1; if(gal.page>=pages)gal.page=0;
   const start=gal.page*GAL_PAGE;const pageFiles=gal.files.slice(start,start+GAL_PAGE);
@@ -475,7 +475,7 @@ async function showGallery(){ // vue PLANCHE paginée (édition en place)
   for(let r=0;r<3;r++){const row=[];for(let c=0;c<3;c++){const k=r*3+c;if(k<pageFiles.length)row.push({text:String(k+1),callback_data:'GPICK_'+(start+k)});}if(row.length)rows.push(row);}
   if(pages>1)rows.push([{text:'◀️ Page',callback_data:'GLP_PREV'},{text:'Page '+(gal.page+1)+'/'+pages,callback_data:'NOOP'},{text:'Page ▶️',callback_data:'GLP_NEXT'}]);
   if(galForRecap)rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-  else rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);
+  else rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);
   const cap='🖼 <b>GALERIE</b> · '+gal.files.length+' looks (récents d\'abord) · Page '+(gal.page+1)+'/'+pages+'\nAppuie sur un <b>numéro</b> pour ouvrir le look en grand.';
   const sheet=buildGallerySheet(pageFiles);
   if(!sheet){ // secours : planche indispo -> liste texte cliquable
@@ -839,7 +839,7 @@ async function showSettings(){
     [{text:'🔡+ Espacement',callback_data:'S_SP_UP'},{text:'🔡- Espacement',callback_data:'S_SP_DN'}],
     [{text:subs?'💬 Sous-titres: OFF':'💬 Sous-titres: ON',callback_data:'S_SUBS'}],
     [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Retour',callback_data:'EDIT_HOME'}],
   ]);
 }
 // ── Helpers /edit (Image, Zooms, Musique) — stockés dans style.json ─────────────
@@ -902,7 +902,7 @@ async function maybeAskLookStyle(lookPath,ret){
   return false;
 }
 async function routeAfterLook(ret){
-  if(ret==='avatar')await send('✅ Look = avatar + photo de travail.',[[{text:'🎨 Édition',callback_data:'EDIT_HOME'}],[{text:'🎬 Générer',callback_data:'GAL_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);
+  if(ret==='avatar')await send('✅ Look = avatar + photo de travail.',[[{text:'🎨 Édition',callback_data:'EDIT_HOME'}],[{text:'🎬 Générer',callback_data:'GAL_GEN'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);
   else if(ret==='edit')await showEditHome();
   else {await ensureTopic();await showRecap();} // 'recap'
 }
@@ -953,7 +953,7 @@ async function showStyles(){
   styleList=listStyles();
   if(!styleList.length){await send('📂 Aucun style sauvegardé.\nDans /edit, appuie sur « 💾 Sauvegarder ce style ».');return;}
   const rows=styleList.map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'LOADSTYLE_'+i},{text:'🎬',callback_data:'LOADGEN_'+i},{text:'🗑',callback_data:'DELSTYLE_'+i}]);
-  rows.push([{text:'◀️ Carte',callback_data:'MAIN_MENU'},{text:'🎨 Édition',callback_data:'EDIT_HOME'}]);
+  rows.push([{text:'◀️ Retour',callback_data:'MAIN_MENU'},{text:'🎨 Édition',callback_data:'EDIT_HOME'}]);
   await cardMenu('📦 <b>MODÈLES</b> — 📂 charger · 🎬 générer · 🗑 :',rows); // EN PLACE
 }
 // ── Prêt à poster : copie vidéo + légendes + snapshot style dans outputs/ready_to_post/ ──
@@ -984,9 +984,9 @@ async function showReady(){
       else if(/\.mp4$/i.test(e))readyList.push({label:e.replace(/\.mp4$/,''),mp4:p});
     }
   }catch(e){}
-  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide. Sur une vidéo livrée, appuie sur ✅ Postable.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
+  if(!readyList.length){await send('📤 <b>PRÊT À POSTER</b>\n\nVide. Sur une vidéo livrée, appuie sur ✅ Postable.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
   const rows=readyList.slice(0,20).map((x,i)=>[{text:'📤 '+friendlyName(x.label,i),callback_data:'POSTSEND_'+i},{text:'♻️',callback_data:'REUSE_'+i}]);
-  rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);
+  rows.push([{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);
   await send('📤 <b>PRÊT À POSTER</b> ('+readyList.length+')\nTape 📤 = reçois la vidéo + légende prête à poster. ♻️ = reprendre le style.',rows);
 }
 // ── Test local gratuit (réutilisable depuis /test et le menu) ───────────────────
@@ -1154,7 +1154,7 @@ async function genScriptStep(){
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
     await showScriptCard();
-  }catch(e){await cardMenu('❌ <b>Script impossible</b>\n'+escHtml(apiNice(e)),[[{text:'🔄 Réessayer',callback_data:'RC_GO'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]);genJob=null;}
+  }catch(e){await cardMenu('❌ <b>Script impossible</b>\n'+escHtml(apiNice(e)),[[{text:'🔄 Réessayer',callback_data:'RC_GO'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);genJob=null;}
 }
 async function genHooks(){
   if(!genJob||!genJob.script){await send('⚠️ Aucun script.');return;}
@@ -1355,6 +1355,19 @@ async function showMainMenu(){
   ]);
   mainMenuMid=(r&&r.result&&r.result.message_id)||null;
 }
+// [C1] MENU UNIFIÉ /go = /menu : écran épuré (photo avatar + 4 entrées + profil), EN PLACE (cockpit, aucune nouvelle fenêtre)
+function homeAvatar(){ try{ if(workingSource&&fs.existsSync(workingSource)&&/\.(jpg|jpeg|png|webp)$/i.test(workingSource))return workingSource; const l=gwLook(); if(l)return l; }catch(e){} return nlCover(); }
+async function showHome(){
+  const cap='🏠 <b>STUDIO</b> · 👤 Imany';
+  const rows=[
+    [{text:'🚀 Créer',callback_data:'HOME_CREER'}],
+    [{text:'🎬 Studio',callback_data:'HOME_STUDIO'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}],
+    [{text:'❓ Aide',callback_data:'MENU_HELP'},{text:'👤 Profil : Imany ▾',callback_data:'HOME_PROFIL'}],
+  ];
+  const av=homeAvatar();
+  if(av&&fs.existsSync(av))await cockpitPhoto(av,cap,rows);
+  else await cardMenu(cap,rows);
+}
 // ── 📁 FICHIERS : parcourir et recevoir les fichiers (vidéos/images/légendes/ready/looks) ──
 function listDir(dir,filter){try{return fs.readdirSync(dir).filter(f=>!f.startsWith('.')&&filter(f)).map(f=>{const p=path.join(dir,f);let st;try{st=fs.statSync(p);}catch(e){return null;}return st.isFile()?{path:p,name:f,mtime:st.mtimeMs,size:st.size}:null;}).filter(Boolean);}catch(e){return [];}}
 function fileCat(cat){
@@ -1374,7 +1387,7 @@ async function showFilesMenu(){
   await send('📁 <b>FICHIERS</b>\n\n📱 <b>Sur iPhone</b> : app <b>Fichiers</b> → <b>iCloud Drive</b> → <b>podcast-outputs</b>\n(générations, ready_to_post, a_retravailler, raws, légendes — tout y est en synchro auto).\n\nOu tape une catégorie pour recevoir un fichier ici :',[
     [{text:'🎬 Vidéos',callback_data:'FCAT_vid'},{text:'🖼 Images',callback_data:'FCAT_img'}],
     [{text:'📄 Légendes',callback_data:'FCAT_txt'},{text:'📤 Prêt à poster',callback_data:'FCAT_ready'}],
-    [{text:'👤 Looks',callback_data:'FCAT_looks'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+    [{text:'👤 Looks',callback_data:'FCAT_looks'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
   ]);
   await send('🔗 Lien direct (peut s\'ouvrir dans Fichiers selon iOS) :\nshareddocuments://com~apple~CloudDocs/podcast-outputs').catch(()=>{});
 }
@@ -1740,7 +1753,7 @@ async function showEditHome(){
     [{text:'🎨 Image',callback_data:'EDIT_IMG'},{text:'🎨 Presets',callback_data:'SHOW_PRESETS'}],
     [{text:'🎬 Zooms',callback_data:'EDIT_ZOOM'},{text:'🎵 Musique',callback_data:'EDIT_MUS'},{text:'🎙 Réactions',callback_data:'EDIT_REACT'}],
     [{text:'💾 Sauvegarder',callback_data:'SAVESTYLE'},{text:'📂 Modèles',callback_data:'SHOWSTYLES'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
   ]);
 }
 async function showPresets(){
@@ -1816,7 +1829,7 @@ async function showEditZoom(){
     [{text:'⏱+ Durée',callback_data:'ZM_DU_UP'},{text:'⏱- Durée',callback_data:'ZM_DU_DN'}],
     [{text:'🔁 Fréquence (tous / 1 sur 2)',callback_data:'ZM_FREQ'}],
     [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Retour',callback_data:'EDIT_HOME'}],
   ]);
 }
 async function showEditMusic(){
@@ -1828,7 +1841,7 @@ async function showEditMusic(){
     [{text:'⏭ Fichier suivant',callback_data:'MU_FILE'}],
     [{text:'🔊+ Volume',callback_data:'MU_VOL_UP'},{text:'🔊- Volume',callback_data:'MU_VOL_DN'}],
     [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
-    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+    [{text:'👁 Aperçu',callback_data:'EDIT_PREVIEW'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Retour',callback_data:'EDIT_HOME'}],
   ]);
 }
 function patchWF(fn){
@@ -1848,7 +1861,7 @@ async function runPreview(){
     const st=f.style, fx=readFx();
     const img=fx.image, colored=(img.brightness||img.contrast!==1||img.saturation!==1||img.temperature!==6500||img.sharpness||img.vignette)?'oui':'neutre';
     const cap=`👁 <b>APERÇU</b> — 🔤 ${fontLabel(st.font)} ${st.fontSize}px · 🎬 zoom ${fx.zoom.on?'ON':'OFF'} · 🎨 ${colored} · 🎵 ${fx.music.on?'on':'OFF'}`;
-    if(cockpit.mid)await cockpitPhoto(f.frame,cap,[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'🧪 Test',callback_data:'MENU_TEST'}],[{text:'▶️ GO',callback_data:'MENU_GEN'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]);
+    if(cockpit.mid)await cockpitPhoto(f.frame,cap,[[{text:'🎨 Éditer',callback_data:'EDIT_HOME'},{text:'🧪 Test',callback_data:'MENU_TEST'}],[{text:'▶️ GO',callback_data:'MENU_GEN'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);
     else {await sendImg(f.frame,cap).catch(()=>{});}
   }catch(e){await toast('❌ '+e.message);}
 }
@@ -1881,7 +1894,10 @@ async function handle(upd){
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
-    if(d==='MAIN_MENU'){await showRecap();return;} /*V2 : retour à la CARTE (état courant)*/
+    if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
+    if(d==='HOME_CREER'){await openCard();return;} /*[C1] Créer -> carte génération (C3 ajoutera le choix de mode)*/
+    if(d==='HOME_STUDIO'){await showMainMenu();return;} /*[C1] Studio -> sous-menu (C2 le remplacera par l'écran épuré)*/
+    if(d==='HOME_PROFIL'){await cardMenu('👤 <b>PROFIL</b>\n\nActif : <b>Imany</b>\n(un seul profil pour l\'instant — extensible via personas.json)',[[{text:'✅ Imany (actif)',callback_data:'NOOP'}],[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
     if(d==='MENU_GEN'){
       await delMsg(mainMenuMid);mainMenuMid=null; // l'écran Générer REMPLACE le menu (pas d'empilement)
       if(hasActiveEdits()){await send('🎬 Tu as des réglages d\'image actifs. Pour cette nouvelle vidéo :',[[{text:'✅ Garder les réglages',callback_data:'GEN_KEEP'}],[{text:'🔄 Repartir de la base',callback_data:'GEN_RESET'}]]);return;}
@@ -1907,7 +1923,7 @@ async function handle(upd){
     if(d==='RC_STYLE'){ // sous-menu EN PLACE
       const rows=listStyles().map((f,i)=>[{text:'📦 '+f.replace(/\.json$/,''),callback_data:'RC_ST_'+i}]);
       rows.unshift([{text:'🎨 Modèle actuel',callback_data:'RC_ST_CUR'}]);
-      rows.push([{text:'◀️ Carte',callback_data:'RC_BACK'}]);
+      rows.push([{text:'◀️ Retour',callback_data:'RC_BACK'}]);
       await cardMenu('🎨 <b>MODÈLE</b> :',rows);return;
     }
     if(d==='RC_ST_CUR'){gw.styleName=null;await showRecap();return;}
@@ -1915,16 +1931,16 @@ async function handle(upd){
     if(d==='RC_SUBJ'){ // sous-menu EN PLACE
       const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'RC_CAT_'+k}]);
       rows.unshift([{text:'🎲 Auto',callback_data:'RC_SUBJ_AUTO'},{text:'⌨️ Le mien',callback_data:'RC_SUBJ_MINE'},{text:'🔄 Autre',callback_data:'RC_NEWTOPIC'}]);
-      rows.push([{text:'◀️ Carte',callback_data:'RC_BACK'}]);
+      rows.push([{text:'◀️ Retour',callback_data:'RC_BACK'}]);
       await cardMenu('💬 <b>SUJET</b> :',rows);return;
     }
-    if(d==='CARD_DUR'){await cardMenu('⏱ <b>DURÉE</b> :',[[{text:'15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️',callback_data:'RC_DUR_FREE'}],[{text:'◀️ Carte',callback_data:'RC_BACK'}]]);return;}
+    if(d==='CARD_DUR'){await cardMenu('⏱ <b>DURÉE</b> :',[[{text:'15s',callback_data:'RC_DUR_15'},{text:'23s',callback_data:'RC_DUR_23'},{text:'30s',callback_data:'RC_DUR_30'},{text:'⌨️',callback_data:'RC_DUR_FREE'}],[{text:'◀️ Retour',callback_data:'RC_BACK'}]]);return;}
     if(d==='CARD_MORE'){await cardMenu('☰ <b>PLUS</b> :',[
       [{text:'👤 Looks',callback_data:'MENU_LOOKS'},{text:'📦 Modèles',callback_data:'SHOWSTYLES'}],
       [{text:'📤 Prêt à poster',callback_data:'SHOWREADY'},{text:'📁 Fichiers',callback_data:'FILES_HOME'}],
       [{text:'🧪 Test',callback_data:'MENU_TEST'},{text:'👁 Preview',callback_data:'EDIT_PREVIEW'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}],
       [{text:'👥 Persona : '+activePersona().name,callback_data:'PERSONA'},{text:'⚙️ Technique',callback_data:'MENU_TECH'},{text:'❓ Aide',callback_data:'MENU_HELP'}],
-      [{text:'◀️ Carte',callback_data:'RC_BACK'}],
+      [{text:'◀️ Retour',callback_data:'RC_BACK'}],
     ]);return;}
     if(d==='PERSONA'){const p=loadPersonas();const rows=Object.keys(p.profiles).map(k=>[{text:(k===p.active?'✅ ':'')+p.profiles[k].name,callback_data:'PERSONA_'+k}]);rows.push([{text:'◀️ Plus',callback_data:'CARD_MORE'}]);await cardMenu('👥 <b>PERSONA</b> (influenceur) — 1 carte/dossiers chacun :',rows);return;}
     if(d.startsWith('PERSONA_')){const k=d.slice(8);if(setActivePersona(k)){await toast('👥 Persona : '+activePersona().name);}else await toast('⚠️ Profil inconnu');await showRecap();return;}
@@ -2017,7 +2033,7 @@ async function handle(upd){
       [{text:'ℹ️ Statut',callback_data:'TECH_STATUS'}],
       [{text:'🔄 Redémarrer le bot',callback_data:'TECH_RESTART'}],
       [{text:'⏹ Tout arrêter',callback_data:'TECH_STOP'}],
-      [{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+      [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
     ]);return;}
     if(d==='TECH_STATUS'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
     if(d==='TECH_RESTART'){
@@ -2089,7 +2105,7 @@ async function handle(upd){
       if(await maybeAskLookStyle(fp,'avatar'))return; // réglages mémorisés pour ce look ?
       await send('✅ Look <b>'+f+'</b> = avatar + photo de travail.',[
         [{text:'🎨 Édition',callback_data:'EDIT_HOME'}],
-        [{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'◀️ Menu',callback_data:'MAIN_MENU'}],
+        [{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
       ]);return;
     }
     if(d==='GAL_GEN'){
@@ -2526,9 +2542,9 @@ async function handle(upd){
     ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
-  if(txt==='/start'||txt==='/menu'){await openCard();return;}
+  if(txt==='/start'||txt==='/menu'){await showHome();return;} /*[C1] menu unifié*/
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await openCard();return;} /*V2 : /go = la CARTE*/
+  if(txt==='/go'||txt==='go'){await showHome();return;} /*[C1] /go = /menu = menu unifié*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
     if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot
