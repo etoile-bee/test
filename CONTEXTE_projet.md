@@ -51,6 +51,7 @@
 ## ÉTAT ACTUEL (2026-06-07)
 - Sous-titres : ✅ **VERROU STABLE-1 (08/06, arbitrage Etoile) = Archivo Black 76px / OY 0.370** (image d'arbitrage `podcast-outputs/test_local/arbitrage_76_0370.png`, choisie parmi 45/0.25 · 76/0.33 · 76/0.370). Texte plus gros, position menton/bas. Sans contour ni ombre, règle 2 mots max / mot seul si 8+ lettres. Source unique `subtitle_style.js`, commit `1304db2`, fichier VERROUILLÉ par hook git (`commit-msg` + `LOCKED_FILES.txt`) → modif uniquement avec jeton `[UNLOCK-ETOILE]`. *(Ancien verrou V1 = 45px/OY0.25, conservé dans l'historique ci-dessous.)*
 - Couleur : ✅ **V5 reste VERROUILLÉE INCHANGÉE** (`color_style.js`, adaptative, bt709). Ré-arbitrage couleur **reporté** — Etoile le verra plus tard ; ne rien toucher d'ici là.
+- 🔧 **Installer le verrou git après un (re-)clone** (les `.git/hooks/` ne sont PAS versionnés) : `cp tools/hooks/commit-msg .git/hooks/commit-msg && chmod +x .git/hooks/commit-msg`. La copie de référence vit dans `tools/hooks/commit-msg`.
 - Leçon : sans police embarquée, le serveur Shotstack rend tantôt fin tantôt épais selon les polices dispo → toujours embarquer via FONTS de `subtitle_style.js`.
 - `workflow.js` : revue1 appliquée (fix filtre [pause], captions, retry JSON ×3, approbation scripts Parts 2/3 avant dépense, code mort supprimé).
 - `telegram_bot.js` : commande `/test` ajoutée (sandbox, garde-fous) + réglages /settings retargés sur `subtitle_style.js` → ⚠️ REDÉMARRAGE PM2 EN ATTENTE (quand bot libre).

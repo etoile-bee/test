@@ -1,0 +1,47 @@
+#!/bin/sh
+# ============================================================
+#  VERROU PHASE 1 GEL — refuse tout commit qui modifie un fichier
+#  liste dans LOCKED_FILES.txt, SAUF si le message contient [UNLOCK-ETOILE].
+#  (hook commit-msg : seul moment ou git expose le message + les fichiers staged)
+# ============================================================
+MSG_FILE="$1"
+REPO="$(git rev-parse --show-toplevel)"
+LOCK="$REPO/LOCKED_FILES.txt"
+
+[ -f "$LOCK" ] || exit 0  # pas de liste -> rien a verrouiller
+
+# Message de commit complet
+MSG="$(cat "$MSG_FILE")"
+
+# Fichiers en cours de commit (staged)
+STAGED="$(git diff --cached --name-only)"
+
+# Liste des fichiers verrouilles touches par ce commit
+HITS=""
+while IFS= read -r raw; do
+  f="$(printf '%s' "$raw" | sed 's/#.*//' | tr -d '[:space:]')"
+  [ -z "$f" ] && continue
+  if printf '%s\n' "$STAGED" | grep -qxF "$f"; then
+    HITS="$HITS $f"
+  fi
+done < "$LOCK"
+
+# Aucun fichier verrouille touche -> on laisse passer
+[ -z "$HITS" ] && exit 0
+
+# Fichier verrouille touche : exiger le jeton
+case "$MSG" in
+  *"[UNLOCK-ETOILE]"*)
+    echo "🔓 [UNLOCK-ETOILE] present -> modif autorisee sur :$HITS"
+    exit 0
+    ;;
+  *)
+    echo "" >&2
+    echo "⛔ COMMIT REFUSE — fichier(s) VERROUILLE(S) modifie(s) :$HITS" >&2
+    echo "   Ces fichiers sont geles (Phase 1 STABILISATION)." >&2
+    echo "   Pour les modifier volontairement, ajoute le jeton dans le message :" >&2
+    echo "       [UNLOCK-ETOILE]" >&2
+    echo "" >&2
+    exit 1
+    ;;
+esac
