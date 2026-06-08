@@ -2560,7 +2560,7 @@ async function handle(upd){
   // menu principal automatique à la 1ère interaction de la journée
   {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
 
-  if(txt==='/studio'){ /*3 BLOCS STATIQUES (validé Etoile 08/06) : repose proprement photo + vidéo + résultats en bas du chat*/
+  if(txt==='/blocs'){ /*3 BLOCS STATIQUES : repose photo + vidéo + résultats en bas du chat (outil de récupération)*/
     await delMsg(newlook.mediaId);newlook.mediaId=null;
     await delMsg(cockpit.mid);cockpitReset();lastCardSig='';
     await delMsg(results.mid);results.mid=null;
@@ -2571,6 +2571,13 @@ async function handle(upd){
     return;
   }
   if(txt==='/start'||txt==='/menu'){await showHome();return;} /*[C1] menu unifié*/
+  if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
+  if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
+  if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
+  if(txt==='/editer'){await showEditHome();return;} /*[C4] éditer*/
+  if(txt==='/photos'){await showFileList('img',0);return;} /*[C4] bibliothèque photos*/
+  if(txt==='/videos'){await showFileList('vid',0);return;} /*[C4] bibliothèque vidéos*/
+  if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
   if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await showHome();return;} /*[C1] /go = /menu = menu unifié*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
@@ -2759,23 +2766,24 @@ process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && 
 process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
 
 setInterval(()=>{},1<<30);
-tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*/
+tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer · Bibliothèque · Aide)*/
+  /* — Pilotage — */
+  {command:'go',description:'🏠 Menu principal'},
+  {command:'studio',description:'🎬 Studio (bibliothèque)'},
   {command:'stop',description:'⏹ Tout arrêter'},
   {command:'restart',description:'🔄 Redémarrer le bot'},
-  {command:'go',description:'🏠 Menu principal'},
-  {command:'menu',description:'🏠 Menu principal'},
-  {command:'edit',description:'🎛 Éditer le look (sous-titres, image, zooms, musique)'},
-  {command:'looks',description:'👤 Galerie de looks'},
-  {command:'newlook',description:'🎨 Générer un nouveau look (même visage)'},
-  {command:'posted',description:'📤 Vidéos prêtes à poster'},
-  {command:'files',description:'📁 Fichiers (vidéos, images, légendes, looks)'},
-  {command:'styles',description:'📦 Modèles enregistrés'},
-  {command:'preview',description:'👁 Aperçu gratuit du look'},
-  {command:'test',description:'🧪 Rendu local gratuit'},
-  {command:'settings',description:'⚙️ Réglages sous-titres'},
-  {command:'ideas',description:'💡 Idées de sujets'},
-  {command:'library',description:'📚 Derniers scripts'},
-  {command:'status',description:'ℹ️ État du bot'},
+  /* — Créer — */
+  {command:'creer',description:'🚀 Créer une vidéo (Express / Sur-mesure / Auto)'},
+  {command:'newlook',description:'🎨 Nouveau look (photos, même visage)'},
+  {command:'editer',description:'🎨 Éditer le look (sous-titres, image, zooms…)'},
+  {command:'apercu',description:'👁 Aperçu gratuit'},
+  /* — Bibliothèque — */
+  {command:'looks',description:'👗 Looks / Avatars'},
+  {command:'photos',description:'🖼 Photos générées'},
+  {command:'videos',description:'🎬 Vidéos'},
+  {command:'posted',description:'📤 Prêt à poster'},
+  {command:'historique',description:'🕘 Historique des générations'},
+  /* — Aide — */
   {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
