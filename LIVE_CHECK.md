@@ -15,3 +15,7 @@ fonctionne correctement.
 
 Importer le code de `podcast-workflow` dans ce dépôt pour pouvoir le suivre
 en direct ici (voir instructions fournies par l'agent).
+
+## Test round-trip (session locale)
+
+- ✅ Ping en direct depuis la session locale Mac : 2026-06-08 03:39:12 CEST
