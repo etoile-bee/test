@@ -937,7 +937,7 @@ async function runLocalTest(){
     const {renderLocal}=freshRL();
     const src=liveSrc(); // item 5 : footage en MOUVEMENT (dernier raw) si dispo, sinon look fixe
     if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
-    await send('🧪 Rendu LOCAL gratuit (style + script courants, photo de travail : '+path.basename(src)+')... ~2s');
+    if(lastCbId)await toast('🧪 Rendu local gratuit… ~5s, le résultat arrive en bas');else await send('🧪 Rendu LOCAL gratuit ('+path.basename(src)+')… ~5s'); /*toast au lieu d'un message qui s'empile*/
     const S=previewScript();
     const wt=S.replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42})).filter(x=>x.text);
     const out='/tmp/localtest_'+Date.now()+'.mp4';
@@ -1475,7 +1475,9 @@ async function resAdd(it){ /*toute livraison atterrit dans le bloc 3 (anti-doubl
   results.items=results.items.filter(x=>x.path!==it.path);
   results.items.push(Object.assign({ts:Date.now()},it));
   while(results.items.length>30)results.items.shift();
-  results.idx=results.items.length-1;resSave();
+  results.idx=results.items.length-1;
+  await delMsg(results.mid);results.mid=null; /*NOUVEAU résultat -> le bloc redescend EN BAS du chat (sinon livraison invisible)*/
+  resSave();
   await showResults().catch(()=>{});
   return results.mid;
 }
