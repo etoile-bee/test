@@ -1368,6 +1368,15 @@ async function showHome(){
   if(av&&fs.existsSync(av))await cockpitPhoto(av,cap,rows);
   else await cardMenu(cap,rows);
 }
+// [C2] Section STUDIO : sous-menu (en place) -> accès directs branchés sur l'existant
+async function showStudio(){
+  await cardMenu('🎬 <b>STUDIO</b> — bibliothèque',[
+    [{text:'👗 Looks',callback_data:'MENU_LOOKS'},{text:'👤 Avatars',callback_data:'MENU_LOOKS'}],
+    [{text:'🖼 Photos',callback_data:'FCAT_img'},{text:'🎬 Vidéos',callback_data:'FCAT_vid'}],
+    [{text:'🏛 Décors',callback_data:'STUDIO_DECORS'},{text:'🕘 Historique',callback_data:'STUDIO_HIST'}],
+    [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
+  ]);
+}
 // ── 📁 FICHIERS : parcourir et recevoir les fichiers (vidéos/images/légendes/ready/looks) ──
 function listDir(dir,filter){try{return fs.readdirSync(dir).filter(f=>!f.startsWith('.')&&filter(f)).map(f=>{const p=path.join(dir,f);let st;try{st=fs.statSync(p);}catch(e){return null;}return st.isFile()?{path:p,name:f,mtime:st.mtimeMs,size:st.size}:null;}).filter(Boolean);}catch(e){return [];}}
 function fileCat(cat){
@@ -1896,7 +1905,14 @@ async function handle(upd){
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await openCard();return;} /*[C1] Créer -> carte génération (C3 ajoutera le choix de mode)*/
-    if(d==='HOME_STUDIO'){await showMainMenu();return;} /*[C1] Studio -> sous-menu (C2 le remplacera par l'écran épuré)*/
+    if(d==='HOME_STUDIO'){await showStudio();return;} /*[C2] Studio -> sous-menu épuré*/
+    if(d==='STUDIO_DECORS'){const lb=nlMod().readLookbook();const lignes=Object.keys(lb.envs||{}).map(k=>'• '+lb.envs[k].label).join('\n');await cardMenu('🏛 <b>DÉCORS disponibles</b>\n'+lignes+'\n\n<i>(choix du décor à la génération via /newlook)</i>',[[{text:'◀️ Retour',callback_data:'HOME_STUDIO'}]]);return;}
+    if(d==='STUDIO_HIST'){ /*[C2] historique = dernières générations (réutilise la logique /gens, message unique)*/
+      try{const real=fs.realpathSync(path.join(BASE,'outputs','generations'));const files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(path.join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,12);
+        const lignes=files.length?files.map((x,i)=>(i+1)+'. '+x.f.replace(/\.jpg$/,'')).join('\n'):'(vide)';
+        await cardMenu('🕘 <b>HISTORIQUE</b> · '+files.length+' récentes\n'+lignes+'\n\n📱 Fichiers → iCloud → podcast-outputs/generations',[[{text:'◀️ Retour',callback_data:'HOME_STUDIO'}]]);
+      }catch(e){await cardMenu('🕘 Historique vide.',[[{text:'◀️ Retour',callback_data:'HOME_STUDIO'}]]);}
+      return;}
     if(d==='HOME_PROFIL'){await cardMenu('👤 <b>PROFIL</b>\n\nActif : <b>Imany</b>\n(un seul profil pour l\'instant — extensible via personas.json)',[[{text:'✅ Imany (actif)',callback_data:'NOOP'}],[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
     if(d==='MENU_GEN'){
       await delMsg(mainMenuMid);mainMenuMid=null; // l'écran Générer REMPLACE le menu (pas d'empilement)
