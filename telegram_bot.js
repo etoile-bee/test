@@ -1492,7 +1492,10 @@ async function sendBeforeAfter(){
   }else fs.copyFileSync(after.frame,comp);
   editPrevFrame=after.frame; // l'après devient l'avant du prochain réglage
   const st=after.style;
-  await sendImg(comp,`↔️ AVANT | APRÈS — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`).catch(()=>{});
+  const cap=`↔️ AVANT | APRÈS — 🔤 ${fontLabel(st.font)} • ${st.fontSize}px • y=${st.oy}`;
+  // [BUG-5] EN PLACE dans le bloc édition (plus de message image séparé)
+  if(cockpit.mid){await cockpitPhoto(comp,cap,sectionKb(editPanel.section||'img'));editPanel.mid=cockpit.mid;}
+  else await sendImg(comp,cap).catch(()=>{});
 }
 async function sendVsReference(){
   const after=await renderWorkingFrame(null,true); /*éditeur image : grading visible*/
@@ -1500,7 +1503,9 @@ async function sendVsReference(){
   const ref=path.join(BASE,'reference_model.png');const comp='/tmp/vr_'+Date.now()+'.png';
   if(fs.existsSync(ref)){try{hstackLabeled(ref,after.frame,'REFERENCE','RENDU',comp);}catch(e){fs.copyFileSync(after.frame,comp);}}
   else fs.copyFileSync(after.frame,comp);
-  await sendImg(comp,'🎯 RÉFÉRENCE | RENDU actuel').catch(()=>{});
+  // [BUG-5] EN PLACE dans le bloc édition (plus de message image séparé)
+  if(cockpit.mid){await cockpitPhoto(comp,'🎯 RÉFÉRENCE | RENDU actuel',sectionKb(editPanel.section||'img'));editPanel.mid=cockpit.mid;}
+  else await sendImg(comp,'🎯 RÉFÉRENCE | RENDU actuel').catch(()=>{});
 }
 async function afterEdit(section){
   await sendBeforeAfter();
