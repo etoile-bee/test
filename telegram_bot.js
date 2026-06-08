@@ -169,7 +169,7 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={urls:[],files:[],idx:0,recipe:null,category:null,env:'bougies',extra:null,mode:'eco',count:1,busy:false,mediaId:null,catLabel:'',envLabel:''}; /*v10 : MESSAGE-MEDIA UNIQUE (regle Etoile : un bloc image + commandes, AUCUN autre message sauf anomalie/resultat final)*/
+let newlook={urls:[],files:[],idx:0,recipe:null,category:null,env:'bougies',extra:null,mode:'eco',count:3,busy:false,mediaId:null,catLabel:'',envLabel:''}; /*[défaut] nouveau look = 3 poses séparées (éco 9:16)*/ /*v10 : MESSAGE-MEDIA UNIQUE (regle Etoile : un bloc image + commandes, AUCUN autre message sauf anomalie/resultat final)*/
 function nlMod(){ /*hot-reload : newlook.js recharge a chaque appel*/
   try{delete require.cache[require.resolve('./newlook.js')];}catch(e){}
   return require('./newlook.js');
@@ -222,7 +222,7 @@ function nlDisp(file){ /*affichage panneau SANS DEFILEMENT : version 4:5 ancree 
 }
 async function nlMedia(file,caption,rows,raw){ /*LE message unique : photo + caption + boutons, cree ou edite sur place*/
   /*[apercu-reel] raw=true -> image BRUTE telle que generee (plein 9:16, aucun crop/scale) ; sinon cover config en 4:5 sans defilement*/
-  if(file&&!raw&&newlook.mode!=='planche')file=nlDisp(file); /*regle Etoile : planche affichee ENTIERE, jamais rognee*/
+  /*[affichage-entier] Etoile : AUCUN recadrage à l'affichage — l'image (look/planche/cover) est montrée ENTIÈRE en 9:16, jamais coupée. (nlDisp 4:5 retiré)*/
   const FormData=require('form-data');
   const markup=JSON.stringify({inline_keyboard:rows||[]});
   const sig=_sig('nl',file||'',caption,rows);
@@ -313,6 +313,7 @@ function nlResultRows(){
   const n=newlook.urls.length;
   const rows=[];
   if(n>1)rows.push([{text:'‹',callback_data:'NL_NAV_P'},{text:(newlook.idx+1)+' / '+n,callback_data:'NL_NOOP'},{text:'›',callback_data:'NL_NAV_N'}]);
+  rows.push([{text:'✅ Avatar',callback_data:'NL_AVATAR'},{text:'🎨 Éditer',callback_data:'NL_EDIT'}]); /*[pose] actions par pose : Avatar / Éditer (+ Enregistrer + Générer ci-dessous)*/
   rows.push([{text:'💾 Enregistrer',callback_data:'NL_KEEP_CUR'},...(n>1?[{text:'💾 Tout enregistrer',callback_data:'NL_KEEP_ALL'}]:[])]);
   if(newlook.mode==='planche')rows.push([{text:'🪄 9:16 →',callback_data:'NL_NOOP'},{text:'1 💰',callback_data:'NL_RE_0'},{text:'2 💰',callback_data:'NL_RE_1'},{text:'3 💰',callback_data:'NL_RE_2'},{text:'×3 💰💰',callback_data:'NL_RE_ALL'}]);
   rows.push([{text:'🎬 Vidéo',callback_data:'NL_VIDEO'},...(newlook.mode!=='hd'&&newlook.mode!=='split'?[{text:'💎 HD',callback_data:'NL_HD'}]:[])]);
@@ -2289,7 +2290,15 @@ async function handle(upd){
       return dest;
     }
     if(d==='NL_KEEP_CUR'){
-      try{const dest=nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows());if(dest)await resAdd({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)});}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      try{const dest=nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows(),true);if(dest)await resAdd({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)});}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
+      return;
+    }
+    if(d==='NL_AVATAR'){ /*[pose] définir CETTE pose comme avatar*/
+      try{const dest=nlSave(newlook.idx);setAvatar(dest);gw.look=dest;await nlMedia(nlLocal(newlook.idx),'✅ <b>AVATAR</b> · pose '+(newlook.idx+1)+' définie comme avatar',nlResultRows(),true);}catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
+      return;
+    }
+    if(d==='NL_EDIT'){ /*[pose] ouvrir l'éditeur sur CETTE pose*/
+      try{const dest=nlSave(newlook.idx);setWorkPhoto(dest);await toast('🎨 Éditeur · pose '+(newlook.idx+1));await showEditHome();}catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_KEEP_ALL'){
