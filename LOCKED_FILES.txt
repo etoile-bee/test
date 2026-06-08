@@ -1,0 +1,6 @@
+# FICHIERS VERROUILLES — Phase 1 GEL (STABILISATION)
+# Un commit qui modifie un de ces fichiers est REFUSE par le hook git
+# sauf si le message de commit contient le jeton :  [UNLOCK-ETOILE]
+# Une ligne = un chemin (relatif a la racine du repo). Les lignes vides / # sont ignorees.
+subtitle_style.js
+color_style.js
