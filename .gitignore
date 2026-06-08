@@ -18,3 +18,5 @@ state.json
 styles_par_look.json
 logs/
 FETCH_HEAD
+__pycache__/
+*.pyc
