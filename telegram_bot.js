@@ -1699,6 +1699,20 @@ async function refreshPanel(){
   const section=editPanel.section||'img';
   await editScreen(sectionCaption(section),sectionKb(section)); // EN PLACE
 }
+// [c4-1] Rafraîchit le panneau en montrant AVANT|APRÈS automatiquement (état précédent vs nouveau), EN PLACE.
+async function refreshPanelBA(){
+  const section=editPanel.section||'img';
+  const prev=editPrevFrame; // frame affichée AVANT ce réglage (posée par le refresh précédent)
+  const after=await renderWorkingFrame();
+  if(!after){await refreshPanel();return;}
+  let media=after.frame,cap=sectionCaption(section);
+  if(prev&&fs.existsSync(prev)&&prev!==after.frame){
+    const comp='/tmp/bap_'+Date.now()+'.png';
+    try{hstackLabeled(prev,after.frame,'AVANT','APRÈS',comp);media=comp;cap+=' · ↔️ AVANT | APRÈS (auto)';}catch(e){}
+  }
+  editPrevFrame=after.frame; // l'après devient l'avant du prochain réglage
+  await cockpitPhoto(media,cap,sectionKb(section));editPanel.mid=cockpit.mid;
+}
 async function showEditHome(){
   editPanel.section='img';
   await editScreen('🎛 <b>ÉDITION</b> · '+workSrcLabel(),[
@@ -2164,7 +2178,7 @@ async function handle(upd){
     if(d==='SHOW_PRESETS'){editSectionCur='img';editPanel.section='img';await showPresets();return;}
     if(d==='EDIT_IMGADJ'){editSectionCur='img';await openPanel('imgadj');return;}
     if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
-    if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanel();return;}
+    if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanelBA();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
     if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;gal.page=0;galFrom='edit';await showGallery();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
@@ -2192,7 +2206,7 @@ async function handle(upd){
       if(d==='IMG_VI_UP')i.vignette=clampN(i.vignette+0.5,0,4);
       if(d==='IMG_VI_DN')i.vignette=clampN(i.vignette-0.5,0,4);
       if(d.startsWith('IMG_PRE_')){const n=d.slice(8);if(IMG_PRESETS[n])fx.image=Object.assign({},IMG_PRESETS[n]);}
-      writeFx(fx);await refreshPanel();return;
+      writeFx(fx);await refreshPanelBA();return; // [c4-1] avant/après auto sur chaque réglage d'image
     }
     if(d.startsWith('ZM_')){
       pushHistory();
