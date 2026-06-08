@@ -505,7 +505,7 @@ async function showGallery(){ // vue PLANCHE paginée (édition en place)
   for(let r=0;r<3;r++){const row=[];for(let c=0;c<3;c++){const k=r*3+c;if(k<pageFiles.length)row.push({text:String(k+1),callback_data:'GPICK_'+(start+k)});}if(row.length)rows.push(row);}
   if(pages>1)rows.push([{text:'◀️ Page',callback_data:'GLP_PREV'},{text:'Page '+(gal.page+1)+'/'+pages,callback_data:'NOOP'},{text:'Page ▶️',callback_data:'GLP_NEXT'}]);
   if(galForRecap)rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);
-  else rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]);
+  else rows.push([{text:'✨ Nouveau look',callback_data:'NL_NEW'},galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Retour',callback_data:'MAIN_MENU'}]); /*[Studio→Look] accès direct à la génération de look (/newlook)*/
   const cap='🖼 <b>GALERIE</b> · '+gal.files.length+' looks (récents d\'abord) · Page '+(gal.page+1)+'/'+pages+'\nAppuie sur un <b>numéro</b> pour ouvrir le look en grand.';
   const sheet=buildGallerySheet(pageFiles);
   if(!sheet){ // secours : planche indispo -> liste texte cliquable
@@ -2374,6 +2374,11 @@ async function handle(upd){
     if(d==='NL_OTHER'){await nlPayRecap(newlook.mode==='split'?'planche':newlook.mode,'🆕 Autre look (tenue re-tirée)','NL_OTHER_OK','NL_BACKRES');return;}
     if(d==='NL_OTHER_OK'){const o=nlMod().pickOutfit(newlook.category!=='random'?newlook.category:null);newlook.extra=o.prompt;newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
     if(d==='NL_CONFIG'){nlConfig();return;}
+    if(d==='NL_NEW'){ /*[Studio→Look] « ✨ Nouveau look » = même point d'entrée que /newlook (repart en éco, repose le panneau)*/
+      newlook.extra=null;newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='eco';
+      await delMsg(newlook.mediaId);newlook.mediaId=null;
+      await nlConfig();return;
+    }
     if(d==='NL_NAV_P'){if(newlook.urls.length>1){newlook.idx=(newlook.idx-1+newlook.urls.length)%newlook.urls.length;nlShowResult();}return;}
     if(d==='NL_NAV_N'){if(newlook.urls.length>1){newlook.idx=(newlook.idx+1)%newlook.urls.length;nlShowResult();}return;}
     function nlSave(i){
