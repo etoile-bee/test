@@ -10,6 +10,7 @@ Statuts : `🆕 nouveau` · `🔁 récurrent` · `🔎 en analyse` · `🛠 à c
 
 | Date | Constat d'Etoile | Contexte (quand / quel écran / quelle action) | Statut |
 |------|------------------|-----------------------------------------------|--------|
+| 2026-06-08 | **②-bis — nettoyage code mort** (tech, invisible pour Etoile) : après le chantier 2 conservateur, du legacy reste DORMANT (`launch()`/spawn, mode manuel `MM_*`, `getQButtons`, helpers de sujets legacy). Tous injoignables (entrées redirigées vers la carte). À retirer dans une passe dédiée à froid : supprimer ces fonctions, relocaliser `escHtml`, migrer/retirer `SAVE_VID`/`LCAP_LEGACY`. | post-chantier2 (commit `5cf9e51`). Backup de réf : `telegram_bot.js.preUnify`. Filet : node --check + audit callbacks + test anti-doublon. | 💤 plus tard |
 | 2026-06-08 | *(exemple — à remplacer)* le texte des sous-titres me paraît trop haut | après validation du verrou 76px/OY0.370, sur une vidéo 40s | 🆕 nouveau |
 
 <!-- Ajouter les nouvelles lignes JUSTE SOUS l'en-tête du tableau, au-dessus des plus anciennes. -->
