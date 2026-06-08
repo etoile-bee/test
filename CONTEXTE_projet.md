@@ -56,6 +56,13 @@
 ## ✅ V1 VALIDÉE (tag git `v1-validee`, 07/06 ~4h30) — base figée
 Vidéo de référence : 2026-06-07-01-52_p1.mp4. Sous-titres Archivo 45px/OY 0.25, couleur V5 adaptative (desat only), trim 0.10s, bt709, sans réactions, lookpick nouveautés d'abord. Toute évolution = nouvelle branche de travail, la v1 reste récupérable.
 
+## 🏗️ CHANTIER EN COURS (08/06 soir, validé Etoile) — REFONTE 3 BLOCS STATIQUES
+- Architecture validée sur maquette : **3 messages statiques permanents qui s'auto-éditent** = Bloc 1 PHOTO (catégorie/décor/galerie/éditeur photo/test💰) · Bloc 2 VIDÉO (sujet/durée/script/édition/export/générer💰) · Bloc 3 RÉSULTATS (album photos+vidéos, ré-éditer→rouvre le bloc concerné, refaire pareil/autre look, menu Étapes pour remonter toute catégorie). Jamais plus de 3 messages ; sous-écrans dans leur bloc ; confirmations en toast (plan V2_EDIT_PLAN.md). TOUTES les options existantes (~80 callbacks inventoriés) doivent être reprises, réorganisation step by step ensuite.
+- Tarifs mesurés 08/06 : 1 photo HD = 1 photo éco = 0.48cr ; 500cr=31.25USD (0.0625USD/cr, crédits API dédiés, pas abonnement) ; vidéo HD : test à 0? À CONFIRMER. → lookbook.pricing à jour.
+- +30 looks `pdf60` (outfit+makeup+hairstyle du PDF "60 prompts lipsync avatar") dans outfits_catalog.json (ids 205-234), racine newlook_prompt.txt intacte. Regards A/B + negative prompt du PDF notés, NON intégrés (pas demandé).
+- ⚠️ Crédits API Anthropic du bot ÉPUISÉS (erreur 400 "credit balance too low" → coupure vidéo express). Recharge = Etoile, console.anthropic.com.
+- ⚠️ Commit git bloqué par .git/index.lock non supprimable depuis Cowork → sur le Mac : `rm -f ~/podcast-workflow/.git/index.lock && git add -A && git commit -m "tarifs 08/06 + pdf60 + contexte 3 blocs"`.
+
 ## CE QU'IL RESTE À FAIRE (backlog précis, validé par Etoile le 08/06)
 0. ⚠️ /restart à faire pour activer les derniers livrés : RÉCAP avant paiement, Enregistrer/Refaire pareil/Autre look, planche entière, légende copiable sans titre, Partie suivante en fin, bt709 rendu local.
 1. Points validés PAS ENCORE codés : ⑦ "garder ces réglages par défaut ?" après résultat · previews à CHAQUE step (même édition) · menu durée 15s→2min · 📅 calendrier "à poster le"+/calendar+📤 posté avec refaire/rééditer · bouton 📝 Légendes sur résultat vidéo · option "animer la planche" 5-6s intro/outro (= réactions lipsync réutilisables).
