@@ -928,7 +928,7 @@ function writeSubs(v){
   fs.writeFileSync(path.join(BASE,'subtitle_style.js'),s);
 }
 function snapshotStyle(){return {savedAt:new Date().toISOString(),subs:readSubs(),fx:readFx()};}
-function applySnapshot(snap){if(snap&&snap.subs)writeSubs(snap.subs);if(snap&&snap.fx)writeFx(snap.fx);}
+function applySnapshot(snap){/*[BUG-4] charger un style N'ÉCRASE JAMAIS les sous-titres verrouillés (76/0.370) : on ignore snap.subs ; seuls les fx image/zoom/musique sont appliqués*/ if(snap&&snap.fx)writeFx(snap.fx);}
 // ── Historique d'édition (pile JSON) : undo pas à pas jusqu'à validation ────────
 function histPath(){return path.join(BASE,'edit_history.json');}
 function histRead(){try{return JSON.parse(fs.readFileSync(histPath(),'utf8'));}catch(e){return [];}}
@@ -1418,7 +1418,7 @@ let workingSource=null; // PHOTO DE TRAVAIL COURANTE unifiée (look choisi) ; fa
 function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingSource:latestRaw();}
 function setWorkPhoto(p){ /*regle Etoile 08/06 : une NOUVELLE photo demarre TOUJOURS sur l'image de base (zero filtre herite) — les styles ne s'appliquent que sur action explicite (LS_REUSE / preset / modele)*/
   if(p&&fs.existsSync(p)){
-    if(workingSource&&workingSource!==p){try{const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);}catch(e){}}
+    if(workingSource&&workingSource!==p){try{const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Naturel']);writeFx(fx);}catch(e){}} /*[BUG-4] nouvelle photo -> fx NEUTRES (image brute), aucun filtre hérité*/
     workingSource=p;
   }
 }
@@ -2549,7 +2549,7 @@ async function handle(upd){
     return;
   }
   if(txt==='/test'){await runLocalTest();return;}
-  if(txt==='/edit'){await showEditHome();return;}
+  if(txt==='/edit'){try{const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Naturel']);writeFx(fx);clearHistory();}catch(e){} /*[BUG-4] ouverture /edit = brouillon NEUTRE (le filtre précédent ne se réactive plus)*/ await showEditHome();return;}
   if(txt==='/styles'){await showStyles();return;}
   if(txt==='/posted'){await showReady();return;}
   if(txt==='/files'){await showFilesMenu();return;}
