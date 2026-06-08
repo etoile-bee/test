@@ -1021,6 +1021,32 @@ function apiNice(e){const m=String((e&&e.message)||e||'');
   if(/overloaded|529|rate limit/i.test(m))return '⚠️ API Anthropic surchargée — réessaie dans une minute.';
   if(/ENOTFOUND|ECONN|fetch failed|network|connection error/i.test(m))return '⚠️ Pas de connexion à l\'API Anthropic — vérifie le réseau (ou crédits/clé).';
   return m.slice(0,200);}
+
+// ── [chantier3] FEEDBACK : temps honnête + ticker + erreurs actionnables ──────────
+const PROD_TIME={MIN:3,MAX:10,NOTE:'parfois plus selon Kling'}; // (A) durée réaliste affichée au récap/maquette
+function prodTimeLabel(){return '~'+PROD_TIME.MIN+'-'+PROD_TIME.MAX+' min ('+PROD_TIME.NOTE+')';}
+function fmtElapsed(ms){const s=Math.max(0,Math.round(ms/1000));const m=Math.floor(s/60);return m>0?(m+' min '+String(s%60).padStart(2,'0')+'s'):(s+'s');}
+// (B) ticker VIVANT : met à jour le message de progression toutes ~12s pendant une étape longue (lipsync).
+// Le compteur change le contenu -> l'anti-doublon du ① laisse passer l'édition (pas figé).
+function startTicker(baseLabel,setProgFn){
+  const t0=Date.now();let alive=true;
+  const tick=()=>{if(alive)setProgFn(baseLabel+' · ⏱ '+fmtElapsed(Date.now()-t0)).catch(()=>{});};
+  const id=setInterval(tick,12000);
+  return ()=>{alive=false;clearInterval(id);};
+}
+// (D) erreurs API -> message HUMAIN actionnable (jamais de boucle ; bouton ↻ Réessayer côté appelant).
+function humanError(e,step){
+  const m=String((e&&e.message)||e||'');
+  const prov=/eleven/i.test(m)?'ElevenLabs (voix)':(/lipsync|kling|higgs/i.test(m)?'Kling (lipsync)':((/anthropic|claude/i.test(m)||/script/i.test(step||''))?'Anthropic (script)':'le fournisseur'));
+  if(/credit|quota|insufficient|payment required|balance too low|\b402\b/i.test(m))
+    return '💳 <b>Crédits insuffisants chez '+prov+'</b> — recharge nécessaire, puis ↻ Réessayer.\n<i>(étape '+(step||'?')+' · aucune relance automatique)</i>';
+  if(/\b401\b|unauthor|api key|invalid.*key|forbidden|\b403\b/i.test(m))
+    return '🔑 <b>Clé API '+prov+' refusée</b> (ou crédits épuisés) — vérifie .env / recharge, puis ↻ Réessayer.\n<i>(étape '+(step||'?')+')</i>';
+  if(/ENOTFOUND|ECONN|fetch failed|network|timeout|ETIMEDOUT|socket|EAI_AGAIN|\b50[234]\b|\b529\b|overloaded|rate limit|\b429\b/i.test(m))
+    return '🌐 <b>Souci réseau/API ('+prov+')</b> — réessaie dans un instant. ↻ Réessayer.\n<i>(étape '+(step||'?')+')</i>';
+  return '⚠️ <b>Échec à l\'étape '+(step||'?')+'</b> : '+m.slice(0,120)+'\nTu peux ↻ Réessayer.';
+}
+const RETRY_KB=[[{text:'↻ Réessayer',callback_data:'GJ_GO'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}]];
 async function ensureTopic(){
   if(gw.subjectMode==='mine')return;
   if(gw.topic)return;
@@ -1087,8 +1113,8 @@ function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
   genJob.audio=null;
 }
 async function genAfterScript(){
-  const c=estimateCost(genJob.duration);const s=readSubs();const mins=Math.max(3,Math.round(c.parts*4));
-  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px\n💰 ${c.cr?c.cr+' cr Higgsfield + voix ≈ ':'~'}${c.total.toFixed(2)}${COST.CURRENCY}${c.cr?' (vidéo HD à reconfirmer)':''} · ⏳ ~${mins} min${c.parts>1?' · '+c.parts+' parties':''}`;
+  const c=estimateCost(genJob.duration);const s=readSubs();
+  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px\n💰 ${c.cr?c.cr+' cr Higgsfield + voix ≈ ':'~'}${c.total.toFixed(2)}${COST.CURRENCY}${c.cr?' (vidéo HD à reconfirmer)':''} · ⏳ ${prodTimeLabel()}${c.parts>1?' · '+c.parts+' parties':''}`;
   const kb=[
     [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'},{text:'🚀 GO',callback_data:'GJ_GO'}],
     [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
@@ -1097,20 +1123,25 @@ async function genAfterScript(){
 }
 async function genMockup(){
   if(!genJob||!genJob.script||genJob.script===DEMO_SCRIPT){await send('⚠️ Aucun script validé.');return;}
+  if(genJob.mocking)return; // (E) anti double-tap : aperçu déjà en cours
   const raw=latestRaw();
   if(!raw){await send('⚠️ Pas d\'ancien footage. Utilise 🚀 GO direct.');return;}
-  await cockpitCaption('🎙 Voix + rendu maquette…',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]);
+  genJob.mocking=true;
+  await cockpitCaption('⏳ Génération aperçu voix… (~centimes)',[[{text:'⛔ Annuler',callback_data:'GJ_CANCEL'}]]);
   try{
     ttsCheck('maquette',genJob.script);
     genJob.audio=await WF.generateAudio(_sanTTS(genJob.script),1);
     const out='/tmp/mockup_'+Date.now()+'.mp4';
     await freshRL().renderLocal({input:raw,wordTimings:genJob.audio.wordTimings,keywords:genJob.keywords,reactions:genJob.reactions,output:out,quiet:true,duration:genJob.audio.duration});
-    const cap=journey('maquette')+`\n\n👁 Maquette (script + modèle courants · lèvres non synchro).`;
+    const cap=journey('maquette')+`\n\n▶️ <b>Aperçu prêt</b> (script + modèle courants · lèvres non synchro).`;
     await cockpitVideo(out,cap,[
       [{text:'🚀 GO définitif',callback_data:'GJ_GO'}],
       [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
     ]);
-  }catch(e){await send('❌ Maquette: '+e.message);}
+  }catch(e){
+    const h=humanError(e,'aperçu');
+    if(!await cockpitCaption(h,[[{text:'↻ Réessayer aperçu',callback_data:'GJ_MOCK'}],[{text:'🚀 GO définitif',callback_data:'GJ_GO'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}]]))await send(h);
+  }finally{ genJob.mocking=false; }
 }
 async function genFinal(){
   if(!genJob){await send('⚠️ Aucun script en attente.');return;}
@@ -1138,8 +1169,11 @@ async function genFinal(){
       let c,audio;
       if(i===1){c=job.c1;audio=job.audio;}
       else{genStep='script '+i;abrt();await setProg('🎬 Partie '+i+'/'+job.parts+' · script+voix…');c=await WF.generateScript(WF.partPrompt(job.topic,i,job.parts,prevScripts),job.words);ttsCheck('gen p'+i,c.script);audio=await WF.generateAudio(_sanTTS(c.script),i);prevScripts.push(c.script);}
-      genStep='lipsync '+i+'/'+job.parts;abrt();await setProg('🎬 Lipsync '+i+'/'+job.parts+'… (~3-5 min)');
-      const lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i,abortNow);
+      genStep='lipsync '+i+'/'+job.parts;abrt();
+      const lipLabel='🎬 Lipsync '+i+'/'+job.parts+'… (Kling, '+prodTimeLabel()+')';
+      await setProg(lipLabel+' · ⏱ 0s');
+      const stopTick=startTicker(lipLabel,setProg); // (B) compteur vivant pendant le poll Kling (async -> le ticker tourne)
+      let lip;try{lip=await WF.generateLipsync(imageUrl,audio.audioUrl,i,abortNow);}finally{stopTick();}
       const rawi=await WF.saveLipsyncRaw(lip,i,ts,outDir);
       genStep='rendu '+i;abrt();await setProg('🎬 Lipsync '+i+' ✓ · ✨ rendu…');
       const vid=await WF.renderVideo(lip,audio.wordTimings,c.keywords,audio.duration,i,c.reactions,rawi);
@@ -1159,10 +1193,22 @@ async function genFinal(){
     genFolders[gfIdx].vidMid=vidMid||results.mid;genFolders[gfIdx].caption=buildVideoCaption(finalP);
     try{genFolders[gfIdx].covers=makeCovers(finalP,gfIdx);}catch(e){}
   }catch(e){
-    if(e.message==='ABORT'){await setProg('⛔ Annulé à l\'étape <b>'+(genStep||'?')+'</b>.');}
-    else{await setProg('⛔ L\'étape <b>'+(genStep||'?')+'</b> a planté : '+e.message);}
+    if(e.message==='ABORT'){ // (C) annulation propre : message clair + état nettoyé + retour carte
+      const st=genStep||'?';
+      genAbort=false;genStep='';state='idle';genJob=null;
+      await setProg('⛔ <b>Annulé</b> à l\'étape <b>'+st+'</b>. Rien n\'a été livré.');
+      const _cm=cockpit.mid;gwReset();cockpit.mid=_cm;lastCardSig='';
+      await ensureTopic().catch(()=>{});await showRecap().catch(()=>{});
+      return;
+    }
+    // (D) erreur réelle : message HUMAIN actionnable + ↻ Réessayer, SANS boucler. genJob CONSERVÉ pour le retry.
+    const h=humanError(e,genStep);
+    genJob.running=false;genStep='';state='idle';genAbort=false;
+    jlog('⚠️ genFinal erreur ('+String(e.message||'').slice(0,80)+')');
+    if(!await cockpitCaption(h,RETRY_KB))await send(h,RETRY_KB);
+    return;
   }
-  genAbort=false;genStep='';state='idle';genJob=null;
+  genAbort=false;genStep='';state='idle';genJob=null; // succès
   const _cm=cockpit.mid;gwReset();cockpit.mid=_cm;lastCardSig=''; /*3 blocs : on GARDE le message cockpit et on le remorphe en carte*/
   await ensureTopic().catch(()=>{});await showRecap().catch(()=>{});
 }
