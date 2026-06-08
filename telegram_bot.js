@@ -364,7 +364,7 @@ async function runNewLook(){
   if(newlook.busy){return;}
   newlook.busy=true;
   let _sec=0;
-  const _lab={eco:'🧪 Éco (1 pose 720p)',planche:'🖼 Planche (3 poses en 1 image)',hd:'💎 HD (4 portraits 1080p)'}[newlook.mode]||newlook.mode;
+  const _lab={eco:'🧪 Éco · 9:16 ~1440×2560',planche:'🖼 Planche (3 poses en 1 image)',hd:'💎 HD · 4 variantes 9:16 ~1440×2560'}[newlook.mode]||newlook.mode; /*[qualité] éco et HD = MÊME résolution native Seedream (2,5K) ; HD = juste 4 variantes. Plus de "720p"/"1080p" trompeur.*/
   const _hb=setInterval(()=>{_sec+=30;nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab+' · '+_sec+'s').catch(()=>{});},30000);
   try{
     await nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
