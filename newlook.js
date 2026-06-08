@@ -213,7 +213,8 @@ async function splitPlanche(url){
   const files=[];
   for(let i=0;i<3;i++){
     const out='/tmp/pose'+Date.now()+'_'+(i+1)+'.jpg';
-    cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=iw:ih/3:0:'+(i===0?'0':'ih*'+i+'/3')+'" -q:v 2 "'+out+'" 2>/dev/null');
+    /*[B 9:16] chaque case recadrée en 9:16 NATIF (colonne centrale de la bande) puis normalisée 720x1280 — fini les bandes paysage*/
+    cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=ih*3/16:ih/3:(iw-ih*3/16)/2:'+(i===0?'0':'ih*'+i+'/3')+',scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1" -q:v 2 "'+out+'" 2>/dev/null');
     if(fs.existsSync(out)&&fs.statSync(out).size>3000)files.push(out);
   }
   if(files.length<3)throw new Error('decoupage incomplet ('+files.length+'/3)');
