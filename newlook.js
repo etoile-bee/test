@@ -141,7 +141,7 @@ async function generateLook(opts,log){
     prompt:prompt,
     input_images:[{type:'image_url',image_url:refUrl}],
     aspect_ratio:'9:16',
-    batch_size:mode==='hd'?4:1
+    batch_size:mode==='hd'?4:(mode==='planche'?1:Math.max(1,Math.min(6,+opts.count||1))) /*[C] éco : N images séparées (planche=1 multi-angles, hd=4)*/
   };
   let jobSet=null,lastErr=null;
   try{

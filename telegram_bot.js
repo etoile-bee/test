@@ -169,7 +169,7 @@ function personaOutDir(){return path.join(BASE,(activePersona().outputsDir||'out
 function pickRandom(){ /*lookpick v1 : nouveautes d'abord, via source unique look_picker.js*/
   try{return require('./look_picker.js').pickLook(getLooksDir());}catch{return null;}
 }
-let newlook={urls:[],files:[],idx:0,recipe:null,category:null,env:'bougies',extra:null,mode:'eco',busy:false,mediaId:null,catLabel:'',envLabel:''}; /*v10 : MESSAGE-MEDIA UNIQUE (regle Etoile : un bloc image + commandes, AUCUN autre message sauf anomalie/resultat final)*/
+let newlook={urls:[],files:[],idx:0,recipe:null,category:null,env:'bougies',extra:null,mode:'eco',count:1,busy:false,mediaId:null,catLabel:'',envLabel:''}; /*v10 : MESSAGE-MEDIA UNIQUE (regle Etoile : un bloc image + commandes, AUCUN autre message sauf anomalie/resultat final)*/
 function nlMod(){ /*hot-reload : newlook.js recharge a chaque appel*/
   try{delete require.cache[require.resolve('./newlook.js')];}catch(e){}
   return require('./newlook.js');
@@ -279,8 +279,10 @@ async function nlConfig(){ /*ACCUEIL compact (architecture validee Etoile) : eta
   const rows=[
     [{text:'👗 '+newlook.catLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_CAT'},{text:'🌆 '+newlook.envLabel.replace(/^[^ ]+ /,''),callback_data:'NL_MENU_ENV'}],
     [{text:'🎛 '+newlook.mode+' '+cost,callback_data:'NL_MENU_MODE'},{text:'🎲 Surprise',callback_data:'NL_SET_CAT_random'}],
-    [{text:'→ ▶️ Générer',callback_data:'NL_GO'},{text:'❌',callback_data:'NL_CANCEL'}]
   ];
+  // [C] sélecteur NOMBRE DE PHOTOS (mode éco -> N images séparées 9:16) ; planche=1 multi-angles, hd=4 (fixe)
+  if(newlook.mode==='eco'){const c=newlook.count||1;rows.push([1,2,3,4,6].map(n=>({text:(n===c?'✅ ':'')+'📸'+n,callback_data:'NL_CNT_'+n})));}
+  rows.push([{text:'→ ▶️ Générer',callback_data:'NL_GO'},{text:'❌',callback_data:'NL_CANCEL'}]);
   const cur=(newlook.urls.length&&nlLocal(newlook.idx))||null;
   await nlMedia(cur||nlCover(),'🎨 <b>NOUVEAU LOOK</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode,rows);
 }
@@ -335,7 +337,7 @@ async function runNewLook(){
   try{
     await nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
     const {generateLook}=nlMod();
-    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode},m=>{nlText('⏳ <b>GÉNÉRATION</b> · '+escH(m)).catch(()=>{});});
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},m=>{nlText('⏳ <b>GÉNÉRATION</b> · '+escH(m)).catch(()=>{});});
     newlook.urls=r.urls;newlook.files=[];newlook.idx=0;newlook.recipe=r.recipe;
     clearInterval(_hb);
     await nlShowResult();
@@ -2254,13 +2256,15 @@ async function handle(upd){
     if(d==='NL_MENU_MODE'){nlMenuMode();return;}
     if(d.startsWith('NL_SET_ENV_')){newlook.env=d.replace('NL_SET_ENV_','');nlConfig();return;}
     if(d.startsWith('NL_SET_MODE_')){newlook.mode=d.replace('NL_SET_MODE_','');nlConfig();return;}
+    if(d.startsWith('NL_CNT_')){newlook.count=Math.max(1,Math.min(6,+d.slice(7)||1));nlConfig();return;} /*[C] nombre de photos (éco)*/
     if(d==='NL_GO'){ /*step RECAP : on sait QUOI et COMBIEN avant de payer*/
       const lb2=nlMod().readLookbook();
       const ops=(lb2.pricing&&lb2.pricing.ops)||{};
       const epc=(lb2.pricing&&lb2.pricing.eur_per_credit)||0.058;
-      const cr=ops[newlook.mode];
-      const prix=cr?('≈'+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer';
-      const nimg=newlook.mode==='hd'?'4 images':newlook.mode==='planche'?'1 planche (plusieurs poses)':'1 image';
+      const N=newlook.mode==='eco'?(newlook.count||1):1; /*[C] éco : N images séparées*/
+      const crUnit=ops[newlook.mode];const cr=crUnit?+(crUnit*N).toFixed(2):null;
+      const prix=cr?('≈'+(cr*epc).toFixed(2).replace('.',',')+' € ('+String(cr).replace('.',',')+' cr)'):'prix à calibrer';
+      const nimg=newlook.mode==='hd'?'4 images':newlook.mode==='planche'?'1 planche (plusieurs poses)':(N+' image'+(N>1?'s 9:16 séparées':' 9:16'));
       await nlText('🧾 <b>RÉCAP</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+' · '+nimg+' · '+prix,[
         [{text:'→ ✅ GÉNÉRER MAINTENANT',callback_data:'NL_GO2'}],
         [{text:'◀️ Précédent',callback_data:'NL_CONFIG'}]
