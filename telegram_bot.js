@@ -114,7 +114,7 @@ async function sendVideoKb(fp,caption,rows){
     if(caption){f.append('caption',caption.slice(0,1020));f.append('parse_mode','HTML');}
     if(rows)f.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await tg('sendVideo',null,f);
-    if(r&&r.ok)return r.result&&r.result.message_id;
+    if(r&&r.ok){cacheFileId(fp,r.result);return r.result&&r.result.message_id;} /*file_id en cache -> éditions sans re-upload*/
     const f2=new FormData();f2.append('chat_id',CHAT_ID);f2.append('document',fs.createReadStream(fp));if(caption){f2.append('caption',caption.slice(0,1020));f2.append('parse_mode','HTML');}if(rows)f2.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r2=await tg('sendDocument',null,f2);return r2&&r2.result&&r2.result.message_id;
   }catch(e){return null;}
@@ -131,6 +131,23 @@ function videoReadyKb(gfIdx){return [
   [{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+gfIdx}],
 ];} /*regle Etoile : Make Part 2 = TOUTE FIN*/
 async function answerCB(id){return tg('answerCallbackQuery',{callback_query_id:id});}
+
+// ── ANTI-DOUBLON édition en place (chantier1) ──────────────────────────────────
+// Règle Etoile « zéro spam » : on n'édite un message QUE si son contenu change
+// réellement (signature d'état) ; on ne RECRÉE (sendPhoto/Video = empilement) que
+// si le message cible n'existe vraiment plus ; et on ne ré-uploade pas un média
+// déjà connu de Telegram (cache file_id).
+const _msgSig=Object.create(null);   // mid -> dernière signature poussée
+const _fileId=Object.create(null);   // "path|mtime" -> {photo, video} (évite le re-upload)
+function _fileTag(fp){try{if(!fp)return '';if(/^https?:/i.test(fp))return String(fp);return fp+'|'+fs.statSync(fp).mtimeMs;}catch(e){return String(fp||'');}}
+function _sig(kind,fp,caption,rows){return kind+'|'+_fileTag(fp)+'|'+(caption||'')+'|'+JSON.stringify(rows||[]);}
+function sigSame(mid,sig){return mid!=null&&_msgSig[mid]===sig;}
+function sigSet(mid,sig){if(mid!=null)_msgSig[mid]=sig;}
+function sigDrop(mid){if(mid!=null)delete _msgSig[mid];}
+function isGone(desc){return /not found|message to edit not found|message can'?t be edited|MESSAGE_ID_INVALID|message identifier is not specified|chat not found/i.test(desc||'');}
+function isNotMod(desc){return /not modified/i.test(desc||'');}
+function cacheFileId(fp,result){try{if(!result)return;const tag=_fileTag(fp);if(!tag)return;_fileId[tag]=_fileId[tag]||{};if(result.photo&&result.photo.length)_fileId[tag].photo=result.photo[result.photo.length-1].file_id;if(result.video&&result.video.file_id)_fileId[tag].video=result.video.file_id;}catch(e){}}
+function cachedFileId(fp,kind){try{const c=_fileId[_fileTag(fp)];return c&&c[kind];}catch(e){return null;}}
 
 // ── Look helpers ──────────────────────────────────────────────────────────────
 function resolveImg(p){
@@ -198,25 +215,36 @@ async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption
   if(file&&newlook.mode!=='planche')file=nlDisp(file); /*regle Etoile : planche affichee ENTIERE, jamais rognee*/
   const FormData=require('form-data');
   const markup=JSON.stringify({inline_keyboard:rows||[]});
+  const sig=_sig('nl',file||'',caption,rows);
+  if(newlook.mediaId&&sigSame(newlook.mediaId,sig))return true; /*panneau déjà exactement dans cet état -> ON NE FAIT RIEN*/
   if(newlook.mediaId&&file){
-    const fd=new FormData();
-    fd.append('chat_id',CHAT_ID);fd.append('message_id',String(newlook.mediaId));
-    fd.append('media',JSON.stringify({type:'photo',media:'attach://ph',caption:caption,parse_mode:'HTML'}));
-    fd.append('ph',fs.createReadStream(file));
-    fd.append('reply_markup',markup);
-    const r=await tg('editMessageMedia',null,fd).catch(()=>null);
-    if(r&&r.ok)return true;
-    if(r&&/not modified/i.test(r.description||''))return true; /*contenu identique = etat deja bon, ON NE FAIT RIEN*/
-    const r1b=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
-    if(r1b&&r1b.ok)return true;
-    if(r1b&&/not modified/i.test(r1b.description||''))return true;
-    newlook.mediaId=null;jlog('⚠️ panneau perdu ('+((r&&r.description)||'')+') — recreation unique');
+    let r=null;const fid=cachedFileId(file,'photo');
+    if(fid){ /*image déjà connue de Telegram -> édition JSON sans re-upload*/
+      r=await tg('editMessageMedia',{message_id:newlook.mediaId,media:{type:'photo',media:fid,caption:caption,parse_mode:'HTML'},reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
+    }
+    if(!(r&&(r.ok||isNotMod(r.description)||isGone(r.description)))){ /*pas de file_id ou échec transitoire -> upload*/
+      const fd=new FormData();
+      fd.append('chat_id',CHAT_ID);fd.append('message_id',String(newlook.mediaId));
+      fd.append('media',JSON.stringify({type:'photo',media:'attach://ph',caption:caption,parse_mode:'HTML'}));
+      fd.append('ph',fs.createReadStream(file));
+      fd.append('reply_markup',markup);
+      r=await tg('editMessageMedia',null,fd).catch(()=>null);
+      if(r&&r.ok)cacheFileId(file,r.result);
+    }
+    if(r&&r.ok){sigSet(newlook.mediaId,sig);return true;}
+    if(r&&isNotMod(r.description)){sigSet(newlook.mediaId,sig);return true;} /*contenu identique = etat deja bon*/
+    if(!(r&&isGone(r.description))){ /*erreur transitoire : tente la caption seule, sinon s'arrête SANS empiler*/
+      const r1b=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
+      if(r1b&&(r1b.ok||isNotMod(r1b.description))){sigSet(newlook.mediaId,sig);return true;}
+      if(!(r1b&&isGone(r1b.description))){jlog('⚠️ nlMedia REFUS (sans recréation)');return true;}
+    }
+    sigDrop(newlook.mediaId);newlook.mediaId=null;jlog('⚠️ panneau disparu — recreation unique'); /*SEUL cas de recréation*/
   }
   if(newlook.mediaId&&!file){
     const r=await tg('editMessageCaption',{message_id:newlook.mediaId,caption:caption,parse_mode:'HTML',reply_markup:{inline_keyboard:rows||[]}}).catch(()=>null);
-    if(r&&r.ok)return true;
-    if(r&&/not modified/i.test(r.description||''))return true;
-    newlook.mediaId=null;
+    if(r&&(r.ok||isNotMod(r.description))){sigSet(newlook.mediaId,sig);return true;}
+    if(!(r&&isGone(r.description))){jlog('⚠️ nlText REFUS (sans recréation)');return true;}
+    sigDrop(newlook.mediaId);newlook.mediaId=null;
   }
   const f2=file||nlCover();
   if(!f2){await send(caption,rows);return false;} /*secours extreme*/
@@ -226,7 +254,7 @@ async function nlMedia(file,caption,rows){ /*LE message unique : photo + caption
   fd2.append('caption',caption);fd2.append('parse_mode','HTML');
   fd2.append('reply_markup',markup);
   const r2=await tg('sendPhoto',null,fd2);
-  if(r2&&r2.ok&&r2.result)newlook.mediaId=r2.result.message_id;
+  if(r2&&r2.ok&&r2.result){newlook.mediaId=r2.result.message_id;cacheFileId(f2,r2.result);sigSet(newlook.mediaId,sig);}
   return true;
 }
 function nlText(caption,rows){return nlMedia(null,caption,rows);} /*caption/boutons seulement, image inchangee*/
@@ -283,6 +311,11 @@ function nlResultRows(){
 async function nlShowResult(){
   const f=nlLocal(newlook.idx);
   await nlMedia(f,'🎞 <b>RÉSULTATS</b> ·\n'+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+(newlook.urls.length>1?' · '+(newlook.idx+1)+'/'+newlook.urls.length:''),nlResultRows());
+}
+async function nlPayRecap(mode,label,okCb,backCb){ /*règle d'or : QUOI + COMBIEN avant chaque action payante*/
+  const lb2=nlMod().readLookbook();const ops=(lb2.pricing&&lb2.pricing.ops)||{};const epc=(lb2.pricing&&lb2.pricing.eur_per_credit)||0.058;
+  const cr=ops[mode];const prix=cr?(cr+' cr ≈ '+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer';
+  await nlText('🧾 <b>RÉCAP</b> · '+label+' · 💰 '+prix,[[{text:'→ ✅ GÉNÉRER MAINTENANT',callback_data:okCb}],[{text:'◀️ Retour',callback_data:backCb||'NL_CONFIG'}]]);
 }
 async function runNewLook(){
   if(newlook.busy){return;}
@@ -354,13 +387,17 @@ async function sendPhotoKb(fp,caption,rows){
     if(caption){form.append('caption',caption);form.append('parse_mode','HTML');}
     if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendPhoto',{method:'POST',body:form});
-    return r.json();
-  }catch(e){console.error('sendPhotoKb',e.message);return send((caption||'📸')+' (image indisponible)',rows);}
+    const d=await r.json();
+    if(!(d&&d.ok))jlog('⚠️ sendPhotoKb REFUS: '+((d&&d.description)||'?'));
+    else cacheFileId(fp,d.result); /*file_id en cache -> éditions suivantes sans re-upload*/
+    return d;
+  }catch(e){jlog('⚠️ sendPhotoKb ERR: '+e.message);return send((caption||'📸')+' (image indisponible)',rows);}
 }
 let gal={files:[],idx:0};
 let galForRecap=false; // galerie ouverte depuis la carte récap -> bouton « Choisir pour la vidéo »
 let pendingPhotoId=null; // dernière photo reçue hors flux (pour « ajouter aux looks »)
 let galMid=null; // message de la galerie -> navigation EN PLACE (jamais d'empilement)
+let galFrom='card'; // d'où la galerie a été ouverte ('edit'|'card') -> le RETOUR ramène AU BON ENDROIT
 async function showLook(){
   gal.files=looksList();
   if(!gal.files.length){galMid=null;await send('📭 Aucun look dans <code>looks/</code>. Envoie-moi une photo pour en ajouter un.',[[{text:'◀️ Menu',callback_data:'MAIN_MENU'}]]);return;}
@@ -372,11 +409,12 @@ async function showLook(){
     [{text:'◀️',callback_data:'GAL_PREV'},{text:'🎨 Éditer',callback_data:'GAL_EDIT'},{text:'▶️',callback_data:'GAL_NEXT'}],
   ];
   if(galForRecap){rows.push([{text:'✅ Choisir pour la vidéo',callback_data:'GAL_PICK'}]);rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'◀️ Récap',callback_data:'RC_BACK'}]);}
-  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([{text:'◀️ Menu',callback_data:'MAIN_MENU'}]);}
+  else {rows.push([{text:'✅ Avatar',callback_data:'GAL_AVATAR'},{text:'🎬 Générer avec',callback_data:'GAL_GEN'},{text:'🗑',callback_data:'GAL_DEL'}]);rows.push([galFrom==='edit'?{text:'◀️ Édition',callback_data:'EDIT_HOME'}:{text:'◀️ Carte',callback_data:'MAIN_MENU'}]);}
   const _d=dateFromName(name);const cap=`🖼 <b>Look ${gal.idx+1}/${gal.files.length}</b>${_d?' · ajouté le '+_d:''}`;
   if(sz<1000){ // placeholder iCloud non téléchargé -> texte (édition en place quand même si possible)
     if(galMid&&await tgEditText(galMid,`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows))return;
-    galMid=null;await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows);return;
+    const r0=await send(`⚠️ Look ${gal.idx+1}/${gal.files.length} : <b>${name}</b>\nImage pas encore téléchargée d'iCloud. ◀️ ▶️ pour la suivante.`,rows);
+    galMid=(r0&&r0.result&&r0.result.message_id)||null;return; /*on GARDE le mid -> ◀️▶️ éditent en place, zéro empilement*/
   }
   // navigation EN PLACE (editMessageMedia) si un message galerie existe déjà
   if(galMid&&await editPhotoKb(galMid,fp,cap,rows))return;
@@ -384,7 +422,16 @@ async function showLook(){
   galMid=(r&&r.result&&r.result.message_id)||null;
   if(!(r&&r.ok)){galMid=null;await send(`⚠️ <b>${name}</b> — aperçu indisponible (${fmtSize(sz)}).`,rows);}
 }
-async function tgEditText(mid,text,rows){try{const d=await tg('editMessageText',{message_id:mid,text,parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});return d&&d.ok;}catch(e){return false;}}
+async function tgEditText(mid,text,rows){
+  const sig=_sig('text',null,text,rows);
+  if(sigSame(mid,sig))return true; // texte+boutons inchangés -> rien à envoyer
+  try{const d=await tg('editMessageText',{message_id:mid,text,parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
+    if(d&&d.ok){sigSet(mid,sig);return true;}
+    if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
+    if(isGone(d&&d.description))return false; // disparu -> recréation par le caller
+    return true; // transitoire : pas de doublon
+  }catch(e){return true;}
+}
 
 // ── Setup flow ────────────────────────────────────────────────────────────────
 const TOPIC_IDEAS=[
@@ -814,8 +861,13 @@ function estimateCost(durationStr){
   const plan=WF.planParts(sec);
   const wm=plan.words.split('-').map(Number);const wpp=(wm[0]+wm[1])/2;
   const totalWords=Math.round(wpp*plan.n);const chars=totalWords*COST.CHARS_PER_WORD;
-  const el=(chars/1000)*COST.EL_EUR_PER_1K_CHARS, kling=plan.n*COST.KLING_EUR_PER_PART;
-  return {parts:plan.n,words:totalWords,el,kling,total:el+kling};
+  const el=(chars/1000)*COST.EL_EUR_PER_1K_CHARS;
+  let cr=null,kling=plan.n*COST.KLING_EUR_PER_PART; /*fallback ancien si pricing absent*/
+  try{ /*VRAIS coûts = mesures Etoile dans lookbook.pricing (source unique)*/
+    const lb=nlMod().readLookbook();const p=lb.pricing||{};
+    if(p.ops&&p.ops.video30s){cr=plan.n*p.ops.video30s;kling=cr*(p.eur_per_credit||0.058);}
+  }catch(e){}
+  return {parts:plan.n,words:totalWords,el,kling,cr,total:el+kling};
 }
 const clampN=(v,a,b)=>Math.max(a,Math.min(b,Math.round(v*1000)/1000));
 function readFx(){return RL.loadFx();}
@@ -940,7 +992,8 @@ async function runLocalTest(){
     if(lastCbId)await toast('🧪 Rendu local gratuit… ~5s, le résultat arrive en bas');else await send('🧪 Rendu LOCAL gratuit ('+path.basename(src)+')… ~5s'); /*toast au lieu d'un message qui s'empile*/
     const S=previewScript();
     const wt=S.replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42})).filter(x=>x.text);
-    const out='/tmp/localtest_'+Date.now()+'.mp4';
+    const tdir=path.join(BASE,'outputs','tests');try{fs.mkdirSync(tdir,{recursive:true});}catch(e){}
+    const out=path.join(tdir,'test_'+tsName()+'.mp4'); /*hors /tmp : le bloc RÉSULTATS garde les tests après reboot*/
     const kw=wt.filter((_,i)=>i%4===2).map(x=>x.text).slice(0,3); // quelques mots-clés pour les zooms
     const r=await renderLocal({input:src,wordTimings:wt,keywords:kw,reactions:[],output:out,quiet:true,duration:wt[wt.length-1].end+0.35});
     const st=r.style;
@@ -962,7 +1015,7 @@ function journey(active){
 // ── CARTE V2 (écran d'accueil unique, photo éditée en place) ──
 function recapCaption(){ // = carte (allégée : budget/durée création déplacés à la maquette)
   const dur=gw.duration||'23s';
-  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?('« '+gw.topic+' »'):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto…'));
+  const subj=gw.subjectMode==='mine'?('⌨️ '+(gw.topic||'(à taper)')):(gw.topic?('« '+gw.topic+' »'+(gw.topicLocal?' ⚠️ local (API down)':'')):(gw.topicCat&&MCATS[gw.topicCat]?MCATS[gw.topicCat]:'🎲 auto…'));
   return `🎬 <b>NOUVELLE VIDÉO</b>\n👤 ${escH(lookName(gwLook()))}\n💬 ${escH(subj)}\n⏱ ${dur} · 🎨 ${escH(gw.styleName||'Signature')}`;
 }
 function recapKb(){
@@ -976,8 +1029,8 @@ function recapKb(){
 // Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
 async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
-let lastCbId=null;
-async function toast(text){try{if(lastCbId)await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}catch(e){}}
+let lastCbId=null,cbAnswered=false;
+async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
 // Édite l'écran d'édition EN PLACE (photo de travail + boutons), comme la carte
 async function editScreen(caption,rows){
   let frame=null;try{const f=await renderWorkingFrame();frame=f&&f.frame;if(f)editPrevFrame=f.frame;}catch(e){}
@@ -1020,10 +1073,20 @@ async function autoPickTopic(cat,extra){
   return r.content[0].text.trim().replace(/^["'*]+|["'*]+$/g,'');
 }
 // Résout le sujet AU MOMENT du récap (auto -> autoPickTopic), pour l'afficher avant GO
+function apiNice(e){const m=String((e&&e.message)||e||'');
+  if(/credit balance/i.test(m))return '⚠️ Crédits API Anthropic épuisés — recharge sur console.anthropic.com → Plans & Billing.';
+  if(/overloaded|529|rate limit/i.test(m))return '⚠️ API Anthropic surchargée — réessaie dans une minute.';
+  if(/ENOTFOUND|ECONN|fetch failed|network|connection error/i.test(m))return '⚠️ Pas de connexion à l\'API Anthropic — vérifie le réseau (ou crédits/clé).';
+  return m.slice(0,200);}
 async function ensureTopic(){
   if(gw.subjectMode==='mine')return;
   if(gw.topic)return;
-  try{gw.topic=await autoPickTopic(gw.topicCat);if(gw.topic)sessionTopics.push(gw.topic);}catch(e){gw.topic=null;}
+  gw.topicLocal=false;
+  try{gw.topic=await autoPickTopic(gw.topicCat);if(gw.topic)sessionTopics.push(gw.topic);}
+  catch(e){ /*secours : sujet LOCAL (gratuit, hors API) pour ne jamais bloquer la carte*/
+    const t=TOPIC_IDEAS[Math.floor(Math.random()*TOPIC_IDEAS.length)][1];
+    gw.topic=t;gw.topicLocal=true;jlog('⚠️ sujet auto API KO ('+apiNice(e)+') — fallback local');
+  }
 }
 async function recapGo(){
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
@@ -1057,22 +1120,22 @@ async function genScriptStep(){
     const c=await WF.generateScript(prompt,genJob.words);
     genJob.c1=c;genJob.script=c.script;genJob.keywords=c.keywords;genJob.reactions=c.reactions;genJob.audio=null;
     await showScriptCard();
-  }catch(e){await send('❌ Script: '+e.message);genJob=null;}
+  }catch(e){await cardMenu('❌ <b>Script impossible</b>\n'+escHtml(apiNice(e)),[[{text:'🔄 Réessayer',callback_data:'RC_GO'},{text:'◀️ Carte',callback_data:'MAIN_MENU'}]]);genJob=null;}
 }
 async function genHooks(){
   if(!genJob||!genJob.script){await send('⚠️ Aucun script.');return;}
-  await send('🎣 Génération de 2 hooks...').catch(()=>{});
+  await cardMenu('🎣 Génération de 2 hooks…',[[{text:'⛔ Annuler',callback_data:'GJ_SHOWSCRIPT'}]]).catch(()=>{});
   try{
     const ant=new (require('@anthropic-ai/sdk'))({apiKey:process.env.ANTHROPIC_API_KEY});
     const r=await ant.messages.create({model:'claude-sonnet-4-6',max_tokens:120,messages:[{role:'user',content:'Write 2 DIFFERENT punchy 1-line opening hooks (max 12 words each, English, no quotes) for this TikTok relationship-coach script. Return EXACTLY two lines, prefixed "A:" and "B:".\nScript: '+genJob.script}]});
     const t=r.content[0].text;const a=((t.match(/A:\s*(.+)/)||[])[1]||'').trim();const b=((t.match(/B:\s*(.+)/)||[])[1]||'').trim();
-    if(!a||!b){await send('⚠️ Hooks indispo, garde le script.');await showScriptCard();return;}
+    if(!a||!b){await toast('⚠️ Hooks indispo, on garde le script');await showScriptCard();return;}
     genJob.hooks=[a,b];
-    await send('🎣 <b>HOOK D\'OUVERTURE</b> — choisis :\n\n🅰 '+escHtml(a)+'\n\n🅱 '+escHtml(b),[
+    await cardMenu('🎣 <b>HOOK D\'OUVERTURE</b> — choisis :\n\n🅰 '+escHtml(a)+'\n\n🅱 '+escHtml(b),[
       [{text:'🅰 Hook A',callback_data:'GJ_HOOK_0'},{text:'🅱 Hook B',callback_data:'GJ_HOOK_1'}],
       [{text:'◀️ Garder le script actuel',callback_data:'GJ_SHOWSCRIPT'}],
     ]);
-  }catch(e){await send('❌ Hooks: '+e.message);await showScriptCard();}
+  }catch(e){await cardMenu('❌ Hooks : '+escHtml(apiNice(e)),[[{text:'◀️ Script',callback_data:'GJ_SHOWSCRIPT'}]]);}
 }
 function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
   const rest=genJob.script.replace(/^[^.!?]*[.!?]\s*/,'');
@@ -1082,7 +1145,7 @@ function applyHook(h){ // remplace la 1re phrase du script par le hook choisi
 }
 async function genAfterScript(){
   const c=estimateCost(genJob.duration);const s=readSubs();const mins=Math.max(3,Math.round(c.parts*4));
-  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px\n💰 ~${c.total.toFixed(2)}${COST.CURRENCY} · ⏳ création ~${mins} min${c.parts>1?' · '+c.parts+' parties':''}`;
+  const cap=journey('maquette')+`\n\n✅ Script validé · 🎨 ${fontLabel(s.font)} ${s.size}px\n💰 ${c.cr?c.cr+' cr Higgsfield + voix ≈ ':'~'}${c.total.toFixed(2)}${COST.CURRENCY}${c.cr?' (vidéo HD à reconfirmer)':''} · ⏳ ~${mins} min${c.parts>1?' · '+c.parts+' parties':''}`;
   const kb=[
     [{text:'👁 Maquette (~centimes)',callback_data:'GJ_MOCK'},{text:'🚀 GO',callback_data:'GJ_GO'}],
     [{text:'✏️ Modifier',callback_data:'GJ_MODIFY'},{text:'❌ Annuler',callback_data:'GJ_CANCEL'}],
@@ -1163,6 +1226,19 @@ async function genFinal(){
 // ── Dossier par génération + restyle gratuit ────────────────────────────────────
 function gslug(s){return String(s||'video').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'video';}
 let genFolders=[];
+function genFoldersLoad(){ /*les vidéos livrées SURVIVENT au restart : re-scan d'outputs/generations (Postable/Restyler/Cover/Légende restent actifs)*/
+  try{
+    const root=path.join(BASE,'outputs','generations');
+    for(const e of fs.readdirSync(root).sort()){
+      const dir=path.join(root,e);const fm=path.join(dir,'final.mp4');
+      let st;try{st=fs.statSync(dir);}catch(_){continue;}
+      if(!st.isDirectory()||!fs.existsSync(fm))continue;
+      let meta={};try{meta=JSON.parse(fs.readFileSync(path.join(dir,'meta.json'),'utf8'));}catch(_){}
+      genFolders.push({dir,finalP:fm,topic:meta.topic||e,covers:[],ts:meta.ts||'',words:'',imageUrl:null,prevScripts:null,partN:(meta.parts||[]).length||1,restored:true});
+    }
+    if(genFolders.length)jlog('🗂 genFolders restaurés : '+genFolders.length);
+  }catch(e){}
+}
 function makeGenFolder(ts,topic,finalP,partsMeta,clips){
   const dir=path.join(BASE,'outputs','generations',ts+'_'+gslug(topic));
   try{fs.mkdirSync(dir,{recursive:true});}catch(e){}
@@ -1186,10 +1262,12 @@ function makeCovers(finalP,gfIdx){
 }
 let covState={gfIdx:-1,idx:0,mid:null};
 async function showCover(){
-  const gf=genFolders[covState.gfIdx];if(!gf||!gf.covers||!gf.covers.length){await send('⚠️ Covers indisponibles.');return;}
+  const gf=genFolders[covState.gfIdx];
+  if(gf&&(!gf.covers||!gf.covers.length)){try{gf.covers=makeCovers(gf.finalP,covState.gfIdx);}catch(e){}} /*covers régénérées à la demande (sessions restaurées)*/
+  if(!gf||!gf.covers||!gf.covers.length){await toast('⚠️ Covers indisponibles');return;}
   if(covState.idx<0)covState.idx=gf.covers.length-1;if(covState.idx>=gf.covers.length)covState.idx=0;
   const fp=gf.covers[covState.idx];
-  const rows=[[{text:'◀️',callback_data:'COVER_PREV'},{text:'✅ Choisir cette cover',callback_data:'COVER_PICK'},{text:'▶️',callback_data:'COVER_NEXT'}],[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]];
+  const rows=[[{text:'◀️',callback_data:'COVER_PREV'},{text:'✅ Choisir cette cover',callback_data:'COVER_PICK'},{text:'▶️',callback_data:'COVER_NEXT'}],[{text:'◀️ Résultats',callback_data:'RES_BACK'}]]; /*retour AU bloc résultats, pas à la carte*/
   const cap='🖼 <b>COVER</b> '+(covState.idx+1)+'/'+gf.covers.length+' — deviendra la miniature du dossier.';
   if(covState.mid&&await editPhotoKb(covState.mid,fp,cap,rows))return;
   const r=await sendPhotoKb(fp,cap,rows);covState.mid=(r&&r.result&&r.result.message_id)||null;
@@ -1284,7 +1362,12 @@ function latestRaw(){const OUT=path.join(BASE,'outputs');try{const r=fs.readdirS
 // Source de la frame de travail : un look (image) choisi, sinon le dernier raw vidéo
 let workingSource=null; // PHOTO DE TRAVAIL COURANTE unifiée (look choisi) ; fallback = dernier raw
 function workSrc(){return (workingSource&&fs.existsSync(workingSource))?workingSource:latestRaw();}
-function setWorkPhoto(p){if(p&&fs.existsSync(p))workingSource=p;}
+function setWorkPhoto(p){ /*regle Etoile 08/06 : une NOUVELLE photo demarre TOUJOURS sur l'image de base (zero filtre herite) — les styles ne s'appliquent que sur action explicite (LS_REUSE / preset / modele)*/
+  if(p&&fs.existsSync(p)){
+    if(workingSource&&workingSource!==p){try{const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);}catch(e){}}
+    workingSource=p;
+  }
+}
 function workSrcLabel(){const s=workSrc();return s?path.basename(s):'(aucune)';}
 // Texte d'aperçu : script courant de la session s'il existe, sinon démo
 const DEMO_SCRIPT='SHE SAYS YOU CHANGED BUT CHEMISTRY FADES';
@@ -1373,8 +1456,18 @@ async function afterEdit(section){
 // ── Panneau d'édition EN PLACE (un seul message PHOTO, editMessageMedia) ─────────
 let editPanel={mid:null,section:'img'};
 async function editPhotoKb(mid,fp,caption,rows){
+  const sig=_sig('photo',fp,caption,rows);
+  if(sigSame(mid,sig))return true; // contenu identique -> on ne touche pas Telegram (zéro doublon)
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
+    let d=null;
+    const fid=cachedFileId(fp,'photo');
+    if(fid){ // image déjà connue de Telegram -> édition JSON, ZÉRO re-upload
+      d=await tg('editMessageMedia',{message_id:mid,media:{type:'photo',media:fid,caption:caption,parse_mode:'HTML'},...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
+      if(d&&d.ok){sigSet(mid,sig);return true;}
+      if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
+      if(isGone(d&&d.description)){jlog('⚠️ editPhotoKb message disparu mid='+mid);return false;}
+    }
     fp=shrinkIfBig(fp); // 🔑 sinon editMessageMedia rejette les fichiers > 10 Mo -> empilement
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
@@ -1382,24 +1475,44 @@ async function editPhotoKb(mid,fp,caption,rows){
     form.append('photo',fs.readFileSync(fp),{filename:'p.jpg',contentType:'image/jpeg'});
     if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
-    const d=await r.json();return !!(d&&d.ok);
-  }catch(e){return false;}
+    d=await r.json();
+    if(d&&d.ok){sigSet(mid,sig);cacheFileId(fp,d.result);return true;}
+    if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
+    if(isGone(d&&d.description)){jlog('⚠️ editPhotoKb message disparu mid='+mid);return false;} // SEUL cas de recréation
+    jlog('⚠️ editPhotoKb REFUS (sans recréation) mid='+mid+': '+((d&&d.description)||'?'));
+    return true; // erreur transitoire : on n'empile PAS un nouveau message
+  }catch(e){jlog('⚠️ editPhotoKb ERR: '+e.message);return true;}
 }
 // ── COCKPIT : UN seul message de contrôle pour tout le wizard (photo↔vidéo via editMessageMedia) ──
 let cockpit={mid:null};
 function cockpitReset(){cockpit.mid=null;}
 function cap1024(s){s=String(s||'');return s.length>1024?s.slice(0,1000)+'…':s;}
 async function editVideoKb(mid,fp,caption,rows){
+  const sig=_sig('video',fp,cap1024(caption),rows);
+  if(sigSame(mid,sig))return true; // contenu identique -> rien à faire
   uiLog({dir:'out',type:'edit',screen:screenOf(caption)||'maquette',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
+    let d=null;
+    const fid=cachedFileId(fp,'video');
+    if(fid){ // vidéo déjà connue de Telegram -> édition JSON, ZÉRO re-upload
+      d=await tg('editMessageMedia',{message_id:mid,media:{type:'video',media:fid,caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true},...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
+      if(d&&d.ok){sigSet(mid,sig);return true;}
+      if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
+      if(isGone(d&&d.description)){jlog('⚠️ editVideoKb message disparu mid='+mid);return false;}
+    }
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
     form.append('media',JSON.stringify({type:'video',media:'attach://vid',caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true}));
     form.append('vid',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
     if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
-    const d=await r.json();return !!(d&&d.ok);
-  }catch(e){return false;}
+    d=await r.json();
+    if(d&&d.ok){sigSet(mid,sig);cacheFileId(fp,d.result);return true;}
+    if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
+    if(isGone(d&&d.description)){jlog('⚠️ editVideoKb message disparu mid='+mid);return false;} // SEUL cas de recréation
+    jlog('⚠️ editVideoKb REFUS (sans recréation) mid='+mid+': '+((d&&d.description)||'?'));
+    return true; // erreur transitoire : pas de nouveau message
+  }catch(e){jlog('⚠️ editVideoKb ERR: '+e.message);return true;}
 }
 // remplace le média du cockpit par une PHOTO (édite en place, sinon nouveau message)
 async function cockpitPhoto(fp,caption,rows){
@@ -1414,14 +1527,22 @@ async function cockpitVideo(fp,caption,rows){
   form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
   form.append('caption',cap1024(caption));form.append('parse_mode','HTML');form.append('supports_streaming','true');
   if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
-  try{const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});const d=await r.json();cockpit.mid=(d&&d.result&&d.result.message_id)||null;}catch(e){cockpit.mid=null;}
+  try{const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});const d=await r.json();cockpit.mid=(d&&d.result&&d.result.message_id)||null;if(d&&d.ok)cacheFileId(fp,d.result);}catch(e){cockpit.mid=null;}
   return cockpit.mid;
 }
 // met à jour SEULEMENT le texte/boutons du cockpit (sans toucher le média)
 async function cockpitCaption(caption,rows){
+  caption=cap1024(caption);
+  const sig=_sig('cap',null,caption,rows);
+  if(sigSame(cockpit.mid,sig))return true; // déjà affiché à l'identique
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
-  try{if(cockpit.mid){const r=await tg('editMessageCaption',{message_id:cockpit.mid,caption:cap1024(caption),parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});if(r&&r.ok)return true;}}catch(e){}
-  return false;
+  try{if(cockpit.mid){const r=await tg('editMessageCaption',{message_id:cockpit.mid,caption:caption,parse_mode:'HTML',...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
+    if(r&&r.ok){sigSet(cockpit.mid,sig);return true;}
+    if(isNotMod(r&&r.description)){sigSet(cockpit.mid,sig);return true;} // identique côté Telegram = OK
+    if(isGone(r&&r.description))return false; // message disparu -> le caller recrée
+    return true; // erreur transitoire : pas de message empilé
+  }}catch(e){}
+  return false; // pas de cockpit -> création par le caller
 }
 // ── BLOC 3 — RÉSULTATS (architecture 3 blocs statiques validée Etoile 08/06) ──
 // UN message unique : photos gardées + vidéos livrées, nav ‹›, ré-édition, menu Étapes.
@@ -1440,6 +1561,7 @@ function resKb(it){
     rows.push([{text:'➕ Partie suivante',callback_data:'GF_ADDPART_'+it.gfIdx}]);
   }else if(it&&it.type==='photo'){
     rows.push([{text:'🎨 Ré-éditer',callback_data:'RES_EDIT'},{text:'🎬 Vidéo avec',callback_data:'RES_GEN'}]);
+    rows.push([{text:'🔁 Refaire pareil',callback_data:'NL_RETRY'},{text:'🆕 Autre look',callback_data:'NL_OTHER'}]); /*conformité maquette validée (passe par le récap 💰)*/
   }else if(it&&it.type==='video'){
     if(it.readyIdx!=null)rows.push([{text:'✅ Prêt à poster',callback_data:'READY_'+it.readyIdx},{text:'📋 Légende longue',callback_data:'LCAP_LEGACY'}]);
     else rows.push([{text:'🚀 Générer pour de vrai',callback_data:'TEST_GEN'},{text:'🎨 Éditer',callback_data:'EDIT_HOME'}]);
@@ -1462,6 +1584,10 @@ async function showResults(){
   if(results.idx<0)results.idx=results.items.length-1;
   if(results.idx>=results.items.length)results.idx=0;
   const it=results.items[results.idx];
+  if(it.type==='video'){ /*anti-décalage : gfIdx re-résolu par CHEMIN (les index changent au restart)*/
+    const gi=genFolders.findIndex(g=>g&&(g.finalP===it.path||path.join(g.dir,'final.mp4')===it.path||(it.path.includes('_FINAL')&&path.basename(g.dir).startsWith(path.basename(it.path).slice(0,16)))));
+    if(gi>=0)it.gfIdx=gi;else if(it.gfIdx!=null&&!(genFolders[it.gfIdx]&&genFolders[it.gfIdx].finalP===it.path))it.gfIdx=null;
+  }
   const cap=resCaptionOf(it),rows=resKb(it);
   if(results.mid){
     const ok=it.type==='video'?await editVideoKb(results.mid,it.path,cap,rows):await editPhotoKb(results.mid,it.path,cap,rows);
@@ -1499,7 +1625,7 @@ async function resSteps(){ /*menu Étapes : remonter n'importe quelle catégorie
 function navRow(){return [
   [{text:'👤 Looks (changer la photo)',callback_data:'EDIT_LOOKS'}],
   [{text:'↩️ Annuler',callback_data:'UNDO_EDIT'},{text:'✔️ Valider',callback_data:'VALIDATE_STYLE'}],
-  [{text:'↔️ Avant/Après',callback_data:'BEFORE_AFTER'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Menu',callback_data:'EDIT_HOME'}],
+  [{text:'↔️ Avant/Après',callback_data:'BEFORE_AFTER'},{text:'🎯 vs Réf',callback_data:'CMP_REF'},{text:'◀️ Édition',callback_data:'EDIT_HOME'}],
 ];}
 function reactionsKb(){
   const m=(readFx().reactions||{}).mode||'off';
@@ -1665,11 +1791,19 @@ async function handle(upd){
   // Callback
   if(upd.callback_query){
     const cb=upd.callback_query;
-    await answerCB(cb.id);
-    if(String(cb.message.chat.id)!==CHAT_ID)return;
+    if(String(cb.message.chat.id)!==CHAT_ID){await answerCB(cb.id);return;}
     switchChat(String(cb.message.chat.id)); // no-op en mono-chat ; bascule l'état si multi-user activé
     const d=cb.data;
     jlog('ETOILE→ [bouton] '+d);lastCbId=cb.id;
+    /*RÈGLE INTER-BLOCS (Etoile 08/06) : un tap depuis le bloc RÉSULTATS qui vise le bloc PHOTO ou VIDÉO fait REDESCENDRE ce bloc en bas — sinon l'action se joue hors écran et semble morte*/
+    try{
+      if(cb.message&&results&&cb.message.message_id===results.mid){
+        if(d==='NL_CONFIG'||d==='NL_RETRY'||d==='NL_OTHER'){await delMsg(newlook.mediaId);newlook.mediaId=null;}
+        else if(['MAIN_MENU','RC_LOOK','RC_SUBJ','CARD_DUR','GJ_SHOWSCRIPT','EDIT_HOME','RES_EDIT','RES_GEN'].includes(d)){await delMsg(cockpit.mid);cockpitReset();lastCardSig='';}
+      }
+    }catch(e){}
+    /*fix toasts : on n'« avale » plus le tap d'office — les handlers ont 2.5s pour répondre par un toast, sinon accusé vide (sinon AUCUN toast ne s'affichait jamais : un tap = une seule réponse possible)*/
+    cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // Menu principal
     if(d==='MAIN_MENU'){await showRecap();return;} /*V2 : retour à la CARTE (état courant)*/
@@ -1741,7 +1875,7 @@ async function handle(upd){
     if(d==='GJ_HOOKS'){await genHooks();return;}
     if(d==='GJ_HOOK_0'||d==='GJ_HOOK_1'){if(genJob&&genJob.hooks){applyHook(genJob.hooks[+d.slice(-1)]);await send('🎣 Hook appliqué.').catch(()=>{});await showScriptCard();}else await send('⚠️ Aucun hook.');return;}
     if(d==='GJ_SHOWSCRIPT'){if(genJob)await showScriptCard();else await send('⚠️ Aucun script.');return;}
-    if(d==='GJ_CAT'){if(!genJob){await send('⚠️ Aucun script.');return;}const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'GJ_CATSET_'+k}]);rows.push([{text:'◀️ Retour au script',callback_data:'GJ_SHOWSCRIPT'}]);await send('📂 <b>CATÉGORIE</b> du script — régénère dans ce thème :',rows);return;}
+    if(d==='GJ_CAT'){if(!genJob){await toast('⚠️ Aucun script');return;}const rows=Object.keys(MCATS).map(k=>[{text:MCATS[k],callback_data:'GJ_CATSET_'+k}]);rows.push([{text:'◀️ Retour au script',callback_data:'GJ_SHOWSCRIPT'}]);await cardMenu('📂 <b>CATÉGORIE</b> du script — régénère dans ce thème :',rows);return;}
     if(d.startsWith('GJ_CATSET_')){if(!genJob){await send('⚠️ Aucun script.');return;}const k=d.slice(10);genJob.topicCat=k;genJob.subjectMode='auto';if(genJob.topic&&!sessionTopics.includes(genJob.topic))sessionTopics.push(genJob.topic);genJob.topic=null;genState.topicCat=k;saveState();await send('📂 '+MCATS[k]+' — nouveau script...').catch(()=>{});await genScriptStep();return;}
     if(d==='GJ_EDIT'){if(!genJob){await send('⚠️ Aucun script.');return;}state='gj_edit_wait';await send('✏️ Renvoie-moi le texte complet du script (il remplacera l\'actuel) :');return;}
     if(d==='GJ_MOCK'){await genMockup();return;}
@@ -1796,14 +1930,14 @@ async function handle(upd){
       }catch(e){await send('❌ Restyle : '+e.message);}
       return;
     }
-    if(d==='MENU_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
+    if(d==='MENU_LOOKS'){galMid=null;gal.idx=0;galFrom='card';await showLook();return;}
     if(d==='FILES_HOME'){await showFilesMenu();return;}
     if(d.startsWith('FCAT_')){await showFileList(d.slice(5),0);return;}
     if(d.startsWith('FPAGE_')){const m=d.slice(6).match(/^(\w+)_(\d+)$/);if(m)await showFileList(m[1],+m[2]);return;}
     if(d.startsWith('FGET_')){const it=fileList[+d.slice(5)];await sendFile(it&&it.path);return;}
     if(d==='MENU_TEST'){await runLocalTest();return;}
-    if(d==='MENU_HELP'){await send(HELP_TXT);return;}
-    if(d==='MENU_TECH'){await send('⚙️ <b>Réglages techniques</b>',[
+    if(d==='MENU_HELP'){await cardMenu(HELP_TXT,[[{text:'◀️ Plus',callback_data:'CARD_MORE'}]]);return;}
+    if(d==='MENU_TECH'){await cardMenu('⚙️ <b>Réglages techniques</b>',[
       [{text:'ℹ️ Statut',callback_data:'TECH_STATUS'}],
       [{text:'🔄 Redémarrer le bot',callback_data:'TECH_RESTART'}],
       [{text:'⏹ Tout arrêter',callback_data:'TECH_STOP'}],
@@ -1933,7 +2067,7 @@ await send('Ready to generate video?',[
     if(d==='MM_SCRIPT_WRITE'){state='m_script_wait';await send('📝 Write the new script in one message:');return;}
     if(d==='MM_LOOK_ANOTHER'){await mLook(false);return;}
     if(d==='MM_LOOK_UPLOAD'){state='m_upload_wait';await send('📷 Send a photo now (as a photo message):');return;}
-    if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await send('Comment générer cette vidéo ?',[[{text:'⚡ Sur-mesure',callback_data:'MANUAL_GO'},{text:'🎲 Aléatoire',callback_data:'AUTO_ALL'}],[{text:'🚀 Express',callback_data:'EXPRESS_GO'}]]);return;} /*restart v1*/
+    if(d==='NEW_GO'){if(proc){try{proc.kill();}catch(e){}proc=null;}state='idle';await openCard();return;} /*3 blocs : Nouvelle vidéo = LA CARTE (l'ancien chooser Sur-mesure/Aléatoire empilait et contournait récap+maquette)*/
     if(d==='CHG_TOPIC'){await step1_topic();return;}
     if(d==='CHG_LOOK'){galForRecap=false;galMid=null;gal.idx=0;await showLook();return;}
     if(d==='CANCEL'){state='idle';await send('❌ Cancelled.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);return;}
@@ -1944,8 +2078,8 @@ await send('Ready to generate video?',[
       //hidden:       if(!autoAnswers.length)await send('Sent: '+ans);return;
     }
     // Galerie de looks
-    if(d==='GAL_PREV'){gal.idx--;await showLook();return;}
-    if(d==='GAL_NEXT'){gal.idx++;await showLook();return;}
+    if(d==='GAL_PREV'){await toast('⏳');gal.idx--;await showLook();return;}
+    if(d==='GAL_NEXT'){await toast('⏳');gal.idx++;await showLook();return;}
     if(d==='GAL_AVATAR'){
       const list=looksList();const f=list[gal.idx];
       if(!f){await send('⚠️ Look introuvable.');return;}
@@ -1973,9 +2107,9 @@ await send('Ready to generate video?',[
     }
     if(d==='GAL_EDIT'){
       const list=looksList();const f=list[gal.idx];
-      if(!f){await send('⚠️ Look introuvable.');return;}
-      workingSource=path.join(getLooksDir(),f);
-      await send('🎨 Édition sur le look <b>'+f+'</b> (il devient la photo de travail).');
+      if(!f){await toast('⚠️ Look introuvable');return;}
+      setWorkPhoto(path.join(getLooksDir(),f)); /*passe par setWorkPhoto = reset des filtres hérités (règle Etoile)*/
+      await toast('🎨 '+f+' = photo de travail');
       editSectionCur='img';await openPanel('img');return;
     }
     if(d==='GAL_DEL'){
@@ -2065,7 +2199,7 @@ await send('Ready to generate video?',[
     if(d==='EDIT_IMGFX'){editSectionCur='img';await openPanel('imgfx');return;}
     if(d==='IMG_RESET'){pushHistory();const fx=readFx();fx.image=Object.assign({},IMG_PRESETS['Signature']);writeFx(fx);await toast('🔄 Image revenue à la base');await refreshPanel();return;}
     if(d.startsWith('RE_')){pushHistory();const fx=readFx();fx.reactions=fx.reactions||{mode:'off'};if(d==='RE_OFF')fx.reactions.mode='off';if(d==='RE_NATURAL')fx.reactions.mode='natural';if(d==='RE_ON')fx.reactions.mode='on';writeFx(fx);await refreshPanel();return;}
-    if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;await showLook();return;}
+    if(d==='EDIT_LOOKS'){galMid=null;gal.idx=0;galFrom='edit';await showLook();return;}
     if(d==='EDIT_PREVIEW'||d==='S_PREVIEW'){await runPreview();return;}
     if(d==='CMP_REF'){await sendVsReference();return;}
     if(d==='BEFORE_AFTER'){await sendBeforeAfter();return;}
@@ -2141,7 +2275,8 @@ await send('Ready to generate video?',[
       return;
     }
     if(d==='NL_GO2'){newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
-    if(d==='NL_OTHER'){const o=nlMod().pickOutfit(newlook.category!=='random'?newlook.category:null);newlook.extra=o.prompt;newlook.urls=[];newlook.files=[];newlook.idx=0;runNewLook();return;}
+    if(d==='NL_OTHER'){await nlPayRecap(newlook.mode==='split'?'planche':newlook.mode,'🆕 Autre look (tenue re-tirée)','NL_OTHER_OK','NL_BACKRES');return;}
+    if(d==='NL_OTHER_OK'){const o=nlMod().pickOutfit(newlook.category!=='random'?newlook.category:null);newlook.extra=o.prompt;newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
     if(d==='NL_CONFIG'){nlConfig();return;}
     if(d==='NL_NAV_P'){if(newlook.urls.length>1){newlook.idx=(newlook.idx-1+newlook.urls.length)%newlook.urls.length;nlShowResult();}return;}
     if(d==='NL_NAV_N'){if(newlook.urls.length>1){newlook.idx=(newlook.idx+1)%newlook.urls.length;nlShowResult();}return;}
@@ -2162,14 +2297,14 @@ await send('Ready to generate video?',[
       try{let n=0;for(let i=0;i<newlook.urls.length;i++){const dest=nlSave(i);if(dest){results.items=results.items.filter(x=>x.path!==dest);results.items.push({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · pose '+(i+1),ts:Date.now()});}n++;}while(results.items.length>30)results.items.shift();results.idx=results.items.length-1;resSave();await showResults().catch(()=>{});await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
-    if(d==='RES_PREV'){results.idx--;await showResults();return;}
-    if(d==='RES_NEXT'){results.idx++;await showResults();return;}
+    if(d==='RES_PREV'){await toast('⏳ Chargement…');results.idx--;await showResults();return;}
+    if(d==='RES_NEXT'){await toast('⏳ Chargement…');results.idx++;await showResults();return;}
     if(d==='RES_BACK'){await showResults();return;}
     if(d==='RES_STEPS'){await resSteps();return;}
     if(d==='RES_EDIT'){
       const it=results.items[results.idx];
-      if(it&&it.type==='photo'){try{setWorkPhoto(it.path);}catch(e){}await showEditHome();}
-      else await toast('Sélectionne une photo d\'abord');
+      if(it&&it.type==='photo'){await toast('🎨 Ouverture de l\'éditeur… (~5s)');try{setWorkPhoto(it.path);}catch(e){}await showEditHome();}
+      else await toast('Sélectionne une photo d\'abord (‹ ›)');
       return;
     }
     if(d==='RES_GEN'){
@@ -2213,9 +2348,11 @@ await send('Ready to generate video?',[
       }catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
       return;
     }
-    if(d==='NL_BACKRES'){nlShowResult();return;}
-    if(d==='NL_HD'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
-    if(d==='NL_RETRY'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
+    if(d==='NL_BACKRES'){if(newlook.urls.length)nlShowResult();else nlConfig();return;} /*pas de résultats en mémoire -> retour réglages, pas un écran fantôme*/
+    if(d==='NL_HD'){newlook.mode='hd';await nlPayRecap('hd','💎 HD · 4 portraits 1080p','NL_HD_OK','NL_BACKRES');return;}
+    if(d==='NL_HD_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
+    if(d==='NL_RETRY'){if(newlook.mode==='split')newlook.mode='planche';await nlPayRecap(newlook.mode,'🔁 Refaire pareil · '+escH(newlook.catLabel),'NL_RETRY_OK','NL_BACKRES');return;}
+    if(d==='NL_RETRY_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
     if(d==='NL_CANCEL'){await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
@@ -2371,8 +2508,9 @@ await send('Ready to generate video?',[
     await delMsg(cockpit.mid);cockpitReset();lastCardSig='';
     await delMsg(results.mid);results.mid=null;
     await nlConfig();            // BLOC 1 — PHOTO
-    gwReset();await ensureTopic();await showRecap(); // BLOC 2 — VIDÉO
+    gwReset();await showRecap(); // BLOC 2 — VIDÉO (posée tout de suite, sujet résolu juste après)
     await showResults();         // BLOC 3 — RÉSULTATS
+    ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
   if(txt==='/start'||txt==='/menu'){await openCard();return;}
@@ -2583,6 +2721,6 @@ tg('setMyCommands',{commands:[ /*cmdmenu v3 : /stop en TÊTE (accès d'urgence)*
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
 send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
-  loadState();resLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
+  loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
