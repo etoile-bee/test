@@ -981,7 +981,8 @@ async function runLocalTest(){
   if(proc){await send('⛔ Une vidéo est en cours — /test refusé (anti-conflit).');return;}
   try{
     const {renderLocal}=freshRL();
-    const src=liveSrc(); // item 5 : footage en MOUVEMENT (dernier raw) si dispo, sinon look fixe
+    if(gwLook())setWorkPhoto(gwLook()); // [p1] /test reflète l'ÉTAT COURANT : look choisi/édité d'abord
+    const src=workSrc(); // look de travail courant (workingSource) ; raw seulement si AUCUN look choisi
     if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
     if(lastCbId)await toast('🧪 Rendu local gratuit… ~5s, le résultat arrive en bas');else await send('🧪 Rendu LOCAL gratuit ('+path.basename(src)+')… ~5s'); /*toast au lieu d'un message qui s'empile*/
     const S=previewScript();
@@ -1820,7 +1821,8 @@ function patchWF(fn){
 // ── /preview : rend ~3s du dernier raw de test avec le STYLE COURANT et envoie 2 frames (gratuit) ──
 async function runPreview(){
   try{
-    const src=liveSrc(); // item 5 : footage en mouvement si dispo
+    if(gwLook())setWorkPhoto(gwLook()); // [p1] /preview reflète l'ÉTAT COURANT (look choisi/édité, pas un vieux raw)
+    const src=workSrc(); // look de travail courant ; raw seulement si aucun look
     if(!src){await toast('⚠️ Choisis un look 👤');return;}
     const f=await renderWorkingFrame(src);
     if(!f){await toast('❌ Aperçu indispo');return;}
