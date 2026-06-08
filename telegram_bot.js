@@ -1939,7 +1939,7 @@ async function handle(upd){
     // ── Dossier de génération : Postable / À retravailler / Restyler ──
     if(d.startsWith('GF_POST_')){const gf=genFolders[+d.slice(8)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','ready_to_post',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('✅ <b>Postable</b> : dossier complet (RAW INCLUS) copié dans\n<code>outputs/ready_to_post/'+path.basename(gf.dir)+'/</code>\n📱 Visible dans Fichiers iCloud.');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_REWORK_')){const gf=genFolders[+d.slice(10)];if(!gf){await send('⚠️ Entrée introuvable.');return;}const dst=path.join(BASE,'outputs','a_retravailler',path.basename(gf.dir));try{copyDirFlat(gf.dir,dst);await send('🔧 <b>À retravailler</b> : copié dans\n<code>outputs/a_retravailler/'+path.basename(gf.dir)+'/</code>');}catch(e){await send('❌ '+e.message);}return;}
-    if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));await send('📁 Fichiers de cette génération ('+files.length+') :');for(const f of files)await sendFile(path.join(gf.dir,f));}catch(e){await send('❌ '+e.message);}return;}
+    if(d.startsWith('GF_FILES_')){const gf=genFolders[+d.slice(9)];if(!gf){await send('⚠️ Entrée introuvable.');return;}try{const files=fs.readdirSync(gf.dir).filter(f=>/\.(mp4|txt|jpg|jpeg|png)$/i.test(f));/*[c4-5] 1 seul message : liste + chemin iCloud (au lieu d'empiler N fichiers)*/const lignes=files.map(f=>'• '+f).join('\n');await send('📁 <b>Dossier de cette génération</b> ('+files.length+' fichiers)\n'+lignes+'\n\n📱 Ouvre-les dans l\'app <b>Fichiers</b> → iCloud Drive → <b>podcast-outputs/generations/'+path.basename(gf.dir)+'</b>');}catch(e){await send('❌ '+e.message);}return;}
     if(d.startsWith('GF_ADDPART_')){
       const gf=genFolders[+d.slice(11)];if(!gf||!gf.imageUrl||!gf.prevScripts){await send('⚠️ Contexte indisponible (relance une génération).');return;}
       if(genJob&&genJob.running){await send('⏳ Une génération est déjà en cours.');return;}
@@ -2580,19 +2580,21 @@ async function handle(upd){
         if(!real||!fs.existsSync(real)){await send('Aucune génération archivée pour l\'instant.');return;}
         const files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(require('path').join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,n);
         if(!files.length){await send('Aucune génération archivée pour l\'instant.');return;}
-        await send('🗂 <b>'+files.length+' générations récentes</b> (tout est archivé dans iCloud → podcast-outputs/generations)');
-        for(const x of files){await sendImg(require('path').join(real,x.f),x.f.replace(/\.jpg$/,''));}
+        /*[c4-5] 1 seul message : liste + chemin iCloud (au lieu de N images empilées)*/
+        const lignes=files.map((x,i)=>(i+1)+'. '+x.f.replace(/\.jpg$/,'')).join('\n');
+        await send('🗂 <b>'+files.length+' générations récentes</b>\n'+lignes+'\n\n📱 Toutes les vignettes + vidéos : app <b>Fichiers</b> → iCloud Drive → <b>podcast-outputs/generations</b>');
       }catch(e){await send('Erreur /gens : '+e.message);}
     })();
     return;
   }
   if(txt==='/probe'){ /*probe v1 : quels endpoints Seedream existent (gratuit, rien n'est genere)*/
-    (async()=>{
+    (async()=>{ /*[c4-5] un seul message : placeholder edite en place avec le resultat*/
+      const r0=await send('🔬 Sonde des endpoints Seedream (gratuit)…');const mid=r0&&r0.result&&r0.result.message_id;
       try{
-        await send('🔬 Sonde des endpoints Seedream (gratuit)...');
         const list=await nlMod().probeEndpoints();
-        await send('<b>Endpoints Higgsfield :</b>\n'+list.join('\n')+'\n\n✅ = existe (je branche le meilleur), ❌ = n\'existe pas');
-      }catch(e){await send('Erreur sonde : '+e.message);}
+        const out='🔬 <b>Endpoints Higgsfield</b>\n'+list.join('\n')+'\n\n✅ = existe (je branche le meilleur) · ❌ = n\'existe pas';
+        if(!(mid&&await tgEditText(mid,out)))await send(out);
+      }catch(e){if(!(mid&&await tgEditText(mid,'❌ Erreur sonde : '+e.message)))await send('❌ Erreur sonde : '+e.message);}
     })();
     return;
   }
@@ -2613,7 +2615,7 @@ async function handle(upd){
   }
   if(txt==='/looks'){galMid=null;gal.idx=0;gal.page=0;galFrom='card';await showGallery();return;}
   if(txt==='/ideas'){
-    await send('⏳ Generating ideas...');
+    const r0=await send('⏳ Recherche d\'idées…');const mid=r0&&r0.result&&r0.result.message_id; /*[c4-5] 1 seul message edite en place*/
     try{
       const Anthropic=require('@anthropic-ai/sdk');
       const ant=new Anthropic({apiKey:process.env.ANTHROPIC_API_KEY});
@@ -2623,8 +2625,9 @@ async function handle(upd){
         model:'claude-sonnet-4-6',max_tokens:400,
         messages:[{role:'user',content:'TikTok relationship coach for women 20-40. Already covered: '+used+'. Give 7 NEW viral topic ideas. Short, punchy, numbered list only.'}]
       });
-      await send('💡 <b>Ideas:</b>\n\n'+r.content[0].text);
-    }catch(e){await send('Error: '+e.message);}return;
+      const out='💡 <b>Idées :</b>\n\n'+r.content[0].text;
+      if(!(mid&&await tgEditText(mid,out)))await send(out);
+    }catch(e){const m='⚠️ '+apiNice(e);if(!(mid&&await tgEditText(mid,m)))await send(m);}return;
   }
   if(txt.startsWith('/mark ')){
     const parts=txt.split(' ');
