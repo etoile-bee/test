@@ -1012,7 +1012,7 @@ const HELP_TXT='🎬 <b>Commandes</b>\n\n/studio — les 3 blocs (photo · vidé
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
-function gwReset(){genJob=null;cockpitReset();/* nouveau wizard : nouveau cockpit, aucun script obsolète */ gw={look:genState.look||null,styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
+function gwReset(){genJob=null;cockpitReset();/* nouveau wizard : nouveau cockpit, aucun script obsolète */ /*[BUG-3] « Nouvelle vidéo » part de la PHOTO DE TRAVAIL COURANTE (look choisi/avatar) si dispo, sinon le dernier état*/ gw={look:(workingSource&&fs.existsSync(workingSource))?workingSource:(genState.look||null),styleName:genState.styleName||null,subjectMode:genState.subjectMode||'auto',topicCat:genState.topicCat||null,topic:null,duration:genState.duration||'23s',mid:null};}
 function gwLook(){return (gw.look&&fs.existsSync(gw.look))?gw.look:null;}
 // Fil d'Ariane du parcours (étape active en gras) — affiché sur chaque écran
 function journey(active){
@@ -2294,7 +2294,7 @@ async function handle(upd){
       return;
     }
     if(d==='NL_AVATAR'){ /*[pose] définir CETTE pose comme avatar*/
-      try{const dest=nlSave(newlook.idx);setAvatar(dest);gw.look=dest;await nlMedia(nlLocal(newlook.idx),'✅ <b>AVATAR</b> · pose '+(newlook.idx+1)+' définie comme avatar',nlResultRows(),true);}catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
+      try{const dest=nlSave(newlook.idx);setAvatar(dest);setWorkPhoto(dest);gw.look=dest;genState.look=dest;saveState(); /*[BUG-3] avatar = photo de travail -> « Nouvelle vidéo » repart de CETTE image*/ await nlMedia(nlLocal(newlook.idx),'✅ <b>AVATAR</b> · pose '+(newlook.idx+1)+' — « Nouvelle vidéo » partira de cette photo',nlResultRows(),true);}catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
       return;
     }
     if(d==='NL_EDIT'){ /*[pose] ouvrir l'éditeur sur CETTE pose*/
@@ -2351,7 +2351,7 @@ async function handle(upd){
       if(!newlook.urls.length){await nlText('⚠️ Génère et valide des images d\'abord.',nlResultRows());return;}
       try{
         const dest=nlSave(newlook.idx);
-        setAvatar(dest);
+        setAvatar(dest);setWorkPhoto(dest);gw.look=dest;genState.look=dest;saveState(); /*[BUG-3] « Nouvelle vidéo » repart de cette image*/
         await nlMedia(nlLocal(newlook.idx),'🎬 <b>AVATAR APPLIQUÉ</b> · lance la vidéo',[[{text:'▶️ Ouvrir le menu vidéo',callback_data:'NEW_GO'}],[{text:'◀️ Retour aux résultats',callback_data:'NL_BACKRES'}]]);
       }catch(e){await nlText('❌ '+escH(e.message),nlResultRows());}
       return;
