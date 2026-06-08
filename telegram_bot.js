@@ -2343,17 +2343,23 @@ async function handle(upd){
     if(d.startsWith('NL_SET_ENV_')){newlook.env=d.replace('NL_SET_ENV_','');nlConfig();return;}
     if(d.startsWith('NL_SET_MODE_')){newlook.mode=d.replace('NL_SET_MODE_','');nlConfig();return;}
     if(d.startsWith('NL_CNT_')){newlook.count=Math.max(1,Math.min(6,+d.slice(7)||1));nlConfig();return;} /*[C] nombre de photos (éco)*/
-    if(d==='NL_GO'){ /*step RECAP : on sait QUOI et COMBIEN avant de payer*/
+    if(d==='NL_GO'){ /*[apercu-gratuit] APERÇU INDICATIF gratuit : visuel + récap QUOI/COMBIEN. AUCUNE dépense avant 💲 Générer (NL_GO2).*/
       const lb2=nlMod().readLookbook();
       const ops=(lb2.pricing&&lb2.pricing.ops)||{};
       const epc=(lb2.pricing&&lb2.pricing.eur_per_credit)||0.058;
       const N=newlook.mode==='eco'?(newlook.count||1):1; /*[C] éco : N images séparées*/
       const crUnit=ops[newlook.mode];const cr=crUnit?+(crUnit*N).toFixed(2):null;
-      const prix=cr?('≈'+(cr*epc).toFixed(2).replace('.',',')+' € ('+String(cr).replace('.',',')+' cr)'):'prix à calibrer';
-      const nimg=newlook.mode==='hd'?'4 images':newlook.mode==='planche'?'1 planche (plusieurs poses)':(N+' image'+(N>1?'s 9:16 séparées':' 9:16'));
-      await nlText('🧾 <b>RÉCAP</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+newlook.mode+' · '+nimg+' · '+prix,[
-        [{text:'→ ✅ GÉNÉRER MAINTENANT',callback_data:'NL_GO2'}],
-        [{text:'◀️ Précédent',callback_data:'NL_CONFIG'}]
+      const prix=cr?(String(cr).replace('.',',')+' cr ≈ '+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer';
+      const nimg=newlook.mode==='hd'?'4 images HD':newlook.mode==='planche'?'1 planche (plusieurs poses)':(N+' image'+(N>1?'s 9:16 séparées':' 9:16'));
+      const cap='🆓 <b>APERÇU INDICATIF</b> — le rendu final sera généré\n'
+        +'👗 Tenue · '+escH(newlook.catLabel)+'\n'
+        +'🌆 Décor · '+escH(newlook.envLabel)+'\n'
+        +'🎛 Format · '+newlook.mode+' · '+nimg+'\n'
+        +'💲 Coût · '+prix+'\n'
+        +'<i>aucune dépense tant que « 💲 Générer » n\'est pas pressé · image = référence Imany</i>';
+      await nlMedia(nlCover(),cap,[
+        [{text:'💲 Générer (payant)',callback_data:'NL_GO2'}],
+        [{text:'✏️ Modifier',callback_data:'NL_CONFIG'},{text:'⛔ Stop',callback_data:'NL_CANCEL'}]
       ]);
       return;
     }
