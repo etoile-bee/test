@@ -175,20 +175,29 @@ function nlMod(){ /*hot-reload : newlook.js recharge a chaque appel*/
   return require('./newlook.js');
 }
 let _nlCover=null;
+function nlRefFile(){ /*[p2] BLINDAGE : priorite imany_reference.* (imany/ ou parent), le plus recent ; sinon photo la plus recente*/
+  const P=require('path');const roots=[P.join(getLooksDir(),'references','imany'),P.join(getLooksDir(),'references')];
+  const cands=[];
+  for(const r of roots){try{for(const x of fs.readdirSync(r)){if(/\.(jpg|jpeg|png|webp)$/i.test(x)){const fp=P.join(r,x);let m=0;try{m=fs.statSync(fp).mtimeMs;}catch(e){}cands.push({fp,x,m});}}}catch(e){}}
+  if(!cands.length)return null;
+  const named=cands.filter(c=>/imany_reference/i.test(c.x)).sort((a,b)=>b.m-a.m);
+  return (named[0]||cands.sort((a,b)=>b.m-a.m)[0]).fp;
+}
 function nlCover(){ /*image d'accueil du panneau = la reference imany*/
   if(_nlCover&&fs.existsSync(_nlCover))return _nlCover;
   try{
-    const dir=require('path').join(getLooksDir(),'references','imany');
-    const f=fs.readdirSync(dir).filter(x=>/\.(jpg|jpeg|png|webp)$/i.test(x))[0];
-    const out='/tmp/nlcover.jpg';
-    require('child_process').execSync('sips -Z 900 -s format jpeg "'+require('path').join(dir,f)+'" --out "'+out+'" 2>/dev/null || ffmpeg -y -i "'+require('path').join(dir,f)+'" -vf scale=900:-2 -q:v 3 "'+out+'" 2>/dev/null');
-    if(fs.existsSync(out)&&fs.statSync(out).size>3000){_nlCover=out;return out;}
+    const pick=nlRefFile();
+    if(pick){
+      const out='/tmp/nlcover.jpg';
+      require('child_process').execSync('sips -Z 900 -s format jpeg "'+pick+'" --out "'+out+'" 2>/dev/null || ffmpeg -y -i "'+pick+'" -vf scale=900:-2 -q:v 3 "'+out+'" 2>/dev/null');
+      if(fs.existsSync(out)&&fs.statSync(out).size>3000){_nlCover=out;return out;}
+    }
   }catch(e){}
-  /*blindage : JAMAIS sans image — couverture neutre generee localement (le panneau doit toujours etre un message-photo)*/
+  /*blindage : JAMAIS sans image — fond neutre (NON cache -> reessaie au prochain appel si la vraie photo revient)*/
   try{
     const out='/tmp/nlcover_default.jpg';
     if(!fs.existsSync(out))require('child_process').execSync('ffmpeg -y -f lavfi -i color=c=0x1c1c28:s=720x900:d=0.1 -frames:v 1 "'+out+'" 2>/dev/null');
-    if(fs.existsSync(out)&&fs.statSync(out).size>500){_nlCover=out;return out;}
+    if(fs.existsSync(out)&&fs.statSync(out).size>500)return out;
   }catch(e){}
   return null;
 }

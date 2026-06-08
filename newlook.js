@@ -15,6 +15,14 @@ function refsDir(){ /*newlook v4 : priorite au dossier references/imany (LA refe
   try{if(fs.readdirSync(im).some(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)))return im;}catch(e){}
   return path.join(looksDir(),'references');
 }
+function pickRefFile(){ /*[p2] BLINDAGE : priorite ABSOLUE a un fichier nomme imany_reference.* (dans imany/ ou parent), le PLUS RECENT ; sinon la photo la plus recente*/
+  const roots=[path.join(looksDir(),'references','imany'),path.join(looksDir(),'references')];
+  const cands=[];
+  for(const r of roots){try{for(const x of fs.readdirSync(r)){if(/\.(jpg|jpeg|png|webp)$/i.test(x)){const fp=path.join(r,x);let m=0;try{m=fs.statSync(fp).mtimeMs;}catch(e){}cands.push({fp,x,m});}}}catch(e){}}
+  if(!cands.length)return null;
+  const named=cands.filter(c=>/imany_reference/i.test(c.x)).sort((a,b)=>b.m-a.m);
+  return (named[0]||cands.sort((a,b)=>b.m-a.m)[0]).fp;
+}
 
 function getClient(){
   const {HiggsfieldClient}=require('@higgsfield/client');
@@ -96,9 +104,10 @@ function buildPrompt(lb,opts){
 let _refUrl=null;
 async function getRefUrl(client,log){
   if(_refUrl)return _refUrl;
-  const dir=refsDir();
-  const f=fs.readdirSync(dir).filter(x=>/\.(jpg|jpeg|png|webp)$/i.test(x))[0];
-  if(!f)throw new Error('aucune photo dans looks/references/imany/');
+  const refAbs=pickRefFile(); /*[p2] priorite imany_reference.* trie par date*/
+  if(!refAbs)throw new Error('aucune photo dans looks/references/ (ni imany/)');
+  const dir=path.dirname(refAbs);const f=path.basename(refAbs);
+  log('reference : '+f);
   const tmp='/tmp/sdref_'+Date.now()+'.jpg';
   try{require('child_process').execSync('sips -Z 1536 -s format jpeg "'+path.join(dir,f)+'" --out "'+tmp+'" 2>/dev/null || ffmpeg -y -i "'+path.join(dir,f)+'" -vf scale=1536:-2 -q:v 2 "'+tmp+'" 2>/dev/null');}catch(e){}
   const buf=fs.readFileSync(fs.existsSync(tmp)?tmp:path.join(dir,f));
