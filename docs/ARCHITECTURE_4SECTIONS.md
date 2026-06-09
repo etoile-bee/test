@@ -61,6 +61,8 @@
 | Prêt à poster / à retravailler | `showReady` | E57 |
 | Réouvrir / rééditer / relancer un projet | _(à créer)_ | E54/E93 |
 
+**Brouillons / travaux en cours (E110)** — pas de 5ᵉ section : RÉCENTS = **2 vues d'un même magasin de projets** : « ✅ Terminés » + « 📝 Brouillons / En cours » (état `brouillon→validé→archivé`). Brouillon : reprendre · renommer · archiver · supprimer. **`/menu` non destructif** : auto-save du travail en cours comme brouillon (snapshot look/image/script/réglages/persona) → reprise ici, zéro contexte perdu. _Constat actuel : `/menu` (`routeBlock('home')`→`cardMenu`, telegram_bot.js:1073) ne détruit rien en RAM, mais `NEW_GO`→`gwReset`:1050 et `NL_NEW` réinitialisent, et `/restart` perd l'état → l'auto-save brouillon est requis._ Propriétaire unique = RÉCENTS (E105).
+
 ---
 
 ## ❌ À SUPPRIMER / FUSIONNER (doublons, écrans morts, menus inutiles)
