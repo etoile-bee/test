@@ -915,7 +915,7 @@ function draftsDir(){const d=path.join(DRAFTS_DIR,_persona());try{fs.mkdirSync(d
 function draftPath(id){return path.join(draftsDir(),id+'.json');}
 function listDrafts(){try{return fs.readdirSync(draftsDir()).filter(f=>/\.json$/.test(f)).map(f=>{try{return JSON.parse(fs.readFileSync(path.join(draftsDir(),f),'utf8'));}catch(e){return null;}}).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0));}catch(e){return[];}}
 function workInProgress(){try{ if(wizardActive)return true; if(newlook&&newlook.urls&&newlook.urls.length)return true; if(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)return true; return false; }catch(e){return false;}}
-function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} const _projStep=(typeof proj!=='undefined'&&proj)?proj.step:null; return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':(_projStep||((newlook.urls&&newlook.urls.length)?'image':'look')),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},proj:((typeof proj!=='undefined'&&proj)?{name:proj.name||null,look:Object.assign({},proj.look),image:{urls:(proj.image.urls||[]).slice(),idx:proj.image.idx||0,validated:proj.image.validated},prompt:(proj.prompt?{text:proj.prompt.text,name:proj.prompt.name}:undefined)}:undefined),name:((typeof proj!=='undefined'&&proj&&proj.name)||undefined),script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};} /*[L0-2a/ter] slices proj (look/image/prompt/name) persistés = source de vérité*/
+function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} const _projStep=(typeof proj!=='undefined'&&proj)?proj.step:null; return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':(_projStep||((newlook.urls&&newlook.urls.length)?'image':'look')),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},proj:((typeof proj!=='undefined'&&proj)?{name:proj.name||null,look:Object.assign({},proj.look),image:{urls:(proj.image.urls||[]).slice(),idx:proj.image.idx||0,validated:proj.image.validated},prompt:(proj.prompt?{text:proj.prompt.text,name:proj.prompt.name}:undefined),video:(proj.video?{source:proj.video.source,media:proj.video.media,duration:proj.video.duration,script:{text:(proj.video.script||{}).text||'',name:(proj.video.script||{}).name||'—'},montage:{touched:!!(proj.video.montage&&proj.video.montage.touched)},legende:Object.assign({},proj.video.legende),step:proj.video.step}:undefined)}:undefined),name:((typeof proj!=='undefined'&&proj&&proj.name)||undefined),script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};} /*[L0-2a/ter,L0-2b] slices proj (look/image/prompt/video/name) persistés = source de vérité*/
 function autosaveDraft(){try{ if(!workInProgress())return null; if(!genState.activeDraftId)genState.activeDraftId='draft_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); const id=genState.activeDraftId; fs.writeFileSync(draftPath(id),JSON.stringify(captureDraft(id),null,2)); saveState(); return id; }catch(e){return null;}}
 function clearActiveDraft(){try{ const id=genState.activeDraftId; wizardActive=false; try{proj=null;}catch(e){} if(id){try{fs.unlinkSync(draftPath(id));}catch(e){} genState.activeDraftId=null; saveState();} }catch(e){}} /*[L0-2a] le projet actif est aussi vidé*/
 async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draftId, pas de doublon — E113)
@@ -930,9 +930,9 @@ async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draf
   }catch(e){}
   saveState();
   newlook.mediaId=null; wsOpen=false; // le workspace repart dans un bloc frais
-  if(d.step==='video'){ if(newlook.urls.length){await nlShowResult();}else{await nlConfig();} return; } // vidéo : flux legacy (L0-2b à venir)
-  // [L0-2a-ter] PHOTO : rouvre le WORKSPACE média à la bonne étape (projet récupérable, pas de bloc legacy)
   try{ projToNewlook(); }catch(e){}
+  // [L0-2b] reprise dans le WORKSPACE à la bonne étape (projet récupérable, pas de bloc legacy)
+  if(proj&&proj.step==='video'){ const vstep=(proj.video&&proj.video.step)||'source'; const mod={source:'video.source',script:'video.script',montage:'video.montage',legende:'video.legende',export:'video.export'}[vstep]||'video.source'; await routeBlock(mod,'inplace'); return; }
   await routeBlock((proj&&proj.step==='image')?'photo.image':'photo.look','inplace');
 }
 function pushLastLook(p){if(!p)return;genState.lastLooks=[p,...(genState.lastLooks||[]).filter(x=>x!==p)].slice(0,3);}
@@ -1134,10 +1134,13 @@ function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showM
 let wsOpen=false; // un workspace média (newlook.mediaId) est ouvert
 let refGalIdx=0;  // pointeur galerie pour le choix de référence/look
 let spRenameSlug=null; // slug du prompt en cours de renommage (Studio)
-const MEDIA_MODULES={'photo.look':1,'photo.lookgal':1,'photo.image':1,'photo.ref':1,'photo.refgal':1,'photo.prompt':1,'photo.promptlib':1}; // modules rendus en bloc MÉDIA (workspace)
+let editReturn=null;   // [L0-2b] si l'éditeur avancé est entré depuis le workspace : module workspace où revenir (bloc unique)
+const MEDIA_MODULES={'photo.look':1,'photo.lookgal':1,'photo.image':1,'photo.ref':1,'photo.refgal':1,'photo.prompt':1,'photo.promptlib':1,
+  'video.source':1,'video.srcgal':1,'video.script':1,'video.scriptlib':1,'video.montage':1,'video.legende':1,'video.export':1}; // modules rendus en bloc MÉDIA (workspace PHOTO+VIDÉO)
 async function uiShowMedia(file,caption,rows,raw){ const _was=newlook.mediaId; wsOpen=true; await nlMedia(file,caption,rows,raw); try{jlog('🖼 ws '+(_was?'edit':'create')+' mid='+(newlook.mediaId||'?'));}catch(e){} return newlook.mediaId; } // edite/cree le bloc média unique (anti-doublon ① + stalefix via nlMedia)
 async function routeBlock(id,mode){
   try{autosaveDraft();}catch(e){}
+  editReturn=null; // toute navigation router = on n'est plus dans l'éditeur avancé
   if(wsOpen&&!MEDIA_MODULES[id]){ try{await delMsg(newlook.mediaId);}catch(e){} try{sigDrop(newlook.mediaId);}catch(e){} try{jlog('🖼 ws close mid='+(newlook.mediaId||'?'));}catch(e){} newlook.mediaId=null; wsOpen=false; } // on QUITTE le workspace -> fermeture propre (zéro empilement)
   return uiRouter.route(id,uiCtx(id),mode||'inplace'); // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
 }
@@ -1156,7 +1159,8 @@ function projDefaults(){
   return { draftId:genState.activeDraftId||null, persona:_persona(), step:'look', name:null,
     look:{ source:null, file:null, category:cat, env:env, mode:newlook.mode||'eco', count:newlook.count||1, extra:newlook.extra||null },
     image:{ urls:[], idx:0, validated:null, confirming:false },
-    prompt:{ text:defaultPromptText(), name:'défaut' } };
+    prompt:{ text:defaultPromptText(), name:'défaut' },
+    video:{ source:null, media:null, duration:'23s', script:{ text:'', name:'—' }, montage:{ touched:false }, legende:{ courte:'', longue:'', tags:'' }, step:'source', confirming:false } };
 }
 function projFromDraft(d){
   const p=projDefaults();
@@ -1166,9 +1170,11 @@ function projFromDraft(d){
     if(d.proj&&d.proj.image)Object.assign(p.image,d.proj.image);
     else { p.image.urls=(d.images||[]).slice(); p.image.idx=d.idx||0; }
     if(d.proj&&d.proj.prompt&&d.proj.prompt.text)p.prompt=Object.assign({},p.prompt,d.proj.prompt);
+    if(d.proj&&d.proj.video){ p.video=Object.assign(p.video,d.proj.video); if(p.video.script&&typeof p.video.script==='object'){} else p.video.script={text:'',name:'—'}; p.video.confirming=false; }
     if(d.proj&&d.proj.name)p.name=d.proj.name;
     p.image.confirming=false; // jamais reprendre en état « confirmation »
-    if(p.image.urls.length)p.step='image';
+    if(p.video&&(p.video.step&&p.video.step!=='source'))p.step='video';
+    else if(p.image.urls.length)p.step='image';
   } }catch(e){}
   return p;
 }
@@ -1252,6 +1258,7 @@ function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image 
     if(has>1)rows.push([{text:'‹',cb:'PL_PREV'},{text:(p.image.idx+1)+'/'+has,cb:'PL_NOOP'},{text:'›',cb:'PL_NEXT'}]);
     rows.push([{text:(p.image.validated===p.image.idx?'✅ Validée':'✅ Valider cette image'),cb:'PL_PICK'}]);
     rows.push([{text:'🎨 Éditer',cb:'PL_EDIT'},{text:'🔁 Régénérer 💲',cb:'PL_GEN'}]);
+    rows.push([{text:'🎬 Faire une vidéo',go:'video.source'}]); // [L0-2b] enchaînement naturel IMAGE → VIDÉO
   }
   return {image:img,raw:!!has,caption:cap,rows};
 }
@@ -1338,6 +1345,134 @@ function studioPromptsView(){
 uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', title:'📝 Prompts', owner:'STUDIO',
   help:'Bibliothèque de prompts personnalisés : renommer (✏️), supprimer (🗑), réutiliser. On en crée un depuis le workflow Photo (✍️ Prompt › 💾 Enregistrer).',
   render:()=>studioPromptsView() };
+
+// ═════════════════════════════════════════════════════════════════════════════
+// [L0-2b] WORKFLOW VIDÉO migré dans le WORKSPACE MÉDIA (même contrat bloc unique).
+// PHOTO → Look/Image → VIDÉO(source) → Script → Montage → Légende → Export. Adossé au draft/proj (E114/E115).
+// Strangler-fig : la génération réelle (script Anthropic, lipsync Kling) est BRANCHÉE derrière confirmation (non lancée en test).
+// ═════════════════════════════════════════════════════════════════════════════
+function videoMedia(p){ // média actif pour la vidéo : explicite, sinon image validée, sinon look, sinon réf
+  try{ if(p.video.media&&fs.existsSync(p.video.media))return p.video.media; }catch(e){}
+  try{ if(p.image&&p.image.urls.length){ const i=(p.image.validated!=null?p.image.validated:p.image.idx); const u=p.image.urls[i]; if(u){ const lf=nlLocal(i); if(lf&&fs.existsSync(lf))return lf; if(String(u).startsWith('/')&&fs.existsSync(u))return u; } } }catch(e){}
+  const lf=lookFile(p); if(lf)return lf;
+  try{ return refThumb(); }catch(e){} return null;
+}
+function videoMediaLabel(p){ const m=videoMedia(p); return m?path.basename(m):'—'; }
+// En-tête de contexte VIDÉO (point 3) : 📁 Projet · 🖼 Média actif · 🎯 Réf · ✍️ Script · 📝 Brouillon · étape.
+function wsHeaderV(p,stepLabel){
+  let src=null;try{src=nlRefFile();}catch(e){}
+  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
+    +'🖼 Média : '+escH(videoMediaLabel(p))+'\n'
+    +'🎯 Réf : '+escH(src?path.basename(src):'—')+'\n'
+    +'✍️ Script : '+escH((p.video.script&&p.video.script.name)||'—')+'\n'
+    +'📝 Brouillon : '+escH(draftTag())+'\n──────────\n';
+}
+function videoCost(p){ try{ const c=estimateCost((p.video&&p.video.duration)||'23s'); return c; }catch(e){ return {parts:1,total:0,cr:null}; } }
+// Bibliothèque de SCRIPTS : scripts/<persona>/*.json (même mécanique que les prompts)
+function scriptsDir(){ const d=path.join(BASE,'scripts_lib',_persona()); try{fs.mkdirSync(d,{recursive:true});}catch(e){} return d; }
+function listScriptLib(){ try{ return fs.readdirSync(scriptsDir()).filter(f=>/\.json$/.test(f)).map(f=>{ try{ const o=JSON.parse(fs.readFileSync(path.join(scriptsDir(),f),'utf8')); return {slug:f.replace(/\.json$/,''),name:o.name||f.replace(/\.json$/,''),text:o.text||'',ts:o.ts||0}; }catch(e){ return null; } }).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0)); }catch(e){ return []; } }
+function getScriptLib(slug){ try{ const o=JSON.parse(fs.readFileSync(path.join(scriptsDir(),slug+'.json'),'utf8')); return {slug:slug,name:o.name||slug,text:o.text||''}; }catch(e){ return null; } }
+function saveScriptLib(name,text){ const slug=promptSlug(name); try{ fs.writeFileSync(path.join(scriptsDir(),slug+'.json'),JSON.stringify({name:name,text:text,ts:Date.now()},null,2)); }catch(e){} return slug; }
+
+function videoSourceView(){ // POINT D'ENTRÉE VIDÉO — 5 sources ; sait d'où vient le média actif
+  wizardActive=true; const p=ensureProj(); p.step='video'; p.video.step='source';
+  if(!genState.activeDraftId){try{autosaveDraft();p.draftId=genState.activeDraftId;}catch(e){}} // 📁 projet stable dès l'entrée VIDÉO
+  const m=videoMedia(p); const lab={projlook:'look du projet',gallook:'look galerie',newlook:'nouveau look',genimage:'image générée',upload:'image uploadée'}[p.video.source]||'(auto : image/look actif)';
+  const cap=wsHeaderV(p,'VIDÉO · Source')
+    +'🎬 <b>D\'où part la vidéo ?</b>\nSource : <b>'+escH(lab)+'</b>\n'
+    +(m?'Média actif détecté — ➡ Suivant pour le script.':'Choisis une source (aucun média actif).');
+  const rows=[
+    [{text:(p.video.source==='projlook'?'✅ ':'')+'👗 Look du projet',cb:'VS_PROJLOOK'},{text:(p.video.source==='genimage'?'✅ ':'')+'🖼 Image générée',cb:'VS_GENIMAGE'}],
+    [{text:'🖼 Look galerie',go:'video.srcgal'},{text:(p.video.source==='newlook'?'✅ ':'')+'✨ Nouveau look',cb:'VS_NEWLOOK'}],
+    [{text:'📤 Uploader une image',cb:'VS_UPLOAD'}],
+  ];
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+function videoSrcGalView(){ // source = look existant de la galerie (média, en place)
+  const p=ensureProj(); const list=looksList();
+  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeaderV(p,'VIDÉO · Galerie')+'🖼 <b>Galerie vide</b>.',rows:[]};
+  if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
+  const f=path.join(getLooksDir(),list[refGalIdx]);
+  const cap=wsHeaderV(p,'VIDÉO · Galerie')+'🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ utilise ce look.';
+  const rows=[[{text:'‹',cb:'VS_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'VS_GNEXT'}],[{text:'✅ Utiliser ce look',cb:'VS_GSET'}]];
+  return {image:f,raw:false,caption:cap,rows};
+}
+function videoScriptView(){ // SCRIPT : visible, éditable, sauvegardable (slice + biblio)
+  const p=ensureProj(); p.step='video'; p.video.step='script'; const m=videoMedia(p); const txt=(p.video.script&&p.video.script.text)||'';
+  const editing=(state==='ws_vscript_edit_wait'); const naming=(state==='ws_vscript_save_wait');
+  const preview=txt.length>320?(txt.slice(0,320)+'…'):txt;
+  const cap=wsHeaderV(p,'SCRIPT')
+    +'✍️ <b>Script vidéo</b> : '+escH((p.video.script&&p.video.script.name)||'—')+'\n'
+    +(editing?'⏳ <b>Envoie le texte du script…</b>':(naming?'⏳ <b>Envoie le nom à donner…</b>':'<code>'+escH(preview||'(vide — écris-le, charge-en un, ou 🤖 génère)')+'</code>'));
+  const rows=[
+    [{text:'✍️ Éditer',cb:'VP_EDIT'},{text:'🤖 Générer 💲',cb:'VP_GEN'}],
+    [{text:'📚 Charger',go:'video.scriptlib'},{text:'💾 Enregistrer',cb:'VP_SAVE'}],
+  ];
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+function videoScriptLibView(){
+  const p=ensureProj(); const m=videoMedia(p); const list=listScriptLib();
+  let cap=wsHeaderV(p,'SCRIPT · Bibliothèque')+'📚 <b>Mes scripts</b> ('+list.length+')\n';
+  const rows=[];
+  if(!list.length)cap+='\n(aucun script enregistré — 💾 enregistre le script courant)';
+  else list.slice(0,8).forEach(x=>{ cap+='\n• '+escH(x.name); rows.push([{text:'📝 '+x.name,cb:'VP_USE_'+x.slug}]); });
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+function videoMontageView(){ // MONTAGE : résumé + bridge éditeur avancé (sous-titres/zoom/musique)
+  const p=ensureProj(); p.step='video'; p.video.step='montage'; const m=videoMedia(p); let s={};try{s=readSubs();}catch(e){}
+  const cap=wsHeaderV(p,'MONTAGE')
+    +'🎬 <b>Montage</b>\n'
+    +'💬 Sous-titres : '+(s.subs?('ON · '+escH(s.font||'')+' '+(s.size||'')+'px'):'OFF')+'\n'
+    +'🎨 Réglages image/zoom/musique : éditeur avancé.\n'
+    +(p.video.montage&&p.video.montage.touched?'✏️ Montage personnalisé.':'Réglages par défaut — ➡ Suivant ou 🎨 Éditer.');
+  const rows=[[{text:'🎨 Éditer (avancé)',cb:'VM_EDIT'}]];
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+function videoLegendeView(){ // LÉGENDE : éditable (slice)
+  const p=ensureProj(); p.step='video'; p.video.step='legende'; const m=videoMedia(p); const l=p.video.legende||{};
+  const editing=(state==='ws_vleg_edit_wait');
+  const cap=wsHeaderV(p,'LÉGENDE')
+    +'🏷 <b>Légende</b>\n'
+    +(editing?'⏳ <b>Envoie le texte de la légende…</b>':('Courte : <i>'+escH(l.courte||'—')+'</i>\nTags : <i>'+escH(l.tags||'—')+'</i>\n\nÉdite la légende, ou ➡ Suivant vers l\'export.'));
+  const rows=[[{text:'✍️ Éditer la légende',cb:'VL_EDIT'}]];
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+function videoExportView(){ // EXPORT : récap coût + confirmation OBLIGATOIRE (génération hors test)
+  const p=ensureProj(); p.step='video'; p.video.step='export'; const m=videoMedia(p); const c=videoCost(p);
+  const prix=(c.cr?(c.cr+' cr Higgsfield + voix ≈ '):'~')+(c.total?c.total.toFixed(2):'?')+COST.CURRENCY+(c.parts>1?(' · '+c.parts+' parties'):'');
+  let cap=wsHeaderV(p,'EXPORT')
+    +'🚀 <b>Export / Génération vidéo</b>\n'
+    +'🧾 Coût estimé : <b>💰 '+prix+'</b> · ⏳ '+prodTimeLabel()+'\n';
+  const rows=[];
+  if(p.video.confirming){
+    cap+='\n⚠️ <b>Confirmer la génération vidéo</b> — action <b>payante</b>.\nMédia : '+escH(videoMediaLabel(p))+' · Script : '+escH((p.video.script&&p.video.script.name)||'—');
+    rows.push([{text:'✅ Confirmer 💲',cb:'VX_GO'},{text:'◀️ Annuler',cb:'VX_NO'}]);
+  } else {
+    cap+='\nVérifie média + script, puis 💲 pour générer (confirmation requise — rien sans ton accord).';
+    rows.push([{text:'💲 Générer la vidéo',cb:'VX_GEN'}]);
+  }
+  return {image:m||refThumb(),raw:false,caption:cap,rows};
+}
+// Enregistrement des modules VIDÉO (workspace média)
+uiRouter.REGISTRY['video.source']={ id:'video.source', parent:'photo.image', title:'🎬 VIDÉO · Source', owner:'VIDÉO', next:'video.script',
+  gate:()=>{ try{ return !!videoMedia(ensureProj()); }catch(e){ return false; } },
+  help:'Point d\'entrée vidéo : choisis la source du média (look du projet, look galerie, nouveau look, image générée, image uploadée). Le média actif est affiché. ➡ Suivant mène au script.',
+  render:()=>videoSourceView() };
+uiRouter.REGISTRY['video.srcgal']={ id:'video.srcgal', parent:'video.source', title:'🖼 Galerie → Vidéo', owner:'VIDÉO', render:()=>videoSrcGalView() };
+uiRouter.REGISTRY['video.script']={ id:'video.script', parent:'video.source', title:'✍️ Script', owner:'VIDÉO', next:'video.montage',
+  gate:()=>{ try{ return !!((ensureProj().video.script||{}).text||'').trim(); }catch(e){ return false; } },
+  help:'Script de la vidéo : visible, éditable (✍️), générable (🤖, payant — confirmation), sauvegardable (💾) et rechargeable (📚). ➡ Suivant mène au montage.',
+  render:()=>videoScriptView() };
+uiRouter.REGISTRY['video.scriptlib']={ id:'video.scriptlib', parent:'video.script', title:'📚 Bibliothèque scripts', owner:'VIDÉO', render:()=>videoScriptLibView() };
+uiRouter.REGISTRY['video.montage']={ id:'video.montage', parent:'video.script', title:'🎬 Montage', owner:'VIDÉO', next:'video.legende',
+  help:'Montage : sous-titres / image / zoom / musique. 🎨 Éditer ouvre l\'éditeur avancé dans le même bloc. ➡ Suivant mène à la légende.',
+  render:()=>videoMontageView() };
+uiRouter.REGISTRY['video.legende']={ id:'video.legende', parent:'video.montage', title:'🏷 Légende', owner:'VIDÉO', next:'video.export',
+  help:'Légende de publication : courte, longue, tags. Éditable. ➡ Suivant mène à l\'export.',
+  render:()=>videoLegendeView() };
+uiRouter.REGISTRY['video.export']={ id:'video.export', parent:'video.legende', title:'🚀 Export', owner:'VIDÉO',
+  help:'Export final : récap coût + confirmation OBLIGATOIRE avant toute dépense. Rien n\'est généré sans ton accord explicite.',
+  render:()=>videoExportView() };
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2239,7 +2374,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2300,7 +2435,42 @@ async function handle(upd){
       if(d&&d.indexOf('SP_DEL_')===0){ deletePromptLib(d.slice(7)); await toast('🗑 Supprimé'); await routeBlock('studio.prompts','inplace'); return; }
       return;
     }
+    // [L0-2b] VIDÉO · SOURCE (5 sources) — rendu EN PLACE dans le workspace média
+    if(d&&d.indexOf('VS_')===0){
+      const p=ensureProj();
+      const ask=()=>{ /*E115 : si un script aval existe, changer la source peut le rendre incompatible -> on prévient (pas d'effacement)*/ };
+      if(d==='VS_PROJLOOK'){ const f=lookFile(p); if(f){p.video.media=f;p.video.source='projlook';await toast('✅ Look du projet');}else{await toast('⚠️ Aucun look projet');} await routeBlock('video.source','inplace'); return; }
+      if(d==='VS_GENIMAGE'){ if(p.image.urls.length){const i=(p.image.validated!=null?p.image.validated:p.image.idx);const lf=nlLocal(i);p.video.media=lf||p.video.media;p.video.source='genimage';await toast('✅ Image générée');}else{await toast('⚠️ Aucune image générée');} await routeBlock('video.source','inplace'); return; }
+      if(d==='VS_NEWLOOK'){ p.video.source='newlook'; p.step='look'; await toast('✨ Génère le look d\'abord (étape Look)'); await routeBlock('photo.look','inplace'); return; } /*renvoie à l'étape Look pour générer*/
+      if(d==='VS_UPLOAD'){ state='ws_video_upload_wait'; await toast('📤 Envoie l\'image de la vidéo'); await routeBlock('video.source','inplace'); return; }
+      if(d==='VS_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('video.srcgal','inplace'); return; }
+      if(d==='VS_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('video.srcgal','inplace'); return; }
+      if(d==='VS_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){p.video.media=path.join(getLooksDir(),f);p.video.source='gallook';await toast('✅ Look galerie');} await routeBlock('video.source','inplace'); return; }
+      return;
+    }
+    // [L0-2b] VIDÉO · SCRIPT (slice + biblio + génération derrière confirmation)
+    if(d&&d.indexOf('VP_')===0){
+      const p=ensureProj();
+      if(d==='VP_EDIT'){ state='ws_vscript_edit_wait'; await toast('✍️ Envoie le script'); await routeBlock('video.script','inplace'); return; }
+      if(d==='VP_SAVE'){ state='ws_vscript_save_wait'; await toast('💾 Envoie le nom du script'); await routeBlock('video.script','inplace'); return; }
+      if(d&&d.indexOf('VP_USE_')===0){ const it=getScriptLib(d.slice(7)); if(it){p.video.script={text:it.text,name:it.name};await toast('✅ Script « '+it.name+' »');} await routeBlock('video.script','inplace'); return; }
+      if(d==='VP_GEN'){ await toast('🤖 Génération de script = payante (Anthropic). Édite-le à la main pour tester à sec, ou confirme à l\'export.'); await routeBlock('video.script','inplace'); return; } /*génération script = hors test (Anthropic épuisé)*/
+      return;
+    }
+    // [L0-2b] VIDÉO · MONTAGE (bridge éditeur avancé dans le bloc)
+    if(d==='VM_EDIT'){ const p=ensureProj(); try{ const m=videoMedia(p); if(m)setWorkPhoto(m); cockpit.mid=newlook.mediaId||cockpit.mid; p.video.montage.touched=true; }catch(e){} editReturn='video.montage'; await showEditHome(); return; } /*éditeur avancé DANS le bloc workspace ; Retour revient au montage (bloc unique)*/
+    // [L0-2b] VIDÉO · LÉGENDE (slice)
+    if(d==='VL_EDIT'){ state='ws_vleg_edit_wait'; await toast('✍️ Envoie la légende'); await routeBlock('video.legende','inplace'); return; }
+    // [L0-2b] VIDÉO · EXPORT (confirmation OBLIGATOIRE ; génération hors test)
+    if(d&&d.indexOf('VX_')===0){
+      const p=ensureProj();
+      if(d==='VX_GEN'){ p.video.confirming=true; await routeBlock('video.export','inplace'); return; }
+      if(d==='VX_NO'){ p.video.confirming=false; await routeBlock('video.export','inplace'); return; }
+      if(d==='VX_GO'){ p.video.confirming=false; await toast('⚠️ Génération vidéo (bridge) — non déclenchée en test'); await routeBlock('video.export','inplace'); return; } /*BRIDGE : branchera recapGo/genFinal sur un run payant validé (L0-2b+)*/
+      return;
+    }
     // Menu principal
+    if(d==='MAIN_MENU'&&editReturn){ const r=editReturn; editReturn=null; await routeBlock(r,'inplace'); return; } /*[L0-2b] sortie de l'éditeur ouvert depuis le workspace -> revient dans le bloc workspace (pas de nouveau bloc)*/
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
     if(d==='CREER_EXPRESS'){await showLookSource('express');return;} /*[flux-look] Express : ÉTAPE LOOK puis script éditable*/
@@ -2935,6 +3105,19 @@ async function handle(upd){
   }
   if(state==='sp_rename_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] STUDIO : renommer un prompt*/
     const nm=msg.text.trim().slice(0,40);if(spRenameSlug){renamePromptLib(spRenameSlug,nm);spRenameSlug=null;}state='idle';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('studio.prompts','inplace');return;
+  }
+  if(state==='ws_video_upload_wait'&&msg.photo){ /*[L0-2b] image source de la vidéo, uploadée DANS le workspace*/
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.video.media=fp;p.video.source='upload';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('video.source','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    return;
+  }
+  if(state==='ws_vscript_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2b] texte du script vidéo -> slice video.script*/
+    const p=ensureProj();p.video.script={text:msg.text.trim(),name:(p.video.script&&p.video.script.name&&p.video.script.name!=='—')?p.video.script.name:'perso'};state='idle';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('video.script','inplace');return;
+  }
+  if(state==='ws_vscript_save_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2b] nom -> enregistre le script dans la bibliothèque*/
+    const p=ensureProj();const nm=msg.text.trim().slice(0,40);saveScriptLib(nm,(p.video.script&&p.video.script.text)||'');p.video.script.name=nm;state='idle';try{await delMsg(msg.message_id);}catch(e){}await toast('💾 Script « '+nm+' » enregistré');await routeBlock('video.script','inplace');return;
+  }
+  if(state==='ws_vleg_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2b] légende -> slice video.legende*/
+    const p=ensureProj();const t=msg.text.trim();p.video.legende=Object.assign({},p.video.legende,{courte:t.slice(0,120),longue:t});state='idle';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('video.legende','inplace');return;
   }
   if(state==='create_look_upload_wait'&&msg.photo){ /*[flux-look] photo uploadée -> look de la vidéo (après aperçu + validation)*/
     try{

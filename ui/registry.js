@@ -35,11 +35,11 @@ const REGISTRY = {
   // ── 🎬 VIDÉO : création vidéo ──────────────────────────────────────────────
   video: {
     id: 'video', parent: 'home', title: '🎬 VIDÉO', owner: 'VIDÉO',
-    help: 'Crée une vidéo : 🎬 Nouvelle vidéo (script → maquette → génération), 🎨 Éditer / Montage (sous-titres, image, zoom, musique).',
+    help: 'Crée une vidéo : 🎬 Nouvelle vidéo ouvre le workspace (Source → Script → Montage → Légende → Export) à partir du média actif. 🎨 Éditer / Montage = éditeur avancé.',
     render: () => ({
-      caption: '🎬 <b>VIDÉO</b> — créer une vidéo (script · montage)',
+      caption: '🎬 <b>VIDÉO</b> — créer une vidéo (source · script · montage · export)',
       rows: [
-        [{ text: '🎬 Nouvelle vidéo', cb: 'NEW_GO' }],
+        [{ text: '🎬 Nouvelle vidéo', go: 'video.source' }], // [L0-2b] workspace média adossé au draft/proj
         [{ text: '🎨 Éditer / Montage', cb: 'EDIT_HOME' }],
       ],
     }),
