@@ -882,6 +882,7 @@ let RL=require('./render_local');
 // au démarrage. On purge le cache require et on recharge AVANT chaque rendu -> toujours le code à jour.
 function freshRL(){try{delete require.cache[require.resolve('./render_local')];}catch(e){}RL=require('./render_local');return RL;}
 const WF=require('./workflow.js'); // briques de génération (require.main!==module -> main() ne se lance pas)
+const uiRouter=require('./ui/router'); // [L0-1] routeur modulaire (strangler-fig : cohabite avec l'ancien dispatch)
 const {sanitizeTTS:_sanTTS}=require('./tts_sanitize'); // ceinture : nettoyage pause côté bot aussi
 // ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
 const STATE_PATH=path.join(BASE,'state.json');
@@ -1070,6 +1071,7 @@ function recapKb(){
 }
 // Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
 async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
+async function routeBlock(id){ return uiRouter.route(id,{show:(cap,rows)=>cardMenu(cap,rows)}); } // [L0-1] rendu EN PLACE d'un bloc du registre
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -1968,6 +1970,9 @@ async function handle(upd){
     /*fix toasts : on n'« avale » plus le tap d'office — les handlers ont 2.5s pour répondre par un toast, sinon accusé vide (sinon AUCUN toast ne s'affichait jamais : un tap = une seule réponse possible)*/
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
+    // [L0-1] ROUTEUR MODULAIRE (strangler-fig) : capte les navigations 'R_<bloc>' du registre ; le reste tombe sur l'ancien dispatch.
+    if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2));return;}
+    if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
@@ -2687,7 +2692,7 @@ async function handle(upd){
     ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
-  if(txt==='/start'||txt==='/menu'){await showHome();return;} /*[C1] menu unifié*/
+  if(txt==='/start'||txt==='/menu'){await routeBlock('home');return;} /*[L0-1] accueil = routeur modulaire (showHome reste en secours)*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
@@ -2697,7 +2702,7 @@ async function handle(upd){
   if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
   if(txt==='/reference'){await showRefMenu();return;} /*[C5] changer la référence Imany*/
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await showHome();return;} /*[C1] /go = /menu = menu unifié*/
+  if(txt==='/go'||txt==='go'){await routeBlock('home');return;} /*[L0-1] /go = accueil routeur (showHome en secours)*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
     if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot
