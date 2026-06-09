@@ -205,10 +205,15 @@
   - **🏛 STUDIO** → bibliothèque de travail centralisée (looks · décors · références · médias · projets · ressources réutilisables).
   - **🕘 RÉCENTS** → derniers projets · générations · looks · vidéos · actions.
   - **Objectif** : réduire les clics, **zéro menu déroulant pour les fonctions principales** (1 clic depuis l'accueil). Renforce [[E1]]/[[E2]] (cockpit 2 sections) et [[E62]] (pilotage visible).
+- **E105** — **[RÈGLE DIRECTRICE — NON NÉGOCIABLE] BLOCS FONCTIONNELS UNIQUES & FRONTIÈRES CLAIRES.** Chaque bouton principal d'accueil = **UN bloc fonctionnel unique, complet, stable, délimité** — **PAS** un raccourci vers des menus dispersés. Même logique à l'intérieur : **aucun sous-menu qui renvoie vers plusieurs zones** ; chaque sous-menu = **une responsabilité unique**. `[Etoile 09/06]`
+  - **Règle d'or** : « **une fonction = un emplacement · un contenu = un propriétaire · une action = un point d'entrée principal** ».
+  - **Arbitrage** : ce principe **tranche tous les conflits/doublons** (cf. matrice de propriété `docs/ARCHITECTURE_4SECTIONS.md`). Préférence : **rigueur + frontières nettes** plutôt que flexibilité confuse.
+  - **Périmètres** : **📸 PHOTO** = bloc unique workflow photo · **🎬 VIDÉO** = bloc unique workflow vidéo · **🏛 STUDIO** = bloc unique ressources/références/bibliothèques/réutilisables · **🕘 RÉCENTS** = bloc unique reprise du travail récent.
+  - Gouverne [[E104]] (4 entrées), [[E1]]/[[E2]] (cockpit), et le nettoyage des doublons/legacy.
 
 ---
 
-_Total : 104 exigences (E1–E104). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX — priorité critique/élevée._
+_Total : 105 exigences (E1–E105). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E105) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE — priorité critique/élevée._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---
