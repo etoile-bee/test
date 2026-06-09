@@ -6,12 +6,17 @@
 
 ## Récap chiffré
 
-**Statuts (sur 73)** : ✅ **Conforme : 36** · 🟡 **Partiellement conforme : 22** · 🟠 **Non conforme : 15**
-→ **Score de conformité ≈ 64 %** (Conforme=1, Partiel=0,5).
+**Statuts (sur 91 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 22** · 🟠 **Non conforme : 21** · ◻️ **Non vérifié : 11**.
+- **Cœur produit / UX (E1–E73)** : 36 Conforme · 22 Partiel · 15 Non conforme.
+- **Qualité visuelle & identité (E74–E91, 🔴 critique)** : 1 Conforme · 6 Non conforme · 11 Non vérifié.
 
-**Par priorité (sur les 37 écarts)** : 🔴 **Critique : 4** · 🟠 **Élevée : 10** · 🟡 **Moyenne : 17** · 🟢 **Faible : 6**.
+→ **Score sur exigences auditables ≈ 60 %** (48/80, hors 11 « Non vérifié » qui nécessitent une génération payante — crédits Anthropic épuisés).
 
-> Note : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé dans la colonne Impact).
+**Par priorité** : 🔴 **Critique : 10** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
+
+> Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
+> contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
+> est CRITIQUE** ; le QC d'identité passe en **lot critique** du plan d'action.
 
 ---
 
@@ -166,13 +171,15 @@
 
 **Partiellement conforme (22)** : E1, E2, E3, E4, E7, E8, E9, E14, E16, E18, E23, E28, E33, E40, E43, E45, E49, E54, E65, E66, E68, E73.
 
-**Non conforme (15)** : E17, E19, E21, E25, E26, E31, E32, E34, E36, E51, E53, E55, E56, E59, E62.
+**Non conforme (15 + 6 identité)** : E17, E19, E21, E25, E26, E31, E32, E34, E36, E51, E53, E55, E56, E59, E62 · **+ E76, E81, E82, E83, E84, E91 (identité, critiques)**.
+
+**Identité E74–E91 (🔴 critique)** : Conforme E90 · Non conforme E76, E81, E82, E83, E84, E91 · Non vérifié E74, E75, E77, E78, E79, E80, E85, E86, E87, E88, E89.
 
 ---
 
 ## Plan d'action priorisé
 
-**🔴 Critique** : (E53) réparer l'Historique → grille + vignettes + réouverture ; (E55/E56) chantier `project.json` (modèle/projet réouvrable complet) ; (E45) réparer « Partie suivante » sur vidéos restaurées.
+**🔴 Critique** : **(LOT IDENTITÉ — priorité n°1)** QC d'identité obligatoire + GATE bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : (E53) Historique → grille + vignettes + réouverture ; (E55/E56) `project.json` (modèle/projet réouvrable) ; (E45) « Partie suivante » sur vidéos restaurées.
 
 **🟠 Élevée** : (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
 
@@ -180,7 +187,7 @@
 
 **🟢 Faible** : (E3) reliquats style ; (E9) persona ; (E23) renommer looks ; (E32) supprimer prompt ; (E65) rapport de session ; (E73) libellés.
 
-**Séquence recommandée (1 lot testé à la fois)** : Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
+**Séquence recommandée (1 lot testé à la fois)** : **LOT 0 = QC IDENTITÉ (critique)** : négatif anti-artefacts (E83, GO Etoile) + QC local pré-vidéo (E84) + GATE de validation (E91/E82) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
 
 ---
 
@@ -202,23 +209,32 @@ Kling **n'a rien inventé** (propagation fidèle) ; le **rendu local n'y est pou
 raw unfiltered skin quality »* **sans aucun négatif anti-poil/anatomie** → Seedream interprète la consigne « texture
 maximale du torse » en pilosité sur le sternum. (Vérifié : `grep` body/chest hair = 0 dans les prompts.)
 
-### Checklist identité/anatomie (E74–E84)
-> Statut général = **Non vérifié** (vérification systématique nécessite des générations payantes ; **crédits Anthropic épuisés**),
-> SAUF E76/E81 déjà **prouvés Non conformes** par le cas ci-dessus.
+### Contrôle qualité d'identité OBLIGATOIRE (E74–E91) — 🔴 catégorie critique
+> Catégorie **QUALITÉ VISUELLE & IDENTITÉ** = priorité critique. Contrôle obligatoire **avant validation
+> finale** de toute génération image/vidéo, sur l'**image source ET la vidéo finale**.
+> Statut général = **Non vérifié** (vérif systématique = générations payantes ; **crédits Anthropic épuisés**),
+> SAUF E76/E81 déjà **prouvés Non conformes** (cas « poil au torse »), et E82/E83/E84/E91 **Manquants**.
 
 | E# | Exigence | Statut | Écran / Étape | Fonction concernée | Impact utilisateur | Priorité |
 |---|---|---|---|---|---|---|
-| E74 | Visage conservé | Non vérifié (échantillon OK) | image source / vidéo | `buildPrompt` newlook.js:87 | Risque de visage qui dérive de la réf | Élevée |
-| E75 | Couleur de peau conservée | Non vérifié (échantillon OK) | image source | prompt | Carnation pourrait dériver | Élevée |
-| E76 | Texture de peau plausible (sans parasite) | **Non conforme (prouvé)** | image source Seedream | prompt « MAXIMUM skin texture » | **Poil/texture parasite sur le torse** | Critique |
-| E77 | Cheveux conservés | Non vérifié (échantillon OK) | image source | prompt anti hair-clip | Mèche/accessoire fantôme possible | Moyenne |
-| E78 | Regard / yeux conservés | Non vérifié (échantillon OK) | image source | prompt | Regard/yeux pourraient dériver | Moyenne |
-| E79 | Vêtements conservés | Non vérifié (échantillon OK) | image source | prompt outfit | Tissu déformé/fusionné possible | Moyenne |
-| E80 | Bijoux conservés | Non vérifié (échantillon OK) | image source | prompt | Bijou doublé/fantôme possible | Moyenne |
-| E81 | AUCUN élément parasite (poils/doigts/déform./fantômes) | **Non conforme (prouvé)** | image source → vidéo | prompt (pas de négatif) | **Artefacts anatomiques livrés à l'écran** | Critique |
-| E82 | Contrôle identité+anatomie systématique | Non conforme (Manquant) | toutes étapes | — | Aucun garde-fou ne détecte l'artefact avant publication | Élevée |
+| E74 | Visage identique (source ↔ vidéo finale) | Non vérifié (échantillon OK) | image source + vidéo | `buildPrompt` newlook.js:87 | Visage pourrait dériver de la réf Imany | Élevée |
+| E75 | Couleur de peau identique | Non vérifié (échantillon OK) | image source + vidéo | prompt | Carnation pourrait dériver | Élevée |
+| E76 | Texture de peau identique (sans parasite) | **Non conforme (prouvé)** | image source Seedream | prompt « MAXIMUM skin texture » | **Poil/texture parasite sur le torse** | Critique |
+| E77 | Cheveux identiques | Non vérifié (échantillon OK) | image source + vidéo | prompt anti hair-clip | Mèche/accessoire fantôme possible | Moyenne |
+| E78 | Regard identique | Non vérifié (échantillon OK) | image source + vidéo | prompt | Regard/yeux pourraient dériver | Moyenne |
+| E79 | Vêtements cohérents | Non vérifié (échantillon OK) | image source + vidéo | prompt outfit | Tissu déformé/fusionné possible | Moyenne |
+| E80 | Bijoux cohérents | Non vérifié (échantillon OK) | image source + vidéo | prompt | Bijou doublé/fantôme possible | Moyenne |
+| E81 | AUCUN élément parasite (poils · doigts en + · mains déformées · membres en + · accessoires fantômes) | **Non conforme (prouvé)** | image source → vidéo | prompt (pas de négatif) | **Artefacts anatomiques livrés à l'écran** | Critique |
+| E82 | QC identité+anatomie systématique (toutes étapes) | Non conforme (Manquant) | toutes étapes | — | Aucun garde-fou ne détecte l'artefact avant publication | Critique |
 | E83 | Négatif anti-artefacts dans le prompt (parade i) | Non conforme (Manquant) | newlook.js buildPrompt | `buildPrompt`:87 / `newlook_prompt.txt` | Sans négatif, l'artefact se reproduira | Critique |
-| E84 | QC post-génération automatisé (parade ii) | Non conforme (à étudier) | image source avant vidéo | — | Pas de détection d'anomalie avant de payer la vidéo | Moyenne |
+| E84 | QC post-génération automatisé (parade ii) | Non conforme (à construire) | image source avant vidéo | — | Pas de détection d'anomalie avant de payer la vidéo | Critique |
+| E85 | Anatomie cohérente (proportions, mains, membres) | Non vérifié (échantillon OK) | image source + vidéo | prompt | Mains/doigts/membres pourraient être faux | Élevée |
+| E86 | Aucune déformation du visage | Non vérifié (échantillon OK) | image source + vidéo (lipsync) | prompt / Kling | Visage tordu/fondu possible (surtout lipsync) | Élevée |
+| E87 | Aucun changement d'âge | Non vérifié (échantillon OK) | image source + vidéo | prompt | Personne rajeunie/vieillie | Élevée |
+| E88 | Aucun changement d'ethnie | Non vérifié (échantillon OK) | image source + vidéo | prompt | Origine/carnation/traits modifiés | Élevée |
+| E89 | Aucun changement de morphologie | Non vérifié (échantillon OK) | image source + vidéo | prompt | Silhouette/corpulence modifiée | Moyenne |
+| E90 | [PROCESS] Étape responsable + PREUVE VISUELLE avant correctif | Conforme (règle adoptée + appliquée) | toutes étapes | montage `docs/artefacts/` | Démontré sur « poil au torse » (montage source/raw/final) | — |
+| E91 | [GATE] Validation finale bloquante (QC validé par Etoile) | Non conforme (Manquant) | validation finale | — | Une génération peut être livrée sans QC d'identité | Critique |
 
 ### Sources de bug à vérifier (par étape)
 1. **Image source (Seedream)** — ✅ identifiée comme l'origine ici.
@@ -226,6 +242,19 @@ maximale du torse » en pilosité sur le sternum. (Vérifié : `grep` body/chest
 3. **Prompt** — ✅ cause favorisante (texture torse maximale, zéro négatif).
 4. **Upscale** — non utilisé actuellement (Seedream sort en 1440×2560 natif) ; à surveiller si ajouté.
 5. **Cohérence d'identité** — pas de comparaison automatique à la référence (E82/E84).
+
+### Règle de process — attribution d'étape + preuve visuelle avant correctif (E90)
+Pour **chaque défaut détecté**, on **attribue l'étape responsable** parmi
+**{image source · génération vidéo · lipsync · upscale · rendu final}** et on **fournit une preuve visuelle**
+(frames/montage de l'étape) **AVANT tout correctif**. Démontré ici sur « poil au torse » :
+montage `docs/artefacts/MONTAGE_artefact_comparaison.png` → responsable = **image source (Seedream)**,
+upscale **écarté** (absent du pipeline). Cette règle est désormais un **process obligatoire**.
+
+### GATE de validation finale (E91) — BLOQUANT
+Aucune génération n'est **« conforme »** tant que :
+1. les contrôles d'identité **E74–E89** ont été **effectués** (image source ET vidéo finale), **et**
+2. le résultat est **validé par Etoile**.
+Aujourd'hui ce gate **n'existe pas** dans la chaîne (une vidéo peut être livrée sans QC) → **Non conforme (Manquant)**, priorité **Critique**.
 
 ### Parades proposées (à valider — rien appliqué)
 - **(i) Négatif anti-artefacts dans le prompt** *(domaine créatif d'Etoile → attente de son GO)* : ajouter

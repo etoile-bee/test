@@ -123,10 +123,13 @@
 - **E72** — **Mono-session d'écriture** ; filet (backups, node --check, régressions, smoke) ; petits commits. `[CTX]`
 - **E73** — **Fidélité test → prod** : ce qui est validé en test sort à l'identique. `[CTX]`
 
-## O. IDENTITÉ & ANATOMIE / ANTI-ARTEFACTS (ajout 2026-06-09)
+## O. QUALITÉ VISUELLE & IDENTITÉ DES PERSONNAGES — 🔴 PRIORITÉ CRITIQUE (ajout 2026-06-09)
 
 > Déclenché par l'artefact « poil au torse » (analyse : `docs/RAPPORT_DETAILLE.md` §Audit identité & artefacts).
-> Contrôles à passer sur **chaque** génération (image source ET vidéo).
+> **Catégorie CRITIQUE.** Un **contrôle qualité d'identité est OBLIGATOIRE avant la validation finale**
+> de toute génération image/vidéo. Chaque test ci-dessous = une exigence tracée, à passer sur l'**image
+> source (Seedream) ET la vidéo finale**. Tant que ces contrôles ne sont pas effectués **et validés par
+> Etoile**, aucune génération n'est « conforme » (cf. E91 — GATE bloquant).
 
 - **E74** — **Visage conservé** : identité fidèle à la référence Imany (traits, forme du visage). `[Etoile 09/06]`
 - **E75** — **Couleur de peau conservée** (carnation métisse, pas de dérive). `[Etoile 09/06]`
@@ -139,7 +142,17 @@
 - **E82** — **Contrôle qualité identité+anatomie systématique** sur chaque génération, aux étapes : **image source (Seedream)** · **génération vidéo (lipsync Kling)** · **prompt** · **upscale** · **cohérence d'identité** (vs référence). `[Etoile 09/06]`
 - **E83** — **Négatif anti-artefacts dans le prompt** (parade i, à valider Etoile) : `body hair, chest hair, hairy chest, extra fingers, deformed hands, extra limbs, ghost accessories, duplicated jewelry, mutated anatomy` + adoucir « MAXIMUM skin texture / chest neck unevenness » qui favorise l'artefact. `[Etoile 09/06]`
 - **E84** — **Contrôle qualité post-génération automatisable** (parade ii, à étudier) : détection visage/anomalies sur l'image source avant de dépenser la vidéo (ex. Apple Vision en local, ou comparaison d'embedding à la référence). `[Etoile 09/06]`
+- **E85** — **Anatomie cohérente** : proportions correctes, mains/doigts/membres corrects, pas de fusion ni de membre en trop. `[Etoile 09/06]`
+- **E86** — **Aucune déformation du visage** (traits non tordus/fondus, symétrie plausible). `[Etoile 09/06]`
+- **E87** — **Aucun changement d'âge** (la personne ne paraît ni rajeunie ni vieillie). `[Etoile 09/06]`
+- **E88** — **Aucun changement d'ethnie** (origine/carnation/traits ethniques conservés — métisse). `[Etoile 09/06]`
+- **E89** — **Aucun changement de morphologie** (silhouette, corpulence, taille de poitrine/épaules conservées). `[Etoile 09/06]`
+
+### Process & gate (bloquants)
+- **E90** — **[PROCESS] Attribution de l'étape responsable + preuve visuelle AVANT correctif** : pour CHAQUE défaut détecté, déterminer l'étape responsable parmi **{image source · génération vidéo · lipsync · upscale · rendu final}** et **fournir une preuve visuelle (frames/montage) de cette étape** avant toute correction. (Règle de process, démontrée sur « poil au torse ».) `[Etoile 09/06]`
+- **E91** — **[GATE] Validation finale bloquante** : aucune génération n'est marquée « conforme » tant que les contrôles d'identité (E74–E89) ne sont **pas effectués ET validés par Etoile**. Exigence bloquante de la chaîne. `[Etoile 09/06]`
 
 ---
 
-_Total : 84 exigences (E1–E84). Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
+_Total : 91 exigences (E1–E91). Section O (E74–E91) = QUALITÉ VISUELLE & IDENTITÉ, priorité critique._
+_Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
