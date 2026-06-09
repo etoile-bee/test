@@ -210,10 +210,15 @@
   - **Arbitrage** : ce principe **tranche tous les conflits/doublons** (cf. matrice de propriété `docs/ARCHITECTURE_4SECTIONS.md`). Préférence : **rigueur + frontières nettes** plutôt que flexibilité confuse.
   - **Périmètres** : **📸 PHOTO** = bloc unique workflow photo · **🎬 VIDÉO** = bloc unique workflow vidéo · **🏛 STUDIO** = bloc unique ressources/références/bibliothèques/réutilisables · **🕘 RÉCENTS** = bloc unique reprise du travail récent.
   - Gouverne [[E104]] (4 entrées), [[E1]]/[[E2]] (cockpit), et le nettoyage des doublons/legacy.
+- **E106** — **[RÈGLE DIRECTRICE DE CONCEPTION] ARCHITECTURE MODULAIRE & ÉVOLUTIVE.** Même avec des blocs uniques et fixes ([[E105]]), la structure reste **modulaire** : on doit pouvoir **ajouter / retirer / modifier un sous-menu plus tard SANS casser l'architecture globale**. `[Etoile 09/06]`
+  - **Squelette cible** : un bloc principal = une responsabilité claire ; un sous-menu = un bloc unique **rattaché à son parent** ; chaque bloc **ajoutable / retirable / modifiable proprement (isolé)** ; **aucune fonction dupliquée inutilement**, chaque contenu a un propriétaire clair.
+  - **Objectif** : **séparé + relié + évolutif**.
+  - **Pattern d'implémentation visé** (cf. `docs/ARCHITECTURE_4SECTIONS.md` §Squelette modulaire) : **registre de blocs** (chaque bloc déclaré : `id`, `parent`, `titre`, `handler`, `boutons`) + **routeur central** → ajouter/retirer un sous-menu = ajouter/retirer **une entrée du registre**, sans toucher au reste.
+  - **À respecter pendant** le LOT ACCUEIL/NAV ([[E104]]) **et** les CRUD looks/décors/références ([[E15]]–[[E26]], [[E100]]–[[E101]]) pour qu'ils soient des **modules propres**.
 
 ---
 
-_Total : 105 exigences (E1–E105). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E105) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE — priorité critique/élevée._
+_Total : 106 exigences (E1–E106). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E106) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE — priorité critique/élevée._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---

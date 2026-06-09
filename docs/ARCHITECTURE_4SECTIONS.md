@@ -154,6 +154,55 @@
 🗑 SUPPRIMÉ : showMainMenu · CARD_MORE · MM_* · A_*/launch/getQButtons · Shotstack · resSteps(hub) · doublons /gens //preview-test
 ```
 
+---
+
+# SQUELETTE MODULAIRE (E106 — séparé + relié + évolutif)
+
+> But : garder des blocs **uniques et fixes** (E105) tout en pouvant **ajouter/retirer/modifier un
+> sous-menu plus tard sans casser le reste**. Pattern de conception (à implémenter au LOT ACCUEIL/NAV —
+> **non codé ici**).
+
+## Principe : registre de blocs + routeur central
+Chaque écran/sous-menu devient un **module déclaré** (une entrée de registre), au lieu d'être codé en
+dur dans une chaîne de `if(d===...)`. Un **routeur** unique lit le registre et affiche le bon bloc.
+
+**Forme cible d'un module (déclaratif) :**
+```
+{
+  id:        'photo.look',         // identifiant unique
+  parent:    'photo',             // bloc parent (null = entrée d'accueil)
+  title:     '📸 Look',            // titre affiché
+  owner:     'PHOTO',             // propriétaire unique (E105)
+  render:    ctx => ({ caption, rows }),  // construit l'écran (média+légende+boutons)
+  actions:   { 'GEN': fn, 'PICK': fn },   // handlers locaux au bloc
+  links:     ['studio.gallery'],          // renvois explicites vers d'AUTRES blocs (pas de copie)
+}
+```
+
+**Routeur central (idée)** : `route(id, ctx)` → trouve le module dans le registre → appelle `render` →
+pose le fil d'Ariane via `parent` → câble `actions`/`links`. **Retour** = remonter au `parent`.
+
+## Ce que ça permet
+- **Ajouter** un sous-menu (ex. « Décors » dans STUDIO) = **ajouter une entrée** au registre (id+parent+render). Zéro modif ailleurs.
+- **Retirer** un bloc = retirer son entrée (le routeur ne le propose plus). Aucune référence morte (les `links` cassés sont détectables).
+- **Modifier** un bloc = éditer **son** module isolé, sans toucher aux voisins.
+- **Frontières E105 garanties** : `owner` unique par module ; les accès croisés passent par `links` (renvois), **jamais** par duplication de code.
+- **Fil d'Ariane / retour automatiques** via `parent` (résout E4 : vocabulaire de retour unifié).
+- **Tests** : chaque module testable isolément (un `render` pur + des `actions`).
+
+## Écart avec l'existant
+- `telegram_bot.js` = **monolithe ~2916 lignes** ; les écrans sont des fonctions `show*` + une **longue chaîne `if(d===...)`** (≈260 handlers en dur) → ajouter/retirer un menu oblige à toucher plusieurs endroits.
+- **Doublons codés** (galerie/éditeur/aperçu appelés de N endroits) au lieu de `links` vers un propriétaire unique.
+- **Pas de registre ni de routeur** ; le fil d'Ariane est ad hoc (`journey()` sur 2 écrans).
+- **Legacy entremêlé** (`MM_*`, `A_*`, `launch`) augmente le couplage.
+
+## Implications (à respecter pendant la refonte)
+1. **LOT ACCUEIL/NAV** : poser le **registre + routeur** d'abord ; migrer les 4 blocs (PHOTO/VIDÉO/STUDIO/RÉCENTS) + Système comme modules. C'est le **socle** des lots suivants.
+2. **CRUD looks / décors / références (E15–E26, E100–E101)** : les implémenter **comme modules** (`studio.looks`, `studio.decors`, `studio.refs`) avec actions CRUD locales → ajoutables/retirables proprement.
+3. **Projet unique (E93)** : un module `recents.project` réutilisable (ouvrir/rééditer/relancer) branché par `links` vers VIDÉO/PHOTO.
+4. **Migration progressive** : un bloc à la fois (le routeur peut cohabiter avec l'ancien code le temps de la bascule), en supprimant les doublons/legacy au passage.
+5. **Garde-fou E105** : revue à chaque ajout — un nouveau module doit avoir **un `owner` unique** et n'introduire **aucune duplication** (sinon = `link`).
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).
