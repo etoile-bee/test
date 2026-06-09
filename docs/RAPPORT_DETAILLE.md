@@ -6,14 +6,15 @@
 
 ## Récap chiffré
 
-**Statuts (sur 96 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 23** · 🟠 **Non conforme : 25** · ◻️ **Non vérifié : 11**.
+**Statuts (sur 103 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 25** · 🟠 **Non conforme : 29** · ◻️ **Non vérifié : 11**.
 - **Cœur produit / UX (E1–E73)** : 36 Conforme · 22 Partiel · 15 Non conforme.
 - **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
-- **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel (E94 iCloud base) · 3 Non conforme (E93, E95, E96).
+- **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel · 3 Non conforme.
+- **Retours 1ᵉʳ test réel (E97–E103, à intégrer en premier)** : 1 Conforme (E103) · 2 Partiel (E100, E102) · 4 Non conforme (E97, E98, E99, E101).
 
-→ **Score sur exigences auditables ≈ 57 %** (48,5/85, hors 11 « Non vérifié » qui nécessitent une génération payante).
+→ **Score sur exigences auditables ≈ 55 %** (50,5/92, hors 11 « Non vérifié »).
 
-**Par priorité** : 🔴 **Critique : 15** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
+**Par priorité** : 🔴 **Critique : 16** · 🟠 **Élevée : 19** · 🟡 **Moyenne : 24** · 🟢 **Faible : 6**.
 
 > Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
 > contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
@@ -178,6 +179,8 @@
 
 **Projet/Stockage E93–E96 (🔴 critique)** : Partiel E94 (iCloud base) · Non conforme **E93 (projet unique complet)**, E95 (TEST/PROD), E96 (workflow validation).
 
+**Retours 1ᵉʳ test E97–E103 (à intégrer EN PREMIER)** : Conforme E103 · Partiel E100 (réf cockpit), E102 (état propre) · Non conforme E97 (colorimétrie auto), E98 (« pause » script), E99 (réactions défaut), E101 (biblio références).
+
 ---
 
 ## Plan d'action priorisé
@@ -190,7 +193,7 @@
 
 **🟢 Faible** : (E3) reliquats style ; (E9) persona ; (E23) renommer looks ; (E32) supprimer prompt ; (E65) rapport de session ; (E73) libellés.
 
-**Séquence recommandée (1 lot testé à la fois)** : **LOT 0 = GATE QC SOURCE-AVANT-VIDÉO (E92, n°1 absolue)** = stop bloquant + checklist + 3 boutons avant le lipsync payant ; puis négatif anti-artefacts (E83, GO Etoile) + QC local auto en bonus (E84/E82) + GATE final (E91) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
+**Séquence recommandée (1 lot testé à la fois)** : **LOT PRÉ-CRITIQUE (E97–E102, à faire EN PREMIER — E103)** : colorimétrie neutre par défaut (E97) · retirer « pause » du script (E98) · réactions défaut OFF (E99) · état propre complet zoom/réactions/durée/réf (E102) · réf cockpit verrouiller+défaut (E100) · biblio références taguée (E101). Ensuite **LOT 0 = GATE QC SOURCE-AVANT-VIDÉO (E92, n°1 absolue)** = stop bloquant + checklist + 3 boutons avant le lipsync payant ; puis négatif anti-artefacts (E83, GO Etoile) + QC local auto en bonus (E84/E82) + GATE final (E91) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
 
 ---
 
@@ -306,6 +309,22 @@ Aujourd'hui `outputs/generations/<ts>/` contient **final + raw_pN + caption + st
 
 ### Objectif global
 Retrouver **instantanément, même des années plus tard**, l'**intégralité** d'une génération (raws, versions intermédiaires, prompts, paramètres, coûts, logs, métadonnées), en distinguant **TEST** et **PRODUCTION**.
+
+---
+
+## AUDIT RETOURS 1ᵉʳ TEST RÉEL (E97–E103) — à intégrer EN PREMIER
+
+| E# | Exigence | Statut | Écran / Zone | Preuve (file:line) | Impact utilisateur | Priorité |
+|---|---|---|---|---|---|---|
+| E97 | Colorimétrie fidèle à la source par défaut (pas de grade auto) | Non conforme | rendu vidéo | `render_local.js:73` `FX_DEFAULT.image` (contrast 1.04, **temperature 5600**=chaud, vignette 1, bright 0.02) appliqué à la vraie vidéo `:315-318`, filtres `colortemperature`/`vignette` `:97-102` | Vidéo plus chaude/contrastée que la source (constaté au QC) | Critique |
+| E98 | Aucun « pause » dans le script généré | Non conforme | script | `workflow.js:50` le prompt **impose** d'écrire `[pause]` dans le script ; `stripPauseTokens`/`isPauseToken` ne nettoient que sous-titres+voix (`render_local.js:109,178`), **pas le script affiché/édité** | Le marqueur `[pause]` apparaît dans le script | Élevée |
+| E99 | Réactions : défaut OFF, rien d'auto | Non conforme | rendu | `render_local.js:76` `FX_DEFAULT.reactions = { mode: 'natural' }` → **défaut natural**, pas off (toggle OFF/natural/on existe `RE_OFF/RE_NATURAL/RE_ON`) | Des réactions sont ajoutées par défaut | Élevée |
+| E100 | Référence personnage depuis cockpit (voir/upload/choisir/changer/**verrouiller**/**défaut**) | Partiellement conforme | /reference, showRefMenu | `showRefMenu`:225 (REF_FROM_GEN/GAL/UPLOAD) ✅ ; **`REF_LOCK`/`REF_DEFAULT` absents** (grep=0) | Peut changer la réf mais pas la verrouiller ni la définir par défaut | Moyenne |
+| E101 | Bibliothèque de références (aperçu/nom/**tags/recherche/filtres**/historique) | Non conforme (Manquant) | — | une seule `imany_reference.*` + showRefMenu ; pas de bibliothèque taguée/cherchable (la galerie = looks, pas références) | Pas de gestion de plusieurs références | Moyenne |
+| E102 | État PROPRE par défaut (aucun param réappliqué auto) | Partiellement conforme | /edit, setWorkPhoto | `setWorkPhoto`:1501 reset **image→Naturel** sur nouvelle photo (BUG-4) ✅ ; **MAIS** zoom (`FX_DEFAULT.zoom.on=1`), musique, réactions persistent via `style.json` ; durée/modèle via `genState` (`gwReset`:1049) ; référence via `HIGGS_AVATAR_URL` | Couleur image OK, mais zoom/réactions/durée/réf hérités | Élevée |
+| E103 | [PROCESS] Priorité : ces 7 d'abord, puis critiques | Conforme (règle adoptée) | plan d'action | présent §plan | — | — |
+
+**Règle de priorité (E103)** : intégrer **E97–E102 en premier**, puis **E92** (gate QC source-avant-vidéo), puis **E93–E96** (projet/stockage/test-prod/validation), puis le reste du plan.
 
 ---
 

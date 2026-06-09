@@ -185,7 +185,18 @@
   - **État** : `ready_to_post/` + `a_retravailler/` existent **partiellement** → à structurer en `TEST/` et `PRODUCTION/`.
 - **E96** — **WORKFLOW DE VALIDATION QUALITÉ.** Une génération **ne passe PAS automatiquement** en PRODUCTION. Flux obligatoire : **TEST → CONTRÔLE QUALITÉ (gate identité E91/E92) → VALIDATION humaine (Etoile) → PRODUCTION**. Conserver l'**historique complet de validation** (qui / quand / verdict). `[Etoile 09/06]`
 
+## Q. RETOURS 1ᵉʳ TEST RÉEL (Etoile 09/06) — à intégrer AVANT les corrections critiques
+
+- **E97** — **COLORIMÉTRIE : fidélité à la source par défaut.** Par défaut la vidéo finale doit rester **fidèle à l'image source** (la source = référence absolue) ; **supprimer l'étalonnage chaud/contrasté par défaut**. Un étalonnage ne s'applique **que** s'il est choisi volontairement via un **preset enregistré**. `[Etoile 09/06]`
+  - _Note technique_ : `color_style.js` (V5) est **verrouillé** mais **n'est PAS câblé** au rendu local ; le grade par défaut vient de `render_local.js` `FX_DEFAULT.image` (`:73`) → la correction porte sur le **branchement** (défaut neutre), **sans toucher** au fichier verrouillé.
+- **E98** — **SCRIPT sans « pause ».** Le mot/marqueur « pause » (ni `[pause]`, ni `(pause)`, ni `PAUSE`, ni le mot nu) ne doit **jamais apparaître dans le script généré** ni être prononcé. Les pauses = créées **naturellement** dans l'audio (ponctuation / SSML), invisibles dans le texte. `[Etoile 09/06]`
+- **E99** — **RÉACTIONS : paramètre explicite, défaut OFF.** Toggle OFF/ON, **défaut OFF**, rien d'ajouté automatiquement. `[Etoile 09/06]`
+- **E100** — **RÉFÉRENCE PERSONNAGE depuis le cockpit** : voir la référence active · uploader · choisir dans la bibliothèque · changer · **VERROUILLER** · **définir par défaut**. `[Etoile 09/06]`
+- **E101** — **BIBLIOTHÈQUE DE RÉFÉRENCES** : aperçu · nom · **tags** · **recherche** · **filtres** · historique · réutilisation. `[Etoile 09/06]`
+- **E102** — **NON-RÉUTILISATION AUTO DES PARAMÈTRES.** Chaque génération repart d'un **état PROPRE** ; aucun paramètre d'une génération précédente réappliqué automatiquement (**couleur, effets, zoom, réactions, paramètres vidéo, paramètres audio, référence personnage, durée, modèle**) **SAUF** s'il est enregistré comme **preset/défaut** explicite. `[Etoile 09/06]`
+- **E103** — **[PROCESS] RÈGLE DE PRIORITÉ** : intégrer ces 7 retours (E97–E102) **d'abord**, puis les corrections critiques dans l'ordre du plan (E92 gate → E93–E96 projet/stockage/test-prod/validation → reste). `[Etoile 09/06]`
+
 ---
 
-_Total : 96 exigences (E1–E96). Sections O (E74–E92) + P (E93–E96) = QUALITÉ, PROJET & TRAÇABILITÉ, priorité critique._
+_Total : 103 exigences (E1–E103). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ — priorité critique._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._

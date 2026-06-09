@@ -280,6 +280,7 @@ _(Aucun code exécuté hormis le générateur de doc en lecture seule ; aucun ap
 
 ## 11. PLAN D'ACTION PRIORISÉ (séquence sans big-bang, 1 lot testé à la fois)
 
+-1. **🔴 LOT PRÉ-CRITIQUE — retours 1ᵉʳ test (E97–E103, EN PREMIER)** : colorimétrie neutre par défaut (E97, branchement `FX_DEFAULT.image` `render_local.js:73`, sans toucher `color_style.js` verrouillé) ; retirer `[pause]` du prompt script (E98, `workflow.js:50`) ; réactions défaut OFF (E99, `render_local.js:76`) ; état propre complet — zoom/réactions/musique/durée/réf non hérités (E102) ; réf cockpit verrouiller + définir par défaut (E100) ; bibliothèque de références taguée/cherchable (E101).
 0. **🔴 GATE QC SOURCE-AVANT-VIDÉO (E92) — n°1 absolue** : stop bloquant + checklist + 3 boutons (régénérer/éditer/valider) entre l'image source et le lipsync payant. (À coder en premier, après la génération en cours.)
 0-bis. **🔴 PROJET UNIQUE + TEST/PROD + VALIDATION (E93–E96)** : conteneur de projet complet (project.json : raws/versions/prompts/métadonnées/logs/QC), historique par projet, stockage cloud persistant (remplacer tmpfiles), espaces TEST/PRODUCTION, workflow TEST→QC→validation→PROD.
 1. **Quick wins** (faible risque, fort impact) : `/stop`+`/restart` en tête (E62) ; label HD (BUG-D) ; planche-contact auto (E36) ; débounce RC_GO.
