@@ -831,7 +831,7 @@ function launch(){
   proc.on('close',()=>{
     if(mmPing){clearInterval(mmPing);mmPing=null;}
     proc=null;state='idle';
-    send('✅ <b>Done!</b>\n\nSend /go for another video.',[
+    send('✅ <b>Done!</b>\n\nTape /menu pour une autre vidéo.',[
       [{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}],
     ]).catch(()=>{});
   });
@@ -1031,7 +1031,7 @@ async function runLocalTest(){
     const {renderLocal}=freshRL();
     if(gwLook())setWorkPhoto(gwLook()); // [p1] /test reflète l'ÉTAT COURANT : look choisi/édité d'abord
     const src=workSrc(); // look de travail courant (workingSource) ; raw seulement si AUCUN look choisi
-    if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou lance un /go.');return;}
+    if(!src){await send('⚠️ Aucune photo de travail. Choisis un look 👤 ou tape /menu.');return;}
     if(lastCbId)await toast('🧪 Rendu local gratuit… ~5s, le résultat arrive en bas');else await send('🧪 Rendu LOCAL gratuit ('+path.basename(src)+')… ~5s'); /*toast au lieu d'un message qui s'empile*/
     const S=previewScript();
     const wt=S.replace(/[\n\r]+/g,' ').split(/\s+/).filter(Boolean).map((w,i)=>({text:w.toUpperCase().replace(/[^A-Z]/g,''),start:+(i*0.42).toFixed(3),end:+((i+1)*0.42).toFixed(3),duration:0.42})).filter(x=>x.text);
@@ -1043,7 +1043,7 @@ async function runLocalTest(){
     await resAdd({type:'video',path:out,label:`🧪 <b>Test</b> (gratuit) · 🔤 ${fontLabel(st.font)} ${st.fontSize}px`}).catch(async()=>{await send('⚠️ Vidéo trop lourde.').catch(()=>{});}); /*3 blocs : le test va au BLOC RÉSULTATS*/
   }catch(e){await send('❌ Test local : '+e.message);}
 }
-const HELP_TXT='🎬 <b>Commandes</b>\n\n/studio — les 3 blocs (photo · vidéo · résultats)\n/menu — menu principal\n/go — générer une vidéo\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
+const HELP_TXT='🎬 <b>Commandes</b>\n\n/studio — les 3 blocs (photo · vidéo · résultats)\n/menu — accueil (Photo · Vidéo · Studio · Récents)\n/edit — éditer le look (sous-titres, image, zooms, musique)\n/looks — galerie de looks\n/posted — vidéos prêtes à poster\n/styles — mes styles enregistrés\n/preview — aperçu du look\n/test — rendu local gratuit\n/stop — tout arrêter\n/status — état\n/restart — redémarrer le bot\n/mark [titre] viral|good|ok — noter une vidéo';
 async function showGenerateMenu(){ await showRecap(); } // l'ancien menu redirige vers la carte récap
 // ── CARTE RÉCAP de génération (pré-remplie depuis state.json) ────────────────────
 let gw={look:null,styleName:null,subjectMode:'auto',topic:null,duration:'23s',mid:null};
@@ -1569,7 +1569,7 @@ async function captureBaseline(){ const f=await renderWorkingFrame(null,true); e
 // Après un réglage : envoie AVANT|APRÈS puis re-affiche les contrôles
 async function sendBeforeAfter(){
   const after=await renderWorkingFrame(null,true); /*éditeur image : grading visible*/
-  if(!after){await send('⚠️ Aperçu indispo : aucun _raw_p*.mp4 dans outputs/ (lance un /go).');return;}
+  if(!after){await send('⚠️ Aperçu indispo : aucun _raw_p*.mp4 dans outputs/ (tape /menu).');return;}
   const comp='/tmp/ba_'+Date.now()+'.png';
   if(editPrevFrame&&fs.existsSync(editPrevFrame)){
     try{hstackLabeled(editPrevFrame,after.frame,'AVANT','APRES',comp);}catch(e){fs.copyFileSync(after.frame,comp);}
@@ -2855,7 +2855,7 @@ async function handle(upd){
   // Workflow free answer
   if(state==='question'&&proc){wfInput(txt);state='running';await send('Sent: '+txt);return;}
 
-  await send('Send /go to start! Or /help for commands.');
+  await send('Tape /menu pour commencer ! Ou /help pour les commandes.');
 }
 
 // ── Poll ──────────────────────────────────────────────────────────────────────

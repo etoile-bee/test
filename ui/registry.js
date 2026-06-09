@@ -8,9 +8,9 @@
 const REGISTRY = {
   // ── Accueil : 4 entrées directes + pilotage visible (E104) ─────────────────
   home: {
-    id: 'home', parent: null, title: '🏠 Accueil', owner: 'Système',
+    id: 'home', parent: null, title: '🏠 ACCUEIL', owner: 'Système',
     render: () => ({
-      caption: '🏠 <b>STUDIO</b> · 👤 Imany — choisis une section :',
+      caption: '🏠 <b>ACCUEIL</b> — choisis une section :',
       rows: [
         [{ text: '📸 PHOTO', go: 'photo' }, { text: '🎬 VIDÉO', go: 'video' }],
         [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 RÉCENTS', go: 'recents' }],
@@ -19,11 +19,11 @@ const REGISTRY = {
     }),
   },
 
-  // ── 📸 PHOTO : workflow photo (sous-entrées → fonctions existantes) ─────────
+  // ── 📸 PHOTO : création image / look ───────────────────────────────────────
   photo: {
     id: 'photo', parent: 'home', title: '📸 PHOTO', owner: 'PHOTO',
     render: () => ({
-      caption: '📸 <b>PHOTO</b> — créer / gérer l\'image',
+      caption: '📸 <b>PHOTO</b> — créer une image / un look',
       rows: [
         [{ text: '✨ Nouveau look', cb: 'NL_NEW' }],
         [{ text: '🖼 Galerie looks', cb: 'MENU_LOOKS' }],
@@ -32,11 +32,11 @@ const REGISTRY = {
     }),
   },
 
-  // ── 🎬 VIDÉO : workflow vidéo ──────────────────────────────────────────────
+  // ── 🎬 VIDÉO : création vidéo ──────────────────────────────────────────────
   video: {
     id: 'video', parent: 'home', title: '🎬 VIDÉO', owner: 'VIDÉO',
     render: () => ({
-      caption: '🎬 <b>VIDÉO</b> — script · montage · génération',
+      caption: '🎬 <b>VIDÉO</b> — créer une vidéo (script · montage)',
       rows: [
         [{ text: '🎬 Nouvelle vidéo', cb: 'NEW_GO' }],
         [{ text: '🎨 Éditer / Montage', cb: 'EDIT_HOME' }],
@@ -44,24 +44,24 @@ const REGISTRY = {
     }),
   },
 
-  // ── 🏛 STUDIO : bibliothèques / ressources ────────────────────────────────
+  // ── 🏛 STUDIO : bibliothèque / ressources / gestion ───────────────────────
   studio: {
     id: 'studio', parent: 'home', title: '🏛 STUDIO', owner: 'STUDIO',
     render: () => ({
-      caption: '🏛 <b>STUDIO</b> — bibliothèques & ressources',
+      caption: '🏛 <b>STUDIO</b> — bibliothèque, ressources & gestion',
       rows: [
         [{ text: '👗 Looks', cb: 'MENU_LOOKS' }, { text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
         [{ text: '🎯 Références', cb: 'RX_REFS' }, { text: '📂 Modèles', cb: 'SHOWSTYLES' }],
-        [{ text: '📁 Médias', cb: 'FILES_HOME' }],
+        [{ text: '👤 Personas', cb: 'PERSONA' }, { text: '📁 Médias', cb: 'FILES_HOME' }],
       ],
     }),
   },
 
-  // ── 🕘 RÉCENTS : reprise du travail récent ────────────────────────────────
+  // ── 🕘 RÉCENTS : historique / projets ─────────────────────────────────────
   recents: {
     id: 'recents', parent: 'home', title: '🕘 RÉCENTS', owner: 'RÉCENTS',
     render: () => ({
-      caption: '🕘 <b>RÉCENTS</b> — reprendre le travail récent',
+      caption: '🕘 <b>RÉCENTS</b> — historique & projets',
       rows: [
         [{ text: '🕘 Historique', cb: 'STUDIO_HIST' }],
         [{ text: '📤 Prêt à poster', cb: 'SHOWREADY' }],
