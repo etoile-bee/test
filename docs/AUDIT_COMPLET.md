@@ -119,6 +119,7 @@ Statuts : ✅ Conforme · 🟡 Partiel · 🟠 Non conforme · ⬜ Manquant · �
 | E60 suivi génération | ✅ | setProg:1252, startTicker:1130, RETRY_KB:1148, humanError:1137 | Progression/statut/temps/succès/échec/relance. |
 | E61 annulation fiable | ✅ | genAbort:1102, abortNow→generateLipsync:1275, chk() avant/après sleep workflow.js:122 | Abort dans le poll Kling. 16 /stop, 0 échec d'abort journalisé. |
 | E62 stop/restart en tête | 🟠 | showHome:1394 = **ni Stop ni Restart** ; showMainMenu Stop en L5:1388 ; Restart sous Technique:2141 | Existent (slash + sous-menu) mais pas en tête de l'accueil servi. |
+| E104 accueil 4 entrées directes | 🟠 | showHome:1389 = Créer/Studio/Éditer/Aide/Profil | Cible Etoile = 📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS, 1 clic. Usage réel : /newlook 71× sans bouton, CARD_MORE 33× (déroulant trop cliqué). |
 | E63 journal user + logs système | ✅ | jlog→bot_journal:33, uiLog→ui_journal:24, erreurs API:45/1306 | Crédits affichés mais **pas** journalisés après dépense. |
 | E64 erreurs actionnables | ✅ | apiNice:1118, humanError:1137 (crédits→FR + ↻, pas d'auto-relance:1141) | |
 | E65 clic tracé / rapport session | 🟡 | tout callback loggé:1960 ; pas de rapport agrégé par session ; auto-correction partielle | |
@@ -283,7 +284,7 @@ _(Aucun code exécuté hormis le générateur de doc en lecture seule ; aucun ap
 -1. **🔴 LOT PRÉ-CRITIQUE — retours 1ᵉʳ test (E97–E103, EN PREMIER)** : colorimétrie neutre par défaut (E97, branchement `FX_DEFAULT.image` `render_local.js:73`, sans toucher `color_style.js` verrouillé) ; retirer `[pause]` du prompt script (E98, `workflow.js:50`) ; réactions défaut OFF (E99, `render_local.js:76`) ; état propre complet — zoom/réactions/musique/durée/réf non hérités (E102) ; réf cockpit verrouiller + définir par défaut (E100) ; bibliothèque de références taguée/cherchable (E101).
 0. **🔴 GATE QC SOURCE-AVANT-VIDÉO (E92) — n°1 absolue** : stop bloquant + checklist + 3 boutons (régénérer/éditer/valider) entre l'image source et le lipsync payant. (À coder en premier, après la génération en cours.)
 0-bis. **🔴 PROJET UNIQUE + TEST/PROD + VALIDATION (E93–E96)** : conteneur de projet complet (project.json : raws/versions/prompts/métadonnées/logs/QC), historique par projet, stockage cloud persistant (remplacer tmpfiles), espaces TEST/PRODUCTION, workflow TEST→QC→validation→PROD.
-1. **Quick wins** (faible risque, fort impact) : `/stop`+`/restart` en tête (E62) ; label HD (BUG-D) ; planche-contact auto (E36) ; débounce RC_GO.
+1. **LOT ACCUEIL/NAV** (faible risque, fort gain) : **accueil 4 entrées directes 📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS (E104)** + `/stop`+`/restart` visibles (E62) + vocabulaire retour unifié (E4). Puis **Quick wins** : label HD (BUG-D) ; planche-contact auto (E36) ; débounce RC_GO.
 2. **Historique utilisable** : grille + vignettes + boutons réouvrir/réutiliser/relancer (BUG-A, E53/E54).
 3. **Partie suivante fiable** : persister imageUrl/prevScripts (BUG-B).
 4. **Looks CRUD** (dupliquer/archiver/lock/restaurer/renommer) — E16-E21.

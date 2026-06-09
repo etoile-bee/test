@@ -6,7 +6,7 @@
 
 ## Récap chiffré
 
-**Statuts (sur 103 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 24** · 🟠 **Non conforme : 29** · ◻️ **Non vérifié : 11** · ⛔ **Supersedé : 1** (E68 → E97).
+**Statuts (sur 104 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 24** · 🟠 **Non conforme : 30** · ◻️ **Non vérifié : 11** · ⛔ **Supersedé : 1** (E68 → E97).
 - **Cœur produit / UX (E1–E73)** : 36 Conforme · 21 Partiel · 15 Non conforme · 1 supersedé (E68).
 - **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
 - **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel · 3 Non conforme.
@@ -14,7 +14,7 @@
 
 → **Score sur exigences auditables ≈ 55 %** (50,5/92, hors 11 « Non vérifié »).
 
-**Par priorité** : 🔴 **Critique : 16** · 🟠 **Élevée : 19** · 🟡 **Moyenne : 24** · 🟢 **Faible : 6**.
+**Par priorité** : 🔴 **Critique : 16** · 🟠 **Élevée : 20** · 🟡 **Moyenne : 24** · 🟢 **Faible : 6**.
 
 > Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
 > contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
@@ -129,6 +129,22 @@
 |---|---|---|---|---|---|---|
 | E4 | OK/Annuler/Précédent/Suivant cohérents + fil d'Ariane | Partiellement conforme | tous | `journey()`:1052 | Retours présents mais nommés ~10 façons ; 3 icônes « Annuler » ; fil d'Ariane sur 2 écrans → désorientation | Moyenne |
 | E62 | /stop + /restart en tête | Non conforme | showHome | handler:2701/2717 | Commandes existent mais absentes de l'accueil (enfouies) | Élevée |
+| E104 | Accueil = 4 entrées directes (📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS) | Non conforme | showHome | `showHome`:1389 (Créer/Studio/Éditer/Aide/Profil) | Pas de bouton direct Photo/Vidéo/Récents ; fonctions principales à ≥2 clics ou en commande | Élevée |
+
+### Audit UX accueil (E104) — actuel vs cible
+**Accueil actuel** (`showHome`:1389) : 🚀 Créer · 🎬 Studio · 🎨 Éditer · ❓ Aide · 👤 Profil. → **ne correspond pas** aux 4 sections d'Etoile.
+
+**Usage réel (bot_journal — fréquences)** : commandes — `/newlook` **71×** (génération PHOTO, sans bouton d'accueil !), `/menu` 68×, `/go` 16×, `/studio` 13×, `/looks` 11×, `/edit` 6× ; pilotage `/restart` **75×** + `/stop` 12× (→ E62). Boutons — `GAL_NEXT` 46× (galerie looks), `NL_GO` 44× (photo), `CARD_MORE` **33×** (☰ menu « Plus » = on creuse dans le déroulant), `MAIN_MENU` 34× (retour accueil), `RES_NEXT/PREV` 49× (résultats), `MENU_TEST` 25×, `HOME_STUDIO` 19×, `MENU_LOOKS` 13×. → **PHOTO, looks, résultats/récents et pilotage sont les usages quotidiens** ; plusieurs sont enfouis (CARD_MORE très cliqué).
+
+**Clics depuis l'accueil — actuel vs cible (1 clic)** :
+| Section | Aujourd'hui | Cible |
+|---|---|---|
+| 📸 PHOTO (génération) | **commande `/newlook`** ou Créer→mode→… (**≥2**) ; aucun bouton direct | 1 |
+| 🎬 VIDÉO | Créer→mode→look (**≥2**) | 1 |
+| 🏛 STUDIO | 🎬 Studio (**1**) ✅ mais contenu ≠ bibliothèque centralisée | 1 |
+| 🕘 RÉCENTS | Studio→🕘 Historique (**2**) — et écran cassé (E53) | 1 |
+
+**Clics supprimables** : PHOTO (−1 à −2, passe en bouton direct), RÉCENTS (−1), VIDÉO (−1) ; vider `CARD_MORE` (☰ Plus, 33×) en remontant les fonctions principales en boutons directs ; Stop/Restart visibles (E62) supprime des `/restart` tapés (75×).
 
 ## K. État & Session
 
@@ -181,19 +197,21 @@
 
 **Retours 1ᵉʳ test E97–E103 (à intégrer EN PREMIER)** : Conforme E103 · Partiel E100 (réf cockpit), E102 (état propre) · Non conforme E97 (colorimétrie auto), E98 (« pause » script), E99 (réactions défaut), E101 (biblio références).
 
+**Accueil/UX E104 (🟠 élevée)** : Non conforme — accueil = Créer/Studio/Éditer/Aide/Profil au lieu de 📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS (4 entrées directes).
+
 ---
 
 ## Plan d'action priorisé
 
 **🔴 Critique** : **(n°1 ABSOLUE) GATE QC SOURCE-AVANT-VIDÉO (E92)** — bloque le lipsync payant tant que l'image source n'est pas QC-validée (3 actions : régénérer/éditer/valider). Puis **(LOT IDENTITÉ)** QC d'identité obligatoire + GATE final bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : **(E93) PROJET UNIQUE COMPLET par génération** (raws + versions intermédiaires + prompts + métadonnées coût/crédits/durée + logs + rapport QC ; historique par projet ; actions ouvrir/rééditer/réutiliser/dupliquer/relancer/télécharger/exporter/archiver/restaurer ; remplace E55/E56) ; **(E96) workflow TEST→QC→validation Etoile→PROD** + **(E95) espaces TEST/PRODUCTION** ; **(E94) stockage cloud persistant** (remplacer tmpfiles, redondance) ; (E53) Historique → grille + vignettes + réouverture ; (E45) « Partie suivante » sur vidéos restaurées.
 
-**🟠 Élevée** : (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
+**🟠 Élevée** : **(E104) accueil 4 entrées directes (📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS)** ; (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
 
 **🟡 Moyenne** : (E1/E2) cockpit unique/2 sections ; (E4) navigation unifiée ; (E14) temps/labels honnêtes ; (E16/E18/E19) looks modifier/restaurer/archiver ; (E26) Lock Background ; (E28/E31/E33) prompts bibliothèque ; (E40/E43) redirections/workflows ; (E59) TikTok+stockage privé ; (E66) code mort ; ~~(E68) couleur V5~~ (supersedé par E97) ; (E8) aperçus manquants.
 
 **🟢 Faible** : (E3) reliquats style ; (E9) persona ; (E23) renommer looks ; (E32) supprimer prompt ; (E65) rapport de session ; (E73) libellés.
 
-**Séquence recommandée (1 lot testé à la fois)** : **LOT PRÉ-CRITIQUE (E97–E102, à faire EN PREMIER — E103)** : colorimétrie neutre par défaut (E97) · retirer « pause » du script (E98) · réactions défaut OFF (E99) · état propre complet zoom/réactions/durée/réf (E102) · réf cockpit verrouiller+défaut (E100) · biblio références taguée (E101). Ensuite **LOT 0 = GATE QC SOURCE-AVANT-VIDÉO (E92, n°1 absolue)** = stop bloquant + checklist + 3 boutons avant le lipsync payant ; puis négatif anti-artefacts (E83, GO Etoile) + QC local auto en bonus (E84/E82) + GATE final (E91) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
+**Séquence recommandée (1 lot testé à la fois)** : **LOT PRÉ-CRITIQUE (E97–E102, à faire EN PREMIER — E103)** : colorimétrie neutre par défaut (E97) · retirer « pause » du script (E98) · réactions défaut OFF (E99) · état propre complet zoom/réactions/durée/réf (E102) · réf cockpit verrouiller+défaut (E100) · biblio références taguée (E101). Ensuite **LOT 0 = GATE QC SOURCE-AVANT-VIDÉO (E92, n°1 absolue)** = stop bloquant + checklist + 3 boutons avant le lipsync payant ; puis négatif anti-artefacts (E83, GO Etoile) + QC local auto en bonus (E84/E82) + GATE final (E91) → **LOT ACCUEIL/NAV (structure, faible risque, fort gain)** : accueil 4 entrées directes 📸/🎬/🏛/🕘 (E104) + Stop/Restart visibles (E62) + vocabulaire retour unifié (E4) → Quick wins (label HD, E36, débounce) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
 
 ---
 

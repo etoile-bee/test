@@ -197,9 +197,18 @@
 - **E102** — **NON-RÉUTILISATION AUTO DES PARAMÈTRES.** Chaque génération repart d'un **état PROPRE** ; aucun paramètre d'une génération précédente réappliqué automatiquement (**couleur, effets, zoom, réactions, paramètres vidéo, paramètres audio, référence personnage, durée, modèle**) **SAUF** s'il est enregistré comme **preset/défaut** explicite. `[Etoile 09/06]`
 - **E103** — **[PROCESS] RÈGLE DE PRIORITÉ** : intégrer ces 7 retours (E97–E102) **d'abord**, puis les corrections critiques dans l'ordre du plan (E92 gate → E93–E96 projet/stockage/test-prod/validation → reste). `[Etoile 09/06]`
 
+## S. ACCUEIL / COCKPIT — UX (ajout 2026-06-09)
+
+- **E104** — **COCKPIT À 4 POINTS D'ENTRÉE VISIBLES EN PERMANENCE** (pas dans un menu déroulant). L'accueil affiche **4 boutons d'accès direct** : **📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS**. `[Etoile 09/06]`
+  - **📸 PHOTO** → looks · décors · prompts · images · génération photo.
+  - **🎬 VIDÉO** → vidéos · scripts · légendes · montage · génération vidéo.
+  - **🏛 STUDIO** → bibliothèque de travail centralisée (looks · décors · références · médias · projets · ressources réutilisables).
+  - **🕘 RÉCENTS** → derniers projets · générations · looks · vidéos · actions.
+  - **Objectif** : réduire les clics, **zéro menu déroulant pour les fonctions principales** (1 clic depuis l'accueil). Renforce [[E1]]/[[E2]] (cockpit 2 sections) et [[E62]] (pilotage visible).
+
 ---
 
-_Total : 103 exigences (E1–E103). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ — priorité critique._
+_Total : 104 exigences (E1–E104). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX — priorité critique/élevée._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---
