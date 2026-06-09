@@ -248,11 +248,14 @@
   - ⚠️ **Différence avec l'existant** : aujourd'hui `gwReset`/`NL_NEW` **EFFACENT** l'état à la ré-entrée → E114 impose de **RECHARGER le slice** au lieu de réinitialiser (à corriger à la migration des modules, [[E107]]).
   - **CRITÈRE D'ACCEPTATION de L0-2** : chaque étape migrée est **backée par le brouillon** ; back/forward/`/menu`/restart **sans perte** ni reset.
 
-> 🔒 **RÈGLES DE NAVIGATION/UX FIGÉES — VALIDÉES par Etoile (2026-06-09)** : [[E108]] (nav universelle) · [[E109]] (en place intra-tâche) · [[E110]] (brouillons, 4 états) · [[E111]] (historique persistant, raffiné L0-1d-fix) · [[E112]] (aide/barre) · [[E113]] (unicité du brouillon) · [[E114]] (persistance d'état bout-en-bout). Réconciliation E109↔E111 **figée**.
+- **E115** — **[RÈGLE DIRECTRICE] BOUTON SUIVANT PERMANENT + CONSERVATION DES ÉTAPES SUIVANTES.** Boutons **⬅ Retour · ➡ Suivant · 🏠 Accueil partout** ; **état sauvé à chaque étape** ([[E114]]). Revenir sur une étape antérieure, la modifier, puis ➡ Suivant **reprend la suite DÉJÀ EXISTANTE** — **sans effacer ni régénérer l'aval** (ex. PHOTO→Look→Image→Script→Montage : revenir sur Look ne fait **pas** disparaître Script/Montage). **Sauf** si la modif rend l'aval **vraiment incompatible** → le système **DEMANDE** : « Cette modification peut impacter les étapes suivantes. **Conserver / Mettre à jour / Régénérer ?** ». **Aucune perte d'étape suivante sans validation explicite.** Étend [[E114]]. `[Etoile 09/06]`
+  - **CRITÈRE D'ACCEPTATION L0-2** : Retour→modif→Suivant conserve l'aval ; incompatibilité → invite Conserver/Mettre à jour/Régénérer (jamais d'effacement silencieux).
+
+> 🔒 **RÈGLES DE NAVIGATION/UX FIGÉES — VALIDÉES par Etoile (2026-06-09)** : [[E108]] (nav universelle) · [[E109]] (en place intra-tâche) · [[E110]] (brouillons, 4 états) · [[E111]] (historique persistant, raffiné L0-1d-fix) · [[E112]] (aide/barre) · [[E113]] (unicité du brouillon) · [[E114]] (persistance d'état bout-en-bout) · [[E115]] (Suivant permanent + conservation de l'aval). Réconciliation E109↔E111 **figée**.
 
 ---
 
-_Total : 114 exigences (E1–E114). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E114) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE, UNICITÉ, PERSISTANCE — priorité critique/élevée. Règles UX E108–E114 FIGÉES (validées Etoile)._
+_Total : 115 exigences (E1–E115). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E115) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE, UNICITÉ, PERSISTANCE, CONTINUITÉ — priorité critique/élevée. Règles UX E108–E115 FIGÉES (validées Etoile)._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---

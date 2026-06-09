@@ -2014,12 +2014,12 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}}
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-1d-fix2] ancre le bloc actif aussi pour les RX_*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
-    if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await send('📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]]);return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await send('📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows);return;} /*[L0-1e]*/
+    if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await uiShow('recents.drafts','📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]],'inplace');return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await uiShow('recents.drafts','📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows,'inplace');return;} /*[L0-1d-fix2] EN PLACE dans le bloc actif*/
     if(d&&d.indexOf('RX_DRAFT_')===0){await resumeDraft(d.slice(9));return;} /*[L0-1e] reprend le MÊME draftId (pas de doublon)*/
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/

@@ -348,6 +348,8 @@ draft = {
 | état en RAM perdu au `/restart` | brouillon relu depuis `drafts/<persona>/<draftId>.json` |
 → **Remplacer les resets par des recharges de slice.** Chaque entrée d'étape : *« si brouillon actif a ce slice → le charger ; sinon défaut »*.
 
+**Conservation de l'aval (E115)** : Retour→modifier→➡ Suivant **reprend la suite déjà existante** (Script/Montage ne disparaissent pas en revenant sur Look). Si une modif rend l'aval **incompatible** → invite **« Conserver / Mettre à jour / Régénérer ? »** (jamais d'effacement silencieux). ⬅ Retour · ➡ Suivant · 🏠 Accueil partout, état sauvé à chaque étape.
+
 **Critère d'acceptation L0-2** : pour chaque étape migrée — back/forward/`/menu`/restart **sans perte** ; modifier une étape antérieure puis avancer **conserve l'aval**. Finalisation → « Terminé » ; suppression explicite → retiré ; sinon **toujours éditable**.
 
 ## Gains attendus
