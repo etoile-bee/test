@@ -6,13 +6,14 @@
 
 ## Récap chiffré
 
-**Statuts (sur 92 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 22** · 🟠 **Non conforme : 22** · ◻️ **Non vérifié : 11**.
+**Statuts (sur 96 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 23** · 🟠 **Non conforme : 25** · ◻️ **Non vérifié : 11**.
 - **Cœur produit / UX (E1–E73)** : 36 Conforme · 22 Partiel · 15 Non conforme.
 - **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
+- **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel (E94 iCloud base) · 3 Non conforme (E93, E95, E96).
 
-→ **Score sur exigences auditables ≈ 59 %** (48/81, hors 11 « Non vérifié » qui nécessitent une génération payante — crédits Anthropic épuisés).
+→ **Score sur exigences auditables ≈ 57 %** (48,5/85, hors 11 « Non vérifié » qui nécessitent une génération payante).
 
-**Par priorité** : 🔴 **Critique : 11** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
+**Par priorité** : 🔴 **Critique : 15** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
 
 > Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
 > contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
@@ -175,11 +176,13 @@
 
 **Identité E74–E92 (🔴 critique)** : Conforme E90 · Non conforme E76, E81, E82, E83, E84, E91, **E92 (GATE source-avant-vidéo, n°1)** · Non vérifié E74, E75, E77, E78, E79, E80, E85, E86, E87, E88, E89.
 
+**Projet/Stockage E93–E96 (🔴 critique)** : Partiel E94 (iCloud base) · Non conforme **E93 (projet unique complet)**, E95 (TEST/PROD), E96 (workflow validation).
+
 ---
 
 ## Plan d'action priorisé
 
-**🔴 Critique** : **(n°1 ABSOLUE) GATE QC SOURCE-AVANT-VIDÉO (E92)** — bloque le lipsync payant tant que l'image source n'est pas QC-validée (3 actions : régénérer/éditer/valider). Puis **(LOT IDENTITÉ)** QC d'identité obligatoire + GATE final bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : (E53) Historique → grille + vignettes + réouverture ; (E55/E56) `project.json` (modèle/projet réouvrable) ; (E45) « Partie suivante » sur vidéos restaurées.
+**🔴 Critique** : **(n°1 ABSOLUE) GATE QC SOURCE-AVANT-VIDÉO (E92)** — bloque le lipsync payant tant que l'image source n'est pas QC-validée (3 actions : régénérer/éditer/valider). Puis **(LOT IDENTITÉ)** QC d'identité obligatoire + GATE final bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : **(E93) PROJET UNIQUE COMPLET par génération** (raws + versions intermédiaires + prompts + métadonnées coût/crédits/durée + logs + rapport QC ; historique par projet ; actions ouvrir/rééditer/réutiliser/dupliquer/relancer/télécharger/exporter/archiver/restaurer ; remplace E55/E56) ; **(E96) workflow TEST→QC→validation Etoile→PROD** + **(E95) espaces TEST/PRODUCTION** ; **(E94) stockage cloud persistant** (remplacer tmpfiles, redondance) ; (E53) Historique → grille + vignettes + réouverture ; (E45) « Partie suivante » sur vidéos restaurées.
 
 **🟠 Élevée** : (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
 
@@ -277,6 +280,32 @@ Aujourd'hui ce gate **n'existe pas** dans la chaîne (une vidéo peut être livr
 
 > Statut global identité/anatomie : **non vérifiable exhaustivement maintenant** (générations payantes + crédits épuisés) ;
 > le cas « poil au torse » est **diagnostiqué et reproductible** (cause prompt/source), parades prêtes à valider.
+
+---
+
+---
+
+## AUDIT PROJET UNIQUE · STOCKAGE · TEST/PROD · VALIDATION (E93–E96) — 🔴 critique
+
+| E# | Exigence | Statut | Écran / Zone | Fonction concernée | Impact utilisateur | Priorité |
+|---|---|---|---|---|---|---|
+| E93 | Dossier/projet UNIQUE complet par génération (raws + versions + prompts + métadonnées + logs + rapport QC) | Non conforme (partiel) | `outputs/generations/<ts>/` | `makeGenFolder`:1330, `meta.json`:1337 | Impossible de tout retrouver/rééditer/relancer un projet entier | Critique |
+| E94 | Stockage cloud & archivage permanent (zéro perte, redondance) | Partiellement conforme | iCloud `podcast-outputs` | `personaOutDir`, `tmpfiles.org` workflow.js:102+ | Base iCloud ✅ mais médias intermédiaires sur hébergeur public éphémère | Critique |
+| E95 | Séparation TEST / PRODUCTION (+ promotion sans perte) | Non conforme | `ready_to_post/` `a_retravailler/` | `showReady`:1011, `GF_POST_`:2084 | Pas d'espaces TEST/PROD distincts ; risque de mélange | Critique |
+| E96 | Workflow validation qualité (TEST→QC→validation Etoile→PROD + historique) | Non conforme (Manquant) | — | — | Une vidéo peut filer en « prod » sans QC ni validation tracée | Critique |
+
+### Écart vs l'existant
+Aujourd'hui `outputs/generations/<ts>/` contient **final + raw_pN + caption + style.json + meta.json + thumbnail** (partiel). **Il MANQUE** :
+- le **chemin du look** utilisé, les **prompts** (image / vidéo / lipsync), l'**image source liée**, les **variantes** générées ;
+- les **versions intermédiaires** (avant montage / avant zoom / avant sous-titres) — seuls raw lipsync (`raw_pN`) et final sont gardés ;
+- les **métadonnées** coût / crédits consommés / durée / moteur / état de validation / historique des modifications ;
+- **logs** de génération et **rapport qualité** par projet ;
+- l'historique reste **orienté fichiers** (STUDIO_HIST liste des `.jpg`), pas **orienté projet**.
+- Stockage : `tmpfiles.org` (public/éphémère) pour les médias intermédiaires → à remplacer (E94/E59).
+→ **Chantier critique** : faire de `makeGenFolder` un vrai **conteneur de projet** (project.json complet) + écran Historique par projet + TEST/PROD + workflow de validation.
+
+### Objectif global
+Retrouver **instantanément, même des années plus tard**, l'**intégralité** d'une génération (raws, versions intermédiaires, prompts, paramètres, coûts, logs, métadonnées), en distinguant **TEST** et **PRODUCTION**.
 
 ---
 

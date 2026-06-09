@@ -159,7 +159,33 @@
   - **Niveau (b) — détection AUTOMATIQUE (vision) = BONUS** (non bloquant) : pré-coche/alerte les anomalies. Options & limites : **Claude vision** = précis mais **coûte des crédits Anthropic** à chaque image ; **alternative locale à étudier** (Apple Vision `VNDetectFaceLandmarks`/`VNDetectHumanRectangles`, comparaison d'embedding visage vs `imany_reference.png`) = gratuit local mais détecte surtout visage/landmarks, **moins fiable** pour poils/accessoires fantômes. (b) **complète** (a), ne la remplace pas.
   - Relations : précise/renforce E82 (QC systématique), E84 (QC auto), E91 (gate final) en imposant le **gate au point économiquement critique** (avant la dépense lipsync).
 
+## P. PROJET UNIQUE · STOCKAGE · TEST/PROD · VALIDATION — 🔴 PRIORITÉ CRITIQUE (ajout 2026-06-09)
+
+> Objectif global : retrouver **instantanément, même des mois/années plus tard**, l'intégralité d'une
+> génération (raws, versions intermédiaires, prompts, paramètres, coûts, logs, métadonnées), en
+> distinguant **TEST** et **PRODUCTION**. Remplace/complète E55–E56 (projet réouvrable) qui deviennent
+> cette spec complète.
+
+- **E93** — **DOSSIER/PROJET UNIQUE COMPLET PAR GÉNÉRATION.** À chaque génération, créer **automatiquement** un projet unique regroupant TOUT. `[Etoile 09/06]`
+  - **E93.1 Contenu** : look utilisé · décor utilisé · **prompt image · prompt vidéo · prompt lipsync** · script · audio · **image source** · variantes générées · image validée · **raw lipsync** · **raw vidéo (avant montage)** · version montée · version sous-titrée · version zoomée · version exportée · version finale · légendes.
+  - **E93.2 Métadonnées + logs + rapport qualité** : date, heure, **coût, crédits consommés**, durée de génération, moteur utilisé, paramètres, **état de validation**, historique des modifications, **LOGS** de génération, **RAPPORT QUALITÉ** (résultat du QC identité).
+  - **E93.3 Historique PAR PROJET** (plus par fichiers isolés) : un clic sur une génération montre toute la chaîne **Look→Décor→Prompts→Images→Audio→Raw Lipsync→Raw Vidéo→Montage→Sous-titres→Finale→Légendes**. Aucun fichier intermédiaire perdu/caché.
+  - **E93.4 Actions** : ouvrir · rééditer · réutiliser · dupliquer · relancer · **télécharger tous les fichiers** · exporter le projet · archiver · restaurer.
+  - **E93.5 RAWS OBLIGATOIRES conservés durablement, JAMAIS écrasés** : raw image · raw lipsync · raw vidéo · version **avant sous-titres** · **avant zoom** · **avant montage**.
+  - **E93.6 But audit/debug** : retrouver **Image source → Raw Lipsync → Raw Vidéo → Finale** pour identifier l'étape d'un artefact (exactement la démonstration « poil au torse »).
+  - **E93.7 Modèle réutilisable** : un projet peut servir de **modèle** ; à la réutilisation, **choisir quoi conserver** (look / décor / prompts / script / paramètres vidéo) ou seulement certains.
+  - **E93.8 GATE** : une génération n'est **« terminée »** que si **tout est regroupé** dans ce projet unique, **réutilisable, rééditable, traçable**.
+- **E94** — **STOCKAGE CLOUD & ARCHIVAGE PERMANENT.** Chaque projet auto-sauvegardé dans un stockage cloud persistant (pas seulement la base locale) : zéro perte, archivage long terme, sauvegarde auto, récupération facile, réédition, audit, réutilisation. `[Etoile 09/06]`
+  - **État réel** : sorties déjà sur **iCloud Drive** (`podcast-outputs`) = persistance cloud de base ✅ ; **MAIS** `tmpfiles.org` (uploads temporaires **publics/éphémères** pour Kling) = risque (cf. E59) → à **remplacer par un stockage privé persistant**.
+  - **Options (à étudier, sans coder)** : (a) **formaliser iCloud** comme store officiel + dossiers structurés (simple, déjà en place, mais pas de redondance ni d'API d'audit) ; (b) **cloud indépendant** (S3 / Backblaze B2 / Google Drive API) pour **redondance + URLs privées signées** remplaçant tmpfiles (robuste/auditable, mais coût + intégration). (a) immédiat, (b) cible long terme.
+- **E95** — **SÉPARATION TEST / PRODUCTION.** Deux espaces distincts. `[Etoile 09/06]`
+  - **TEST** = essais techniques / prompts / QC / expérimentations — identifiables immédiatement, comparables, supprimables/archivables.
+  - **PRODUCTION** = vidéos finales **validées**, prêtes à publier.
+  - **Promotion TEST → PRODUCTION sans perte de données.**
+  - **État** : `ready_to_post/` + `a_retravailler/` existent **partiellement** → à structurer en `TEST/` et `PRODUCTION/`.
+- **E96** — **WORKFLOW DE VALIDATION QUALITÉ.** Une génération **ne passe PAS automatiquement** en PRODUCTION. Flux obligatoire : **TEST → CONTRÔLE QUALITÉ (gate identité E91/E92) → VALIDATION humaine (Etoile) → PRODUCTION**. Conserver l'**historique complet de validation** (qui / quand / verdict). `[Etoile 09/06]`
+
 ---
 
-_Total : 92 exigences (E1–E92). Section O (E74–E92) = QUALITÉ VISUELLE & IDENTITÉ, priorité critique._
+_Total : 96 exigences (E1–E96). Sections O (E74–E92) + P (E93–E96) = QUALITÉ, PROJET & TRAÇABILITÉ, priorité critique._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
