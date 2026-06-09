@@ -9,12 +9,12 @@ const REGISTRY = {
   // ── Accueil : 4 entrées directes + pilotage visible (E104) ─────────────────
   home: {
     id: 'home', parent: null, title: '🏠 ACCUEIL', owner: 'Système',
+    help: 'L\'accueil donne accès aux 4 sections : 📸 PHOTO (créer une image), 🎬 VIDÉO (créer une vidéo), 🏛 STUDIO (bibliothèque & gestion), 🕘 RÉCENTS (historique & projets). La barre du bas est la même partout : ❓ Aide · ⏹ Stop · 🔄 Restart.',
     render: () => ({
       caption: '🏠 <b>ACCUEIL</b> — choisis une section :',
       rows: [
         [{ text: '📸 PHOTO', go: 'photo' }, { text: '🎬 VIDÉO', go: 'video' }],
         [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 RÉCENTS', go: 'recents' }],
-        [{ text: '🛑 Stop', cb: 'TECH_STOP' }, { text: '🔄 Restart', cb: 'TECH_RESTART' }, { text: '❓ Aide', cb: 'MENU_HELP' }],
       ],
     }),
   },
@@ -22,6 +22,7 @@ const REGISTRY = {
   // ── 📸 PHOTO : création image / look ───────────────────────────────────────
   photo: {
     id: 'photo', parent: 'home', title: '📸 PHOTO', owner: 'PHOTO',
+    help: 'Crée une image / un look : ✨ Nouveau look, 🖼 Galerie, 🏛 Décors. Après génération, le résultat reste affiché ici ; tu valides avant de passer à la vidéo.',
     render: () => ({
       caption: '📸 <b>PHOTO</b> — créer une image / un look',
       rows: [
@@ -35,6 +36,7 @@ const REGISTRY = {
   // ── 🎬 VIDÉO : création vidéo ──────────────────────────────────────────────
   video: {
     id: 'video', parent: 'home', title: '🎬 VIDÉO', owner: 'VIDÉO',
+    help: 'Crée une vidéo : 🎬 Nouvelle vidéo (script → maquette → génération), 🎨 Éditer / Montage (sous-titres, image, zoom, musique).',
     render: () => ({
       caption: '🎬 <b>VIDÉO</b> — créer une vidéo (script · montage)',
       rows: [
@@ -47,6 +49,7 @@ const REGISTRY = {
   // ── 🏛 STUDIO : bibliothèque / ressources / gestion ───────────────────────
   studio: {
     id: 'studio', parent: 'home', title: '🏛 STUDIO', owner: 'STUDIO',
+    help: 'Bibliothèque & gestion : 👗 Looks, 🏛 Décors, 🎯 Références, 📂 Modèles, 👤 Personas, 📁 Médias. C\'est ici qu\'on range et réutilise les ressources.',
     render: () => ({
       caption: '🏛 <b>STUDIO</b> — bibliothèque, ressources & gestion',
       rows: [
@@ -60,6 +63,7 @@ const REGISTRY = {
   // ── 🕘 RÉCENTS : historique / projets ─────────────────────────────────────
   recents: {
     id: 'recents', parent: 'home', title: '🕘 RÉCENTS', owner: 'RÉCENTS',
+    help: 'Reprends le travail récent : 🕘 Historique des générations, 📤 Prêt à poster.',
     render: () => ({
       caption: '🕘 <b>RÉCENTS</b> — historique & projets',
       rows: [

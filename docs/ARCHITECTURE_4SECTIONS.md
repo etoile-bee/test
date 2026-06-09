@@ -281,6 +281,12 @@ L'ancien handler d'un bloc n'est retiré **qu'après** : tests verts **ET** **va
 - **Critère « bloc migré OK »** : écrans via routeur · callbacks via registre · **zéro global en direct** (via `ctx`) · régressions vertes · smoke vert · **validé par Etoile**.
 - **Où ça se pose** : le **registre + routeur** sont créés au **LOT ACCUEIL/NAV** (étape 1-2) ; les **CRUD** (looks/décors/références) et le **projet unique** (E93) sont écrits **directement comme modules**.
 
+## NAVIGATION UNIVERSELLE & EN PLACE (E108 / E109) — posée au routeur (L0-1c)
+**E108 — barre de nav universelle** ajoutée AUTOMATIQUEMENT par le routeur à chaque bloc, comportement identique partout :
+**⬅ Retour** (parent) · **➡ Suivant** (si `next` ET `gate` ok ; sinon **➡ Suivant 🔒** grisé → toast « choisis d'abord ») · **🏠 Accueil** (si pas racine) · **❓ Aide** (contextuelle, EN PLACE) · **⏹ Stop** · **🔄 Restart**. Handlers centralisés (`R_*`, `RH_*`, `RLOCK`, `TECH_STOP/RESTART`).
+**E109 — en place / bloc fixe** : tout rendu passe par `ctx.show` (édition du bloc courant, anti-doublon ①) ; jamais de `send()` pour un résultat d'étape. Pattern : Action → résultat dans le bloc → validation → ➡ Suivant.
+**Mécanisme module** (prêt pour L0-2+) : `next` (id étape suivante) · `requireChoice` (bool) · `gate(ctx)->bool` · `help` (texte). Vérifié : gate OFF→🔒, gate ON→Suivant actif.
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).

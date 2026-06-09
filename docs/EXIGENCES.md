@@ -222,7 +222,12 @@
 
 ---
 
-_Total : 107 exigences (E1–E107). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E107) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE — priorité critique/élevée._
+- **E108** — **[RÈGLE DIRECTRICE] NAVIGATION UNIVERSELLE.** Tous les écrans du workflow utilisent les **mêmes commandes au comportement strictement identique** : **⬅ Retour** (= parent direct) · **➡ Suivant** (= étape suivante du workflow) · **🏠 Accueil** (= racine) · **⏹ Stop** (= arrête l'opération en cours) · **🔄 Restart** (= redémarrage propre) · **❓ Aide** (= aide **contextuelle** de l'écran courant). Si un choix est **obligatoire**, **➡ Suivant reste désactivé** tant que le choix n'est pas fait. Handlers **centralisés** (un seul comportement partout). `[Etoile 09/06]`
+- **E109** — **[RÈGLE DIRECTRICE] NAVIGATION EN PLACE / BLOC FIXE.** Avant tout passage à l'étape suivante, le **résultat reste affiché DANS LE BLOC COURANT**. **Interdits** : nouveau message en bas · nouveau bloc ailleurs · saut automatique vers une autre étape · perte de contexte. **Pattern imposé** : **Action → Résultat dans le bloc courant → Validation → ➡ Suivant** (le bouton ➡ Suivant n'apparaît/ne s'active qu'**après** affichage du résultat **et** validation). Ex. : LOOK→(résultat dans LOOK)→Valider→IMAGE ; IMAGE→(résultat)→Valider→VIDÉO ; …→LÉGENDES→…→EXPORT. L'utilisateur sait toujours **où il est**, **ce qu'il modifie**, **ce qui vient d'être généré**, et **l'étape suivante**. Renforce [[E1]] (cockpit unique) et [[E105]]/[[E106]]. `[Etoile 09/06]`
+
+---
+
+_Total : 109 exigences (E1–E109). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E109) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION — priorité critique/élevée._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---

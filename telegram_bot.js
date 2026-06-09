@@ -1972,6 +1972,8 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1] ROUTEUR MODULAIRE (strangler-fig) : capte les navigations 'R_<bloc>' du registre ; le reste tombe sur l'ancien dispatch.
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2));return;}
+    if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),{show:(c,r)=>cardMenu(c,r)});return;} /*[L0-1c] aide contextuelle EN PLACE*/
+    if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
