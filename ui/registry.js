@@ -22,13 +22,12 @@ const REGISTRY = {
   // ── 📸 PHOTO : création image / look ───────────────────────────────────────
   photo: {
     id: 'photo', parent: 'home', title: '📸 PHOTO', owner: 'PHOTO',
-    help: 'Crée une image / un look : ✨ Nouveau look, 🖼 Galerie, 🏛 Décors. Après génération, le résultat reste affiché ici ; tu valides avant de passer à la vidéo.',
+    help: 'Crée une image / un look : ✨ Nouveau look ouvre le workspace (Look → Image), 📂 Reprendre un projet rouvre un brouillon. La bibliothèque (galerie de looks, décors) est dans 🏛 STUDIO.',
     render: () => ({
       caption: '📸 <b>PHOTO</b> — créer une image / un look',
       rows: [
-        [{ text: '✨ Nouveau look', go: 'photo.look' }], // [L0-2a] migré : étape LOOK dans le bloc actif (slice brouillon), plus de reset implicite
-        [{ text: '🖼 Galerie looks', cb: 'MENU_LOOKS' }],
-        [{ text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
+        [{ text: '✨ Nouveau look', go: 'photo.look' }],   // [L0-2a] workspace média (slice brouillon), pas de reset implicite
+        [{ text: '📂 Reprendre un projet', cb: 'RX_DRAFTS' }], // [L0-2a-ter] projet actif récupérable depuis PHOTO
       ],
     }),
   },

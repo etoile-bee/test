@@ -1195,6 +1195,7 @@ function wsHeader(p,stepLabel){
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
   const p=ensureProj();
+  if(!genState.activeDraftId){try{autosaveDraft();p.draftId=genState.activeDraftId;}catch(e){}} // [L0-2a-ter] crée l'identité du projet dès l'entrée -> 📁 stable dès le 1er écran
   let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
   const catLabel = p.look.extra ? ('✍️ '+p.look.extra.slice(0,18))
                  : (p.look.category==='random' ? '🎲 Surprise'
@@ -2240,7 +2241,10 @@ async function handle(upd){
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
     if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
-    if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
+    if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
+      if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
+      await uiRouter.routeHelp(hid,uiCtx(hid),'inplace');return;
+    } /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
     if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await uiShow('recents.drafts','📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]],'inplace');return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await uiShow('recents.drafts','📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows,'inplace');return;} /*[L0-1d-fix2] EN PLACE dans le bloc actif*/
@@ -2916,11 +2920,11 @@ async function handle(upd){
     return;
   }
   if(state==='ws_ref_upload_wait'&&msg.photo){ /*[L0-2a-bis] réf uploadée DANS le workspace -> aperçu immédiat dans le bloc média*/
-    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);await routeBlock('photo.ref','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);try{await delMsg(msg.message_id);}catch(e){}await routeBlock('photo.ref','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
   }
   if(state==='ws_look_upload_wait'&&msg.photo){ /*[L0-2a-ter] look uploadé DANS le workspace -> aperçu immédiat (slice look)*/
-    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.look.file=fp;p.look.source='upload';try{setWorkPhoto(fp);}catch(e){}await routeBlock('photo.look','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.look.file=fp;p.look.source='upload';try{setWorkPhoto(fp);}catch(e){}try{await delMsg(msg.message_id);}catch(e){}await routeBlock('photo.look','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
   }
   if(state==='ws_prompt_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] nouveau texte de prompt -> slice prompt*/
