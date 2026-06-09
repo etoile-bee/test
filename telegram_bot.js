@@ -386,7 +386,7 @@ async function runNewLook(){
   try{
     await nlText('⏳ <b>GÉNÉRATION</b> · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)+' · '+_lab);
     const {generateLook}=nlMod();
-    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},m=>{nlText('⏳ <b>GÉNÉRATION</b> · '+escH(m)).catch(()=>{});});
+    const r=await generateLook({category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count,basePrompt:newlook.basePrompt||null},m=>{nlText('⏳ <b>GÉNÉRATION</b> · '+escH(m)).catch(()=>{});}); /*[L0-2a-ter] basePrompt = prompt utilisateur du brouillon (sinon défaut)*/
     newlook.urls=r.urls;newlook.files=[];newlook.idx=0;newlook.recipe=r.recipe;
     clearInterval(_hb);
     await nlShowResult();
@@ -915,7 +915,7 @@ function draftsDir(){const d=path.join(DRAFTS_DIR,_persona());try{fs.mkdirSync(d
 function draftPath(id){return path.join(draftsDir(),id+'.json');}
 function listDrafts(){try{return fs.readdirSync(draftsDir()).filter(f=>/\.json$/.test(f)).map(f=>{try{return JSON.parse(fs.readFileSync(path.join(draftsDir(),f),'utf8'));}catch(e){return null;}}).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0));}catch(e){return[];}}
 function workInProgress(){try{ if(wizardActive)return true; if(newlook&&newlook.urls&&newlook.urls.length)return true; if(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)return true; return false; }catch(e){return false;}}
-function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} const _projStep=(typeof proj!=='undefined'&&proj)?proj.step:null; return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':(_projStep||((newlook.urls&&newlook.urls.length)?'image':'look')),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},proj:((typeof proj!=='undefined'&&proj)?{look:Object.assign({},proj.look),image:{urls:(proj.image.urls||[]).slice(),idx:proj.image.idx||0,validated:proj.image.validated}}:undefined),script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};} /*[L0-2a] slice proj (look/image) persisté = source de vérité*/
+function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} const _projStep=(typeof proj!=='undefined'&&proj)?proj.step:null; return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':(_projStep||((newlook.urls&&newlook.urls.length)?'image':'look')),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},proj:((typeof proj!=='undefined'&&proj)?{name:proj.name||null,look:Object.assign({},proj.look),image:{urls:(proj.image.urls||[]).slice(),idx:proj.image.idx||0,validated:proj.image.validated},prompt:(proj.prompt?{text:proj.prompt.text,name:proj.prompt.name}:undefined)}:undefined),name:((typeof proj!=='undefined'&&proj&&proj.name)||undefined),script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};} /*[L0-2a/ter] slices proj (look/image/prompt/name) persistés = source de vérité*/
 function autosaveDraft(){try{ if(!workInProgress())return null; if(!genState.activeDraftId)genState.activeDraftId='draft_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); const id=genState.activeDraftId; fs.writeFileSync(draftPath(id),JSON.stringify(captureDraft(id),null,2)); saveState(); return id; }catch(e){return null;}}
 function clearActiveDraft(){try{ const id=genState.activeDraftId; wizardActive=false; try{proj=null;}catch(e){} if(id){try{fs.unlinkSync(draftPath(id));}catch(e){} genState.activeDraftId=null; saveState();} }catch(e){}} /*[L0-2a] le projet actif est aussi vidé*/
 async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draftId, pas de doublon — E113)
@@ -929,9 +929,11 @@ async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draf
     if(d.duration){genState.duration=d.duration;}
   }catch(e){}
   saveState();
-  newlook.mediaId=null; // le résultat repart dans un bloc frais
-  if((d.step==='image'||d.step==='video')&&newlook.urls.length){await nlShowResult();return;} // retrouve les images générées
-  await nlConfig(); // étape look/config
+  newlook.mediaId=null; wsOpen=false; // le workspace repart dans un bloc frais
+  if(d.step==='video'){ if(newlook.urls.length){await nlShowResult();}else{await nlConfig();} return; } // vidéo : flux legacy (L0-2b à venir)
+  // [L0-2a-ter] PHOTO : rouvre le WORKSPACE média à la bonne étape (projet récupérable, pas de bloc legacy)
+  try{ projToNewlook(); }catch(e){}
+  await routeBlock((proj&&proj.step==='image')?'photo.image':'photo.look','inplace');
 }
 function pushLastLook(p){if(!p)return;genState.lastLooks=[p,...(genState.lastLooks||[]).filter(x=>x!==p)].slice(0,3);}
 // ── Coûts estimés (CONFIGURABLES — valeurs raisonnables documentées, à ajuster) ──
@@ -1130,12 +1132,13 @@ async function system(text,rows){ const r=await send(text,rows||[]); const mid=r
 function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw)}; }
 // [L0-2a-bis] WORKSPACE MÉDIA (canvas du projet PHOTO) : bloc photo unique édité EN PLACE (vignette + contexte), distinct du menu texte.
 let wsOpen=false; // un workspace média (newlook.mediaId) est ouvert
-let refGalIdx=0;  // pointeur galerie pour le choix de référence
-const MEDIA_MODULES={'photo.look':1,'photo.image':1,'photo.ref':1,'photo.refgal':1}; // modules rendus en bloc MÉDIA
-async function uiShowMedia(file,caption,rows,raw){ wsOpen=true; await nlMedia(file,caption,rows,raw); return newlook.mediaId; } // edite/cree le bloc média (anti-doublon ① + stalefix via nlMedia)
+let refGalIdx=0;  // pointeur galerie pour le choix de référence/look
+let spRenameSlug=null; // slug du prompt en cours de renommage (Studio)
+const MEDIA_MODULES={'photo.look':1,'photo.lookgal':1,'photo.image':1,'photo.ref':1,'photo.refgal':1,'photo.prompt':1,'photo.promptlib':1}; // modules rendus en bloc MÉDIA (workspace)
+async function uiShowMedia(file,caption,rows,raw){ const _was=newlook.mediaId; wsOpen=true; await nlMedia(file,caption,rows,raw); try{jlog('🖼 ws '+(_was?'edit':'create')+' mid='+(newlook.mediaId||'?'));}catch(e){} return newlook.mediaId; } // edite/cree le bloc média unique (anti-doublon ① + stalefix via nlMedia)
 async function routeBlock(id,mode){
   try{autosaveDraft();}catch(e){}
-  if(wsOpen&&!MEDIA_MODULES[id]){ try{await delMsg(newlook.mediaId);}catch(e){} try{sigDrop(newlook.mediaId);}catch(e){} newlook.mediaId=null; wsOpen=false; } // on QUITTE le workspace -> fermeture propre (zéro empilement)
+  if(wsOpen&&!MEDIA_MODULES[id]){ try{await delMsg(newlook.mediaId);}catch(e){} try{sigDrop(newlook.mediaId);}catch(e){} try{jlog('🖼 ws close mid='+(newlook.mediaId||'?'));}catch(e){} newlook.mediaId=null; wsOpen=false; } // on QUITTE le workspace -> fermeture propre (zéro empilement)
   return uiRouter.route(id,uiCtx(id),mode||'inplace'); // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
 }
 
@@ -1145,21 +1148,26 @@ async function routeBlock(id,mode){
 // Pas de reset implicite : ré-entrer Photo recharge le slice ; Retour conserve l'état ; Suivant conserve l'aval.
 // ─────────────────────────────────────────────────────────────────────────────
 let proj=null;
+function defaultPromptText(){ try{ const t=fs.readFileSync(path.join(BASE,'newlook_prompt.txt'),'utf8').trim(); if(t)return t; }catch(e){} return ''; }
 function projDefaults(){
   let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
   const cat=newlook.category||Object.keys(lb.categories||{})[0]||null;
   const env=(lb.envs&&lb.envs[newlook.env])?newlook.env:(newlook.env||'bougies');
-  return { draftId:genState.activeDraftId||null, persona:_persona(), step:'look',
+  return { draftId:genState.activeDraftId||null, persona:_persona(), step:'look', name:null,
     look:{ source:null, file:null, category:cat, env:env, mode:newlook.mode||'eco', count:newlook.count||1, extra:newlook.extra||null },
-    image:{ urls:[], idx:0, validated:null } };
+    image:{ urls:[], idx:0, validated:null, confirming:false },
+    prompt:{ text:defaultPromptText(), name:'défaut' } };
 }
 function projFromDraft(d){
   const p=projDefaults();
-  try{ if(d){ p.draftId=d.draftId||p.draftId;
+  try{ if(d){ p.draftId=d.draftId||p.draftId; if(d.name)p.name=d.name;
     if(d.nl){ if(d.nl.category)p.look.category=d.nl.category; if(d.nl.env)p.look.env=d.nl.env; if(d.nl.mode)p.look.mode=d.nl.mode; if(d.nl.count)p.look.count=d.nl.count; p.look.extra=d.nl.extra||p.look.extra; }
     if(d.proj&&d.proj.look)Object.assign(p.look,d.proj.look);
     if(d.proj&&d.proj.image)Object.assign(p.image,d.proj.image);
     else { p.image.urls=(d.images||[]).slice(); p.image.idx=d.idx||0; }
+    if(d.proj&&d.proj.prompt&&d.proj.prompt.text)p.prompt=Object.assign({},p.prompt,d.proj.prompt);
+    if(d.proj&&d.proj.name)p.name=d.proj.name;
+    p.image.confirming=false; // jamais reprendre en état « confirmation »
     if(p.image.urls.length)p.step='image';
   } }catch(e){}
   return p;
@@ -1168,10 +1176,21 @@ function projToNewlook(){ if(!proj)return; newlook.category=proj.look.category; 
 function ensureProj(){ if(proj)return proj; let d=null; try{ if(genState.activeDraftId)d=listDrafts().find(x=>x.draftId===genState.activeDraftId)||null; }catch(e){} proj=d?projFromDraft(d):projDefaults(); projToNewlook(); return proj; }
 
 function draftTag(){ try{ return genState.activeDraftId?genState.activeDraftId.replace('draft_','').replace(/-/g,'/').slice(0,16):'(nouveau)'; }catch(e){ return '(nouveau)'; } }
+function projName(p){ return (p&&p.name)||draftTag(); }
 function lookFile(p){ // image du look actif (chemin réel, unique) ou null
   try{ if(p.look.file&&fs.existsSync(p.look.file))return p.look.file; }catch(e){}
   try{ if(workingSource&&fs.existsSync(workingSource))return workingSource; }catch(e){}
   return null;
+}
+// [L0-2a-ter · point 6] EN-TÊTE DE CONTEXTE — toujours visible, identique à chaque étape du workspace.
+function wsHeader(p,stepLabel){
+  let src=null;try{src=nlRefFile();}catch(e){}
+  const lf=lookFile(p);
+  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
+    +'👗 Look : '+escH(lf?path.basename(lf):'—')+'\n'
+    +'🎯 Réf : '+escH(src?path.basename(src):'—')+'\n'
+    +'✍️ Prompt : '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n'
+    +'📝 Brouillon : '+escH(draftTag())+'\n';
 }
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
@@ -1182,21 +1201,28 @@ function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette 
                  : ((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.category||'(à choisir)'));
   const envLabel = (lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
   const srcLabel = {new:'✨ Nouveau (généré)',gallery:'🖼 Galerie',upload:'📤 Upload'}[p.look.source]||'— (à choisir)';
-  const lf=lookFile(p); const img=lf||refThumb(); const usingRef=!lf;
-  const cap = '📸 <b>WORKSPACE · LOOK 1/2</b>\n'
-    +(usingRef?'🖼 <i>Aperçu : référence active</i> (pas encore de look)\n':'🖼 <i>Aperçu : look actif</i>\n')
-    +'Source : <b>'+escH(srcLabel)+'</b>\n'
-    +'👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
+  const lf=lookFile(p); const img=lf||refThumb();
+  const cap = wsHeader(p,'LOOK 1/2')
+    +'──────────\n'
+    +'Source : <b>'+escH(srcLabel)+'</b> · 👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
     +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+(p.look.count||1)):'')+'\n'
-    +'📝 Brouillon : '+escH(draftTag())+'\n'
     +(p.look.source?'✅ Look choisi — ➡ Suivant pour l\'image.':'Choisis une <b>source</b> (ou configure), puis ➡ Suivant.');
   const rows=[
-    [{text:(p.look.source==='new'?'✅ ':'')+'✨ Nouveau',cb:'PL_SRC_new'},{text:(p.look.source==='gallery'?'✅ ':'')+'🖼 Galerie',cb:'PL_SRC_gal'},{text:(p.look.source==='upload'?'✅ ':'')+'📤 Upload',cb:'PL_SRC_up'}],
+    [{text:(p.look.source==='new'?'✅ ':'')+'✨ Nouveau',cb:'PL_SRC_new'},{text:(p.look.source==='gallery'?'✅ ':'')+'🖼 Galerie',go:'photo.lookgal'},{text:(p.look.source==='upload'?'✅ ':'')+'📤 Upload',cb:'PL_SRC_up'}],
     [{text:'👗 Tenue',cb:'PL_TENUE'},{text:'🌆 Décor',cb:'PL_ENV'}],
     (p.look.mode==='eco'?[{text:'🎛 Format',cb:'PL_FMT'},{text:'📸 Nombre',cb:'PL_NB'}]:[{text:'🎛 Format',cb:'PL_FMT'}]),
-    [{text:'🎯 Référence',go:'photo.ref'}],
+    [{text:'🎯 Référence',go:'photo.ref'},{text:'✍️ Prompt',go:'photo.prompt'}],
   ];
   return {image:img,raw:false,caption:cap,rows};
+}
+function photoLookGalView(){ // SOURCE LOOK = galerie, dans le workspace (média, navigation en place)
+  const p=ensureProj(); const list=looksList();
+  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeader(p,'LOOK · Galerie')+'──────────\n🖼 <b>Galerie vide</b> — aucun look enregistré.',rows:[]};
+  if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
+  const f=path.join(getLooksDir(),list[refGalIdx]);
+  const cap=wsHeader(p,'LOOK · Galerie')+'──────────\n🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ choisis ce look.';
+  const rows=[[{text:'‹',cb:'PL_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'PL_GNEXT'}],[{text:'✅ Choisir ce look',cb:'PL_GSET'}]];
+  return {image:f,raw:false,caption:cap,rows};
 }
 function photoImageCost(){
   let lb={};try{lb=nlMod().readLookbook();}catch(e){}
@@ -1205,18 +1231,18 @@ function photoImageCost(){
   return {cr:cr,prix:cr?(cr+' cr ≈ '+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer',n:n,lb:lb};
 }
 function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image en cours/sélectionnée + récap coût + 💲 (derrière confirmation)
-  const p=ensureProj();const c=photoImageCost();const lb=c.lb||{};
-  const catLabel=(lb.categories&&lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.extra||p.look.category||'?';
-  const envLabel=(lb.envs&&lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
+  const p=ensureProj();const c=photoImageCost();
   const has=p.image.urls.length;
   const img=has?nlLocal(p.image.idx):(lookFile(p)||refThumb());
-  let cap='📸 <b>WORKSPACE · IMAGE 2/2</b>\n'
+  let cap=wsHeader(p,'IMAGE 2/2')+'──────────\n'
     +(has?'🖼 <i>Aperçu : image '+(p.image.idx+1)+'/'+has+'</i>\n':'🖼 <i>Aperçu : look/référence (aucune image générée)</i>\n')
-    +'👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
-    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+'\n'
-    +'📝 Brouillon : '+escH(draftTag())+'\n'
-    +'🧾 Coût estimé : <b>💰 '+c.prix+'</b>\n';
+    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+' · 🧾 <b>💰 '+c.prix+'</b>\n';
   const rows=[];
+  if(p.image.confirming){ // confirmation de génération DANS le workspace (pas de nouveau bloc)
+    cap+='\n⚠️ <b>Confirmer la génération</b> — action <b>payante</b> ('+(c.cr?c.cr+' cr':'à calibrer')+').\nPrompt : '+escH(((p.prompt&&p.prompt.name)||'défaut'));
+    rows.push([{text:'✅ Confirmer 💲',cb:'PL_GEN_DO'},{text:'◀️ Annuler',cb:'PL_GEN_NO'}]);
+    return {image:img,raw:!!has,caption:cap,rows};
+  }
   if(!has){
     cap+='\nAppuie sur 💲 pour générer — une <b>confirmation</b> sera demandée (action payante).';
     rows.push([{text:'💲 Générer'+(c.cr?(' ('+c.cr+' cr)'):''),cb:'PL_GEN'}]);
@@ -1229,28 +1255,60 @@ function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image 
   return {image:img,raw:!!has,caption:cap,rows};
 }
 function photoRefView(){ // gestion RÉFÉRENCE dans le workspace — bloc MÉDIA : vignette de la réf active + remplacement
-  const img=refThumb(); let src=null;try{src=nlRefFile();}catch(e){}
+  const p=ensureProj(); const img=refThumb(); let src=null;try{src=nlRefFile();}catch(e){}
   const waiting=(state==='ws_ref_upload_wait');
-  const cap='🎯 <b>RÉFÉRENCE Imany (active)</b>\n'
-    +'🖼 <i>'+escH(src?path.basename(src):'(aucune)')+'</i>\n'
-    +(waiting?'\n⏳ <b>En attente de ta photo…</b> envoie-la maintenant.':'\nRemplace-la : 🖼 depuis la galerie ou 📤 upload. Aperçu immédiat ici. Elle s\'applique aux prochaines générations.');
+  const cap=wsHeader(p,'RÉFÉRENCE')+'──────────\n'
+    +'🎯 <b>Référence active</b> : <i>'+escH(src?path.basename(src):'(aucune)')+'</i>\n'
+    +(waiting?'\n⏳ <b>En attente de ta photo…</b> envoie-la maintenant.':'\nRemplace-la : 🖼 galerie ou 📤 upload. Aperçu immédiat ici ; appliquée aux prochaines générations.');
   const rows=[[{text:'🖼 Galerie',go:'photo.refgal'},{text:'📤 Upload',cb:'PR_UP'}]];
   return {image:img,raw:false,caption:cap,rows};
 }
 function photoRefGalView(){ // choix de référence depuis la galerie — bloc MÉDIA, navigation en place
-  const list=looksList();
-  if(!list.length)return {image:refThumb(),raw:false,caption:'🖼 <b>Galerie vide</b> — aucun look à utiliser comme référence.',rows:[]};
+  const p=ensureProj(); const list=looksList();
+  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeader(p,'RÉFÉRENCE · Galerie')+'──────────\n🖼 <b>Galerie vide</b>.',rows:[]};
   if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
   const f=path.join(getLooksDir(),list[refGalIdx]);
-  const cap='🖼 <b>GALERIE → Référence</b> · '+(refGalIdx+1)+'/'+list.length+'\n🖼 <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ définis comme référence active.';
+  const cap=wsHeader(p,'RÉFÉRENCE · Galerie')+'──────────\n🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ définis comme référence active.';
   const rows=[[{text:'‹',cb:'PR_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'PR_GNEXT'}],[{text:'✅ Définir comme référence',cb:'PR_GSET'}]];
   return {image:f,raw:false,caption:cap,rows};
 }
+function photoPromptView(){ // PROMPT UTILISATEUR dans le workspace — bloc MÉDIA : prompt pré-rempli, visible, modifiable
+  const p=ensureProj(); const img=lookFile(p)||refThumb();
+  const editing=(state==='ws_prompt_edit_wait'); const naming=(state==='ws_prompt_save_wait');
+  const txt=(p.prompt&&p.prompt.text)||''; const preview=txt.length>320?(txt.slice(0,320)+'…'):txt;
+  const cap=wsHeader(p,'PROMPT')+'──────────\n'
+    +'✍️ <b>Prompt actif</b> : '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n'
+    +(editing?'\n⏳ <b>Envoie le nouveau texte du prompt…</b>':(naming?'\n⏳ <b>Envoie le nom à donner à ce prompt…</b>':'\n<code>'+escH(preview||'(vide)')+'</code>\n\nÉdite-le, charge-en un de la bibliothèque, ou enregistre-le.'));
+  const rows=[
+    [{text:'✍️ Éditer',cb:'PP_EDIT'},{text:'↩️ Défaut',cb:'PP_DEFAULT'}],
+    [{text:'📚 Charger',go:'photo.promptlib'},{text:'💾 Enregistrer',cb:'PP_SAVE'}],
+  ];
+  return {image:img,raw:false,caption:cap,rows};
+}
+function photoPromptLibView(){ // BIBLIOTHÈQUE de prompts, accessible dans le workspace (média) — sélection -> slice
+  const p=ensureProj(); const img=lookFile(p)||refThumb(); const list=listPromptLib();
+  let cap=wsHeader(p,'PROMPT · Bibliothèque')+'──────────\n📚 <b>Mes prompts</b> ('+list.length+')\n';
+  const rows=[];
+  if(!list.length)cap+='\n(aucun prompt enregistré — 💾 Enregistre le prompt courant pour le réutiliser)';
+  else list.slice(0,8).forEach(x=>{ cap+='\n• '+escH(x.name); rows.push([{text:'📝 '+x.name,cb:'PP_USE_'+x.slug}]); });
+  return {image:img,raw:false,caption:cap,rows};
+}
+// ── Bibliothèque de prompts : prompts/<persona>/*.json (point 4) ───────────────
+function promptsDir(){ const d=path.join(BASE,'prompts',_persona()); try{fs.mkdirSync(d,{recursive:true});}catch(e){} return d; }
+function promptSlug(name){ return String(name||'').toLowerCase().replace(/[^a-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40)||('p'+Date.now()); }
+function listPromptLib(){ try{ return fs.readdirSync(promptsDir()).filter(f=>/\.json$/.test(f)).map(f=>{ try{ const o=JSON.parse(fs.readFileSync(path.join(promptsDir(),f),'utf8')); return {slug:f.replace(/\.json$/,''),name:o.name||f.replace(/\.json$/,''),text:o.text||'',ts:o.ts||0}; }catch(e){ return null; } }).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0)); }catch(e){ return []; } }
+function getPromptLib(slug){ try{ const o=JSON.parse(fs.readFileSync(path.join(promptsDir(),slug+'.json'),'utf8')); return {slug:slug,name:o.name||slug,text:o.text||''}; }catch(e){ return null; } }
+function savePromptLib(name,text){ const slug=promptSlug(name); try{ fs.writeFileSync(path.join(promptsDir(),slug+'.json'),JSON.stringify({name:name,text:text,ts:Date.now()},null,2)); }catch(e){} return slug; }
+function renamePromptLib(slug,name){ const cur=getPromptLib(slug); if(!cur)return null; const ns=savePromptLib(name,cur.text); if(ns!==slug){try{fs.unlinkSync(path.join(promptsDir(),slug+'.json'));}catch(e){}} return ns; }
+function deletePromptLib(slug){ try{ fs.unlinkSync(path.join(promptsDir(),slug+'.json')); }catch(e){} }
 // Enregistrement des modules dans le registre du routeur (strangler-fig : cohabite avec l'ancien dispatch)
 uiRouter.REGISTRY['photo.look']={ id:'photo.look', parent:'photo', title:'📸 PHOTO · Look', owner:'PHOTO', next:'photo.image',
   gate:()=>{ try{ return !!ensureProj().look.source; }catch(e){ return false; } }, // ➡ Suivant actif seulement si un look est choisi
-  help:'Étape LOOK : la vignette montre le look actif (ou la référence active si pas de look). Choisis une source (✨ Nouveau / 🖼 Galerie / 📤 Upload), configure tenue/décor/format/nombre, ou 🎯 change la référence. Tout est conservé dans le brouillon. ➡ Suivant mène à l\'image.',
+  help:'Étape LOOK : la vignette montre le look actif (ou la référence active si pas de look). Choisis une source (✨ Nouveau / 🖼 Galerie / 📤 Upload), configure tenue/décor/format/nombre, 🎯 change la référence ou ✍️ édite le prompt. Tout est conservé dans le brouillon. ➡ Suivant mène à l\'image.',
   render:()=>photoLookView() };
+uiRouter.REGISTRY['photo.lookgal']={ id:'photo.lookgal', parent:'photo.look', title:'🖼 Galerie → Look', owner:'PHOTO',
+  help:'Choisis un look existant de la galerie comme base. Navigue ‹ › puis ✅.',
+  render:()=>photoLookGalView() };
 uiRouter.REGISTRY['photo.image']={ id:'photo.image', parent:'photo.look', title:'📸 PHOTO · Image', owner:'PHOTO', next:'video',
   gate:()=>{ try{ return ensureProj().image.validated!=null; }catch(e){ return false; } }, // ➡ Suivant (→ Vidéo, L0-2b) actif seulement si une image est validée
   help:'Étape IMAGE : la vignette montre l\'image en cours/sélectionnée. Vérifie le coût, 💲 pour générer (confirmation requise — rien n\'est dépensé sans ton accord). Navigue, valide celle à garder (slice image), puis ➡ Suivant vers la Vidéo.',
@@ -1261,6 +1319,24 @@ uiRouter.REGISTRY['photo.ref']={ id:'photo.ref', parent:'photo.look', title:'�
 uiRouter.REGISTRY['photo.refgal']={ id:'photo.refgal', parent:'photo.ref', title:'🖼 Galerie → Référence', owner:'PHOTO',
   help:'Navigue dans la galerie et choisis le look à définir comme référence active.',
   render:()=>photoRefGalView() };
+uiRouter.REGISTRY['photo.prompt']={ id:'photo.prompt', parent:'photo.look', title:'✍️ Prompt', owner:'PHOTO',
+  help:'Prompt utilisé à la génération. Pré-rempli avec le prompt par défaut ; édite-le (il est enregistré dans le brouillon), charge-en un de ta bibliothèque, ou enregistre-le pour le réutiliser.',
+  render:()=>photoPromptView() };
+uiRouter.REGISTRY['photo.promptlib']={ id:'photo.promptlib', parent:'photo.prompt', title:'📚 Bibliothèque prompts', owner:'PHOTO',
+  help:'Tes prompts enregistrés. Touche-en un pour l\'utiliser dans ce projet.',
+  render:()=>photoPromptLibView() };
+// STUDIO · Bibliothèque de prompts (texte) — gestion CRUD (renommer/supprimer) ; création depuis le workflow
+function studioPromptsView(){
+  const list=listPromptLib();
+  let cap='📝 <b>STUDIO · Bibliothèque de prompts</b> ('+list.length+')\n';
+  const rows=[];
+  if(!list.length)cap+='\n(aucun prompt — depuis 📸 Photo › ✍️ Prompt › 💾 Enregistrer)';
+  else { cap+='\nGère tes prompts réutilisables :'; list.slice(0,10).forEach(x=>{ rows.push([{text:'📝 '+x.name,cb:'SP_VIEW_'+x.slug},{text:'✏️',cb:'SP_REN_'+x.slug},{text:'🗑',cb:'SP_DEL_'+x.slug}]); }); }
+  return {caption:cap,rows};
+}
+uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', title:'📝 Prompts', owner:'STUDIO',
+  help:'Bibliothèque de prompts personnalisés : renommer (✏️), supprimer (🗑), réutiliser. On en crée un depuis le workflow Photo (✍️ Prompt › 💾 Enregistrer).',
+  render:()=>studioPromptsView() };
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2162,7 +2238,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
@@ -2173,9 +2249,11 @@ async function handle(upd){
     if(d&&d.indexOf('PL_')===0){
       const p=ensureProj(); let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
       if(d==='PL_NOOP'){await toast('');return;}
-      if(d==='PL_SRC_new'){p.look.source='new';p.look.extra=null;await routeBlock('photo.look','inplace');return;}
-      if(d==='PL_SRC_gal'){p.look.source='gallery';await routeBlock('photo.look','inplace');return;} /*choix de source = galerie (sélection réelle d'image : étape ultérieure)*/
-      if(d==='PL_SRC_up'){p.look.source='upload';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_SRC_new'){p.look.source='new';p.look.extra=null;p.look.file=null;await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_SRC_up'){ state='ws_look_upload_wait'; await toast('📤 Envoie la photo du look'); await routeBlock('photo.look','inplace'); return; } /*upload look -> aperçu immédiat dans le workspace*/
+      if(d==='PL_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('photo.lookgal','inplace'); return; }
+      if(d==='PL_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('photo.lookgal','inplace'); return; }
+      if(d==='PL_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('✅ Look choisi'); } await routeBlock('photo.look','inplace'); return; }
       if(d==='PL_TENUE'){const k=Object.keys(lb.categories||{});if(k.length){const i=k.indexOf(p.look.category);p.look.category=k[(i+1)%k.length];p.look.extra=null;}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
       if(d==='PL_ENV'){const k=Object.keys(lb.envs||{});if(k.length){const i=k.indexOf(p.look.env);p.look.env=k[(i+1)%k.length];}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
       if(d==='PL_FMT'){const m=['eco','planche','hd'];const i=m.indexOf(p.look.mode);p.look.mode=m[(i+1)%m.length];if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
@@ -2184,13 +2262,11 @@ async function handle(upd){
       if(d==='PL_NEXT'){if(p.image.urls.length){p.image.idx=(p.image.idx+1)%p.image.urls.length;newlook.idx=p.image.idx;}await routeBlock('photo.image','inplace');return;}
       if(d==='PL_PICK'){if(p.image.urls.length){p.image.validated=p.image.idx;p.step='image';}await routeBlock('photo.image','inplace');return;} /*écrit le slice image (validée)*/
       if(d==='PL_VIEW'){if(p.image.urls.length){newlook.idx=p.image.idx;await nlShowResult();}else{await toast('Aucune image');}return;}
-      if(d==='PL_GEN'){ // confirmation AVANT toute dépense (jamais de génération en test)
-        const c=photoImageCost();
-        await uiShow('photo.image','🧾 <b>CONFIRMER LA GÉNÉRATION</b>\n'+escH(((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.extra||p.look.category||'?'))+' · '+escH(((lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env))+' · '+p.look.mode+'\n💰 '+c.prix+'\n\n⚠️ Action <b>payante</b> — confirme pour lancer.',[[{text:'✅ Confirmer 💲',callback_data:'PL_GEN_DO'}],[{text:'◀️ Annuler',callback_data:'R_photo.image'}]],'inplace');
-        return;
-      }
-      if(d==='PL_GEN_DO'){ // génération RÉELLE — pont vers le moteur existant (hors test)
-        try{ projToNewlook(); newlook.urls=[];newlook.files=[];newlook.idx=0; await runNewLook(); p.image.urls=(newlook.urls||[]).slice(); p.image.idx=newlook.idx||0; p.image.validated=null; p.step='image'; }catch(e){ await toast('❌ '+(e&&e.message||'erreur')); }
+      if(d==='PL_GEN'){ p.image.confirming=true; await routeBlock('photo.image','inplace'); return; } // confirmation DANS le workspace (pas de nouveau bloc) ; jamais de génération en test
+      if(d==='PL_GEN_NO'){ p.image.confirming=false; await routeBlock('photo.image','inplace'); return; }
+      if(d==='PL_GEN_DO'){ // génération RÉELLE — pont vers le moteur existant (hors test) ; utilise le prompt du slice
+        p.image.confirming=false;
+        try{ projToNewlook(); newlook.basePrompt=(p.prompt&&p.prompt.text)||null; newlook.urls=[];newlook.files=[];newlook.idx=0; await runNewLook(); p.image.urls=(newlook.urls||[]).slice(); p.image.idx=newlook.idx||0; p.image.validated=null; p.step='image'; }catch(e){ await toast('❌ '+(e&&e.message||'erreur')); }
         await routeBlock('photo.image','inplace'); return;
       }
       if(d==='PL_EDIT'){ /*[T7] éditeur depuis Photo : réutilise le bloc photo (pas de nouveau message)*/ try{ if(p.image.urls.length){const f=nlLocal(p.image.idx);if(f)setWorkPhoto(f);} cockpit.mid=newlook.mediaId||cockpit.mid; }catch(e){} await showEditHome(); return; }
@@ -2202,6 +2278,22 @@ async function handle(upd){
       if(d==='PR_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
       if(d==='PR_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
       if(d==='PR_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ try{setImanyRef(path.join(getLooksDir(),f));}catch(e){} await toast('✅ Référence mise à jour'); } await routeBlock('photo.ref','inplace'); return; } /*aperçu immédiat de la nouvelle réf*/
+      return;
+    }
+    // [L0-2a-ter] PROMPT UTILISATEUR dans le workspace (rendu EN PLACE dans le bloc média)
+    if(d&&d.indexOf('PP_')===0){
+      const p=ensureProj();
+      if(d==='PP_EDIT'){ state='ws_prompt_edit_wait'; await toast('✍️ Envoie le nouveau prompt'); await routeBlock('photo.prompt','inplace'); return; }
+      if(d==='PP_DEFAULT'){ p.prompt={text:defaultPromptText(),name:'défaut'}; await toast('↩️ Prompt par défaut'); await routeBlock('photo.prompt','inplace'); return; }
+      if(d==='PP_SAVE'){ state='ws_prompt_save_wait'; await toast('💾 Envoie le nom du prompt'); await routeBlock('photo.prompt','inplace'); return; }
+      if(d&&d.indexOf('PP_USE_')===0){ const it=getPromptLib(d.slice(7)); if(it){ p.prompt={text:it.text,name:it.name}; await toast('✅ Prompt « '+it.name+' »'); } await routeBlock('photo.prompt','inplace'); return; }
+      return;
+    }
+    // [L0-2a-ter] STUDIO · gestion bibliothèque de prompts (texte, EN PLACE)
+    if(d&&d.indexOf('SP_')===0){
+      if(d&&d.indexOf('SP_VIEW_')===0){ const it=getPromptLib(d.slice(8)); await toast(it?(it.name+' : '+it.text.slice(0,180)):'introuvable'); return; }
+      if(d&&d.indexOf('SP_REN_')===0){ spRenameSlug=d.slice(7); state='sp_rename_wait'; await toast('✏️ Envoie le nouveau nom'); return; }
+      if(d&&d.indexOf('SP_DEL_')===0){ deletePromptLib(d.slice(7)); await toast('🗑 Supprimé'); await routeBlock('studio.prompts','inplace'); return; }
       return;
     }
     // Menu principal
@@ -2826,6 +2918,19 @@ async function handle(upd){
   if(state==='ws_ref_upload_wait'&&msg.photo){ /*[L0-2a-bis] réf uploadée DANS le workspace -> aperçu immédiat dans le bloc média*/
     try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);await routeBlock('photo.ref','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
+  }
+  if(state==='ws_look_upload_wait'&&msg.photo){ /*[L0-2a-ter] look uploadé DANS le workspace -> aperçu immédiat (slice look)*/
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.look.file=fp;p.look.source='upload';try{setWorkPhoto(fp);}catch(e){}await routeBlock('photo.look','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    return;
+  }
+  if(state==='ws_prompt_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] nouveau texte de prompt -> slice prompt*/
+    const p=ensureProj();p.prompt={text:msg.text.trim(),name:(p.prompt&&p.prompt.name&&p.prompt.name!=='défaut')?p.prompt.name:'perso'};state='idle';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('photo.prompt','inplace');return;
+  }
+  if(state==='ws_prompt_save_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] nom -> enregistre dans la bibliothèque*/
+    const p=ensureProj();const nm=msg.text.trim().slice(0,40);savePromptLib(nm,(p.prompt&&p.prompt.text)||'');p.prompt.name=nm;state='idle';try{await delMsg(msg.message_id);}catch(e){}await toast('💾 Prompt « '+nm+' » enregistré');await routeBlock('photo.prompt','inplace');return;
+  }
+  if(state==='sp_rename_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] STUDIO : renommer un prompt*/
+    const nm=msg.text.trim().slice(0,40);if(spRenameSlug){renamePromptLib(spRenameSlug,nm);spRenameSlug=null;}state='idle';try{await delMsg(msg.message_id);}catch(e){}await routeBlock('studio.prompts','inplace');return;
   }
   if(state==='create_look_upload_wait'&&msg.photo){ /*[flux-look] photo uploadée -> look de la vidéo (après aperçu + validation)*/
     try{

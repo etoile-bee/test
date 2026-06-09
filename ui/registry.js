@@ -55,7 +55,8 @@ const REGISTRY = {
       rows: [
         [{ text: '👗 Looks', cb: 'MENU_LOOKS' }, { text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
         [{ text: '🎯 Références', cb: 'RX_REFS' }, { text: '📂 Modèles', cb: 'SHOWSTYLES' }],
-        [{ text: '👤 Personas', cb: 'PERSONA' }, { text: '📁 Médias', cb: 'FILES_HOME' }],
+        [{ text: '📝 Prompts', go: 'studio.prompts' }, { text: '👤 Personas', cb: 'PERSONA' }],
+        [{ text: '📁 Médias', cb: 'FILES_HOME' }],
       ],
     }),
   },
