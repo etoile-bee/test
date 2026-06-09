@@ -250,6 +250,9 @@ Décors CRUD (E25) + Lock Background (E26) ; Looks dupliquer/archiver/lock (E17/
 - **BUG-D (Faible/cosmétique)** — récap HD "1080p":2505 contredit la dé-trompe:368. (E14)
 - **BUG-E (Faible)** — double-tap `RC_GO` non débouncé (étape script, gratuite).
 - **RÉGRESSION (Moyenne)** — `/prompt` ouvre un message séparé (E34) → viole le cockpit unique (E1).
+- **BUG-T7 (Élevée, retour Etoile)** — 🎨 Éditer depuis le menu ne montre pas le look (`EDIT_HOME`:2322 sans `setWorkPhoto` → `workSrc`=raw/null), alors que l'aperçu marche (`NL_EDIT`:2446 fait `setWorkPhoto`) ; et l'éditeur ouvre un **nouveau message** (`editScreen`:1079 utilise `cockpit.mid` ≠ bloc photo).
+- **BUG-T10 (Élevée, retour Etoile)** — l'étape Look s'affiche en Express/Auto (preuve journal `CL_KEEP` 15:01:57) mais **absente en Sur-mesure** (`CREER_SURMESURE`:1975→`openCard` contourne `showLookSource`).
+- **BUG-T12 (Élevée, retour Etoile)** — légende : OK sur vidéo fraîche, mais **aucune version** (1 seul `caption.txt`, E49) et **« Introuvable »/legacy après restart** (`gfIdx` remappé / `gf.vidMid` null, `genFoldersLoad`:1317 vs `GF_LONG_`:2110).
 
 ### Recommandations priorisées
 **Critique — n°1 ABSOLUE (E92, décision Etoile 09/06)** : **GATE QC IDENTITÉ SUR L'IMAGE SOURCE, AVANT le lipsync payant.** Après l'image source (éco) et avant `genFinal`→`generateLipsync` : écran QC (image + checklist poils/doigts/mains/membres/accessoires fantômes/déformation visage/âge/ethnie/morphologie/cohérence visage-peau-cheveux-regard). Anomalie → vidéo bloquée + 3 actions (🔄 Régénérer · 🎨 Éditer · ✅ Valider malgré l'alerte). Niveau (a) gate humain = bloquant et faisable sans coût ; niveau (b) détection vision = bonus (Claude vision coûte des crédits ; local Apple Vision/embedding à étudier). Empêche de payer un lipsync sur une image fautive (cas « poil au torse »).

@@ -349,4 +349,26 @@ Retrouver **instantanément, même des années plus tard**, l'**intégralité** 
 
 ---
 
+---
+
+## BUGS — Retours tests Etoile T7 / T10 / T12 (croisés code + journaux)
+
+| Test | Attendu | Réel confirmé (preuve) | Cause | file:line | Priorité |
+|---|---|---|---|---|---|
+| **T7a** Éditer depuis le menu | ouvrir l'éditeur sur le look | **Ne fonctionne pas** depuis 🎨 Éditer (menu), **OK** depuis l'aperçu | `EDIT_HOME` n'appelle **pas** `setWorkPhoto` → `editScreen` rend `workSrc()`=`latestRaw()` (un raw vidéo) ou rien ; l'aperçu (`NL_EDIT`) fait `setWorkPhoto(pose)` avant → look valide | `EDIT_HOME` 2322 vs `NL_EDIT` 2446 ; `editScreen` 1077, `workSrc` 1500 | Élevée |
+| **T7b** rester dans le bloc | édition en place | **Nouveau message en bas** ; retour à la base OK | `editScreen` rend dans `cockpit.mid` (bloc vidéo) ≠ bloc photo (`newlook.mediaId`) où était l'aperçu → autre message ; si `cockpit.mid` null/stale → `send()` crée un message | `editScreen` 1079 (`cockpitPhoto`) | Moyenne |
+| **T10** Étape Look (Nouveau/Galerie/Upload) | s'affiche en création | **S'affiche en Express/Auto** (preuve : 15:01:54 `CREER_EXPRESS` → 15:01:57 `CL_KEEP`) ; **absente en Sur-mesure** (mode le plus utilisé, 3×) | `CREER_SURMESURE`→`openCard` **contourne** `showLookSource` ; Express/Auto l'appellent bien | `CREER_SURMESURE` 1975→`openCard` 1099 ; vs `showLookSource` 1415 | Élevée |
+| **T12a** Légende sur vidéo | afficher courte/longue | bouton **présent** (`📋 Légende`) + toggle court/long branchés | OK sur **vidéo fraîche** (même session) | `resKb` 1707, `GF_LONG_` 2110, `GF_SHORT_` 2111 | — |
+| **T12b** versions | versions de légende | **aucune version** (un seul `caption.txt`) | pas de versionnage (E49) | `makeGenFolder` 1335 (1 seul write) | Élevée |
+| **T12c** après restart | légende accessible | **« ⚠️ Introuvable »** ou nouveau message / branche legacy | `gfIdx` restauré ≠ genFolders re-scannés, ou `gf.vidMid`=null après restart → handler échoue ; item restauré sans `gfIdx` → branche `LCAP_LEGACY` (`setup.lastVideo` null) | `genFoldersLoad` 1317, `GF_LONG_` 2110, `resKb` 1713 | Élevée |
+
+**Rejoignent** : T7→E16/E102 (éditeur), T10→E7/E104 (modes/parcours), T12→E49 (versions)/E54 (réédition après restart). **Tous déjà au plan** (LOT ACCUEIL/NAV + Historique/projet).
+
+### Faut-il une capture d'Etoile ?
+- **T7** : ❌ pas nécessaire — cause établie par le code (deux chemins, setWorkPhoto manquant + cockpit.mid).
+- **T10** : ⚠️ **utile** pour confirmer le **mode testé** (le journal indique Sur-mesure = sans étape look ; à verrouiller). L'écran lui-même fonctionne (preuve CL_KEEP).
+- **T12** : ⚠️ **utile** pour savoir si la vidéo testée était **fraîche** (alors OK, manque juste les versions) **ou restaurée après /restart** (alors bug « Introuvable »). Le code couvre les deux cas ; la capture tranche lequel elle a vécu.
+
+---
+
 _Aucune correction appliquée — diagnostic en attente de validation d'Etoile._
