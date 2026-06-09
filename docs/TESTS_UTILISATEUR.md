@@ -17,6 +17,28 @@
 > Enchaînement logique pour tout couvrir vite. Aucun de ces tests ne déclenche de génération payante
 > (image/vidéo). On s'arrête **toujours avant** le bouton « 💲 Générer ».
 
+### Pré-analyse via journaux (ui_journal / bot_journal) — état de chaque test
+> ✅ Confirmé (déjà prouvé, pas besoin de le refaire) · ❌ Infirmé (défaut prouvé) · 🔲 À tester en live (non observable dans l'historique → **reste à faire par Etoile**).
+
+| Test | État journal | Preuve (journaux / code) |
+|---|---|---|
+| T1 Stop/Restart en tête | ✅ Confirmé (Non conforme) | `/restart` **75×** + `/stop` 12× **tapés** (aucun bouton d'accueil) ; `showHome` sans Stop/Restart |
+| T2 Navigation en place / anti-spam | ❌ Infirmé | `edited_in_place:false` **2532** vs true 916 (**73 % de messages empilés**, pas en place) |
+| T3 Galerie grille | ✅ Confirmé (OK) | `GAL_NEXT` 46× + `MENU_LOOKS` 13× ; `showGallery` 3×3 |
+| T4 Historique = vraies vidéos ? | ❌ Infirmé | `STUDIO_HIST` scanne les `.jpg` racine (photos), pas les vidéos ; ouvert 2× seulement |
+| T5 Référence cockpit (lock/défaut) | ✅ Confirmé (Partiel) | menu `showRefMenu` = pose/galerie/upload ; **`REF_LOCK`/`REF_DEFAULT` absents** |
+| T6 Bibliothèque de références | ✅ Confirmé (Manquant) | aucune biblio taguée/cherchable dans le code |
+| T7 /edit reset image à l'ouverture | 🔲 À tester | état `fx.image` non lisible dans les journaux (BUG-4 censé corrigé) |
+| T8 Défauts Zoom/Réactions | ✅ Confirmé (Non conforme) | `FX_DEFAULT` : zoom `on:1`, réactions `natural` (render_local.js:73-76) |
+| T9 Récap coût sans payer | ✅ Confirmé (OK) | `NL_GO` **44×** vs `NL_GO2` 24× → ~20 récaps **sans** dépense |
+| T10 Étape Look (Auto/Express) | 🔲 À tester | `CL_GAL/CL_NEW/CL_UP` = **0×** dans le journal (flux jamais exercé en réel) |
+| T11 Aperçu local gratuit | ✅ Confirmé (OK) | `MENU_TEST` 25× + `/test` 3× + `/preview` 2× |
+| T12 Légendes (copie/toggle) | 🔲 À tester | `GF_LONG/GF_SHORT` = **0×** (jamais ouvert) |
+| T13 Reprise après /restart | ✅ Confirmé (OK) | restart→/menu→`deleteMessage` **38×** (stale-fix recrée frais) |
+| T14 Persistance params 2 looks | 🔲 À tester | non déductible des journaux |
+
+**Bilan : 8 ✅ · 2 ❌ · 4 🔲.** → **Il ne reste à Etoile que 4 tests live** : **T7** (reset /edit image), **T10** (étape Look des modes Auto/Express), **T12** (légendes copie/toggle), **T14** (params non hérités entre 2 looks). Les autres sont déjà tranchés par les journaux + le code (détail en colonne ci-dessus).
+
 ### T1 — Accueil : Stop/Restart en tête ? `(E62)`
 - **Objectif** : vérifier si l'arrêt/redémarrage est accessible en tête de l'accueil.
 - **Étapes** : taper `/menu`.
