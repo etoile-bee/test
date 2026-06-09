@@ -215,10 +215,14 @@
   - **Objectif** : **séparé + relié + évolutif**.
   - **Pattern d'implémentation visé** (cf. `docs/ARCHITECTURE_4SECTIONS.md` §Squelette modulaire) : **registre de blocs** (chaque bloc déclaré : `id`, `parent`, `titre`, `handler`, `boutons`) + **routeur central** → ajouter/retirer un sous-menu = ajouter/retirer **une entrée du registre**, sans toucher au reste.
   - **À respecter pendant** le LOT ACCUEIL/NAV ([[E104]]) **et** les CRUD looks/décors/références ([[E15]]–[[E26]], [[E100]]–[[E101]]) pour qu'ils soient des **modules propres**.
+- **E107** — **[DETTE TECHNIQUE PRIORITAIRE MAIS CONTRÔLÉE] REFACTORISATION PROGRESSIVE (strangler-fig).** Sortir du monolithe `telegram_bot.js` **sans réécriture brutale** : registre+routeur posés à côté de l'ancien dispatch, **migration d'un bloc à la fois**, tests après chaque déplacement, **suppression de l'ancien code UNIQUEMENT après validation d'Etoile** du bloc migré. `[Etoile 09/06]`
+  - **Méthode** : strangler-fig (l'ancien `if(d===…)` reste tant qu'un bloc n'est pas migré et validé) ; un seul bloc en cours à la fois ; filet habituel (backups, mono-session, `node --check`, régressions, smoke, petits commits, preuve).
+  - **Critère « bloc migré OK »** : tous ses écrans rendus par le routeur, tous ses callbacks via le registre, **aucun global atteint en direct** (via `ctx`), régressions vertes, smoke `/go`/`/menu` vert, **validation visuelle d'Etoile**.
+  - **Plan détaillé** (8 étapes, recensement, dépendances dangereuses, ordre de migration) : `docs/ARCHITECTURE_4SECTIONS.md` §Plan de refactorisation progressif.
 
 ---
 
-_Total : 106 exigences (E1–E106). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E106) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE — priorité critique/élevée._
+_Total : 107 exigences (E1–E107). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) + S (E104–E107) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE — priorité critique/élevée._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---

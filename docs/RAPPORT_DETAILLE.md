@@ -6,7 +6,7 @@
 
 ## Récap chiffré
 
-**Statuts (sur 106 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 24** · 🟠 **Non conforme : 32** · ◻️ **Non vérifié : 11** · ⛔ **Supersedé : 1** (E68 → E97).
+**Statuts (sur 107 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 24** · 🟠 **Non conforme : 33** · ◻️ **Non vérifié : 11** · ⛔ **Supersedé : 1** (E68 → E97).
 - **Cœur produit / UX (E1–E73)** : 36 Conforme · 21 Partiel · 15 Non conforme · 1 supersedé (E68).
 - **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
 - **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel · 3 Non conforme.
@@ -14,7 +14,7 @@
 
 → **Score sur exigences auditables ≈ 55 %** (50,5/92, hors 11 « Non vérifié »).
 
-**Par priorité** : 🔴 **Critique : 18** · 🟠 **Élevée : 20** · 🟡 **Moyenne : 24** · 🟢 **Faible : 6**.
+**Par priorité** : 🔴 **Critique : 19** · 🟠 **Élevée : 20** · 🟡 **Moyenne : 24** · 🟢 **Faible : 6**.
 
 > Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
 > contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
@@ -132,6 +132,7 @@
 | E104 | Accueil = 4 entrées directes (📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS) | Non conforme | showHome | `showHome`:1389 (Créer/Studio/Éditer/Aide/Profil) | Pas de bouton direct Photo/Vidéo/Récents ; fonctions principales à ≥2 clics ou en commande | Élevée |
 | E105 | [RÈGLE DIRECTRICE] Blocs fonctionnels uniques & frontières claires (1 fonction = 1 propriétaire) | Non conforme | architecture | doublons : galerie/éditeur/légendes/aperçu accessibles de N endroits ; `CARD_MORE`/`showStudio` mélangent les responsabilités | Chevauchements → confusion ; arbitre tous les doublons (voir matrice de propriété) | Critique |
 | E106 | [RÈGLE DE CONCEPTION] Architecture modulaire & évolutive (registre de blocs + routeur) | Non conforme | tout `telegram_bot.js` | monolithe ~2916 l., handlers `if(d===...)` en dur, blocs non isolés, doublons | Impossible d'ajouter/retirer un sous-menu sans risque de casse ; refonte = poser le squelette modulaire | Critique |
+| E107 | [DETTE] Refactorisation progressive contrôlée (strangler-fig, suppression après validation) | Non conforme (à faire) | tout `telegram_bot.js` | 273 handlers callback + 32 cmds + 22 `show*` en monolithe | Sortir du monolithe sans réécriture brutale ; plan 8 étapes | Critique |
 
 ### Audit UX accueil (E104) — actuel vs cible
 **Accueil actuel** (`showHome`:1389) : 🚀 Créer · 🎬 Studio · 🎨 Éditer · ❓ Aide · 👤 Profil. → **ne correspond pas** aux 4 sections d'Etoile.

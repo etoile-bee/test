@@ -203,6 +203,84 @@ pose le fil d'Ariane via `parent` → câble `actions`/`links`. **Retour** = rem
 4. **Migration progressive** : un bloc à la fois (le routeur peut cohabiter avec l'ancien code le temps de la bascule), en supprimant les doublons/legacy au passage.
 5. **Garde-fou E105** : revue à chaque ajout — un nouveau module doit avoir **un `owner` unique** et n'introduire **aucune duplication** (sinon = `link`).
 
+---
+
+# PLAN DE REFACTORISATION PROGRESSIF — sortie du monolithe (E107)
+
+> Dette technique **prioritaire mais contrôlée**. **PAS** de réécriture brutale : **strangler-fig** —
+> on pose le routeur+registre à côté de l'ancien dispatch, on migre **un bloc à la fois**, on teste,
+> et on **supprime l'ancien code seulement après validation d'Etoile**. (Plan = doc ; aucun code ici.)
+
+## Étape 1 — Recensement des handlers actuels (mesuré)
+**Total : 273 handlers callback** (234 `if(d===…)` + 38 `d.startsWith` + 1 `d.match`) · **32 commandes** `onText` (`/…`) · **22 fonctions `show*`**.
+
+Classement par bloc cible (approx. par préfixe de callback) :
+| Bloc cible | Familles de handlers | ≈ nb |
+|---|---|---|
+| 📸 PHOTO | `NL_*` (33), `PROMPT_*` (2) | ~35 |
+| 🎬 VIDÉO | flux `RC_*`(18) `GJ_*`(15) `GJM_*`(4) `GEN_*`(3) `EXPRESS_*`(2) `SCRIPT_OK` ; éditeur `EDIT_*`(10) `IMG_*`(16) `S_*`(19 sous-titres) `ZM_*`(7) `MU_*`(5) `RE_*`(4) `COVER_*`(4) `VALIDATE/UNDO/CMP/LS/SAVE*` | **~115** |
+| 🏛 STUDIO | `GAL_*`(7) `CL_*`(9) `GLP_*`(2) `REF_*`(4) `MENU_LOOKS` `STUDIO_*`(2) `PERSONA_*`(2) `SHOWSTYLES/REUSE` `FCAT_/FILES_` | ~30 |
+| 🕘 RÉCENTS | `RES_*`(6) `GF_*`(8) `SHOWREADY/READY_*` `ADD_*`(4) | ~20 |
+| ⚙️ Système | `HOME_*`(3) `CARD_*`(2) `TECH_*`(3) `MAIN_MENU` `MENU_HELP` `NOOP`(16) + cmds `/menu //go //stop //restart //status` | ~30 |
+| 🗑 Supprimer (legacy mort) | `MM_*`(25) `A_*` `L_*`(3) `D_*`(3) `T_*` `CHG_*`(2) `SHOW`(showMainMenu) `getQButtons` `launch` | ~40 |
+
+## Étape 2 — Responsabilités (une ligne par groupe)
+- `NL_*` : configurer + générer + parcourir les **images** (workflow photo).
+- `RC_*`/`GJ_*`/`GEN_*` : **carte vidéo → script → maquette → génération**.
+- `EDIT_*`/`IMG_*`/`S_*`/`ZM_*`/`MU_*`/`RE_*`/`COVER_*` : **montage** (image, sous-titres, zoom, musique, réactions, cover).
+- `GAL_*`/`CL_*`/`MENU_LOOKS` : **bibliothèque looks** (parcourir/choisir).
+- `REF_*` : **références** ; `FCAT_/FILES_` : **médias** ; `SHOWSTYLES/REUSE` : **modèles** ; `PERSONA_*` : **profils**.
+- `RES_*` : **résultats récents** ; `GF_*` : actions sur **vidéo livrée** ; `SHOWREADY/READY_*` : **prêt-à-poster**.
+- `HOME_*`/`CARD_*`/`TECH_*`/cmds pilotage : **système/accueil**.
+- `MM_*`/`A_*`/`launch`/`getQButtons` : **anciens flux morts** (à supprimer).
+
+## Étape 3 — Doublons + dépendances dangereuses (état partagé / globals)
+**Doublons** (cf. matrice §2) : galerie, éditeur, légendes, aperçu, décor, référence → 1 propriétaire + `links`.
+
+**Globals à risque pour l'extraction** (rendent une fonction non-isolable) :
+| Global / état | Utilisé par | Risque | Isolation proposée |
+|---|---|---|---|
+| `cockpit.mid`, `newlook.mediaId`, `results.mid` | rendu en place partout | un module qui édite le mauvais message | passer par `ctx.panel` (gestionnaire de message par bloc) |
+| `newlook` (objet) | PHOTO + vidéo (look) | couplage photo↔vidéo | `ctx.state.photo` ; la vidéo lit via `links`/getter |
+| `genJob`, `genState`, `gw` | VIDÉO + reprise | état de génération éparpillé | `ctx.state.video` |
+| `results` | RÉCENTS + livraisons | écrit depuis genFinal | `ctx.state.recents` + API `addResult()` |
+| `workingSource`, `HIGGS_AVATAR_URL` (.env) | PHOTO/VIDÉO/réf | la « photo de travail » globale | `ctx.state.workingSource` + setter unique |
+| `freshBloc/staleBloc` (stale-fix) | tous les blocs | recréation après restart | service partagé `panel.fresh()` |
+| `style.json` (fx) / `loadFx/writeFx` | éditeur + rendu | params hérités (E102) | service `fx` + reset par défaut |
+| `escHtml/escH`, `_sig/_msgSig`, `_fileId` | partout | utilitaires dispersés | module `utils` importé |
+| `setup.lastVideo`, `galMid`, `lastCardSig`, `sessions/SESSION_VARS` | legacy + session | état legacy entremêlé | migrer/retirer avec le legacy |
+**Principe** : aucun module ne touche un global en direct → tout passe par un **`ctx`** (état + services) injecté par le routeur.
+
+## Étape 4 — Registre de blocs
+Nouveau fichier **`ui/registry.js`** : un tableau/map de modules. Forme d'un module :
+```
+{ id, parent, title, owner, render(ctx)->{caption,rows}, actions:{CB:fn(ctx)}, links:[ids] }
+```
+Le registre **ne contient pas d'état** (il décrit la structure) ; l'état vit dans `ctx.state`.
+
+## Étape 5 — Routeur central (cohabite avec l'ancien — strangler-fig)
+Nouveau fichier **`ui/router.js`** : `route(id, ctx)` → cherche le module → `render` → pose le **fil d'Ariane** via `parent` → câble `actions`/`links`. Le **dispatch existant** (`if(d===…)`) reste en place ; au début du handler, on tente `router.handle(d, ctx)` ; **si le bloc n'est pas encore migré**, on retombe sur l'ancien code. → bascule **sans big-bang**.
+
+## Étape 6 — Ordre de migration (du plus sûr au plus couplé)
+1. **⚙️ Système + accueil** (poser routeur+registre, 4 entrées E104, Stop/Restart visibles) — socle, peu d'état.
+2. **🗑 Legacy mort** (`MM_*`/`A_*`/`launch`/`getQButtons`/`showMainMenu`) — **suppression à froid** (déjà injoignable, prouvé audit) : réduit le bruit avant de migrer le vivant.
+3. **🏛 STUDIO** (galerie/références/médias/modèles) — surtout **lecture/affichage**, le moins risqué.
+4. **🕘 RÉCENTS** (résultats/historique/prêt-à-poster) — lecture + actions simples.
+5. **📸 PHOTO** (`NL_*`) — workflow autonome, état `newlook` bien identifié.
+6. **🎬 VIDÉO** (carte+script+montage) — **le plus gros et le plus couplé → en dernier**, une fois `ctx` rodé.
+_Justification : on stabilise le socle et on supprime le mort avant de toucher au cœur payant (vidéo)._
+
+## Étape 7 — Tester après CHAQUE déplacement
+Régressions **`nodup 16 / feedback 15 / gallery 7 / nbphotos 7 / stalefix 8`** + **smoke `/go` `/menu`** + **test fonctionnel du bloc migré** (tous ses écrans/boutons). **Rien n'avance si rouge.**
+
+## Étape 8 — Supprimer l'ancien code APRÈS validation
+L'ancien handler d'un bloc n'est retiré **qu'après** : tests verts **ET** **validation visuelle d'Etoile** du bloc migré. Jamais avant. (Le strangler-fig garantit qu'on peut revenir en arrière tant que l'ancien code est là.)
+
+## Filet & critères
+- **Filet** : backups `.preXXX`, **mono-session**, `node --check`, **petits commits** (« refacto: migre bloc X »), preuve (régressions+smoke), journal.
+- **Critère « bloc migré OK »** : écrans via routeur · callbacks via registre · **zéro global en direct** (via `ctx`) · régressions vertes · smoke vert · **validé par Etoile**.
+- **Où ça se pose** : le **registre + routeur** sont créés au **LOT ACCUEIL/NAV** (étape 1-2) ; les **CRUD** (looks/décors/références) et le **projet unique** (E93) sont écrits **directement comme modules**.
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).
