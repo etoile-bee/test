@@ -1098,18 +1098,21 @@ function recapKb(){
 }
 // Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
 async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
-// [L0-1d] ROUTEUR 3 MODES (E109 en place · E111 nav persistante · système éphémère).
-let blockMids=Object.create(null); // id de bloc -> message_id (registre ; remplace le cockpit unique pour les blocs du routeur)
+// [L0-1d-fix] ROUTEUR 3 MODES (E111 raffiné) :
+//  - inplace (DÉFAUT) : la navigation INTRA-bloc édite LE bloc racine actif (un seul message qui se transforme A→Z).
+//  - navigate : NOUVEAU bloc racine — UNIQUEMENT /menu et un résultat validé/livré.
+//  - ephemeral : message système auto-delete.
+let activeRootMid=null; // message_id du bloc racine ACCUEIL actuellement navigué (édité en place)
 let _ephemeral=[];
 async function uiShow(id,caption,rows,mode){
-  mode=mode||'navigate';
+  mode=mode||'inplace';
   if(mode==='ephemeral')return system(caption,rows);
-  if(mode==='inplace'){ const mid=blockMids[id]; if(mid){const ok=await tgEditText(mid,caption,rows); if(ok)return mid;} } // anti-doublon ① + isGone gérés ; sinon on recrée (stale-fix)
-  const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)blockMids[id]=nm; return nm; // navigate : NOUVEAU bloc persistant, ne touche pas les précédents (E111)
+  if(mode==='inplace'&&activeRootMid){ const ok=await tgEditText(activeRootMid,caption,rows); if(ok)return activeRootMid; } // édite LE bloc racine actif (anti-doublon ① + isGone gérés)
+  const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)activeRootMid=nm; return nm; // navigate (ou bloc actif disparu) : NOUVEAU bloc racine
 }
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
 function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode)}; }
-async function routeBlock(id,mode){ try{autosaveDraft();}catch(e){} return uiRouter.route(id,uiCtx(id),mode||'navigate'); } // [L0-1e] /menu & navigation NON destructifs : auto-save brouillon AVANT d'afficher
+async function routeBlock(id,mode){ try{autosaveDraft();}catch(e){} return uiRouter.route(id,uiCtx(id),mode||'inplace'); } // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2009,8 +2012,10 @@ async function handle(upd){
     /*fix toasts : on n'« avale » plus le tap d'office — les handlers ont 2.5s pour répondre par un toast, sinon accusé vide (sinon AUCUN toast ne s'affichait jamais : un tap = une seule réponse possible)*/
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
-    // [L0-1] ROUTEUR MODULAIRE (strangler-fig) : capte les navigations 'R_<bloc>' du registre ; le reste tombe sur l'ancien dispatch.
-    if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2));return;}
+    // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
+    // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}}
+    if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
@@ -2736,7 +2741,7 @@ async function handle(upd){
     ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
-  if(txt==='/start'||txt==='/menu'){await routeBlock('home');return;} /*[L0-1] accueil = routeur modulaire (showHome reste en secours)*/
+  if(txt==='/start'||txt==='/menu'){await routeBlock('home','navigate');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL (navigate)*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
@@ -2746,7 +2751,7 @@ async function handle(upd){
   if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
   if(txt==='/reference'){await showRefMenu();return;} /*[C5] changer la référence Imany*/
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await routeBlock('home');return;} /*[L0-1] /go = accueil routeur (showHome en secours)*/
+  if(txt==='/go'||txt==='go'){await routeBlock('home','navigate');return;} /*[L0-1d-fix] /go = NOUVEAU bloc ACCUEIL (navigate)*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
     if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot

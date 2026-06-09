@@ -48,7 +48,7 @@ async function route(id, ctx, mode) {
   if (!mod) return false;
   const out = mod.render(ctx) || {};
   const rows = contentButtons(out.rows).concat(navRows(mod, ctx));
-  await ctx.show(out.caption || mod.title, rows, mode || 'navigate'); // ouvrir un bloc = navigation persistante par défaut
+  await ctx.show(out.caption || mod.title, rows, mode || 'inplace'); // navigation intra-bloc = EN PLACE (E111 raffiné) ; /menu passe 'navigate'
   return true;
 }
 
