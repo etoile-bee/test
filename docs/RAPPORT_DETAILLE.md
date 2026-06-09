@@ -6,8 +6,8 @@
 
 ## Récap chiffré
 
-**Statuts (sur 103 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 25** · 🟠 **Non conforme : 29** · ◻️ **Non vérifié : 11**.
-- **Cœur produit / UX (E1–E73)** : 36 Conforme · 22 Partiel · 15 Non conforme.
+**Statuts (sur 103 exigences)** : ✅ **Conforme : 38** · 🟡 **Partiellement conforme : 24** · 🟠 **Non conforme : 29** · ◻️ **Non vérifié : 11** · ⛔ **Supersedé : 1** (E68 → E97).
+- **Cœur produit / UX (E1–E73)** : 36 Conforme · 21 Partiel · 15 Non conforme · 1 supersedé (E68).
 - **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
 - **Projet · Stockage · Test/Prod · Validation (E93–E96, 🔴 critique)** : 1 Partiel · 3 Non conforme.
 - **Retours 1ᵉʳ test réel (E97–E103, à intégrer en premier)** : 1 Conforme (E103) · 2 Partiel (E100, E102) · 4 Non conforme (E97, E98, E99, E101).
@@ -153,7 +153,7 @@
 | E# | Exigence | Statut | Écran concerné | Fonction concernée | Impact utilisateur | Priorité |
 |---|---|---|---|---|---|---|
 | E67 | Sous-titres 76px / OY 0.370 | Conforme | rendu | `subtitle_style.js` + hook | Sous-titres figés validés | — |
-| E68 | Couleur V5 sur la vraie vidéo | Partiellement conforme | rendu | `color_style.js` V5 | À garantir que la prod applique bien V5 (non câblé lipsync) | Moyenne |
+| E68 | ~~Couleur V5 sur la vraie vidéo~~ ⛔ **SUPERSEDÉ par E97** | Obsolète | rendu | `color_style.js` V5 | Etoile ne veut **plus** V5 par défaut → fidélité source (voir E97) | — |
 | E69 | Son -14 LUFS / bt709 / pause / réactions | Conforme | rendu | `render_local.js`:366 | Son normalisé, couleur étiquetée, pas de « pause » dit | — |
 | E70 | Référence Imany officielle | Conforme | /newlook | `imany_reference.png` | La bonne influenceuse sert de référence | — |
 
@@ -171,7 +171,7 @@
 
 **Conforme (36)** : E5, E6, E10, E11, E12, E13, E15, E20, E22, E24, E27, E29, E30, E35, E37, E38, E39, E41, E42, E44, E46, E47, E48, E50, E52, E57, E58, E60, E61, E63, E64, E67, E69, E70, E71, E72.
 
-**Partiellement conforme (22)** : E1, E2, E3, E4, E7, E8, E9, E14, E16, E18, E23, E28, E33, E40, E43, E45, E49, E54, E65, E66, E68, E73.
+**Partiellement conforme (21)** : E1, E2, E3, E4, E7, E8, E9, E14, E16, E18, E23, E28, E33, E40, E43, E45, E49, E54, E65, E66, E73. _(E68 ⛔ supersedé par E97.)_
 
 **Non conforme (15 + 6 identité)** : E17, E19, E21, E25, E26, E31, E32, E34, E36, E51, E53, E55, E56, E59, E62 · **+ E76, E81, E82, E83, E84, E91 (identité, critiques)**.
 
@@ -189,7 +189,7 @@
 
 **🟠 Élevée** : (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
 
-**🟡 Moyenne** : (E1/E2) cockpit unique/2 sections ; (E4) navigation unifiée ; (E14) temps/labels honnêtes ; (E16/E18/E19) looks modifier/restaurer/archiver ; (E26) Lock Background ; (E28/E31/E33) prompts bibliothèque ; (E40/E43) redirections/workflows ; (E59) TikTok+stockage privé ; (E66) code mort ; (E68) couleur V5 ; (E8) aperçus manquants.
+**🟡 Moyenne** : (E1/E2) cockpit unique/2 sections ; (E4) navigation unifiée ; (E14) temps/labels honnêtes ; (E16/E18/E19) looks modifier/restaurer/archiver ; (E26) Lock Background ; (E28/E31/E33) prompts bibliothèque ; (E40/E43) redirections/workflows ; (E59) TikTok+stockage privé ; (E66) code mort ; ~~(E68) couleur V5~~ (supersedé par E97) ; (E8) aperçus manquants.
 
 **🟢 Faible** : (E3) reliquats style ; (E9) persona ; (E23) renommer looks ; (E32) supprimer prompt ; (E65) rapport de session ; (E73) libellés.
 

@@ -113,7 +113,7 @@
 ## L. STYLE / RENDU (verrouillés — à préserver, pas à régresser)
 
 - **E67** — **Sous-titres 76px / OY 0.370** (Archivo Black) — fichier verrouillé. `[CTX][UX-11]`
-- **E68** — **Couleur V5** appliquée fidèlement à la vraie vidéo. `[CTX][UX-12]`
+- **E68** — ~~**Couleur V5** appliquée fidèlement à la vraie vidéo.~~ **⛔ SUPERSEDÉ par [[E97]] (Etoile 09/06)** : après le 1ᵉʳ test réel, Etoile **ne veut plus** d'étalonnage V5 (chaud/contrasté) **par défaut** ; la vidéo doit rester **fidèle à la source**, étalonnage uniquement via preset volontaire. `[CTX][UX-12 → remplacé par E97]`
 - **E69** — **Son -14 LUFS**, sanitize « pause », réactions naturelles/off, bt709. `[UX-13,14,23]`
 - **E70** — **Référence Imany officielle en place** (femme métisse, taches de rousseur, yeux dorés). `[CTX]`
 
@@ -189,6 +189,7 @@
 
 - **E97** — **COLORIMÉTRIE : fidélité à la source par défaut.** Par défaut la vidéo finale doit rester **fidèle à l'image source** (la source = référence absolue) ; **supprimer l'étalonnage chaud/contrasté par défaut**. Un étalonnage ne s'applique **que** s'il est choisi volontairement via un **preset enregistré**. `[Etoile 09/06]`
   - _Note technique_ : `color_style.js` (V5) est **verrouillé** mais **n'est PAS câblé** au rendu local ; le grade par défaut vient de `render_local.js` `FX_DEFAULT.image` (`:73`) → la correction porte sur le **branchement** (défaut neutre), **sans toucher** au fichier verrouillé.
+  - **Remplace [[E68]]** (« couleur V5 par défaut ») qui est désormais **supersedé** : V5 ne doit plus être appliqué automatiquement.
 - **E98** — **SCRIPT sans « pause ».** Le mot/marqueur « pause » (ni `[pause]`, ni `(pause)`, ni `PAUSE`, ni le mot nu) ne doit **jamais apparaître dans le script généré** ni être prononcé. Les pauses = créées **naturellement** dans l'audio (ponctuation / SSML), invisibles dans le texte. `[Etoile 09/06]`
 - **E99** — **RÉACTIONS : paramètre explicite, défaut OFF.** Toggle OFF/ON, **défaut OFF**, rien d'ajouté automatiquement. `[Etoile 09/06]`
 - **E100** — **RÉFÉRENCE PERSONNAGE depuis le cockpit** : voir la référence active · uploader · choisir dans la bibliothèque · changer · **VERROUILLER** · **définir par défaut**. `[Etoile 09/06]`
@@ -200,3 +201,42 @@
 
 _Total : 103 exigences (E1–E103). Sections O (E74–E92) + P (E93–E96) + Q (E97–E103) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ — priorité critique._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
+
+---
+
+## R. CHECKLIST DE TESTS DE VALIDATION (à passer à chaque génération / chaque correctif)
+
+> ☐ = test à exécuter ; chaque ligne renvoie à son exigence. Une génération n'est « conforme » que si tous les ☐ critiques passent (cf. E91/E92 gate, E96 workflow).
+
+**Fidélité visuelle & rendu**
+- ☐ **Colorimétrie** : la vidéo finale est **fidèle à la source** (pas de virage chaud/contrasté par défaut) ; un grade n'apparaît que si un preset est appliqué volontairement. `(E97 ; remplace E68)`
+- ☐ **Stills** : image fixe montrée entière 9:16, sans sur-zoom ni grading. `(E39)`
+- ☐ **Sous-titres** 76px / OY 0.370, son −14 LUFS, bt709. `(E67, E69)`
+
+**Script & audio**
+- ☐ **Aucun « pause »** (ni `[pause]`, `(pause)`, `PAUSE`, mot nu) dans le script affiché/exporté ; pauses naturelles dans l'audio. `(E98)`
+- ☐ **Réactions** : défaut **OFF**, rien ajouté automatiquement (toggle explicite). `(E99)`
+- ☐ Script affiché & éditable avant toute dépense ; anti-répétition des sujets. `(E46, E47)`
+
+**Identité & anatomie (QC source ET vidéo)**
+- ☐ Visage / couleur peau / texture / cheveux / regard / vêtements / bijoux **conservés** vs référence. `(E74–E80)`
+- ☐ **Aucun élément parasite** : poils, doigts/mains/membres en trop ou déformés, accessoires fantômes. `(E81, E85)`
+- ☐ Aucune déformation du visage / changement d'âge / d'ethnie / de morphologie. `(E86–E89)`
+- ☐ **GATE QC sur l'image SOURCE avant le lipsync payant** (régénérer / éditer / valider). `(E92)`
+- ☐ **GATE de validation finale** par Etoile avant « conforme ». `(E91, E96)`
+
+**Référence personnage**
+- ☐ Depuis le cockpit : voir l'active · uploader · choisir · changer · **verrouiller** · **définir par défaut**. `(E100)`
+- ☐ Bibliothèque de références : aperçu · nom · **tags · recherche · filtres** · historique · réutilisation. `(E101)`
+
+**État propre & traçabilité**
+- ☐ **État PROPRE** : aucune génération ne réapplique automatiquement couleur/effets/zoom/réactions/params vidéo/params audio/référence/durée/modèle (sauf preset/défaut explicite). `(E102)`
+- ☐ **Projet unique complet** créé : raws (image/lipsync/vidéo) + versions intermédiaires + prompts + métadonnées (coût/crédits/durée/moteur) + logs + rapport QC, retrouvable et réutilisable. `(E93)`
+- ☐ Espace **TEST vs PRODUCTION** correct ; promotion uniquement après validation. `(E95, E96)`
+- ☐ Sauvegarde **cloud persistante** (pas de média laissé sur tmpfiles). `(E94, E59)`
+
+**Coûts**
+- ☐ Récap coût + crédits + temps + bouton 💲 **avant** toute dépense ; éco d'abord ; maquette avant Kling. `(E10–E13)`
+
+**Régressions techniques (à chaque correctif de code)**
+- ☐ `node --check` OK · régressions `nodup 16 / feedback 15 / gallery 7 / nbphotos 7 / stalefix 8` · smoke `/go` `/menu`. `(E72)`

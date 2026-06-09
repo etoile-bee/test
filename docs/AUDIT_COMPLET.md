@@ -128,7 +128,7 @@ Statuts : ✅ Conforme · 🟡 Partiel · 🟠 Non conforme · ⬜ Manquant · �
 | Ex | Statut | Preuve | Commentaire |
 |---|---|---|---|
 | E67 sous-titres 76/0.370 | ✅ | subtitle_style.js + hook commit-msg | Verrouillé. |
-| E68 couleur V5 vraie vidéo | 🟡 | color_style.js V5 ; render_local applique style.json/FX_DEFAULT sauf config | À garantir que la prod applique V5 (cf. AUDIT_UX #12). Non câblé sur lipsync (attente GO). |
+| E68 couleur V5 vraie vidéo | ⛔ supersedé | color_style.js V5 | **SUPERSEDÉ par E97** (Etoile 09/06) : plus de V5 par défaut, fidélité source. |
 | E69 son -14 LUFS / bt709 / pause / réactions | ✅ | loudnorm render_local.js:366, sanitize, réactions natural | |
 | E70 référence Imany | ✅ | imany_reference.png présent (looks/references/imany/) | |
 
@@ -292,7 +292,7 @@ _(Aucun code exécuté hormis le générateur de doc en lecture seule ; aucun ap
 7. **Légendes** : éditer/régénérer + grille + versions — E49/E51.
 8. **project.json** : modèle/projet réouvrable complet — E55/E56 (gros lot).
 9. **Nettoyage** : code mort + unification navigation — E66/E4.
-10. **Plus tard** : TikTok auto + stockage privé (E59), multi-persona (E9), couleur V5 vidéo (E68).
+10. **Plus tard** : TikTok auto + stockage privé (E59), multi-persona (E9). _(E68 couleur V5 supersedé par E97 — voir lot pré-critique.)_
 
 Chaque lot : maquette → 1 onglet/écran → test (régressions 16/15/7/7 + stalefix 8 + smoke /go /menu) → commit. Jamais deux lots simultanés.
 
