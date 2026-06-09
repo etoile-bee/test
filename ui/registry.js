@@ -67,6 +67,7 @@ const REGISTRY = {
     render: () => ({
       caption: '🕘 <b>RÉCENTS</b> — historique & projets',
       rows: [
+        [{ text: '📝 Reprendre (brouillons)', cb: 'RX_DRAFTS' }],
         [{ text: '🕘 Historique', cb: 'STUDIO_HIST' }],
         [{ text: '📤 Prêt à poster', cb: 'SHOWREADY' }],
       ],

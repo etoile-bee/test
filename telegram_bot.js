@@ -300,6 +300,7 @@ async function nlMedia(file,caption,rows,raw){ /*LE message unique : photo + cap
 function nlText(caption,rows){return nlMedia(null,caption,rows);} /*caption/boutons seulement, image inchangee*/
 function nlMark(t,on){return on?'✅ '+t.replace(/^[^ ]+ /,''):t;}
 async function nlConfig(){ /*ACCUEIL compact (architecture validee Etoile) : etat visible, sous-menus par section*/
+  wizardActive=true; /*[L0-1e] wizard photo/look démarré -> /menu sauvera un brouillon*/
   const {readLookbook}=nlMod();
   const lb=readLookbook();
   if(!newlook.category||(!lb.categories[newlook.category]&&newlook.category!=='random'))newlook.category=Object.keys(lb.categories)[0];
@@ -886,10 +887,36 @@ const uiRouter=require('./ui/router'); // [L0-1] routeur modulaire (strangler-fi
 const {sanitizeTTS:_sanTTS}=require('./tts_sanitize'); // ceinture : nettoyage pause côté bot aussi
 // ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
 const STATE_PATH=path.join(BASE,'state.json');
-const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[]};
+const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[],activeDraftId:null};
 let genState=Object.assign({},DEFAULT_STATE);
 function loadState(){try{genState=Object.assign({},DEFAULT_STATE,JSON.parse(fs.readFileSync(STATE_PATH,'utf8')));}catch(e){genState=Object.assign({},DEFAULT_STATE);}try{if(genState.look&&fs.existsSync(genState.look))workingSource=genState.look;}catch(e){}}
 function saveState(){try{fs.writeFileSync(STATE_PATH,JSON.stringify(genState,null,2));}catch(e){}}
+
+// [L0-1e] BROUILLONS (E110/E113) — auto-save NON destructif, draftId STABLE (1 session ↔ 1 draftId), survit au restart.
+let wizardActive=false; // un wizard (look/photo/vidéo) a été démarré et n'est pas encore validé
+const DRAFTS_DIR=path.join(BASE,'drafts');
+function _persona(){try{return (activePersona().name||'imany').toLowerCase().replace(/[^a-z0-9]+/g,'_');}catch(e){return 'imany';}}
+function draftsDir(){const d=path.join(DRAFTS_DIR,_persona());try{fs.mkdirSync(d,{recursive:true});}catch(e){}return d;}
+function draftPath(id){return path.join(draftsDir(),id+'.json');}
+function listDrafts(){try{return fs.readdirSync(draftsDir()).filter(f=>/\.json$/.test(f)).map(f=>{try{return JSON.parse(fs.readFileSync(path.join(draftsDir(),f),'utf8'));}catch(e){return null;}}).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0));}catch(e){return[];}}
+function workInProgress(){try{ if(wizardActive)return true; if(newlook&&newlook.urls&&newlook.urls.length)return true; if(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)return true; return false; }catch(e){return false;}}
+function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':((newlook.urls&&newlook.urls.length)?'image':'look'),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};}
+function autosaveDraft(){try{ if(!workInProgress())return null; if(!genState.activeDraftId)genState.activeDraftId='draft_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); const id=genState.activeDraftId; fs.writeFileSync(draftPath(id),JSON.stringify(captureDraft(id),null,2)); saveState(); return id; }catch(e){return null;}}
+function clearActiveDraft(){try{ const id=genState.activeDraftId; wizardActive=false; if(id){try{fs.unlinkSync(draftPath(id));}catch(e){} genState.activeDraftId=null; saveState();} }catch(e){}}
+async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draftId, pas de doublon — E113)
+  const d=listDrafts().find(x=>x.draftId===id); if(!d){await toast('⚠️ Brouillon introuvable');return;}
+  genState.activeDraftId=id; wizardActive=true;
+  try{
+    if(d.nl){newlook.category=d.nl.category;newlook.env=d.nl.env;newlook.extra=d.nl.extra;newlook.mode=d.nl.mode||'eco';newlook.count=d.nl.count||1;}
+    if(d.look&&fs.existsSync(d.look))setWorkPhoto(d.look);
+    newlook.urls=(d.images||[]).filter(Boolean);newlook.files=[];newlook.idx=Math.min(d.idx||0,Math.max(0,newlook.urls.length-1));
+    if(d.duration){genState.duration=d.duration;}
+  }catch(e){}
+  saveState();
+  newlook.mediaId=null; // le résultat repart dans un bloc frais
+  if((d.step==='image'||d.step==='video')&&newlook.urls.length){await nlShowResult();return;} // retrouve les images générées
+  await nlConfig(); // étape look/config
+}
 function pushLastLook(p){if(!p)return;genState.lastLooks=[p,...(genState.lastLooks||[]).filter(x=>x!==p)].slice(0,3);}
 // ── Coûts estimés (CONFIGURABLES — valeurs raisonnables documentées, à ajuster) ──
 const COST={
@@ -1082,7 +1109,7 @@ async function uiShow(id,caption,rows,mode){
 }
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
 function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode)}; }
-async function routeBlock(id,mode){ return uiRouter.route(id,uiCtx(id),mode||'navigate'); } // navigation = nouveau bloc persistant par défaut
+async function routeBlock(id,mode){ try{autosaveDraft();}catch(e){} return uiRouter.route(id,uiCtx(id),mode||'navigate'); } // [L0-1e] /menu & navigation NON destructifs : auto-save brouillon AVANT d'afficher
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -1170,6 +1197,7 @@ async function ensureTopic(){
   }
 }
 async function recapGo(auto){
+  wizardActive=true; /*[L0-1e] wizard vidéo démarré*/
   if(genBusy()){await send('⏳ Une génération est déjà en cours — /stop d\'abord.');return;}
   await ensureTopic();
   const dur=gw.duration||'23s';const plan=WF.planParts(parseInt(dur,10)||23);
@@ -1320,7 +1348,7 @@ async function genFinal(){
     if(!await cockpitCaption(h,RETRY_KB))await send(h,RETRY_KB);
     return;
   }
-  genAbort=false;genStep='';state='idle';genJob=null; // succès
+  genAbort=false;genStep='';state='idle';genJob=null;clearActiveDraft(); // succès -> le brouillon devient « Terminé » (E113)
   const _cm=cockpit.mid;gwReset();cockpit.mid=_cm;lastCardSig=''; /*3 blocs : on GARDE le message cockpit et on le remorphe en carte*/
   await ensureTopic().catch(()=>{});await showRecap().catch(()=>{});
 }
@@ -1986,6 +2014,8 @@ async function handle(upd){
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
+    if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await send('📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]]);return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await send('📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows);return;} /*[L0-1e]*/
+    if(d&&d.indexOf('RX_DRAFT_')===0){await resumeDraft(d.slice(9));return;} /*[L0-1e] reprend le MÊME draftId (pas de doublon)*/
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
@@ -1993,7 +2023,7 @@ async function handle(upd){
     if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO — full manuel*/
     if(d==='CREER_AUTO'){await showLookSource('auto');return;} /*[flux-look] Auto : ÉTAPE LOOK puis tout auto -> récap coût à valider*/
     // [flux-look] ÉTAPE LOOK — sources : Nouveau look / Galerie / Upload (+ garder le courant). Garde-fou : aucun look ni vidéo sans validation explicite.
-    if(d==='CL_STOP'){createFlow=null;createUploadPath=null;galForRecap=false;await showCreer();return;}
+    if(d==='CL_STOP'){createFlow=null;createUploadPath=null;galForRecap=false;clearActiveDraft();await showCreer();return;}
     if(d==='CL_KEEP'){if(gwLook()){await resumeCreate();}else{await showLookSource();}return;}
     if(d==='CL_GAL'){galForRecap=true;galMid=cockpit.mid;const cur=gwLook();const li=cur?looksList().indexOf(path.basename(cur)):-1;gal.idx=li>=0?li:0;gal.page=Math.floor((gal.idx||0)/GAL_PAGE);await showGallery();return;}
     if(d==='CL_GAL_RAND'){const list=looksList();if(!list.length){await toast('⚠️ Galerie vide');return;}gal.idx=Math.floor(list.length*((Date.now()%1000)/1000));galMid=cockpit.mid;galForRecap=true;await showLook();return;} /*[flux-look] pioche au hasard dans la galerie -> validation*/
@@ -2173,7 +2203,7 @@ async function handle(upd){
       if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
       if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} if(!(genJob&&genJob.running))genJob=null;
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
-      state='idle';await send(stopped?'⏹ Stoppé.':'Rien en cours.');return;
+      state='idle';await system(stopped?'⏹ Stoppé.':'Rien en cours.');return;
     }
     // [chantier2] FLUX UNIFIÉ : toutes les entrées de génération legacy (wizard anglais T_/L_/D_,
     // GO/SCRIPT_OK/AUTO_ALL/EXPRESS_GO) redirigent vers LA CARTE (openCard) — anti-bypass, zéro anglais.
@@ -2453,6 +2483,7 @@ async function handle(upd){
       return dest;
     }
     if(d==='NL_KEEP_CUR'){
+      clearActiveDraft(); /*[L0-1e] pose gardée = validée -> le brouillon n'est plus « en cours »*/
       try{const dest=nlSave(newlook.idx);await nlMedia(nlLocal(newlook.idx),'✅ <b>GARDÉE</b> · pose '+(newlook.idx+1)+' · '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel),nlResultRows(),true);if(dest)await resAdd({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · '+escH(newlook.envLabel)});}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
@@ -2524,7 +2555,7 @@ async function handle(upd){
     if(d==='NL_HD_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='hd';runNewLook();return;}
     if(d==='NL_RETRY'){if(newlook.mode==='split')newlook.mode='planche';await nlPayRecap(newlook.mode,'🔁 Refaire pareil · '+escH(newlook.catLabel),'NL_RETRY_OK','NL_BACKRES');return;}
     if(d==='NL_RETRY_OK'){newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
-    if(d==='NL_CANCEL'){createFlow=null; /*[flux-look] sortir d'une éventuelle création*/ await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
+    if(d==='NL_CANCEL'){createFlow=null;clearActiveDraft(); /*[L0-1e] abandon explicite -> on retire le brouillon*/ await nlText('🎨 <b>TERMINÉ</b> · galerie à jour · /newlook pour relancer');return;}
     // Settings sous-titres /*substyle : taille/position/police/espacement/subs dans subtitle_style.js*/
     if(d.startsWith('S_')){
       pushHistory();
@@ -2582,7 +2613,7 @@ async function handle(upd){
 
   // Photo upload
   if(state==='m_upload_wait'&&msg.photo){
-    await send('⏳ Enregistrement...');
+    await system('⏳ Enregistrement...');
     try{
       const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);
       setup.photo=fp; _lastPick=fp; setAvatar(fp);
@@ -2618,7 +2649,7 @@ async function handle(upd){
     return;
   }
   if(state==='upload_wait'&&msg.photo){
-    await send('⏳ Saving photo...');
+    await system('⏳ Saving photo...');
     try{
       const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);
       setup.photo=fp;
@@ -2728,7 +2759,7 @@ async function handle(upd){
     try{_k.execSync('pkill -9 -f "ffmpeg.*/tmp/wf_" 2>/dev/null');}catch(e){}
     state='idle';
     if(stopped)await send('⏹ Stopped — generation et test arretes partout.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);
-    else await send('Nothing running.');
+    else await system('Nothing running.');
     return;
   }
   if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
@@ -2868,7 +2899,7 @@ async function handle(upd){
   // Workflow free answer
   if(state==='question'&&proc){wfInput(txt);state='running';await send('Sent: '+txt);return;}
 
-  await send('Tape /menu pour commencer ! Ou /help pour les commandes.');
+  await system('Tape /menu pour commencer ! Ou /help pour les commandes.');
 }
 
 // ── Poll ──────────────────────────────────────────────────────────────────────
