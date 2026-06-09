@@ -26,7 +26,7 @@ _Note : T2 (anti-spam, 73 % messages non en place) et T4 (historique = liste tex
 
 | Lot | Exigences couvertes | Ce qu'il corrige concrètement | Risque |
 |---|---|---|---|
-| **L0 — Socle modulaire + Accueil/Nav** | E104, E105, E106, E107(amorce), E1, E2, E4, E62, **T7** | Registre de blocs + routeur central (strangler-fig) ; accueil 4 entrées 📸🎬🏛🕘 ; Stop/Restart visibles ; vocabulaire retour unifié ; **éditeur = module VIDÉO rendu dans le bon bloc** (règle T7a `setWorkPhoto` + T7b bon `mid`) ; début anti-spam en place (T2) | Moyen→Élevé (touche le cœur dispatch ; mitigé par cohabitation) |
+| **L0 — Socle modulaire + Accueil/Nav** | E104, E105, E106, E107(amorce), E108, E109, **E111, E112**, E1, E2, E4, E62, **T7** | Registre de blocs + routeur central (strangler-fig) ; accueil 4 entrées 📸🎬🏛🕘 ; Stop/Restart visibles ; vocabulaire retour unifié ; **éditeur = module VIDÉO rendu dans le bon bloc** (règle T7a `setWorkPhoto` + T7b bon `mid`) ; début anti-spam en place (T2) | Moyen→Élevé (touche le cœur dispatch ; mitigé par cohabitation) |
 | **L1 — Fidélité (pré-critique)** | E97, E98, E99, E102, E73 | Colorimétrie **neutre par défaut** (FX_DEFAULT, sans toucher `color_style.js` verrouillé) ; **retirer `[pause]`** du prompt script ; **réactions OFF** par défaut ; **état propre complet** (zoom/réactions/musique/durée/réf non hérités) | Faible→Moyen (réglages/prompt ; pas de fichier verrouillé) |
 | **L2 — Gate QC anti-dépense** | E92, E82, E83, E84, E91 | **Gate QC identité sur l'image source AVANT le lipsync payant** (checklist + 🔄/🎨/✅) ; négatif anti-artefacts (GO Etoile) ; QC local en bonus | Moyen (insertion avant dépense ; testable à sec) |
 | **L3 — Sur-mesure : étape Look** | T10, E7 | Brancher `showLookSource` dans Sur-mesure (ou choix explicite) ; modes Manuel/Auto cohérents | Faible |
@@ -36,6 +36,8 @@ _Note : T2 (anti-spam, 73 % messages non en place) et T4 (historique = liste tex
 | **L7 — Nettoyage final** | E66, E3, E40, E14, E65 | Supprimer legacy (`MM_*`/`A_*`/`launch`/Shotstack/`showMainMenu`/`CARD_MORE`/`resSteps`) ; anglais résiduel ; label HD ; temps honnête ; rapport de session | Faible (mais **après** migration des blocs) |
 
 ---
+
+>> **⚠️ Décision de conception à valider avant de poursuivre L0 (E111)** : le routeur passe d'« édition en place du cockpit » à **3 modes** (`inplace` intra-tâche · `navigate` = nouveau bloc persistant · `ephemeral` = système auto-delete) + **registre d'ids par bloc**. Détail : `docs/ARCHITECTURE_4SECTIONS.md` §Réconciliation E109↔E111. Auto-save brouillon `/menu` (E110) à intégrer dès L0 ; vues 4 états + CRUD brouillon en L4/L6.
 
 ## 3. Ordre de priorité (séquence) + dépendances
 

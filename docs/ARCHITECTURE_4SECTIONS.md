@@ -289,6 +289,32 @@ L'ancien handler d'un bloc n'est retiré **qu'après** : tests verts **ET** **va
 **E109 — en place / bloc fixe** : tout rendu passe par `ctx.show` (édition du bloc courant, anti-doublon ①) ; jamais de `send()` pour un résultat d'étape. Pattern : Action → résultat dans le bloc → validation → ➡ Suivant.
 **Mécanisme module** (prêt pour L0-2+) : `next` (id étape suivante) · `requireChoice` (bool) · `gate(ctx)->bool` · `help` (texte). Vérifié : gate OFF→🔒, gate ON→Suivant actif.
 
+## RÉCONCILIATION E109 ↔ E111 + IMPACT ROUTEUR (à valider AVANT de continuer L0)
+
+**Le problème** : aujourd'hui le routeur **édite le cockpit EN PLACE** (`ctx.show`=`cardMenu`→`cockpitCaption`, telegram_bot.js:1073) — il **remplace** l'écran. E111 demande que la **navigation** crée un **nouveau message persistant** (sans effacer l'ancien), tandis que l'**édition intra-tâche** reste en place, et que les **messages système** s'auto-suppriment.
+
+**Frontière (qui édite-en-place vs qui crée un bloc) :**
+| Cas | Comportement cible | Exemples |
+|---|---|---|
+| **Édition intra-tâche** (E109) | **éditer le message du bloc courant** (anti-doublon ①) | toggles tenue/décor/format · sliders /edit · ‹ › dans le même lot · rafraîchir aperçu · ➡ Suivant qui s'active |
+| **Navigation** (E111) | **nouveau message persistant** (les précédents restent) | `/menu` · ouvrir PHOTO/VIDÉO/STUDIO/RÉCENTS · ➡ **Suivant** (étape suivante) · **résultat validé/livré** |
+| **Système** | **éphémère, auto-delete** | « Bot prêt » · « Redémarrage… » · « ⏳/📊 génération… » · toasts · erreurs transitoires |
+
+**Changement de comportement du routeur (cible, NON codé) :**
+1. `ctx.show(caption, rows, mode)` avec **3 modes** : `inplace` (édite le message du bloc courant), `navigate` (envoie un **nouveau** message persistant + mémorise son id), `ephemeral` (envoie + planifie l'auto-suppression).
+2. **Registre d'ids par bloc** (id de bloc → dernier message id), au lieu d'un unique `cockpit.mid` : une édition intra-tâche vise le message du bloc actif ; une navigation en crée un nouveau **sans toucher** aux précédents.
+3. `route(id)` par défaut = **`navigate`** (ouvrir un bloc/section/étape = nouveau bloc persistant) ; les rendus internes d'un module (réglages, ‹ ›, aperçu) = **`inplace`**.
+4. **Service éphémère** `system(msg)` : envoie un message technique et le **supprime** au prochain événement utilisateur (ou après délai). Réutilise/retire l'actuel « Bot prêt »/tickers.
+5. **Anti-doublon ①** conservé **dans le mode `inplace`** (signature avant édition) ; le `stale-fix` s'applique aux blocs persistants (un bloc périmé après restart est recréé, pas édité dans le vide).
+6. **Callbacks depuis d'anciens blocs** : restent fonctionnels (les boutons d'un ancien écran métier rouvrent/relancent via le routeur) — cohérent avec « reconsulter l'historique ».
+
+**Impact / risque** : c'est un **glissement** du modèle « cockpit unique auto-édité » (E1 strict) vers « **historique de blocs métier persistants + système éphémère** ». Plus de messages, mais navigables ; mitigé par : intra-tâche en place (zéro spam pendant le travail) + auto-delete du système. **À VALIDER par Etoile avant de poursuivre L0** (change le contrat de rendu du routeur, interagit avec anti-doublon ① et stale-fix).
+
+## BARRE SYSTÈME (E112) + RÉCENTS 4 ÉTATS (E110 raffiné)
+- **Ordre barre** : `🛑 Stop | 🔄 Restart | ❓ Aide` — **❓ Aide toujours à l'extrême droite**. (Routeur L0-1c actuel : à réordonner ainsi ; `🏠 Accueil`/`⬅ Retour`/`➡ Suivant` restent sur la ligne workflow.)
+- **Aide enrichie** : (a) commandes disponibles · (b) liste des « / » · (c) aide contextuelle de l'écran courant.
+- **RÉCENTS = 4 vues/états** : 📝 Brouillons · ⏳ En cours · ✅ Terminés · 🗄 Archivés (E110).
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).
