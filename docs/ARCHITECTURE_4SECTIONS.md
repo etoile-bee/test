@@ -352,6 +352,24 @@ draft = {
 
 **Critère d'acceptation L0-2** : pour chaque étape migrée — back/forward/`/menu`/restart **sans perte** ; modifier une étape antérieure puis avancer **conserve l'aval**. Finalisation → « Terminé » ; suppression explicite → retiré ; sinon **toujours éditable**.
 
+## WORKSPACE MÉDIA vs MENU TEXTE (L0-2a-bis) — contrainte Telegram & modèle des blocs
+
+**Contrainte Telegram** : un message est SOIT texte SOIT média. On **ne peut pas** éditer un message texte EN message photo (ni l'inverse) ; `editMessageText` échoue sur un message média. Donc « rendu en place » a deux familles de blocs distinctes :
+
+| Bloc | Rendu | Primitive | Édité via | Usage |
+|---|---|---|---|---|
+| **MENU TEXTE** (ACCUEIL/sections) | texte | `ctx.show` → `uiShow`/`tgEditText` | `editMessageText` | `home`, `photo`, `video`, `studio`, `recents`, aide |
+| **WORKSPACE MÉDIA** (canvas du projet) | photo + caption + boutons | `ctx.showMedia` → `nlMedia` | `editMessageMedia` (vignette) / `editMessageCaption` (contexte) | `photo.look`, `photo.image`, `photo.ref`, `photo.refgal` |
+
+**Modèle** : entrer dans « ✨ Nouveau look » **OUVRE le workspace** = un **bloc média unique** (`newlook.mediaId`), **distinct** du menu texte. À l'intérieur, `Look ↔ Image ↔ Référence` naviguent **EN PLACE** via `editMessageMedia`/`editMessageCaption` (anti-doublon ① + stalefix de `nlMedia`). Chaque étape **AFFICHE** son visuel (lu depuis le slice) — pas seulement le conserve : vignette du look actif (ou réf active si pas de look), aperçu de l'image en cours/validée, vignette de la référence active.
+
+**Règles d'ancrage** (sinon retour cassé) :
+- `activeRootMid` (le bloc texte courant) n'est **JAMAIS** ancré sur le workspace média → le menu texte reste éditable au retour.
+- Quitter le workspace (Retour vers une section texte, 🏠 Accueil, `/menu`) **ferme proprement** le bloc média (suppression) → **zéro empilement**.
+- `refThumb()` produit la vignette de réf à un **chemin keyé par mtime** : une réf remplacée (même nom `imany_reference.*`) passe l'anti-doublon et la vignette se met à jour.
+
+**Checklist d'aperçus (validation L0-2a-bis)** : vignette look actif (LOOK) · vignette référence active · aperçu image en cours (IMAGE) · indicateur d'étape (« LOOK 1/2 » / « IMAGE 2/2 ») · brouillon/projet actif visible (📝 id court).
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).
