@@ -1,111 +1,136 @@
-# CAMPAGNE DE VALIDATION EXHAUSTIVE — 38 scénarios (AVANT migrations)  ·  2026-06-10
+# CAMPAGNE DE VALIDATION EXHAUSTIVE — 38 scénarios (enrichie)  ·  2026-06-10
 
-> Exécutée **avant toute migration / hotfix**. Verdict par scénario : **PASS · FAIL · BLOQUÉ** (run payant ou action live d'Etoile requise) · **N/A** (non implémenté = mode auto).
-> Preuves : harnais déterministes (`tools/test_*.js`), **journal live** `bot_journal.log` (marqueurs `🖼 ws create/edit/close`), inspection code.
-> **Aucune correction appliquée.** Watcher live actif. Réf. : `docs/PRIORISATION_PRODUIT.md`, `docs/FRONTIERES_LEGACY.md`.
+> Exécutée **avant toute migration / hotfix** (VERROU STRICT : rien n'est migré/retiré ; roadmap **PROVISOIRE**).
+> Chaque fiche : **Verdict** (PASS · FAIL · BLOQUÉ · N/A) · **Fxx** · **Preuve** (journal live / harnais) · **Règle Exxx** · **Impact utilisateur** · **Recommandation**.
+> Watcher live actif · chasse **F19+** maintenue (génération vidéo réelle, export, prêt-à-poster, nav croisée, reprise).
 
-## Base de preuves déterministes (rejouées ce jour — toutes vertes)
-`test_photo_ws 6/6` (1 seul bloc workspace sur parcours PHOTO) · `test_video_ws 7/7` (1 seul bloc PHOTO→VIDÉO + aval conservé) · `test_photo_l0_2a 20/20` (gates, parents, slice conservé) · régressions `nodup 16 · feedback 15 · gallery 7 · nbphotos 7 · stalefix 8`.
-Live observé (workspace mids 9390/9391/9397/9407–9426) : navigation `R_*/PL_*/PR_*/VS_*/VP_*` = `editMedia/editText` **en place**, sorties `R_home` = `delete + ws close + editText` (propres).
+## Catégories d'exécutabilité (bien distinctes)
+- **A — IMMÉDIAT (simulable / déterministe) — FAIT** : 26 scénarios (1-4, 7-14 hors payants, 18-31). Verdict établi par harnais + journal live + code.
+- **B — NÉCESSITE GÉNÉRATION PAYANTE ou ACTION MANUELLE D'ETOILE — À EXÉCUTER LIVE** : **#5, #6, #15, #17** (et **#16** une fois F2 branché). → protocole : `docs/PROTOCOLE_LIVE.md`.
+- **C — MODE AUTO NON IMPLÉMENTÉ (projection)** : **#16, #32–#38**. Non exécutables sans le moteur (F2) / l'orchestrateur auto.
+
+## Base de preuves déterministes (rejouées — vertes)
+`test_photo_ws 6/6` · `test_video_ws 7/7` · `test_photo_l0_2a 20/20` · régressions `nodup 16 · feedback 15 · gallery 7 · nbphotos 7 · stalefix 8`.
+Live (workspace mids 9390→9432) : `R_*/PL_*/PR_*/VS_*/VP_*/PP_*` = `editMedia/editText` **en place** ; sorties `R_home` = `delete + ws close + editText`. Récurrents observés : **B1** (`R_photo.image → editText`, ~10×), **F13** (`TECH_STOP → sendMessage`, ×3), **F1/F3** (éditeur legacy `EDIT_LOOKS/GLP_*/NL_NEW → sendPhoto`).
 
 ---
 
 ## PHOTO
 
-| # | Scénario (action → attendu) | Verdict | Fxx | Preuve / logs | Règle |
-|---|---|---|---|---|---|
-| 1 | Créer projet (✨ Nouveau look) → 1 bloc workspace + en-tête contexte | **PASS** | — | live `R_photo.look → 🖼 ws create mid=9416` ; `test_photo_ws` | E105/E114 |
-| 2 | Changer look (Tenue/Décor) → maj **même bloc** | **PASS** | — | live `PL_TENUE/PL_ENV → ✅ editMedia ws edit 9409` | E109 |
-| 3 | Conserver le décor en changeant la tenue | **PASS** | — | `test_photo_l0_2a` (slice conservé) | E114 |
-| 4 | Conserver la référence (en-tête la montre partout) | **PASS** | — | live `R_photo.ref → ✅ editMedia` ; `refThumb` mtime | E114 |
-| 5 | Générer **1 image** 💲 → confirmation in-bloc → résultat dans le bloc | **BLOQUÉ** | B1/— | run payant requis | dépense |
-| 6 | Générer **2/3 images** 💲 → navigation ‹ › + sélection in-bloc | **BLOQUÉ** | B1/— | run payant requis | E114 |
-| 7 | **Éditer une image (🎨)** → éditeur dans le bloc + retour workspace | **FAIL** | **F1** | live `PL_EDIT → 🗑 delete`, puis `EDIT_LOOKS/GLP_*/NL_NEW → sendPhoto` (éditeur legacy, nouveaux blocs) | E105/E114 |
-| 8 | Retour arrière IMAGE→LOOK→réf/prompt → slice exact | **FAIL** | **B1** | données conservées (proj) MAIS `R_photo.image → ✅ editText` (rendu en bloc texte, pas média) — vu 6× | E105/E114 |
-| 9 | Reprise de session (RÉCENTS›Reprendre) → état exact | **FAIL** | **B1** | live `RX_DRAFT_…2026-06-09-21-29-36 → editText` (draft en step image rendu en texte) ; reprise step *look* = OK | E113/E114 |
+**#1 — Créer un projet (✨ Nouveau look) → 1 bloc + en-tête** · **PASS** · — · *live `R_photo.look → 🖼 ws create 9416`* · E105/E114
+- Impact : entrée en création fluide, un seul bloc. · Reco : RAS — garder comme référence de non-régression.
+
+**#2 — Changer le look (Tenue/Décor) → même bloc** · **PASS** · — · *live `PL_TENUE/PL_ENV → editMedia`* · E109
+- Impact : réglages sans nouveau message. · Reco : RAS.
+
+**#3 — Conserver le décor en changeant la tenue** · **PASS** · — · *`test_photo_l0_2a` slice* · E114
+- Impact : pas de perte de réglage. · Reco : RAS.
+
+**#4 — Conserver la référence (en-tête)** · **PASS** · — · *live `R_photo.ref → editMedia` ; `refThumb` mtime* · E114
+- Impact : Etoile voit toujours quelle réf est active. · Reco : RAS.
+
+**#5 — Générer 1 image 💲 → confirmation in-bloc + résultat dans le bloc** · **BLOQUÉ (cat. B)** · B1/— · *run payant requis* · dépense
+- Impact : c'est le cœur de la création image — **non vérifié à sec** ; risque B1 quand l'image arrive. · Reco : **exécuter en live** (protocole #5), surveiller que le résultat reste dans le bloc.
+
+**#6 — Générer 2/3 images 💲 → navigation ‹ › + sélection in-bloc** · **BLOQUÉ (cat. B)** · B1/— · *run payant* · E114
+- Impact : planche multi-poses, sélection de l'image gardée. · Reco : **live** (protocole #6).
+
+**#7 — Éditer une image (🎨) → éditeur dans le bloc + retour workspace** · **FAIL** · **F1** · *live `PL_EDIT → delete` puis `EDIT_LOOKS/GLP_*/NL_NEW → sendPhoto`* · E105/E114
+- Impact : **irritant majeur** — « Éditer » éjecte du cockpit, ouvre galeries/cockpits séparés, **perd le contexte**. · Reco : **Phase 1 (F1)** ; ne pas tester l'édition fine avant.
+
+**#8 — Retour arrière IMAGE→LOOK→réf/prompt → slice exact** · **FAIL** · **B1** · *données conservées (proj) MAIS `R_photo.image → editText` (texte au lieu de média), vu ~10×* · E105/E114
+- Impact : revenir sur l'image affiche un écran **texte incohérent** (la vignette disparaît). · Reco : **Phase 0 (B1)**.
+
+**#9 — Reprise de session (RÉCENTS›Reprendre) → état exact** · **FAIL** · **B1** · *live `RX_DRAFT_…21-29-36 → editText` (step image) ; step look = OK* · E113/E114
+- Impact : rouvrir un projet en étape image = écran texte, **confusion sur l'état réel**. · Reco : **Phase 0 (B1)**.
 
 ## VIDÉO
 
-| # | Scénario | Verdict | Fxx | Preuve / logs | Règle |
-|---|---|---|---|---|---|
-| 10 | Image→Vidéo (🎬 Faire une vidéo) → même bloc, média actif affiché | **PASS** | — | live `R_video.source → editMedia` ; `test_video_ws` (sendMedia=1) | E105 |
-| 11 | Plusieurs images → vidéo (sélection source) | **PASS** | — | live `VS_GENIMAGE → ✅ editMedia ws 9419` | slice |
-| 12 | Changer le look pendant la vidéo → script aval conservé | **PASS** | — | `test_video_ws` (retour script conserve l'aval) | E115 |
-| 13 | Conservation contexte Vidéo↔Photo (aller-retour) | **PASS** | — | `proj` persistant ; live `R_video.source↔R_photo.*` editMedia même bloc | E114 |
-| 14 | Script : éditer / charger biblio / enregistrer (in-bloc) | **PASS** | — | live `VP_GEN → ws edit 9410` (anti-doublon) ; handlers = routeBlock/toast | E105/E114 |
-| 15 | Génération vidéo 💲 → coût + **confirmation obligatoire** in-bloc | **BLOQUÉ** | — | écran de confirmation in-bloc = OK (code `video.export confirming`) ; **génération = run payant** | dépense |
-| 16 | Export / livrables (fichier + légende/tags) | **N/A** | **F2** | `VX_GO` = **bridge non câblé** (toast) ; moteur non branché sur `proj` | E105 |
-| 17 | Prêt à poster (retrouver + livrer) | **BLOQUÉ** | **F11** | nécessite une vidéo livrée (run payant) + écran legacy `showReady` | E105 |
+**#10 — Image→Vidéo (🎬) → même bloc, média actif affiché** · **PASS** · — · *`test_video_ws` (sendMedia=1) ; live `R_video.source → editMedia`* · E105
+- Impact : enchaînement Photo→Vidéo naturel, sans nouveau bloc. · Reco : RAS.
 
-## STUDIO (mémoire métier — fonctionne mais HORS cockpit = FAIL cible)
+**#11 — Plusieurs images → vidéo (sélection source)** · **PASS** · — · *live `VS_GENIMAGE → editMedia 9419`* · slice
+- Impact : choix clair de l'image qui devient la vidéo. · Reco : RAS (re-vérifier avec de vraies images, protocole).
 
-| # | Scénario | Verdict | Fxx | Preuve | Règle |
-|---|---|---|---|---|---|
-| 18 | Looks : ouvrir / naviguer / choisir | **FAIL** | **F4** | `MENU_LOOKS → showGallery` (messages séparés) ; live `GLP_*` legacy | E105 |
-| 19 | Références : une **seule** source active | **FAIL** | **F5** | 2 portes : workspace `photo.ref` vs Studio `showRefMenu` (`RX_REFS`) | E105/E116 |
-| 20 | Décors cohérents (sans doublon) | **FAIL** | **F7** | `STUDIO_DECORS` cardMenu = doublon de `PL_ENV` | E105 |
-| 21 | Personas : voir/sélectionner | **FAIL** | **F8** | `PERSONA` cardMenu hors workspace | E105/E106 |
-| 22 | Médias : consulter | **FAIL** | **F9** | `FILES_HOME → showFilesMenu` (messages) | E105 |
-| 23 | Modèles : sauver/charger un style | **FAIL** | **F6** | `SHOWSTYLES → showStyles` hors workspace | E105 |
-| 24 | Historique : retrouver / rouvrir | **FAIL** | **F10** | `STUDIO_HIST` = liste texte, pas de réouverture→proj | E105 (+E51/53) |
+**#12 — Changer le look pendant la vidéo → script aval conservé** · **PASS** · — · *`test_video_ws` (aval conservé)* · E115
+- Impact : on peut ajuster sans perdre le script écrit. · Reco : RAS.
+
+**#13 — Conservation contexte Vidéo↔Photo (aller-retour)** · **PASS** · — · *`proj` persistant ; live nav même bloc* · E114
+- Impact : pas de perte look/réf/prompt/script en naviguant. · Reco : RAS (re-vérifier post-génération, protocole).
+
+**#14 — Script : éditer / charger biblio / enregistrer (in-bloc)** · **PASS** · — · *live `VP_GEN/PP_SAVE → editMedia` ; handlers routeBlock/toast* · E105/E114
+- Impact : script visible, modifiable, réutilisable. · Reco : RAS — *la GÉNÉRATION de script (🤖) reste payante (Anthropic), non testée à sec*.
+
+**#15 — Génération vidéo 💲 → coût + confirmation obligatoire in-bloc** · **BLOQUÉ (cat. B)** · — · *confirmation in-bloc OK (code) ; génération = run payant* · dépense
+- Impact : livrable clé ; la confirmation protège la dépense. · Reco : **exécuter en live** (protocole #15), surveiller bloc unique + suite (résultats/export).
+
+**#16 — Export / livrables (fichier + légende/tags)** · **N/A (cat. C)** · **F2** · *`VX_GO` = bridge non câblé (toast)* · E105
+- Impact : **pas d'export tant que le moteur (F2) n'est pas branché**. · Reco : **Phase 4 (F2)** puis tester en live.
+
+**#17 — Prêt à poster (retrouver + livrer)** · **BLOQUÉ (cat. B)** · **F11** · *nécessite une vidéo livrée + écran legacy `showReady`* · E105
+- Impact : étape de publication finale. · Reco : **live** après une vidéo (protocole #17).
+
+## STUDIO (mémoire métier — fonctionne mais HORS cockpit ⇒ FAIL cible)
+
+**#18 — Looks : ouvrir / naviguer / choisir** · **FAIL** · **F4** · *`MENU_LOOKS → showGallery` (messages séparés)* · E105
+- Impact : la bibliothèque de looks s'ouvre **hors cockpit** (nouveaux blocs), perte de repère. · Reco : **Phase 2 (F4)**.
+
+**#19 — Références : une SEULE source active** · **FAIL** · **F5** · *2 portes : `photo.ref` vs `RX_REFS→showRefMenu`* · E105/E116
+- Impact : ambiguïté « où est LA référence ? ». · Reco : **Phase 2 (F5)** — source unique.
+
+**#20 — Décors cohérents (sans doublon)** · **FAIL** · **F7** · *`STUDIO_DECORS` cardMenu = doublon de `PL_ENV`* · E105
+- Impact : deux endroits pour le décor → confusion. · Reco : **Phase 5 (F7)**.
+
+**#21 — Personas : voir / sélectionner** · **FAIL** · **F8** · *`PERSONA` cardMenu hors workspace* · E105/E106
+- Impact : changer de persona sort du cockpit. · Reco : **Phase 5 (F8)** (P1 si multi-persona).
+
+**#22 — Médias : consulter** · **FAIL** · **F9** · *`FILES_HOME → showFilesMenu`* · E105
+- Impact : navigation fichiers hors cockpit. · Reco : **Phase 5 (F9)**.
+
+**#23 — Modèles : sauver / charger un style** · **FAIL** · **F6** · *`SHOWSTYLES → showStyles`* · E105
+- Impact : styles gérés hors cockpit, hors `proj`. · Reco : **Phase 5 (F6)** (dépend F1).
+
+**#24 — Historique : retrouver / rouvrir** · **FAIL** · **F10** · *`STUDIO_HIST` = liste texte, pas de réouverture→proj* · E105 (+E51/53)
+- Impact : on ne peut pas vraiment rouvrir une production passée. · Reco : **Phase 2 (F10)** — grille + réouverture.
 
 ## NAVIGATION
 
-| # | Scénario | Verdict | Fxx | Preuve | Règle |
-|---|---|---|---|---|---|
-| 25 | `/menu` → 1 bloc accueil (navigate), pas d'empilement | **PASS** | — | live `/menu → sendMessage ACCUEIL` (1) | E111 |
-| 26 | Accueil → sections en place | **PASS** | — | live `R_photo/R_video → ✅ editText` | E109 |
-| 27 | Retour ⬅ sans créer de bloc | **FAIL** | **F12** | workspace `R_home → close+editText` (OK) MAIS retours legacy `MAIN_MENU/HOME_*` recréent l'accueil | E105/E108/E109 |
-| 28 | Changement de section en cours de projet → pas de reset | **PASS** | — | `proj` conservé (mémoire) ; live Vidéo↔Photo | E114 |
-| 29 | Reprise après /restart, /stop → état exact | **PASS** (caveat B1) | B1 | workspace recréé proprement (stalefix `freshBloc`) ; caveat : step image → B1 (#9) | E113 |
-| 30 | Aide (❓) sur écran workspace → dans le bloc | **PASS** | — | corrigé L0-2a-ter (`RH_` média → `nlText`) | E112 |
-| 31 | Envoyer une photo spontanément → proposée dans le contexte | **FAIL** | **F15** | `msg.photo` hors wait-state → menu legacy « Photo reçue ? » (`send`) | E105 |
+**#25 — `/menu` → 1 bloc accueil (navigate)** · **PASS** · — · *live `/menu → sendMessage ACCUEIL` (1)* · E111
+- Impact : point d'entrée propre. · Reco : RAS.
 
-## MODE AUTOMATIQUE (PROJECTION — moteur non bâti)
+**#26 — Accueil → sections en place** · **PASS** · — · *live `R_photo/R_video → editText`* · E109
+- Impact : sections sans empilement. · Reco : RAS.
 
-| # | Scénario | Verdict | Manque |
-|---|---|---|---|
-| 32 | Génération complète sans intervention (look→image→vidéo→export) | **N/A** | orchestrateur auto au-dessus de `proj` ; dépend F2 |
-| 33 | Conservation des sources de vérité pendant l'auto | **N/A** | `proj` unique piloté par l'orchestrateur |
-| 34 | Reprise après échec en cours d'auto | **N/A** | machine à états + checkpoints (F2/F10) |
-| 35 | Auditabilité (entrées/coûts/sorties tracées) | **N/A** | `project.json` complet (E93–E96) |
-| 36 | Logs de bout en bout | **N/A (partiel)** | `bot_journal.log` existe ; à étendre aux étapes auto |
-| 37 | Coûts cumulés + confirmations | **N/A (partiel)** | `estimateCost/videoCost` existent ; cumul auto à ajouter |
-| 38 | Historique de la production auto, rouvrable | **N/A** | dépend F10 + F2 |
+**#27 — Retour ⬅ sans créer de bloc** · **FAIL** · **F12** · *workspace OK ; retours legacy `MAIN_MENU/HOME_*` recréent l'accueil* · E105/E108/E109
+- Impact : selon l'écran, ◀️ ré-empile un accueil → désorientation. · Reco : **Phase 1 (F12)**.
+
+**#28 — Changer de section en cours de projet → pas de reset** · **PASS** · — · *`proj` conservé ; live Vidéo↔Photo* · E114
+- Impact : on ne perd pas le projet en explorant. · Reco : RAS.
+
+**#29 — Reprise après /restart, /stop → état exact** · **PASS (caveat B1)** · B1 · *workspace recréé proprement (stalefix `freshBloc`) ; step image → B1 (#9)* · E113
+- Impact : reprise fiable sauf l'écran image (B1). · Reco : RAS nav ; B1 en Phase 0.
+
+**#30 — Aide (❓) sur écran workspace → dans le bloc** · **PASS** · — · *corrigé L0-2a-ter (`RH_` média → `nlText`)* · E112
+- Impact : l'aide ne casse plus le bloc. · Reco : RAS.
+
+**#31 — Envoyer une photo spontanément → proposée dans le contexte** · **FAIL** · **F15** · *`msg.photo` hors wait-state → menu legacy « Photo reçue ? » (`send`)* · E105
+- Impact : geste naturel (« utilise cette photo ») = menu externe hors cockpit. · Reco : **Phase 2 (F15)**.
+
+## MODE AUTOMATIQUE (PROJECTION — cat. C, non implémenté)
+
+**#32 — Génération complète sans intervention** · **N/A** · F2 · — · Impact : pas de one-shot aujourd'hui. · Reco : orchestrateur au-dessus de `proj` après F2 (Phase 4).
+**#33 — Conservation des sources de vérité pendant l'auto** · **N/A** · — · Impact : — · Reco : `proj` unique piloté.
+**#34 — Reprise après échec en cours d'auto** · **N/A** · F2/F10 · Impact : — · Reco : machine à états + checkpoints.
+**#35 — Auditabilité (entrées/coûts/sorties)** · **N/A** · — · Impact : — · Reco : `project.json` (E93–E96).
+**#36 — Logs de bout en bout** · **N/A (partiel)** · — · Impact : `bot_journal.log` existe. · Reco : étendre aux étapes auto.
+**#37 — Coûts cumulés + confirmations** · **N/A (partiel)** · — · Impact : `estimateCost/videoCost` existent. · Reco : cumul auto.
+**#38 — Historique de la prod auto, rouvrable** · **N/A** · F10/F2 · Impact : — · Reco : dépend F10.
 
 ---
 
 ## SYNTHÈSE
+- **PASS 14** · **FAIL 12** · **BLOQUÉ 4** (#5,6,15,17) · **N/A 8** (#16,32-38).
+- **Catégorie A (faits) : 26** · **B (live/payant à faire) : 4** (+#16 après F2) · **C (auto non implémenté) : 8**.
+- Frontières confirmées : **B1, F1, F4–F10, F12, F13, F15, F2/F11**. **Nouvelles : aucune au-delà de F1–F18** (chasse F19+ poursuivie en live).
 
-- **PASS : 14** (1,2,3,4,10,11,12,13,14,25,26,28,29,30)
-- **FAIL : 12** (7,8,9,18,19,20,21,22,23,24,27,31)
-- **BLOQUÉ : 4** (5,6,15,17) — *run payant / action live*
-- **N/A : 8** (16,32–38) — *mode auto / export non implémentés*
-
-### Frontières CONFIRMÉES par la campagne
-- **B1** (bug module cible `photo.image` → bloc texte) : scénarios **8, 9** (+ risque 5/6) — **le défaut le plus visible sur le parcours central**.
-- **F1** (éditeur) : scénario **7** — nouveaux blocs/cockpits/galeries dès « Éditer ».
-- **F4–F10** (Studio) : scénarios **18–24** — toute la mémoire métier hors cockpit.
-- **F12** (retours legacy) : scénario **27**.
-- **F15** (intake photo) : scénario **31**.
-- **F2/F11** (moteur/export) : scénarios **16, 17** — bloquent la chaîne livrable et le mode auto.
-
-### Frontières NOUVELLES trouvées pendant la campagne
-**Aucune au-delà de F1–F18.** La chasse ciblée (Studio, reprise de session, export, génération vidéo réelle, prêt-à-poster, navigation croisée PHOTO↔VIDÉO) **n'a révélé aucune frontière inédite** :
-- reprise/stalefix (`resLoad`/`freshBloc`/`genFoldersLoad`) = **comportement attendu** (recréation d'un bloc frais visible après restart), pas une fuite ;
-- ready-to-post / export = déjà **F11/F2** ;
-- navigation croisée = **0 `send()`** dans les handlers workspace (audit confirmé) ;
-- intake photo, ancien flux anglais, pop-up réglages, menus annexes = déjà ajoutés **F15/F16/F17/F18** au tour précédent.
-→ `FRONTIERES_LEGACY.md` et `PRIORISATION_PRODUIT.md` restent à jour (F1–F18) ; **pas de F19**.
-
-### À EXÉCUTER AVEC ETOILE (run payant / live) — liste regroupée
-- **#5** Générer 1 image (éco) → vérifier confirmation in-bloc + résultat dans le bloc + sélection.
-- **#6** Générer 2/3 images → planche/navigation ‹ › + validation, dans le bloc.
-- **#15** Générer la vidéo (après script) → confirmation coût + dépense réelle.
-- **#16** Export/livrable → **nécessite F2 branché d'abord** (sinon reste N/A).
-- **#17** Prêt à poster → après une vidéo livrée.
-*(Tous derrière confirmation ; à ne lancer que sur décision explicite d'Etoile, crédits Anthropic/Kling requis.)*
-
----
-
-_Campagne exécutée sans aucune correction. L'ordre de la roadmap est figé seulement après revue de cette campagne par Etoile. — 2026-06-10_
+_Aucune correction appliquée. Roadmap PROVISOIRE. Suite = exécution live des cat. B selon `docs/PROTOCOLE_LIVE.md`. — 2026-06-10_
