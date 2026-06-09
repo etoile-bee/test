@@ -37,6 +37,8 @@ _Note : T2 (anti-spam, 73 % messages non en place) et T4 (historique = liste tex
 
 ---
 
+>> **🎯 L0-2 = WORKFLOW À ÉTAT PERSISTANT (E114, critère d'acceptation)** : chaque étape migrée (look/image/script/montage/légende) est **backée par le brouillon actif** (slice par étape) ; back/forward/`/menu`/restart **sans perte** ; modifier une étape antérieure puis avancer **conserve l'aval** ; **remplacer les resets** (`gwReset`/`NL_NEW`) **par des recharges de slice**. Détail : `docs/ARCHITECTURE_4SECTIONS.md` §Persistance d'état bout-en-bout.
+
 >> **⚠️ Décision de conception à valider avant de poursuivre L0 (E111)** : le routeur passe d'« édition en place du cockpit » à **3 modes** (`inplace` intra-tâche · `navigate` = nouveau bloc persistant · `ephemeral` = système auto-delete) + **registre d'ids par bloc**. Détail : `docs/ARCHITECTURE_4SECTIONS.md` §Réconciliation E109↔E111. Auto-save brouillon `/menu` (E110) à intégrer dès L0 ; vues 4 états + CRUD brouillon en L4/L6.
 
 ## 3. Ordre de priorité (séquence) + dépendances

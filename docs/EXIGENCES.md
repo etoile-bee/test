@@ -241,11 +241,18 @@
 - **E112** — **BOUTON AIDE ENRICHI + ORDRE BARRE SYSTÈME.** Barre = **🛑 Stop | 🔄 Restart | ❓ Aide**, avec **❓ Aide TOUJOURS complètement à DROITE**. L'Aide donne accès à : (a) les **commandes disponibles**, (b) la **liste des commandes « / »**, (c) l'**aide CONTEXTUELLE** de l'écran courant. `[Etoile 09/06]`
 - **E113** — **UNICITÉ DU BROUILLON (identité stable, idempotent).** Un travail en cours = **UN seul brouillon avec un ID stable** (`draftId`). L'**auto-save ET `/menu` METTENT À JOUR le même brouillon** (jamais de copie). Reprendre un brouillon → continuer → `/menu` ⇒ on retrouve **LE MÊME** brouillon dans RÉCENTS, **pas un doublon**. Règle : **1 session de travail active ↔ 1 `draftId`** ; tant que non validé/terminé, toute sauvegarde **écrase ce même `draftId`**. À la validation → passe en **« Terminé »** (RÉCENTS), le brouillon n'est plus « en cours ». Relie [[E110]] (4 états) / [[E93]] (projets) / [[E6]] (reprise). `[Etoile 09/06]`
 
-> 🔒 **RÈGLES DE NAVIGATION/UX FIGÉES — VALIDÉES par Etoile (2026-06-09)** : [[E108]] (nav universelle) · [[E109]] (en place intra-tâche) · [[E110]] (brouillons, 4 états) · [[E111]] (historique persistant) · [[E112]] (aide/barre) · [[E113]] (unicité du brouillon). Réconciliation E109↔E111 **figée**.
+- **E114** — **[RÈGLE DIRECTRICE — CRITIQUE] PERSISTANCE D'ÉTAT SUR TOUT LE WORKFLOW (projet éditable de bout en bout tant que non finalisé).** L'utilisateur peut **naviguer librement** entre toutes les sections/étapes, **REVENIR** à n'importe quelle étape, en **MODIFIER** un paramètre, puis **CONTINUER sans perte**. Revenir au Look/Script **restaure l'état EXACT** et reste **éditable** ; avancer **ne repart jamais de zéro**. Idem après `/menu`, Retour, Suivant, Accueil, changement de section, `/restart`. Tant qu'un projet n'est pas **explicitement supprimé ou finalisé**, il reste **récupérable ET éditable de bout en bout**. `[Etoile 09/06]`
+  - **Source de vérité unique = le BROUILLON ACTIF** ([[E110]]/[[E113]], `draftId` stable) : un **slice par étape** `{ look · image(s)+validée · script · réglages montage · légendes · params · persona · étape courante }`.
+  - **Liaison étape↔brouillon** : chaque **module d'étape** (look/image/script/montage/légende) **LIT son slice** au rendu et **ÉCRIT dedans à chaque modif** → ⬅ Retour vers une étape antérieure **recharge son slice** (état exact) ; modifier **met à jour le slice** ; ➡ Suivant **conserve tout l'aval déjà saisi**.
+  - **Finalisation** (génération validée) → projet « Terminé » ; **suppression explicite** → retiré ; sinon **toujours éditable**.
+  - ⚠️ **Différence avec l'existant** : aujourd'hui `gwReset`/`NL_NEW` **EFFACENT** l'état à la ré-entrée → E114 impose de **RECHARGER le slice** au lieu de réinitialiser (à corriger à la migration des modules, [[E107]]).
+  - **CRITÈRE D'ACCEPTATION de L0-2** : chaque étape migrée est **backée par le brouillon** ; back/forward/`/menu`/restart **sans perte** ni reset.
+
+> 🔒 **RÈGLES DE NAVIGATION/UX FIGÉES — VALIDÉES par Etoile (2026-06-09)** : [[E108]] (nav universelle) · [[E109]] (en place intra-tâche) · [[E110]] (brouillons, 4 états) · [[E111]] (historique persistant, raffiné L0-1d-fix) · [[E112]] (aide/barre) · [[E113]] (unicité du brouillon) · [[E114]] (persistance d'état bout-en-bout). Réconciliation E109↔E111 **figée**.
 
 ---
 
-_Total : 113 exigences (E1–E113). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E113) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE, UNICITÉ — priorité critique/élevée. Règles UX E108–E113 FIGÉES (validées Etoile)._
+_Total : 114 exigences (E1–E114). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E114) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE, UNICITÉ, PERSISTANCE — priorité critique/élevée. Règles UX E108–E114 FIGÉES (validées Etoile)._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---

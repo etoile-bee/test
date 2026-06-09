@@ -315,6 +315,41 @@ L'ancien handler d'un bloc n'est retiré **qu'après** : tests verts **ET** **va
 - **Aide enrichie** : (a) commandes disponibles · (b) liste des « / » · (c) aide contextuelle de l'écran courant.
 - **RÉCENTS = 4 vues/états** : 📝 Brouillons · ⏳ En cours · ✅ Terminés · 🗄 Archivés (E110).
 
+## PERSISTANCE D'ÉTAT BOUT-EN-BOUT (E114) — conception (critère d'acceptation L0-2)
+
+**Principe** : le **brouillon actif** (`draftId` stable, E110/E113) est la **SOURCE DE VÉRITÉ UNIQUE** du projet en cours. Tout module d'étape lit/écrit **son slice** dans ce brouillon → navigation libre, retour éditable, avancée sans perte.
+
+**Modèle de données (brouillon) :**
+```
+draft = {
+  draftId, persona, step,           // identité + étape courante
+  look:   { source, params },       // slice LOOK
+  image:  { variants:[], validée },  // slice IMAGE
+  script: { texte, sujet, hooks },   // slice SCRIPT
+  montage:{ subs, image, zoom, musique, reactions }, // slice MONTAGE
+  legendes:{ courte, longue, tags }, // slice LÉGENDES
+  params: { durée, format, ... },
+  ts
+}
+```
+
+**Liaison étape ↔ brouillon (contrat de chaque module) :**
+- `render(ctx)` : **LIT** `draft[slice]` (pré-remplit l'écran avec l'état exact). Aucun champ ⇒ valeurs par défaut.
+- `actions` (toute modif) : **ÉCRIT** dans `draft[slice]` puis re-`render` en place (E109).
+- ⬅ **Retour** vers une étape → `render` recharge **son** slice (état exact, éditable).
+- ➡ **Suivant** → ne touche pas l'aval déjà saisi ; passe `step` à l'étape suivante.
+- `/menu` / section / `/restart` → le brouillon persiste (E110/E113) → reprise à l'identique.
+
+**Impact / changement vs existant (à appliquer en L0-2) :**
+| Aujourd'hui (efface) | E114 (recharge) |
+|---|---|
+| `gwReset()` (1050) remet `gw`/`genJob` à zéro à la ré-entrée vidéo | charger le slice `script`/`montage`/`params` du brouillon |
+| `NL_NEW` / `openCard` réinitialisent look/images | charger le slice `look`/`image` du brouillon |
+| état en RAM perdu au `/restart` | brouillon relu depuis `drafts/<persona>/<draftId>.json` |
+→ **Remplacer les resets par des recharges de slice.** Chaque entrée d'étape : *« si brouillon actif a ce slice → le charger ; sinon défaut »*.
+
+**Critère d'acceptation L0-2** : pour chaque étape migrée — back/forward/`/menu`/restart **sans perte** ; modifier une étape antérieure puis avancer **conserve l'aval**. Finalisation → « Terminé » ; suppression explicite → retiré ; sinon **toujours éditable**.
+
 ## Gains attendus
 - **PHOTO, VIDÉO, RÉCENTS à 1 clic** depuis l'accueil (vs ≥2 aujourd'hui, ou commande `/newlook`).
 - `CARD_MORE` vidé → fin du « fouille-menu » (33 clics évités).
