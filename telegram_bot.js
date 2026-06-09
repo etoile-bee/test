@@ -215,6 +215,21 @@ function setImanyRef(src){
     return dest;
   }catch(e){jlog('⚠️ setImanyRef: '+e.message);return null;}
 }
+// [L0-2a-bis] Vignette de la référence active, à un CHEMIN qui change avec le contenu (mtime) :
+// indispensable pour que l'anti-doublon de nlMedia laisse passer la mise à jour quand la réf change (même basename imany_reference.*).
+function refThumb(){
+  try{
+    const src=nlRefFile();
+    if(src&&fs.existsSync(src)){
+      const m=Math.round(fs.statSync(src).mtimeMs);
+      const out='/tmp/refthumb_'+m+'.jpg';
+      if(fs.existsSync(out)&&fs.statSync(out).size>3000)return out;
+      require('child_process').execSync('sips -Z 900 -s format jpeg "'+src+'" --out "'+out+'" 2>/dev/null || ffmpeg -y -i "'+src+'" -vf scale=900:-2 -q:v 3 "'+out+'" 2>/dev/null');
+      if(fs.existsSync(out)&&fs.statSync(out).size>3000)return out;
+    }
+  }catch(e){}
+  return nlCover();
+}
 async function refPreview(dest){
   if(!dest){await cardMenu('❌ Référence non définie.',[[{text:'◀️ Retour',callback_data:'MAIN_MENU'}]]);return;}
   _nlCover=null;const cv=nlCover();
@@ -1112,8 +1127,17 @@ async function uiShow(id,caption,rows,mode){
   const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)activeRootMid=nm; return nm; // navigate (ou bloc actif disparu) : NOUVEAU bloc racine
 }
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
-function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode)}; }
-async function routeBlock(id,mode){ try{autosaveDraft();}catch(e){} return uiRouter.route(id,uiCtx(id),mode||'inplace'); } // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
+function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw)}; }
+// [L0-2a-bis] WORKSPACE MÉDIA (canvas du projet PHOTO) : bloc photo unique édité EN PLACE (vignette + contexte), distinct du menu texte.
+let wsOpen=false; // un workspace média (newlook.mediaId) est ouvert
+let refGalIdx=0;  // pointeur galerie pour le choix de référence
+const MEDIA_MODULES={'photo.look':1,'photo.image':1,'photo.ref':1,'photo.refgal':1}; // modules rendus en bloc MÉDIA
+async function uiShowMedia(file,caption,rows,raw){ wsOpen=true; await nlMedia(file,caption,rows,raw); return newlook.mediaId; } // edite/cree le bloc média (anti-doublon ① + stalefix via nlMedia)
+async function routeBlock(id,mode){
+  try{autosaveDraft();}catch(e){}
+  if(wsOpen&&!MEDIA_MODULES[id]){ try{await delMsg(newlook.mediaId);}catch(e){} try{sigDrop(newlook.mediaId);}catch(e){} newlook.mediaId=null; wsOpen=false; } // on QUITTE le workspace -> fermeture propre (zéro empilement)
+  return uiRouter.route(id,uiCtx(id),mode||'inplace'); // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // [L0-2a] WORKFLOW PHOTO MIGRÉ DANS LE BLOC ACTIF (E114/E115) — modules photo.look / photo.image.
@@ -1126,7 +1150,7 @@ function projDefaults(){
   const cat=newlook.category||Object.keys(lb.categories||{})[0]||null;
   const env=(lb.envs&&lb.envs[newlook.env])?newlook.env:(newlook.env||'bougies');
   return { draftId:genState.activeDraftId||null, persona:_persona(), step:'look',
-    look:{ source:null, category:cat, env:env, mode:newlook.mode||'eco', count:newlook.count||1, extra:newlook.extra||null },
+    look:{ source:null, file:null, category:cat, env:env, mode:newlook.mode||'eco', count:newlook.count||1, extra:newlook.extra||null },
     image:{ urls:[], idx:0, validated:null } };
 }
 function projFromDraft(d){
@@ -1143,7 +1167,13 @@ function projFromDraft(d){
 function projToNewlook(){ if(!proj)return; newlook.category=proj.look.category; newlook.env=proj.look.env; newlook.mode=proj.look.mode; newlook.count=proj.look.count; newlook.extra=proj.look.extra; } // miroir vers le moteur existant (génération réelle)
 function ensureProj(){ if(proj)return proj; let d=null; try{ if(genState.activeDraftId)d=listDrafts().find(x=>x.draftId===genState.activeDraftId)||null; }catch(e){} proj=d?projFromDraft(d):projDefaults(); projToNewlook(); return proj; }
 
-function photoLookView(){ // étape LOOK rendue EN PLACE (bloc texte = bloc actif) ; lit/écrit le slice look
+function draftTag(){ try{ return genState.activeDraftId?genState.activeDraftId.replace('draft_','').replace(/-/g,'/').slice(0,16):'(nouveau)'; }catch(e){ return '(nouveau)'; } }
+function lookFile(p){ // image du look actif (chemin réel, unique) ou null
+  try{ if(p.look.file&&fs.existsSync(p.look.file))return p.look.file; }catch(e){}
+  try{ if(workingSource&&fs.existsSync(workingSource))return workingSource; }catch(e){}
+  return null;
+}
+function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
   const p=ensureProj();
   let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
@@ -1152,18 +1182,21 @@ function photoLookView(){ // étape LOOK rendue EN PLACE (bloc texte = bloc acti
                  : ((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.category||'(à choisir)'));
   const envLabel = (lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
   const srcLabel = {new:'✨ Nouveau (généré)',gallery:'🖼 Galerie',upload:'📤 Upload'}[p.look.source]||'— (à choisir)';
-  const cap = '📸 <b>PHOTO · LOOK</b> — étape 1/2\n'
+  const lf=lookFile(p); const img=lf||refThumb(); const usingRef=!lf;
+  const cap = '📸 <b>WORKSPACE · LOOK 1/2</b>\n'
+    +(usingRef?'🖼 <i>Aperçu : référence active</i> (pas encore de look)\n':'🖼 <i>Aperçu : look actif</i>\n')
     +'Source : <b>'+escH(srcLabel)+'</b>\n'
-    +'👗 Tenue : '+escH(catLabel)+'\n'
-    +'🌆 Décor : '+escH(envLabel)+'\n'
-    +'🎛 Format : '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+(p.look.count||1)):'')+'\n\n'
+    +'👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
+    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+(p.look.count||1)):'')+'\n'
+    +'📝 Brouillon : '+escH(draftTag())+'\n'
     +(p.look.source?'✅ Look choisi — ➡ Suivant pour l\'image.':'Choisis une <b>source</b> (ou configure), puis ➡ Suivant.');
   const rows=[
     [{text:(p.look.source==='new'?'✅ ':'')+'✨ Nouveau',cb:'PL_SRC_new'},{text:(p.look.source==='gallery'?'✅ ':'')+'🖼 Galerie',cb:'PL_SRC_gal'},{text:(p.look.source==='upload'?'✅ ':'')+'📤 Upload',cb:'PL_SRC_up'}],
     [{text:'👗 Tenue',cb:'PL_TENUE'},{text:'🌆 Décor',cb:'PL_ENV'}],
     (p.look.mode==='eco'?[{text:'🎛 Format',cb:'PL_FMT'},{text:'📸 Nombre',cb:'PL_NB'}]:[{text:'🎛 Format',cb:'PL_FMT'}]),
+    [{text:'🎯 Référence',go:'photo.ref'}],
   ];
-  return {caption:cap,rows};
+  return {image:img,raw:false,caption:cap,rows};
 }
 function photoImageCost(){
   let lb={};try{lb=nlMod().readLookbook();}catch(e){}
@@ -1171,37 +1204,63 @@ function photoImageCost(){
   const unit=ops[p.look.mode];const n=p.look.mode==='eco'?(p.look.count||1):1;const cr=unit?unit*n:null;
   return {cr:cr,prix:cr?(cr+' cr ≈ '+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer',n:n,lb:lb};
 }
-function photoImageView(){ // étape IMAGE rendue EN PLACE ; récap coût + 💲 (génération derrière confirmation) ; sélection écrit le slice image
+function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image en cours/sélectionnée + récap coût + 💲 (derrière confirmation)
   const p=ensureProj();const c=photoImageCost();const lb=c.lb||{};
   const catLabel=(lb.categories&&lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.extra||p.look.category||'?';
   const envLabel=(lb.envs&&lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
   const has=p.image.urls.length;
-  let cap='📸 <b>PHOTO · IMAGE</b> — étape 2/2\n'
-    +'Look : 👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
-    +'Format : '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+'\n'
-    +'🧾 Coût estimé : <b>💰 '+c.prix+'</b>\n\n';
+  const img=has?nlLocal(p.image.idx):(lookFile(p)||refThumb());
+  let cap='📸 <b>WORKSPACE · IMAGE 2/2</b>\n'
+    +(has?'🖼 <i>Aperçu : image '+(p.image.idx+1)+'/'+has+'</i>\n':'🖼 <i>Aperçu : look/référence (aucune image générée)</i>\n')
+    +'👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
+    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+'\n'
+    +'📝 Brouillon : '+escH(draftTag())+'\n'
+    +'🧾 Coût estimé : <b>💰 '+c.prix+'</b>\n';
   const rows=[];
   if(!has){
-    cap+='Aucune image générée pour l\'instant.\nAppuie sur 💲 pour générer — une <b>confirmation</b> sera demandée (action payante).';
+    cap+='\nAppuie sur 💲 pour générer — une <b>confirmation</b> sera demandée (action payante).';
     rows.push([{text:'💲 Générer'+(c.cr?(' ('+c.cr+' cr)'):''),cb:'PL_GEN'}]);
   } else {
-    cap+=(p.image.validated!=null?('✅ Image '+(p.image.validated+1)+'/'+has+' validée.'):('Image '+(p.image.idx+1)+'/'+has+' — sélectionne celle à garder.'));
-    rows.push([{text:'🖼 Voir la planche',cb:'PL_VIEW'}]);
+    cap+='\n'+(p.image.validated!=null?('✅ Image '+(p.image.validated+1)+'/'+has+' validée.'):('Sélectionne l\'image à garder.'));
     if(has>1)rows.push([{text:'‹',cb:'PL_PREV'},{text:(p.image.idx+1)+'/'+has,cb:'PL_NOOP'},{text:'›',cb:'PL_NEXT'}]);
     rows.push([{text:(p.image.validated===p.image.idx?'✅ Validée':'✅ Valider cette image'),cb:'PL_PICK'}]);
     rows.push([{text:'🎨 Éditer',cb:'PL_EDIT'},{text:'🔁 Régénérer 💲',cb:'PL_GEN'}]);
   }
-  return {caption:cap,rows};
+  return {image:img,raw:!!has,caption:cap,rows};
+}
+function photoRefView(){ // gestion RÉFÉRENCE dans le workspace — bloc MÉDIA : vignette de la réf active + remplacement
+  const img=refThumb(); let src=null;try{src=nlRefFile();}catch(e){}
+  const waiting=(state==='ws_ref_upload_wait');
+  const cap='🎯 <b>RÉFÉRENCE Imany (active)</b>\n'
+    +'🖼 <i>'+escH(src?path.basename(src):'(aucune)')+'</i>\n'
+    +(waiting?'\n⏳ <b>En attente de ta photo…</b> envoie-la maintenant.':'\nRemplace-la : 🖼 depuis la galerie ou 📤 upload. Aperçu immédiat ici. Elle s\'applique aux prochaines générations.');
+  const rows=[[{text:'🖼 Galerie',go:'photo.refgal'},{text:'📤 Upload',cb:'PR_UP'}]];
+  return {image:img,raw:false,caption:cap,rows};
+}
+function photoRefGalView(){ // choix de référence depuis la galerie — bloc MÉDIA, navigation en place
+  const list=looksList();
+  if(!list.length)return {image:refThumb(),raw:false,caption:'🖼 <b>Galerie vide</b> — aucun look à utiliser comme référence.',rows:[]};
+  if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
+  const f=path.join(getLooksDir(),list[refGalIdx]);
+  const cap='🖼 <b>GALERIE → Référence</b> · '+(refGalIdx+1)+'/'+list.length+'\n🖼 <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ définis comme référence active.';
+  const rows=[[{text:'‹',cb:'PR_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'PR_GNEXT'}],[{text:'✅ Définir comme référence',cb:'PR_GSET'}]];
+  return {image:f,raw:false,caption:cap,rows};
 }
 // Enregistrement des modules dans le registre du routeur (strangler-fig : cohabite avec l'ancien dispatch)
 uiRouter.REGISTRY['photo.look']={ id:'photo.look', parent:'photo', title:'📸 PHOTO · Look', owner:'PHOTO', next:'photo.image',
   gate:()=>{ try{ return !!ensureProj().look.source; }catch(e){ return false; } }, // ➡ Suivant actif seulement si un look est choisi
-  help:'Étape LOOK : choisis une source (✨ Nouveau / 🖼 Galerie / 📤 Upload) puis configure la tenue, le décor, le format et le nombre. Tout est conservé dans le brouillon : tu peux revenir ici sans rien perdre. ➡ Suivant mène à l\'image.',
+  help:'Étape LOOK : la vignette montre le look actif (ou la référence active si pas de look). Choisis une source (✨ Nouveau / 🖼 Galerie / 📤 Upload), configure tenue/décor/format/nombre, ou 🎯 change la référence. Tout est conservé dans le brouillon. ➡ Suivant mène à l\'image.',
   render:()=>photoLookView() };
 uiRouter.REGISTRY['photo.image']={ id:'photo.image', parent:'photo.look', title:'📸 PHOTO · Image', owner:'PHOTO', next:'video',
   gate:()=>{ try{ return ensureProj().image.validated!=null; }catch(e){ return false; } }, // ➡ Suivant (→ Vidéo, L0-2b) actif seulement si une image est validée
-  help:'Étape IMAGE : vérifie le coût estimé, puis 💲 pour générer (confirmation requise — rien n\'est dépensé sans ton accord). Une fois les images là, navigue, valide celle à garder (slice image), puis ➡ Suivant vers la Vidéo.',
+  help:'Étape IMAGE : la vignette montre l\'image en cours/sélectionnée. Vérifie le coût, 💲 pour générer (confirmation requise — rien n\'est dépensé sans ton accord). Navigue, valide celle à garder (slice image), puis ➡ Suivant vers la Vidéo.',
   render:()=>photoImageView() };
+uiRouter.REGISTRY['photo.ref']={ id:'photo.ref', parent:'photo.look', title:'🎯 Référence', owner:'PHOTO',
+  help:'Référence Imany active (vignette). Remplace-la depuis la galerie ou par upload : l\'aperçu se met à jour immédiatement et elle s\'applique aux prochaines générations.',
+  render:()=>photoRefView() };
+uiRouter.REGISTRY['photo.refgal']={ id:'photo.refgal', parent:'photo.ref', title:'🖼 Galerie → Référence', owner:'PHOTO',
+  help:'Navigue dans la galerie et choisis le look à définir comme référence active.',
+  render:()=>photoRefGalView() };
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2103,7 +2162,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-1d-fix2/L0-2a] ancre le bloc actif aussi pour RX_ et PL_ (workflow photo)*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
@@ -2136,6 +2195,14 @@ async function handle(upd){
       }
       if(d==='PL_EDIT'){ /*[T7] éditeur depuis Photo : réutilise le bloc photo (pas de nouveau message)*/ try{ if(p.image.urls.length){const f=nlLocal(p.image.idx);if(f)setWorkPhoto(f);} cockpit.mid=newlook.mediaId||cockpit.mid; }catch(e){} await showEditHome(); return; }
       await routeBlock('photo.look','inplace');return;
+    }
+    // [L0-2a-bis] GESTION RÉFÉRENCE dans le workspace (rendu EN PLACE dans le bloc média)
+    if(d&&d.indexOf('PR_')===0){
+      if(d==='PR_UP'){ state='ws_ref_upload_wait'; await toast('📤 Envoie la photo de référence'); await routeBlock('photo.ref','inplace'); return; } /*passe en attente + affiche « en attente » dans le bloc*/
+      if(d==='PR_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
+      if(d==='PR_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
+      if(d==='PR_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ try{setImanyRef(path.join(getLooksDir(),f));}catch(e){} await toast('✅ Référence mise à jour'); } await routeBlock('photo.ref','inplace'); return; } /*aperçu immédiat de la nouvelle réf*/
+      return;
     }
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
@@ -2754,6 +2821,10 @@ async function handle(upd){
   }
   if(state==='ref_upload_wait'&&msg.photo){ /*[C5] photo uploadée -> référence Imany*/
     try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';await refPreview(setImanyRef(fp));}catch(e){state='idle';await send('❌ '+e.message);}
+    return;
+  }
+  if(state==='ws_ref_upload_wait'&&msg.photo){ /*[L0-2a-bis] réf uploadée DANS le workspace -> aperçu immédiat dans le bloc média*/
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);await routeBlock('photo.ref','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
   }
   if(state==='create_look_upload_wait'&&msg.photo){ /*[flux-look] photo uploadée -> look de la vidéo (après aperçu + validation)*/

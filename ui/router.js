@@ -43,12 +43,15 @@ function safe(fn, ctx) { try { return fn(ctx); } catch (e) { return false; } }
 function has(id) { return !!REGISTRY[id]; }
 
 // mode : 'navigate' (nouveau bloc persistant — E111) | 'inplace' (édite le bloc courant — E109) | 'ephemeral'
+// [L0-2a-bis] Un module peut renvoyer { image } (chemin fichier) -> bloc MÉDIA (workspace) édité via editMessageMedia/Caption.
+// Telegram interdit texte->média par édition : ctx.showMedia gère le bloc média (canvas) distinct du menu texte (ctx.show).
 async function route(id, ctx, mode) {
   const mod = REGISTRY[id];
   if (!mod) return false;
   const out = mod.render(ctx) || {};
   const rows = contentButtons(out.rows).concat(navRows(mod, ctx));
-  await ctx.show(out.caption || mod.title, rows, mode || 'inplace'); // navigation intra-bloc = EN PLACE (E111 raffiné) ; /menu passe 'navigate'
+  if (out.image && ctx.showMedia) await ctx.showMedia(out.image, out.caption || mod.title, rows, mode || 'inplace', out.raw); // bloc MÉDIA (vignette persistante)
+  else await ctx.show(out.caption || mod.title, rows, mode || 'inplace'); // bloc TEXTE (menu)
   return true;
 }
 
