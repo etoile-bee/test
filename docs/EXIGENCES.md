@@ -123,6 +123,23 @@
 - **E72** — **Mono-session d'écriture** ; filet (backups, node --check, régressions, smoke) ; petits commits. `[CTX]`
 - **E73** — **Fidélité test → prod** : ce qui est validé en test sort à l'identique. `[CTX]`
 
+## O. IDENTITÉ & ANATOMIE / ANTI-ARTEFACTS (ajout 2026-06-09)
+
+> Déclenché par l'artefact « poil au torse » (analyse : `docs/RAPPORT_DETAILLE.md` §Audit identité & artefacts).
+> Contrôles à passer sur **chaque** génération (image source ET vidéo).
+
+- **E74** — **Visage conservé** : identité fidèle à la référence Imany (traits, forme du visage). `[Etoile 09/06]`
+- **E75** — **Couleur de peau conservée** (carnation métisse, pas de dérive). `[Etoile 09/06]`
+- **E76** — **Texture de peau conservée et plausible** : pores/taches de rousseur OK, **mais aucune texture parasite** (ni poil, ni rugosité anormale). `[Etoile 09/06]`
+- **E77** — **Cheveux conservés** (couleur, longueur, implantation ; pas de mèche/accessoire fantôme). `[Etoile 09/06]`
+- **E78** — **Regard / yeux conservés** (yeux dorés, direction du regard cohérente). `[Etoile 09/06]`
+- **E79** — **Vêtements conservés** (tenue cohérente, pas de déformation/fusion du tissu). `[Etoile 09/06]`
+- **E80** — **Bijoux conservés** (pas de doublon, pas de bijou fantôme/déformé). `[Etoile 09/06]`
+- **E81** — **AUCUN élément parasite** : pas de **poils** (body/chest hair), pas de **doigts/membres supplémentaires**, pas de **mains déformées**, pas d'**accessoires fantômes**, aucune déformation anatomique. `[Etoile 09/06]`
+- **E82** — **Contrôle qualité identité+anatomie systématique** sur chaque génération, aux étapes : **image source (Seedream)** · **génération vidéo (lipsync Kling)** · **prompt** · **upscale** · **cohérence d'identité** (vs référence). `[Etoile 09/06]`
+- **E83** — **Négatif anti-artefacts dans le prompt** (parade i, à valider Etoile) : `body hair, chest hair, hairy chest, extra fingers, deformed hands, extra limbs, ghost accessories, duplicated jewelry, mutated anatomy` + adoucir « MAXIMUM skin texture / chest neck unevenness » qui favorise l'artefact. `[Etoile 09/06]`
+- **E84** — **Contrôle qualité post-génération automatisable** (parade ii, à étudier) : détection visage/anomalies sur l'image source avant de dépenser la vidéo (ex. Apple Vision en local, ou comparaison d'embedding à la référence). `[Etoile 09/06]`
+
 ---
 
-_Total : 73 exigences. Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md`._
+_Total : 84 exigences (E1–E84). Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._

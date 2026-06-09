@@ -182,4 +182,64 @@
 
 **Séquence recommandée (1 lot testé à la fois)** : Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
 
+---
+
+## AUDIT IDENTITÉ & ARTEFACTS (ajout 2026-06-09)
+
+### Cas analysé — artefact « poil au torse »
+Vidéo fournie par Etoile = **rendu final de la génération `2026-06-09-15-13`** (« Feminine energy… »).
+Confrontation des 3 étapes (frames dans `docs/artefacts/`) :
+
+| Étape | Fichier | Artefact présent ? | Preuve |
+|---|---|---|---|
+| (a) **Image source Seedream** | `looks/gen_2026-06-09-11-07_p1.jpg` | **OUI** (déjà là) | `docs/artefacts/02_source_seedream_torse_ARTEFACT.jpg` |
+| (b) **Raw lipsync Kling** | `outputs/2026-06-09-15-13_raw_p1.mp4` | OUI (hérité) | `docs/artefacts/03_raw_lipsync_kling_torse.jpg` |
+| (c) **Rendu final local** | `outputs/2026-06-09-15-13_p1.mp4` | OUI (hérité) | `docs/artefacts/04_rendu_final_torse.jpg` |
+
+**Conclusion : l'artefact naît à l'étape (a) — l'image source Seedream est déjà fautive**, **favorisée par (d) le prompt**.
+Kling **n'a rien inventé** (propagation fidèle) ; le **rendu local n'y est pour rien**. Cause racine = `buildPrompt` /
+`newlook_prompt.txt` impose *« MAXIMUM skin texture — heavily visible pores… chest neck slight skin unevenness,
+raw unfiltered skin quality »* **sans aucun négatif anti-poil/anatomie** → Seedream interprète la consigne « texture
+maximale du torse » en pilosité sur le sternum. (Vérifié : `grep` body/chest hair = 0 dans les prompts.)
+
+### Checklist identité/anatomie (E74–E84)
+> Statut général = **Non vérifié** (vérification systématique nécessite des générations payantes ; **crédits Anthropic épuisés**),
+> SAUF E76/E81 déjà **prouvés Non conformes** par le cas ci-dessus.
+
+| E# | Exigence | Statut | Écran / Étape | Fonction concernée | Impact utilisateur | Priorité |
+|---|---|---|---|---|---|---|
+| E74 | Visage conservé | Non vérifié (échantillon OK) | image source / vidéo | `buildPrompt` newlook.js:87 | Risque de visage qui dérive de la réf | Élevée |
+| E75 | Couleur de peau conservée | Non vérifié (échantillon OK) | image source | prompt | Carnation pourrait dériver | Élevée |
+| E76 | Texture de peau plausible (sans parasite) | **Non conforme (prouvé)** | image source Seedream | prompt « MAXIMUM skin texture » | **Poil/texture parasite sur le torse** | Critique |
+| E77 | Cheveux conservés | Non vérifié (échantillon OK) | image source | prompt anti hair-clip | Mèche/accessoire fantôme possible | Moyenne |
+| E78 | Regard / yeux conservés | Non vérifié (échantillon OK) | image source | prompt | Regard/yeux pourraient dériver | Moyenne |
+| E79 | Vêtements conservés | Non vérifié (échantillon OK) | image source | prompt outfit | Tissu déformé/fusionné possible | Moyenne |
+| E80 | Bijoux conservés | Non vérifié (échantillon OK) | image source | prompt | Bijou doublé/fantôme possible | Moyenne |
+| E81 | AUCUN élément parasite (poils/doigts/déform./fantômes) | **Non conforme (prouvé)** | image source → vidéo | prompt (pas de négatif) | **Artefacts anatomiques livrés à l'écran** | Critique |
+| E82 | Contrôle identité+anatomie systématique | Non conforme (Manquant) | toutes étapes | — | Aucun garde-fou ne détecte l'artefact avant publication | Élevée |
+| E83 | Négatif anti-artefacts dans le prompt (parade i) | Non conforme (Manquant) | newlook.js buildPrompt | `buildPrompt`:87 / `newlook_prompt.txt` | Sans négatif, l'artefact se reproduira | Critique |
+| E84 | QC post-génération automatisé (parade ii) | Non conforme (à étudier) | image source avant vidéo | — | Pas de détection d'anomalie avant de payer la vidéo | Moyenne |
+
+### Sources de bug à vérifier (par étape)
+1. **Image source (Seedream)** — ✅ identifiée comme l'origine ici.
+2. **Génération vidéo (lipsync Kling)** — propage fidèlement (pas la cause ici, mais à surveiller pour les mouvements/déformations).
+3. **Prompt** — ✅ cause favorisante (texture torse maximale, zéro négatif).
+4. **Upscale** — non utilisé actuellement (Seedream sort en 1440×2560 natif) ; à surveiller si ajouté.
+5. **Cohérence d'identité** — pas de comparaison automatique à la référence (E82/E84).
+
+### Parades proposées (à valider — rien appliqué)
+- **(i) Négatif anti-artefacts dans le prompt** *(domaine créatif d'Etoile → attente de son GO)* : ajouter
+  `no body hair, no chest hair, smooth hairless décolleté, no extra fingers, no deformed hands, no extra limbs,
+  no ghost/duplicated accessories, no mutated anatomy` **et adoucir** « MAXIMUM skin texture / chest neck unevenness »
+  (probable déclencheur). Fichier concerné : `newlook_prompt.txt` (non verrouillé) / `buildPrompt` newlook.js:87.
+- **(ii) Contrôle qualité post-génération** *(à étudier)* : sur l'**image source**, avant de dépenser la vidéo —
+  détection de visage/anomalies en **local et gratuit** (Apple Vision `VNDetectFaceLandmarks`, ou comparaison
+  d'embedding visage à `imany_reference.png`) ; alerte « anomalie possible — vérifie avant de générer la vidéo ».
+  Aucune dépense, exécutable sur le Mac.
+
+> Statut global identité/anatomie : **non vérifiable exhaustivement maintenant** (générations payantes + crédits épuisés) ;
+> le cas « poil au torse » est **diagnostiqué et reproductible** (cause prompt/source), parades prêtes à valider.
+
+---
+
 _Aucune correction appliquée — diagnostic en attente de validation d'Etoile._
