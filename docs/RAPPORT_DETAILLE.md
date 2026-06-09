@@ -6,13 +6,13 @@
 
 ## Récap chiffré
 
-**Statuts (sur 91 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 22** · 🟠 **Non conforme : 21** · ◻️ **Non vérifié : 11**.
+**Statuts (sur 92 exigences)** : ✅ **Conforme : 37** · 🟡 **Partiellement conforme : 22** · 🟠 **Non conforme : 22** · ◻️ **Non vérifié : 11**.
 - **Cœur produit / UX (E1–E73)** : 36 Conforme · 22 Partiel · 15 Non conforme.
-- **Qualité visuelle & identité (E74–E91, 🔴 critique)** : 1 Conforme · 6 Non conforme · 11 Non vérifié.
+- **Qualité visuelle & identité (E74–E92, 🔴 critique)** : 1 Conforme · 7 Non conforme · 11 Non vérifié.
 
-→ **Score sur exigences auditables ≈ 60 %** (48/80, hors 11 « Non vérifié » qui nécessitent une génération payante — crédits Anthropic épuisés).
+→ **Score sur exigences auditables ≈ 59 %** (48/81, hors 11 « Non vérifié » qui nécessitent une génération payante — crédits Anthropic épuisés).
 
-**Par priorité** : 🔴 **Critique : 10** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
+**Par priorité** : 🔴 **Critique : 11** · 🟠 **Élevée : 16** · 🟡 **Moyenne : 22** · 🟢 **Faible : 6**.
 
 > Notes : « Non conforme » regroupe Manquant / Régressé / Cassé (précisé en colonne Impact). « Non vérifié » =
 > contrôle d'identité non testable maintenant (génération payante requise). La catégorie **Identité (E74–E91)
@@ -173,13 +173,13 @@
 
 **Non conforme (15 + 6 identité)** : E17, E19, E21, E25, E26, E31, E32, E34, E36, E51, E53, E55, E56, E59, E62 · **+ E76, E81, E82, E83, E84, E91 (identité, critiques)**.
 
-**Identité E74–E91 (🔴 critique)** : Conforme E90 · Non conforme E76, E81, E82, E83, E84, E91 · Non vérifié E74, E75, E77, E78, E79, E80, E85, E86, E87, E88, E89.
+**Identité E74–E92 (🔴 critique)** : Conforme E90 · Non conforme E76, E81, E82, E83, E84, E91, **E92 (GATE source-avant-vidéo, n°1)** · Non vérifié E74, E75, E77, E78, E79, E80, E85, E86, E87, E88, E89.
 
 ---
 
 ## Plan d'action priorisé
 
-**🔴 Critique** : **(LOT IDENTITÉ — priorité n°1)** QC d'identité obligatoire + GATE bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : (E53) Historique → grille + vignettes + réouverture ; (E55/E56) `project.json` (modèle/projet réouvrable) ; (E45) « Partie suivante » sur vidéos restaurées.
+**🔴 Critique** : **(n°1 ABSOLUE) GATE QC SOURCE-AVANT-VIDÉO (E92)** — bloque le lipsync payant tant que l'image source n'est pas QC-validée (3 actions : régénérer/éditer/valider). Puis **(LOT IDENTITÉ)** QC d'identité obligatoire + GATE final bloquant (E82/E91) ; négatif anti-artefacts à valider (E83) ; QC post-génération local à construire (E84) ; corriger texture/poil parasite (E76/E81) — règle E90 (preuve d'étape avant correctif) déjà adoptée. Puis : (E53) Historique → grille + vignettes + réouverture ; (E55/E56) `project.json` (modèle/projet réouvrable) ; (E45) « Partie suivante » sur vidéos restaurées.
 
 **🟠 Élevée** : (E62) /stop+/restart en tête ; (E17/E21) looks dupliquer+lock ; (E25) décors CRUD ; (E34) prompts gérés dans le cockpit ; (E36) planche-contact auto ; (E49/E51) légendes éditer/régénérer+grille ; (E54) réédition depuis l'Historique ; (E7) fiabiliser le mode Auto.
 
@@ -187,7 +187,7 @@
 
 **🟢 Faible** : (E3) reliquats style ; (E9) persona ; (E23) renommer looks ; (E32) supprimer prompt ; (E65) rapport de session ; (E73) libellés.
 
-**Séquence recommandée (1 lot testé à la fois)** : **LOT 0 = QC IDENTITÉ (critique)** : négatif anti-artefacts (E83, GO Etoile) + QC local pré-vidéo (E84) + GATE de validation (E91/E82) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
+**Séquence recommandée (1 lot testé à la fois)** : **LOT 0 = GATE QC SOURCE-AVANT-VIDÉO (E92, n°1 absolue)** = stop bloquant + checklist + 3 boutons avant le lipsync payant ; puis négatif anti-artefacts (E83, GO Etoile) + QC local auto en bonus (E84/E82) + GATE final (E91) → Quick wins (E62, label HD, E36) → Historique (E53/E54) → Partie suivante (E45) → Looks CRUD → Décors CRUD → Prompts cockpit → Légendes → project.json → Nettoyage/navigation → TikTok/persona/V5.
 
 ---
 
@@ -235,6 +235,7 @@ maximale du torse » en pilosité sur le sternum. (Vérifié : `grep` body/chest
 | E89 | Aucun changement de morphologie | Non vérifié (échantillon OK) | image source + vidéo | prompt | Silhouette/corpulence modifiée | Moyenne |
 | E90 | [PROCESS] Étape responsable + PREUVE VISUELLE avant correctif | Conforme (règle adoptée + appliquée) | toutes étapes | montage `docs/artefacts/` | Démontré sur « poil au torse » (montage source/raw/final) | — |
 | E91 | [GATE] Validation finale bloquante (QC validé par Etoile) | Non conforme (Manquant) | validation finale | — | Une génération peut être livrée sans QC d'identité | Critique |
+| E92 | [GATE] QC identité sur image SOURCE **avant lipsync payant** (n°1) | Non conforme (Manquant) | écran QC pré-vidéo (à créer) | entre image source et `genFinal`→`generateLipsync` | Empêche de **payer une vidéo** sur une image source défectueuse (cas poil-au-torse) | Critique |
 
 ### Sources de bug à vérifier (par étape)
 1. **Image source (Seedream)** — ✅ identifiée comme l'origine ici.
@@ -255,6 +256,14 @@ Aucune génération n'est **« conforme »** tant que :
 1. les contrôles d'identité **E74–E89** ont été **effectués** (image source ET vidéo finale), **et**
 2. le résultat est **validé par Etoile**.
 Aujourd'hui ce gate **n'existe pas** dans la chaîne (une vidéo peut être livrée sans QC) → **Non conforme (Manquant)**, priorité **Critique**.
+
+### 🔴 GATE QC SOURCE-AVANT-VIDÉO (E92) — PRIORITÉ CRITIQUE n°1 (à coder)
+**Le contrôle clé** : un gate **bloquant** placé **après l'image source (éco) et AVANT le lipsync payant**.
+- **Écran QC** (cockpit) : image source + checklist (poils parasites · doigts/mains/membres · accessoires fantômes · déformation visage · âge · ethnie · morphologie · cohérence visage/peau/cheveux/regard).
+- **Anomalie → vidéo bloquée** ; 3 actions : **🔄 Régénérer l'image** · **🎨 Éditer l'image** · **✅ Valider manuellement malgré l'alerte** (choix d'Etoile tracé).
+- **Niveau (a) GATE humain minimal = bloquant** (stop + checklist + 3 boutons, validation explicite avant paiement) — simple, fiable, **faisable sans coût**.
+- **Niveau (b) détection auto (vision) = bonus** : Claude vision (précis, **coûte des crédits Anthropic**) ou local (Apple Vision/embedding, gratuit mais moins fiable sur poils/accessoires). Complète (a), ne la remplace pas.
+- **Bénéfice** : empêche de **payer un lipsync** (≈ 13 cr/partie) sur une image déjà fautive — exactement le cas « poil au torse ». Position : entre l'image source et `genFinal`→`generateLipsync`.
 
 ### Parades proposées (à valider — rien appliqué)
 - **(i) Négatif anti-artefacts dans le prompt** *(domaine créatif d'Etoile → attente de son GO)* : ajouter

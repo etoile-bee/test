@@ -251,6 +251,7 @@ Décors CRUD (E25) + Lock Background (E26) ; Looks dupliquer/archiver/lock (E17/
 - **RÉGRESSION (Moyenne)** — `/prompt` ouvre un message séparé (E34) → viole le cockpit unique (E1).
 
 ### Recommandations priorisées
+**Critique — n°1 ABSOLUE (E92, décision Etoile 09/06)** : **GATE QC IDENTITÉ SUR L'IMAGE SOURCE, AVANT le lipsync payant.** Après l'image source (éco) et avant `genFinal`→`generateLipsync` : écran QC (image + checklist poils/doigts/mains/membres/accessoires fantômes/déformation visage/âge/ethnie/morphologie/cohérence visage-peau-cheveux-regard). Anomalie → vidéo bloquée + 3 actions (🔄 Régénérer · 🎨 Éditer · ✅ Valider malgré l'alerte). Niveau (a) gate humain = bloquant et faisable sans coût ; niveau (b) détection vision = bonus (Claude vision coûte des crédits ; local Apple Vision/embedding à étudier). Empêche de payer un lipsync sur une image fautive (cas « poil au torse »).
 **Critique** : (1) Réparer l'écran Historique → vraie grille + vignettes des dossiers de génération (BUG-A, E53). (2) Chantier **projet.json** (modèle/projet réouvrable complet : look+décor+caméra+script+légendes+params) (E55/E56). (3) Persister imageUrl/prevScripts dans meta.json → réparer Partie suivante restaurée (BUG-B).
 **Élevée** : (4) Looks CRUD complet (dupliquer/archiver/lock/restaurer/renommer). (5) Décors CRUD + Lock Background. (6) Prompts : bibliothèque (dup/suppr) éditable **dans le cockpit** (corrige E34). (7) `/stop`+`/restart` en tête de showHome (quick). (8) Planche-contact auto après N images. (9) Légendes : éditer/régénérer + grille + versions.
 **Moyenne** : (10) Retirer le code mort (launch/MM_/Shotstack) + boutons "Make Part 2" trompeurs + label HD. (11) Unifier fil d'Ariane + vocabulaire retour + pagination. (12) Aperçu avant chaque validation (décor/prompt/légende). (13) Brancher multi-persona (getLooksDir/fileCat). (14) Garantir couleur V5 sur la vraie vidéo.
@@ -278,6 +279,7 @@ _(Aucun code exécuté hormis le générateur de doc en lecture seule ; aucun ap
 
 ## 11. PLAN D'ACTION PRIORISÉ (séquence sans big-bang, 1 lot testé à la fois)
 
+0. **🔴 GATE QC SOURCE-AVANT-VIDÉO (E92) — n°1 absolue** : stop bloquant + checklist + 3 boutons (régénérer/éditer/valider) entre l'image source et le lipsync payant. (À coder en premier, après la génération en cours.)
 1. **Quick wins** (faible risque, fort impact) : `/stop`+`/restart` en tête (E62) ; label HD (BUG-D) ; planche-contact auto (E36) ; débounce RC_GO.
 2. **Historique utilisable** : grille + vignettes + boutons réouvrir/réutiliser/relancer (BUG-A, E53/E54).
 3. **Partie suivante fiable** : persister imageUrl/prevScripts (BUG-B).

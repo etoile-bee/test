@@ -151,8 +151,15 @@
 ### Process & gate (bloquants)
 - **E90** — **[PROCESS] Attribution de l'étape responsable + preuve visuelle AVANT correctif** : pour CHAQUE défaut détecté, déterminer l'étape responsable parmi **{image source · génération vidéo · lipsync · upscale · rendu final}** et **fournir une preuve visuelle (frames/montage) de cette étape** avant toute correction. (Règle de process, démontrée sur « poil au torse ».) `[Etoile 09/06]`
 - **E91** — **[GATE] Validation finale bloquante** : aucune génération n'est marquée « conforme » tant que les contrôles d'identité (E74–E89) ne sont **pas effectués ET validés par Etoile**. Exigence bloquante de la chaîne. `[Etoile 09/06]`
+- **E92** — **[GATE BLOQUANT — PRIORITÉ CRITIQUE n°1] QC identité/anatomie sur l'IMAGE SOURCE, AVANT toute génération vidéo payante.** `[Etoile 09/06]`
+  - **Placement** : après génération de l'**image source** (mode éco, peu coûteux) et **AVANT** le lipsync payant (Kling). Le lipsync **ne peut pas démarrer** sans passage du gate.
+  - **Écran QC** (dans le cockpit) : affiche l'**image source** + **checklist** : poils parasites · doigts/mains/membres (supplémentaires/déformés) · accessoires fantômes · déformation du visage · changement d'âge · changement d'ethnie · changement de morphologie · cohérence visage / peau / cheveux / regard (vs référence Imany).
+  - **Si anomalie** → la vidéo est **bloquée** ; 3 actions proposées : **🔄 Régénérer l'image** · **🎨 Éditer l'image** · **✅ Valider manuellement malgré l'alerte** (décision explicite d'Etoile tracée).
+  - **Niveau (a) — GATE humain minimal = EXIGENCE BLOQUANTE** : stop obligatoire + checklist + 3 boutons ; validation explicite **avant tout paiement**. Simple, fiable, faisable sans coût.
+  - **Niveau (b) — détection AUTOMATIQUE (vision) = BONUS** (non bloquant) : pré-coche/alerte les anomalies. Options & limites : **Claude vision** = précis mais **coûte des crédits Anthropic** à chaque image ; **alternative locale à étudier** (Apple Vision `VNDetectFaceLandmarks`/`VNDetectHumanRectangles`, comparaison d'embedding visage vs `imany_reference.png`) = gratuit local mais détecte surtout visage/landmarks, **moins fiable** pour poils/accessoires fantômes. (b) **complète** (a), ne la remplace pas.
+  - Relations : précise/renforce E82 (QC systématique), E84 (QC auto), E91 (gate final) en imposant le **gate au point économiquement critique** (avant la dépense lipsync).
 
 ---
 
-_Total : 91 exigences (E1–E91). Section O (E74–E91) = QUALITÉ VISUELLE & IDENTITÉ, priorité critique._
+_Total : 92 exigences (E1–E92). Section O (E74–E92) = QUALITÉ VISUELLE & IDENTITÉ, priorité critique._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
