@@ -19,22 +19,22 @@ function contentButtons(rows) {
 // E108 : barre de navigation universelle, identique sur tous les écrans.
 function navRows(mod, ctx) {
   const rows = [];
-  // Ligne workflow : ⬅ Retour · ➡ Suivant
-  const wf = [];
-  if (mod.parent) wf.push({ text: '⬅ Retour', callback_data: 'R_' + mod.parent });
+  // Ligne navigation : ⬅ Retour · 🏠 Accueil · ➡ Suivant
+  const nav = [];
+  if (mod.parent) nav.push({ text: '⬅ Retour', callback_data: 'R_' + mod.parent });
+  if (mod.parent) nav.push({ text: '🏠 Accueil', callback_data: 'R_home' });
   if (mod.next) {
     const active = mod.gate ? !!safe(mod.gate, ctx) : (mod.requireChoice ? false : true);
-    if (active) wf.push({ text: '➡ Suivant', callback_data: 'R_' + mod.next });
-    else wf.push({ text: '➡ Suivant 🔒', callback_data: 'RLOCK' }); // désactivé tant que le choix n'est pas fait
+    if (active) nav.push({ text: '➡ Suivant', callback_data: 'R_' + mod.next });
+    else nav.push({ text: '➡ Suivant 🔒', callback_data: 'RLOCK' }); // désactivé tant que le choix n'est pas fait
   }
-  if (wf.length) rows.push(wf);
-  // Ligne système : 🏠 Accueil · ❓ Aide · ⏹ Stop · 🔄 Restart
-  const sys = [];
-  if (mod.parent) sys.push({ text: '🏠 Accueil', callback_data: 'R_home' });
-  sys.push({ text: '❓ Aide', callback_data: 'RH_' + mod.id });
-  sys.push({ text: '⏹ Stop', callback_data: 'TECH_STOP' });
-  sys.push({ text: '🔄 Restart', callback_data: 'TECH_RESTART' });
-  rows.push(sys);
+  if (nav.length) rows.push(nav);
+  // E112 : barre SYSTÈME figée — 🛑 Stop | 🔄 Restart | ❓ Aide (Aide TOUJOURS à droite)
+  rows.push([
+    { text: '🛑 Stop', callback_data: 'TECH_STOP' },
+    { text: '🔄 Restart', callback_data: 'TECH_RESTART' },
+    { text: '❓ Aide', callback_data: 'RH_' + mod.id },
+  ]);
   return rows;
 }
 
@@ -42,20 +42,21 @@ function safe(fn, ctx) { try { return fn(ctx); } catch (e) { return false; } }
 
 function has(id) { return !!REGISTRY[id]; }
 
-async function route(id, ctx) {
+// mode : 'navigate' (nouveau bloc persistant — E111) | 'inplace' (édite le bloc courant — E109) | 'ephemeral'
+async function route(id, ctx, mode) {
   const mod = REGISTRY[id];
   if (!mod) return false;
   const out = mod.render(ctx) || {};
-  const rows = contentButtons(out.rows).concat(navRows(mod, ctx)); // E109 : tout dans le bloc courant (ctx.show = édition en place)
-  await ctx.show(out.caption || mod.title, rows);
+  const rows = contentButtons(out.rows).concat(navRows(mod, ctx));
+  await ctx.show(out.caption || mod.title, rows, mode || 'navigate'); // ouvrir un bloc = navigation persistante par défaut
   return true;
 }
 
-async function routeHelp(id, ctx) {
+async function routeHelp(id, ctx, mode) {
   const mod = REGISTRY[id];
   if (!mod) return false;
   const help = mod.help || ('Écran « ' + (mod.title || id) + ' ». Utilise ⬅ Retour, 🏠 Accueil' + (mod.next ? ', ➡ Suivant' : '') + '.');
-  await ctx.show('❓ <b>AIDE</b> · ' + (mod.title || id) + '\n\n' + help, [[{ text: '◀️ Retour', callback_data: 'R_' + id }]]);
+  await ctx.show('❓ <b>AIDE</b> · ' + (mod.title || id) + '\n\n' + help, [[{ text: '◀️ Retour', callback_data: 'R_' + id }]], mode || 'inplace'); // aide EN PLACE
   return true;
 }
 

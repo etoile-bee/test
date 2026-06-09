@@ -1071,7 +1071,18 @@ function recapKb(){
 }
 // Édite la carte EN PLACE : garde la photo, change caption + boutons (sous-menus)
 async function cardMenu(text,rows){ if(!await cockpitCaption(text,rows)){const r=await send(text,rows);cockpit.mid=(r&&r.result&&r.result.message_id)||null;gw.mid=cockpit.mid;} }
-async function routeBlock(id){ return uiRouter.route(id,{show:(cap,rows)=>cardMenu(cap,rows)}); } // [L0-1] rendu EN PLACE d'un bloc du registre
+// [L0-1d] ROUTEUR 3 MODES (E109 en place · E111 nav persistante · système éphémère).
+let blockMids=Object.create(null); // id de bloc -> message_id (registre ; remplace le cockpit unique pour les blocs du routeur)
+let _ephemeral=[];
+async function uiShow(id,caption,rows,mode){
+  mode=mode||'navigate';
+  if(mode==='ephemeral')return system(caption,rows);
+  if(mode==='inplace'){ const mid=blockMids[id]; if(mid){const ok=await tgEditText(mid,caption,rows); if(ok)return mid;} } // anti-doublon ① + isGone gérés ; sinon on recrée (stale-fix)
+  const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)blockMids[id]=nm; return nm; // navigate : NOUVEAU bloc persistant, ne touche pas les précédents (E111)
+}
+async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
+function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode)}; }
+async function routeBlock(id,mode){ return uiRouter.route(id,uiCtx(id),mode||'navigate'); } // navigation = nouveau bloc persistant par défaut
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -1972,7 +1983,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1] ROUTEUR MODULAIRE (strangler-fig) : capte les navigations 'R_<bloc>' du registre ; le reste tombe sur l'ancien dispatch.
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2));return;}
-    if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),{show:(c,r)=>cardMenu(c,r)});return;} /*[L0-1c] aide contextuelle EN PLACE*/
+    if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
     // Menu principal
@@ -2917,7 +2928,7 @@ tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer 
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
-send('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{
+system('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{ /*[L0-1d] message système éphémère (auto-delete)*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});

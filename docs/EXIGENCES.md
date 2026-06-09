@@ -238,10 +238,13 @@
     - **Règle de partage** : écrans **MÉTIER = persistants** ; messages **SYSTÈME = temporaires (auto-delete)**.
     - **Frontière précise** — ÉDITE-EN-PLACE : toggles de réglages (tenue/décor/format), sliders /edit, ‹ › au sein du **même** lot d'images, rafraîchir l'aperçu de l'item courant, apparition de ➡ Suivant. **NOUVEAU BLOC** : `/menu`, ouvrir PHOTO/VIDÉO/STUDIO/RÉCENTS, **➡ Suivant** (LOOK→IMAGE→VIDÉO…), **résultat validé/livré**. **ÉPHÉMÈRE** : « Bot prêt », « Redémarrage… », « ⏳/📊 génération… », toasts, erreurs transitoires, « Nothing running ».
 - **E112** — **BOUTON AIDE ENRICHI + ORDRE BARRE SYSTÈME.** Barre = **🛑 Stop | 🔄 Restart | ❓ Aide**, avec **❓ Aide TOUJOURS complètement à DROITE**. L'Aide donne accès à : (a) les **commandes disponibles**, (b) la **liste des commandes « / »**, (c) l'**aide CONTEXTUELLE** de l'écran courant. `[Etoile 09/06]`
+- **E113** — **UNICITÉ DU BROUILLON (identité stable, idempotent).** Un travail en cours = **UN seul brouillon avec un ID stable** (`draftId`). L'**auto-save ET `/menu` METTENT À JOUR le même brouillon** (jamais de copie). Reprendre un brouillon → continuer → `/menu` ⇒ on retrouve **LE MÊME** brouillon dans RÉCENTS, **pas un doublon**. Règle : **1 session de travail active ↔ 1 `draftId`** ; tant que non validé/terminé, toute sauvegarde **écrase ce même `draftId`**. À la validation → passe en **« Terminé »** (RÉCENTS), le brouillon n'est plus « en cours ». Relie [[E110]] (4 états) / [[E93]] (projets) / [[E6]] (reprise). `[Etoile 09/06]`
+
+> 🔒 **RÈGLES DE NAVIGATION/UX FIGÉES — VALIDÉES par Etoile (2026-06-09)** : [[E108]] (nav universelle) · [[E109]] (en place intra-tâche) · [[E110]] (brouillons, 4 états) · [[E111]] (historique persistant) · [[E112]] (aide/barre) · [[E113]] (unicité du brouillon). Réconciliation E109↔E111 **figée**.
 
 ---
 
-_Total : 112 exigences (E1–E112). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E112) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE — priorité critique/élevée._
+_Total : 113 exigences (E1–E113). Sections O (E74–E92) + P (E93–E96, E110) + Q (E97–E103) + S (E104–E109, E111–E113) = QUALITÉ, PROJET, TRAÇABILITÉ, FIDÉLITÉ, UX, ARCHITECTURE, DETTE, NAVIGATION, BROUILLONS, HISTORIQUE, UNICITÉ — priorité critique/élevée. Règles UX E108–E113 FIGÉES (validées Etoile)._
 _Sert de colonne de traçabilité à `docs/AUDIT_COMPLET.md` et `docs/RAPPORT_DETAILLE.md`._
 
 ---
