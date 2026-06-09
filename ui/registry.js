@@ -26,7 +26,7 @@ const REGISTRY = {
     render: () => ({
       caption: '📸 <b>PHOTO</b> — créer une image / un look',
       rows: [
-        [{ text: '✨ Nouveau look', cb: 'NL_NEW' }],
+        [{ text: '✨ Nouveau look', go: 'photo.look' }], // [L0-2a] migré : étape LOOK dans le bloc actif (slice brouillon), plus de reset implicite
         [{ text: '🖼 Galerie looks', cb: 'MENU_LOOKS' }],
         [{ text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
       ],

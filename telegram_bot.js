@@ -900,12 +900,13 @@ function draftsDir(){const d=path.join(DRAFTS_DIR,_persona());try{fs.mkdirSync(d
 function draftPath(id){return path.join(draftsDir(),id+'.json');}
 function listDrafts(){try{return fs.readdirSync(draftsDir()).filter(f=>/\.json$/.test(f)).map(f=>{try{return JSON.parse(fs.readFileSync(path.join(draftsDir(),f),'utf8'));}catch(e){return null;}}).filter(Boolean).sort((a,b)=>(b.ts||0)-(a.ts||0));}catch(e){return[];}}
 function workInProgress(){try{ if(wizardActive)return true; if(newlook&&newlook.urls&&newlook.urls.length)return true; if(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)return true; return false; }catch(e){return false;}}
-function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':((newlook.urls&&newlook.urls.length)?'image':'look'),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};}
+function captureDraft(id){let fx=null;try{fx=readFx();}catch(e){} const _projStep=(typeof proj!=='undefined'&&proj)?proj.step:null; return {draftId:id,ts:Date.now(),persona:_persona(),step:(genJob&&genJob.script&&genJob.script!==DEMO_SCRIPT)?'video':(_projStep||((newlook.urls&&newlook.urls.length)?'image':'look')),look:((typeof gwLook==='function'&&gwLook())||workingSource||null),images:(newlook.urls||[]).slice(),idx:newlook.idx||0,nl:{category:newlook.category,env:newlook.env,extra:newlook.extra,mode:newlook.mode,count:newlook.count},proj:((typeof proj!=='undefined'&&proj)?{look:Object.assign({},proj.look),image:{urls:(proj.image.urls||[]).slice(),idx:proj.image.idx||0,validated:proj.image.validated}}:undefined),script:(genJob&&genJob.script)||null,duration:((typeof gw!=='undefined'&&gw&&gw.duration))||genState.duration||null,fx:fx};} /*[L0-2a] slice proj (look/image) persisté = source de vérité*/
 function autosaveDraft(){try{ if(!workInProgress())return null; if(!genState.activeDraftId)genState.activeDraftId='draft_'+new Date().toISOString().slice(0,19).replace(/[:T]/g,'-'); const id=genState.activeDraftId; fs.writeFileSync(draftPath(id),JSON.stringify(captureDraft(id),null,2)); saveState(); return id; }catch(e){return null;}}
-function clearActiveDraft(){try{ const id=genState.activeDraftId; wizardActive=false; if(id){try{fs.unlinkSync(draftPath(id));}catch(e){} genState.activeDraftId=null; saveState();} }catch(e){}}
+function clearActiveDraft(){try{ const id=genState.activeDraftId; wizardActive=false; try{proj=null;}catch(e){} if(id){try{fs.unlinkSync(draftPath(id));}catch(e){} genState.activeDraftId=null; saveState();} }catch(e){}} /*[L0-2a] le projet actif est aussi vidé*/
 async function resumeDraft(id){ // reprend LE MÊME brouillon (réactive le draftId, pas de doublon — E113)
   const d=listDrafts().find(x=>x.draftId===id); if(!d){await toast('⚠️ Brouillon introuvable');return;}
   genState.activeDraftId=id; wizardActive=true;
+  try{proj=projFromDraft(d);}catch(e){} /*[L0-2a] restaure le slice proj (look/image) à la reprise*/
   try{
     if(d.nl){newlook.category=d.nl.category;newlook.env=d.nl.env;newlook.extra=d.nl.extra;newlook.mode=d.nl.mode||'eco';newlook.count=d.nl.count||1;}
     if(d.look&&fs.existsSync(d.look))setWorkPhoto(d.look);
@@ -1113,6 +1114,94 @@ async function uiShow(id,caption,rows,mode){
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
 function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode)}; }
 async function routeBlock(id,mode){ try{autosaveDraft();}catch(e){} return uiRouter.route(id,uiCtx(id),mode||'inplace'); } // navigation intra-bloc = EN PLACE par défaut ; /menu passe 'navigate'
+
+// ─────────────────────────────────────────────────────────────────────────────
+// [L0-2a] WORKFLOW PHOTO MIGRÉ DANS LE BLOC ACTIF (E114/E115) — modules photo.look / photo.image.
+// proj = projet actif = SOURCE DE VÉRITÉ unique (slices look/image), backé par le brouillon (autosave).
+// Pas de reset implicite : ré-entrer Photo recharge le slice ; Retour conserve l'état ; Suivant conserve l'aval.
+// ─────────────────────────────────────────────────────────────────────────────
+let proj=null;
+function projDefaults(){
+  let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
+  const cat=newlook.category||Object.keys(lb.categories||{})[0]||null;
+  const env=(lb.envs&&lb.envs[newlook.env])?newlook.env:(newlook.env||'bougies');
+  return { draftId:genState.activeDraftId||null, persona:_persona(), step:'look',
+    look:{ source:null, category:cat, env:env, mode:newlook.mode||'eco', count:newlook.count||1, extra:newlook.extra||null },
+    image:{ urls:[], idx:0, validated:null } };
+}
+function projFromDraft(d){
+  const p=projDefaults();
+  try{ if(d){ p.draftId=d.draftId||p.draftId;
+    if(d.nl){ if(d.nl.category)p.look.category=d.nl.category; if(d.nl.env)p.look.env=d.nl.env; if(d.nl.mode)p.look.mode=d.nl.mode; if(d.nl.count)p.look.count=d.nl.count; p.look.extra=d.nl.extra||p.look.extra; }
+    if(d.proj&&d.proj.look)Object.assign(p.look,d.proj.look);
+    if(d.proj&&d.proj.image)Object.assign(p.image,d.proj.image);
+    else { p.image.urls=(d.images||[]).slice(); p.image.idx=d.idx||0; }
+    if(p.image.urls.length)p.step='image';
+  } }catch(e){}
+  return p;
+}
+function projToNewlook(){ if(!proj)return; newlook.category=proj.look.category; newlook.env=proj.look.env; newlook.mode=proj.look.mode; newlook.count=proj.look.count; newlook.extra=proj.look.extra; } // miroir vers le moteur existant (génération réelle)
+function ensureProj(){ if(proj)return proj; let d=null; try{ if(genState.activeDraftId)d=listDrafts().find(x=>x.draftId===genState.activeDraftId)||null; }catch(e){} proj=d?projFromDraft(d):projDefaults(); projToNewlook(); return proj; }
+
+function photoLookView(){ // étape LOOK rendue EN PLACE (bloc texte = bloc actif) ; lit/écrit le slice look
+  wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
+  const p=ensureProj();
+  let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
+  const catLabel = p.look.extra ? ('✍️ '+p.look.extra.slice(0,18))
+                 : (p.look.category==='random' ? '🎲 Surprise'
+                 : ((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.category||'(à choisir)'));
+  const envLabel = (lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
+  const srcLabel = {new:'✨ Nouveau (généré)',gallery:'🖼 Galerie',upload:'📤 Upload'}[p.look.source]||'— (à choisir)';
+  const cap = '📸 <b>PHOTO · LOOK</b> — étape 1/2\n'
+    +'Source : <b>'+escH(srcLabel)+'</b>\n'
+    +'👗 Tenue : '+escH(catLabel)+'\n'
+    +'🌆 Décor : '+escH(envLabel)+'\n'
+    +'🎛 Format : '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+(p.look.count||1)):'')+'\n\n'
+    +(p.look.source?'✅ Look choisi — ➡ Suivant pour l\'image.':'Choisis une <b>source</b> (ou configure), puis ➡ Suivant.');
+  const rows=[
+    [{text:(p.look.source==='new'?'✅ ':'')+'✨ Nouveau',cb:'PL_SRC_new'},{text:(p.look.source==='gallery'?'✅ ':'')+'🖼 Galerie',cb:'PL_SRC_gal'},{text:(p.look.source==='upload'?'✅ ':'')+'📤 Upload',cb:'PL_SRC_up'}],
+    [{text:'👗 Tenue',cb:'PL_TENUE'},{text:'🌆 Décor',cb:'PL_ENV'}],
+    (p.look.mode==='eco'?[{text:'🎛 Format',cb:'PL_FMT'},{text:'📸 Nombre',cb:'PL_NB'}]:[{text:'🎛 Format',cb:'PL_FMT'}]),
+  ];
+  return {caption:cap,rows};
+}
+function photoImageCost(){
+  let lb={};try{lb=nlMod().readLookbook();}catch(e){}
+  const p=ensureProj();const ops=(lb.pricing&&lb.pricing.ops)||{};const epc=(lb.pricing&&lb.pricing.eur_per_credit)||0.058;
+  const unit=ops[p.look.mode];const n=p.look.mode==='eco'?(p.look.count||1):1;const cr=unit?unit*n:null;
+  return {cr:cr,prix:cr?(cr+' cr ≈ '+(cr*epc).toFixed(2).replace('.',',')+' €'):'prix à calibrer',n:n,lb:lb};
+}
+function photoImageView(){ // étape IMAGE rendue EN PLACE ; récap coût + 💲 (génération derrière confirmation) ; sélection écrit le slice image
+  const p=ensureProj();const c=photoImageCost();const lb=c.lb||{};
+  const catLabel=(lb.categories&&lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.extra||p.look.category||'?';
+  const envLabel=(lb.envs&&lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
+  const has=p.image.urls.length;
+  let cap='📸 <b>PHOTO · IMAGE</b> — étape 2/2\n'
+    +'Look : 👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
+    +'Format : '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+'\n'
+    +'🧾 Coût estimé : <b>💰 '+c.prix+'</b>\n\n';
+  const rows=[];
+  if(!has){
+    cap+='Aucune image générée pour l\'instant.\nAppuie sur 💲 pour générer — une <b>confirmation</b> sera demandée (action payante).';
+    rows.push([{text:'💲 Générer'+(c.cr?(' ('+c.cr+' cr)'):''),cb:'PL_GEN'}]);
+  } else {
+    cap+=(p.image.validated!=null?('✅ Image '+(p.image.validated+1)+'/'+has+' validée.'):('Image '+(p.image.idx+1)+'/'+has+' — sélectionne celle à garder.'));
+    rows.push([{text:'🖼 Voir la planche',cb:'PL_VIEW'}]);
+    if(has>1)rows.push([{text:'‹',cb:'PL_PREV'},{text:(p.image.idx+1)+'/'+has,cb:'PL_NOOP'},{text:'›',cb:'PL_NEXT'}]);
+    rows.push([{text:(p.image.validated===p.image.idx?'✅ Validée':'✅ Valider cette image'),cb:'PL_PICK'}]);
+    rows.push([{text:'🎨 Éditer',cb:'PL_EDIT'},{text:'🔁 Régénérer 💲',cb:'PL_GEN'}]);
+  }
+  return {caption:cap,rows};
+}
+// Enregistrement des modules dans le registre du routeur (strangler-fig : cohabite avec l'ancien dispatch)
+uiRouter.REGISTRY['photo.look']={ id:'photo.look', parent:'photo', title:'📸 PHOTO · Look', owner:'PHOTO', next:'photo.image',
+  gate:()=>{ try{ return !!ensureProj().look.source; }catch(e){ return false; } }, // ➡ Suivant actif seulement si un look est choisi
+  help:'Étape LOOK : choisis une source (✨ Nouveau / 🖼 Galerie / 📤 Upload) puis configure la tenue, le décor, le format et le nombre. Tout est conservé dans le brouillon : tu peux revenir ici sans rien perdre. ➡ Suivant mène à l\'image.',
+  render:()=>photoLookView() };
+uiRouter.REGISTRY['photo.image']={ id:'photo.image', parent:'photo.look', title:'📸 PHOTO · Image', owner:'PHOTO', next:'video',
+  gate:()=>{ try{ return ensureProj().image.validated!=null; }catch(e){ return false; } }, // ➡ Suivant (→ Vidéo, L0-2b) actif seulement si une image est validée
+  help:'Étape IMAGE : vérifie le coût estimé, puis 💲 pour générer (confirmation requise — rien n\'est dépensé sans ton accord). Une fois les images là, navigue, valide celle à garder (slice image), puis ➡ Suivant vers la Vidéo.',
+  render:()=>photoImageView() };
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2014,13 +2103,40 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-1d-fix2] ancre le bloc actif aussi pour les RX_*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0)){try{if(cb.message&&cb.message.message_id)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-1d-fix2/L0-2a] ancre le bloc actif aussi pour RX_ et PL_ (workflow photo)*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){await uiRouter.routeHelp(d.slice(3),uiCtx(d.slice(3)),'inplace');return;} /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
     if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await uiShow('recents.drafts','📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]],'inplace');return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await uiShow('recents.drafts','📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows,'inplace');return;} /*[L0-1d-fix2] EN PLACE dans le bloc actif*/
     if(d&&d.indexOf('RX_DRAFT_')===0){await resumeDraft(d.slice(9));return;} /*[L0-1e] reprend le MÊME draftId (pas de doublon)*/
+    // [L0-2a] WORKFLOW PHOTO — handlers PL_* (écrivent le slice du projet actif, re-rendent EN PLACE dans le bloc actif)
+    if(d&&d.indexOf('PL_')===0){
+      const p=ensureProj(); let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
+      if(d==='PL_NOOP'){await toast('');return;}
+      if(d==='PL_SRC_new'){p.look.source='new';p.look.extra=null;await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_SRC_gal'){p.look.source='gallery';await routeBlock('photo.look','inplace');return;} /*choix de source = galerie (sélection réelle d'image : étape ultérieure)*/
+      if(d==='PL_SRC_up'){p.look.source='upload';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_TENUE'){const k=Object.keys(lb.categories||{});if(k.length){const i=k.indexOf(p.look.category);p.look.category=k[(i+1)%k.length];p.look.extra=null;}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_ENV'){const k=Object.keys(lb.envs||{});if(k.length){const i=k.indexOf(p.look.env);p.look.env=k[(i+1)%k.length];}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_FMT'){const m=['eco','planche','hd'];const i=m.indexOf(p.look.mode);p.look.mode=m[(i+1)%m.length];if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_NB'){const s=[1,2,3,4,6];const i=s.indexOf(p.look.count||1);p.look.count=s[(i+1)%s.length];if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_PREV'){if(p.image.urls.length){p.image.idx=(p.image.idx-1+p.image.urls.length)%p.image.urls.length;newlook.idx=p.image.idx;}await routeBlock('photo.image','inplace');return;}
+      if(d==='PL_NEXT'){if(p.image.urls.length){p.image.idx=(p.image.idx+1)%p.image.urls.length;newlook.idx=p.image.idx;}await routeBlock('photo.image','inplace');return;}
+      if(d==='PL_PICK'){if(p.image.urls.length){p.image.validated=p.image.idx;p.step='image';}await routeBlock('photo.image','inplace');return;} /*écrit le slice image (validée)*/
+      if(d==='PL_VIEW'){if(p.image.urls.length){newlook.idx=p.image.idx;await nlShowResult();}else{await toast('Aucune image');}return;}
+      if(d==='PL_GEN'){ // confirmation AVANT toute dépense (jamais de génération en test)
+        const c=photoImageCost();
+        await uiShow('photo.image','🧾 <b>CONFIRMER LA GÉNÉRATION</b>\n'+escH(((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.extra||p.look.category||'?'))+' · '+escH(((lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env))+' · '+p.look.mode+'\n💰 '+c.prix+'\n\n⚠️ Action <b>payante</b> — confirme pour lancer.',[[{text:'✅ Confirmer 💲',callback_data:'PL_GEN_DO'}],[{text:'◀️ Annuler',callback_data:'R_photo.image'}]],'inplace');
+        return;
+      }
+      if(d==='PL_GEN_DO'){ // génération RÉELLE — pont vers le moteur existant (hors test)
+        try{ projToNewlook(); newlook.urls=[];newlook.files=[];newlook.idx=0; await runNewLook(); p.image.urls=(newlook.urls||[]).slice(); p.image.idx=newlook.idx||0; p.image.validated=null; p.step='image'; }catch(e){ await toast('❌ '+(e&&e.message||'erreur')); }
+        await routeBlock('photo.image','inplace'); return;
+      }
+      if(d==='PL_EDIT'){ /*[T7] éditeur depuis Photo : réutilise le bloc photo (pas de nouveau message)*/ try{ if(p.image.urls.length){const f=nlLocal(p.image.idx);if(f)setWorkPhoto(f);} cockpit.mid=newlook.mediaId||cockpit.mid; }catch(e){} await showEditHome(); return; }
+      await routeBlock('photo.look','inplace');return;
+    }
     // Menu principal
     if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
