@@ -19,7 +19,10 @@ function createCockpitV4(opts) {
   const base = opts.base, persona = opts.persona || 'default';
   const transport = createTransport(opts.prims);
   const block = createCockpitBlock(transport);
-  const controller = createController({ base: base, persona: persona, store: PS, libstore: opts.libstore, generate: opts.generate, generateVideo: opts.generateVideo, lookbook: opts.lookbook, libItems: opts.libItems, now: opts.now });
+  // [run réel] backend image ASYNC (generateLook) géré ici ; le contrôleur reste synchrone via un accesseur.
+  let lastGen = [];
+  const genHook = opts.imageBackend ? (() => lastGen) : opts.generate;
+  const controller = createController({ base: base, persona: persona, store: PS, libstore: opts.libstore, generate: genHook, generateVideo: opts.generateVideo, lookbook: opts.lookbook, libItems: opts.libItems, now: opts.now });
   const placeholder = opts.placeholder || null;
 
   function abs(rel) {
@@ -48,7 +51,13 @@ function createCockpitV4(opts) {
   }
   // Callback Telegram -> controller.dispatch -> rendu en place. Renvoie { notice } pour un toast éventuel.
   async function handle(data) {
+    // [run réel] génération IMAGE payante : déclenchée UNIQUEMENT par GEN_CONFIRM (clic « 💲 Lancer »). Async ici.
+    if (opts.imageBackend && data === 'GEN_CONFIRM' && controller.ui.pendingGen === 'image') {
+      try { const m = controller.ui.projectId ? PS.loadManifest(base, persona, controller.ui.projectId) : null; lastGen = (await opts.imageBackend(m)) || []; }
+      catch (e) { lastGen = []; if (typeof opts.toast === 'function') { try { await opts.toast('❌ ' + (e.message || 'génération')); } catch (e2) {} } }
+    }
     const r = controller.dispatch(data);
+    lastGen = [];
     await paint(r.render, false);
     if (r.notice && typeof opts.toast === 'function') { try { await opts.toast(r.notice); } catch (e) {} }
     return { notice: r.notice || null };

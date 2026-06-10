@@ -2522,10 +2522,27 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 // ═════════════════════════════════════════════════════════════════════════════
 let v4active=false, _v4=null;
 function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
-function v4Generate(flow, m){ // GRATUIT : copie des looks existants dans le dossier projet -> candidats (rel)
+function v4Generate(flow, m){ // (legacy stub gratuit — conservé en secours, non utilisé quand imageBackend est branché)
   try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
     return looks.map((f,i)=> PS.importFile(BASE, _persona(), m.projectId, 'images', path.join(getLooksDir(), f), 'cand'+i+'.jpg')); }
   catch(e){ jlog('v4Generate err '+e.message); return []; }
+}
+// [run réel — IMAGE] backend Seedream RÉEL, ASYNC, GATÉ : appelé UNIQUEMENT via GEN_CONFIRM (clic « 💲 Lancer » d'Etoile).
+// Télécharge les images dans le DOSSIER PROJET (persistance, A6). Aucune dépense au boot/déploiement.
+async function v4ImageBackend(m){
+  if(!m||!m.projectId) return [];
+  const PS=require('./ui/project_store');
+  const {generateLook}=nlMod();
+  const env=(m.look&&m.look.decor)||newlook.env||'bougies';
+  const cat=(m.look&&m.look.category)||null;
+  const count=Math.max(1,Math.min(6,(m.parametres&&m.parametres.nb_images)||1));
+  jlog('🎨 v4 IMAGE RÉELLE (eco x'+count+') — déclenchée par confirmation Etoile');
+  const r=await generateLook({category:cat,env:env,extra:(m.look&&m.look.tenue)||null,mode:'eco',count:count},mm=>{try{jlog('v4 gen: '+mm);}catch(e){}});
+  const dir=path.join(PS.projectDir(BASE,_persona(),m.projectId),'images'); try{fs.mkdirSync(dir,{recursive:true});}catch(e){}
+  const rels=[]; const cp=require('child_process');
+  (r&&r.urls||[]).forEach((u,i)=>{ const f='gen_'+Date.now()+'_'+(i+1)+'.jpg'; try{ cp.execSync('curl -s -o "'+path.join(dir,f)+'" "'+u+'"'); if(fs.existsSync(path.join(dir,f)))rels.push('images/'+f);}catch(e){jlog('v4 dl err '+e.message);} });
+  jlog('🎨 v4 IMAGE : '+rels.length+' image(s) dans le dossier projet');
+  return rels;
 }
 function cockpitV4(){
   if(_v4) return _v4;
@@ -2540,7 +2557,8 @@ function cockpitV4(){
   };
   let v4lookbook={}; try{ v4lookbook=nlMod().readLookbook()||{}; }catch(e){}
   let v4libstore=null; try{ v4libstore=require('./ui/cockpit_libstore'); }catch(e){}
-  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), generate:v4Generate, lookbook:v4lookbook, libstore:v4libstore, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
+  // imageBackend = Seedream RÉEL (gaté GEN_CONFIRM). generateVideo NON branché (image seulement pour ce run).
+  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), imageBackend:v4ImageBackend, lookbook:v4lookbook, libstore:v4libstore, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
   return _v4;
 }
 
