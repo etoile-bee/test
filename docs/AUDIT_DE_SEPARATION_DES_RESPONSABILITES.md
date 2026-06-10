@@ -177,6 +177,10 @@ par le Socle** (fiche ③ « écritures interdites » + « données possédées 
 > calcul appartient à **exactement un** espace ; tout le durable est dans **Socle/Univers** ; la Conscience
 > ne peut **pas** devenir une 2ᵉ source ; **aucun** espace ne décide à la place de l'auteur.
 >
+> **✅ GRAVÉES (E128, Etoile 11/06)** — 3 règles d'étanchéité désormais canon dans `docs/EXIGENCES.md` :
+> M15 = règle canonique unique · « prochain geste » = mapping de la focalisation · l'Atelier ne dépose que
+> des faits-médias (jamais un statut de devenir). Rappel ci-dessous :
+>
 > **2 règles d'étanchéité à GRAVER avant toute réalisation** (issues des zones grises, non bloquantes) :
 > 1. **M15 = règle canonique unique**, citée par Conscience et Pilotage, **jamais redéfinie** localement
 >    (ZG-1).
