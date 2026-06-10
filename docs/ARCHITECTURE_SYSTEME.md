@@ -1,5 +1,12 @@
 # ARCHITECTURE DU SYSTÈME — organisation d'ensemble (cap / pilotage)
 
+> 🔒 **FONDATION CLOSE (Etoile 11/06).** Sont **VERROUILLÉS et non rouvrables** (sauf **contradiction
+> démontrable**) : **Socle · Univers · Conscience · Atelier · Pilotage · Cartographie · Étanchéité · Audit
+> global.** Contre-vérification **VERTE** (`docs/CONTRE_VERIFICATION_AUD-G1.md`). Toute évolution ultérieure
+> est régie par **E131** (`docs/GOUVERNANCE_EVOLUTIONS.md`) : classer A/B/C/D ; **D = arrêt + arbitrage de
+> l'auteur avant intégration**.
+
+
 > **Statut : ARCHITECTURE D'ENSEMBLE (organisation du système).** Dérivée de
 > `EXTRACTION_OPERATIONNELLE` (définitive), `CONSCIENCE_DU_PROJET` (fondation) et du **modèle consolidé v2**.
 > **Pas d'interface, pas d'écrans, pas de commandes, pas d'implémentation, pas de technologie.** Niveau
