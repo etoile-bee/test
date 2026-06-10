@@ -33,6 +33,15 @@ const pEmpty={image:{urls:[]},video:{script:{text:''},media:null}};
 ck('C7 changer le look AVEC image existante -> propage (prompt requis)', downstreamExists(pImg,'look')===true);
 ck('C7 changer le look SANS aval -> pas de prompt', downstreamExists(pEmpty,'look')===false);
 ck('C7 changer le prompt impacte image+video', JSON.stringify(DEPS.prompt)===JSON.stringify(['image','video']));
+// C7 câblé : décision afterCoreChange + sémantique PX_REGEN
+function afterDecision(p,slice){ return downstreamExists(p,slice)?'PROMPT':'DIRECT'; }
+ck('C7 afterCoreChange : look sans aval -> DIRECT (pas de prompt, sûr)', afterDecision(pEmpty,'look')==='DIRECT');
+ck('C7 afterCoreChange : look avec image -> PROMPT', afterDecision(pImg,'look')==='PROMPT');
+function pxRegen(p,slice){ const imp=DEPS[slice]||[]; if(imp.indexOf('image')>=0){p.image.urls=[];p.image.validated=null;} if(imp.indexOf('video')>=0){p.video.script={text:''};p.video.media=null;} return p; }
+{ const p={image:{urls:['/a.jpg'],validated:0},video:{script:{text:'S'},media:'/m.jpg'}}; pxRegen(p,'look');
+  ck('C7 Régénérer(look) vide image ET vidéo', p.image.urls.length===0&&p.image.validated===null&&p.video.script.text===''&&p.video.media===null); }
+{ const p={image:{urls:['/a.jpg'],validated:0},video:{script:{text:'S'},media:'/m.jpg'}}; pxRegen(p,'image');
+  ck('C7 Régénérer(image) vide la vidéo, garde l\'image', p.image.urls.length===1&&p.video.media===null); }
 
 console.log('\nRÉSULTAT: '+ok+' OK, '+ko+' KO');
 if(ko)process.exit(1);

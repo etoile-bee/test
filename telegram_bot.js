@@ -1194,6 +1194,15 @@ function projDownstreamExists(p,slice){ // un aval dépendant a-t-il déjà du t
 }
 // Marque l'aval « à revoir » sans rien supprimer (le prompt UX décidera Conserver/MàJ/Régénérer).
 function projMarkDirty(p,slice){ try{ p._dirty=p._dirty||{}; projDownstream(slice).forEach(s=>{p._dirty[s]=true;}); }catch(e){} return p; }
+// [C7 CÂBLÉ] après modif d'une étape amont : si un aval dépendant EXISTE déjà -> prompt Conserver/MàJ/Régénérer.
+// Sinon (cas normal early : pas d'aval) -> re-render direct (comportement INCHANGÉ). Sûr : ne se déclenche que s'il y a du travail aval.
+let projPending=null; // { slice, ret }
+async function afterCoreChange(p,slice,ret){
+  try{ projMarkDirty(p,slice);
+    if(projDownstreamExists(p,slice)){ projPending={slice:slice,ret:ret}; await routeBlock('photo.propagate','inplace'); return; }
+  }catch(e){}
+  await routeBlock(ret,'inplace');
+}
 
 function draftTag(){ try{ return genState.activeDraftId?genState.activeDraftId.replace('draft_','').replace(/-/g,'/').slice(0,16):'(nouveau)'; }catch(e){ return '(nouveau)'; } }
 function projName(p){ return (p&&p.name)||draftTag(); }
@@ -1408,6 +1417,24 @@ uiRouter.REGISTRY['photo.prompt']={ id:'photo.prompt', parent:'photo.look', titl
 uiRouter.REGISTRY['photo.promptlib']={ id:'photo.promptlib', parent:'photo.prompt', title:'📚 Bibliothèque prompts', owner:'PHOTO',
   help:'Tes prompts enregistrés. Touche-en un pour l\'utiliser dans ce projet.',
   render:()=>photoPromptLibView() };
+// [C7] vue prompt de propagation (re-éditabilité) — bloc média
+function photoPropagateView(){
+  const p=ensureProj(); const m=wsMedia(p); const sl=(projPending&&projPending.slice)||'?';
+  const labels={ref:'la référence',look:'le look',decor:'le décor',prompt:'le prompt',nb:'le nombre d\'images',image:'l\'image'};
+  const downs=projDownstream(sl).filter(s=>(s==='image'&&p.image.urls.length)||(s==='video'&&((p.video.script&&p.video.script.text)||p.video.media)));
+  const dl=downs.map(s=>({image:'l\'image générée',video:'la vidéo'}[s]||s)).join(' et ');
+  const cap=cockpitHeader(p)+'──────────\n⚠️ <b>Tu as modifié '+escH(labels[sl]||sl)+'.</b>\n'
+    +(dl?('Étapes en aval déjà présentes : <b>'+escH(dl)+'</b>.\n\nQue faire ?'):'Que faire ?');
+  return {image:m,raw:false,caption:cap,rows:[
+    [{text:'✅ Conserver l\'aval',cb:'PX_KEEP'}],
+    [{text:'🔄 Mettre à jour',cb:'PX_UPDATE'}],
+    [{text:'♻️ Régénérer l\'aval',cb:'PX_REGEN'}],
+  ]};
+}
+uiRouter.REGISTRY['photo.propagate']={ id:'photo.propagate', parent:'photo.look', title:'⚠️ Impact', owner:'PRODUCTION', media:true,
+  help:'Tu as modifié une étape dont dépend l\'aval (image/vidéo déjà là). Conserver = garder tel quel · Mettre à jour = resynchroniser sans régénérer · Régénérer = refaire l\'aval (coût reconfirmé).',
+  render:()=>photoPropagateView() };
+try{ MEDIA_MODULES['photo.propagate']=1; }catch(e){}
 // STUDIO · Bibliothèque de prompts (texte) — gestion CRUD (renommer/supprimer) ; création depuis le workflow
 function studioPromptsView(){
   const list=listPromptLib();
@@ -2465,7 +2492,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2488,18 +2515,18 @@ async function handle(upd){
     if(d&&d.indexOf('PL_')===0){
       const p=ensureProj(); let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
       if(d==='PL_NOOP'){await toast('');return;}
-      if(d==='PL_SRC_new'){p.look.source='new';p.look.extra=null;p.look.file=null;await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_SRC_new'){p.look.source='new';p.look.extra=null;p.look.file=null;await afterCoreChange(p,'look','photo.look');return;}
       if(d==='PL_SRC_up'){ state='ws_look_upload_wait'; await toast('📤 Envoie la photo du look'); await routeBlock('photo.look','inplace'); return; } /*upload look -> aperçu immédiat dans le workspace*/
       if(d==='PL_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('photo.lookgal','inplace'); return; }
       if(d==='PL_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('photo.lookgal','inplace'); return; }
-      if(d==='PL_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('✅ Look choisi'); } await routeBlock('photo.look','inplace'); return; }
-      if(d==='PL_TENUE'){const k=Object.keys(lb.categories||{});if(k.length){const i=k.indexOf(p.look.category);p.look.category=k[(i+1)%k.length];p.look.extra=null;}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
-      if(d==='PL_ENV'){const k=Object.keys(lb.envs||{});if(k.length){const i=k.indexOf(p.look.env);p.look.env=k[(i+1)%k.length];}if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
-      if(d==='PL_FMT'){const m=['eco','planche','hd'];const i=m.indexOf(p.look.mode);p.look.mode=m[(i+1)%m.length];if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
-      if(d==='PL_NB'){const s=[1,2,3,4,6];const i=s.indexOf(p.look.count||1);p.look.count=s[(i+1)%s.length];if(!p.look.source)p.look.source='new';await routeBlock('photo.look','inplace');return;}
+      if(d==='PL_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('✅ Look choisi'); } await afterCoreChange(p,'look','photo.look'); return; }
+      if(d==='PL_TENUE'){const k=Object.keys(lb.categories||{});if(k.length){const i=k.indexOf(p.look.category);p.look.category=k[(i+1)%k.length];p.look.extra=null;}if(!p.look.source)p.look.source='new';await afterCoreChange(p,'look','photo.look');return;}
+      if(d==='PL_ENV'){const k=Object.keys(lb.envs||{});if(k.length){const i=k.indexOf(p.look.env);p.look.env=k[(i+1)%k.length];}if(!p.look.source)p.look.source='new';await afterCoreChange(p,'decor','photo.look');return;}
+      if(d==='PL_FMT'){const m=['eco','planche','hd'];const i=m.indexOf(p.look.mode);p.look.mode=m[(i+1)%m.length];if(!p.look.source)p.look.source='new';await afterCoreChange(p,'look','photo.look');return;}
+      if(d==='PL_NB'){const s=[1,2,3,4,6];const i=s.indexOf(p.look.count||1);p.look.count=s[(i+1)%s.length];if(!p.look.source)p.look.source='new';await afterCoreChange(p,'nb','photo.look');return;}
       if(d==='PL_PREV'){if(p.image.urls.length){p.image.idx=(p.image.idx-1+p.image.urls.length)%p.image.urls.length;newlook.idx=p.image.idx;}await routeBlock('photo.image','inplace');return;}
       if(d==='PL_NEXT'){if(p.image.urls.length){p.image.idx=(p.image.idx+1)%p.image.urls.length;newlook.idx=p.image.idx;}await routeBlock('photo.image','inplace');return;}
-      if(d==='PL_PICK'){if(p.image.urls.length){p.image.validated=p.image.idx;p.step='image';}await routeBlock('photo.image','inplace');return;} /*écrit le slice image (validée)*/
+      if(d==='PL_PICK'){if(p.image.urls.length){p.image.validated=p.image.idx;p.step='image';}await afterCoreChange(p,'image','photo.image');return;} /*écrit le slice image (validée)*/
       if(d==='PL_VIEW'){if(p.image.urls.length){newlook.idx=p.image.idx;await nlShowResult();}else{await toast('Aucune image');}return;}
       if(d==='PL_GEN'){ p.image.confirming=true; await routeBlock('photo.image','inplace'); return; } // confirmation DANS le workspace (pas de nouveau bloc) ; jamais de génération en test
       if(d==='PL_GEN_NO'){ p.image.confirming=false; await routeBlock('photo.image','inplace'); return; }
@@ -2516,16 +2543,28 @@ async function handle(upd){
       if(d==='PR_UP'){ state='ws_ref_upload_wait'; await toast('📤 Envoie la photo de référence'); await routeBlock('photo.ref','inplace'); return; } /*passe en attente + affiche « en attente » dans le bloc*/
       if(d==='PR_GPREV'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx-1+list.length)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
       if(d==='PR_GNEXT'){ const list=looksList(); if(list.length){refGalIdx=(refGalIdx+1)%list.length;} await routeBlock('photo.refgal','inplace'); return; }
-      if(d==='PR_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ try{setImanyRef(path.join(getLooksDir(),f));}catch(e){} await toast('✅ Référence mise à jour'); } await routeBlock('photo.ref','inplace'); return; } /*aperçu immédiat de la nouvelle réf*/
+      if(d==='PR_GSET'){ const list=looksList(); const f=list[refGalIdx]; if(f){ try{setImanyRef(path.join(getLooksDir(),f));}catch(e){} await toast('✅ Référence mise à jour'); } await afterCoreChange(p,'ref','photo.ref'); return; } /*aperçu immédiat de la nouvelle réf*/
       return;
     }
     // [L0-2a-ter] PROMPT UTILISATEUR dans le workspace (rendu EN PLACE dans le bloc média)
     if(d&&d.indexOf('PP_')===0){
       const p=ensureProj();
       if(d==='PP_EDIT'){ state='ws_prompt_edit_wait'; await toast('✍️ Envoie le nouveau prompt'); await routeBlock('photo.prompt','inplace'); return; }
-      if(d==='PP_DEFAULT'){ p.prompt={text:defaultPromptText(),name:'défaut'}; await toast('↩️ Prompt par défaut'); await routeBlock('photo.prompt','inplace'); return; }
+      if(d==='PP_DEFAULT'){ p.prompt={text:defaultPromptText(),name:'défaut'}; await toast('↩️ Prompt par défaut'); await afterCoreChange(p,'prompt','photo.prompt'); return; }
       if(d==='PP_SAVE'){ state='ws_prompt_save_wait'; await toast('💾 Envoie le nom du prompt'); await routeBlock('photo.prompt','inplace'); return; }
-      if(d&&d.indexOf('PP_USE_')===0){ const it=getPromptLib(d.slice(7)); if(it){ p.prompt={text:it.text,name:it.name}; await toast('✅ Prompt « '+it.name+' »'); } await routeBlock('photo.prompt','inplace'); return; }
+      if(d&&d.indexOf('PP_USE_')===0){ const it=getPromptLib(d.slice(7)); if(it){ p.prompt={text:it.text,name:it.name}; await toast('✅ Prompt « '+it.name+' »'); } await afterCoreChange(p,'prompt','photo.prompt'); return; }
+      return;
+    }
+    // [C7 CÂBLÉ] PROPAGATION re-éditabilité : Conserver / Mettre à jour / Régénérer l'aval
+    if(d&&d.indexOf('PX_')===0){
+      const p=ensureProj(); const ret=(projPending&&projPending.ret)||'photo.look'; const sl=(projPending&&projPending.slice)||null;
+      const impacted=sl?projDownstream(sl):[];
+      if(d==='PX_KEEP'){ projPending=null; try{p._dirty={};}catch(e){} await toast('✅ Aval conservé'); await routeBlock(ret,'inplace'); return; }
+      if(d==='PX_UPDATE'){ projPending=null; try{p._dirty={};}catch(e){} await toast('🔄 Aval resynchronisé'); await routeBlock(ret,'inplace'); return; } /*garde le contenu, efface le flag (resync non destructif)*/
+      if(d==='PX_REGEN'){ /*vide l'aval dépendant -> régénération (coût reconfirmé au moment de générer)*/
+        try{ if(impacted.indexOf('image')>=0){ p.image.urls=[]; p.image.idx=0; p.image.validated=null; }
+             if(impacted.indexOf('video')>=0){ p.video.script={text:'',name:'—'}; p.video.media=null; p.video.legende={courte:'',longue:'',tags:''}; } }catch(e){}
+        projPending=null; try{p._dirty={};}catch(e){} await toast('♻️ Aval à régénérer'); await routeBlock(ret,'inplace'); return; }
       return;
     }
     // [L0-2a-ter] STUDIO · gestion bibliothèque de prompts (texte, EN PLACE)
@@ -3185,11 +3224,11 @@ async function handle(upd){
     return;
   }
   if(state==='ws_ref_upload_wait'&&msg.photo){ /*[L0-2a-bis] réf uploadée DANS le workspace -> aperçu immédiat dans le bloc média*/
-    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);try{await delMsg(msg.message_id);}catch(e){}await routeBlock('photo.ref','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';setImanyRef(fp);try{await delMsg(msg.message_id);}catch(e){}await afterCoreChange(ensureProj(),'ref','photo.ref');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
   }
   if(state==='ws_look_upload_wait'&&msg.photo){ /*[L0-2a-ter] look uploadé DANS le workspace -> aperçu immédiat (slice look)*/
-    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.look.file=fp;p.look.source='upload';try{setWorkPhoto(fp);}catch(e){}try{await delMsg(msg.message_id);}catch(e){}await routeBlock('photo.look','inplace');}catch(e){state='idle';await toast('❌ '+e.message);}
+    try{const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id);state='idle';const p=ensureProj();p.look.file=fp;p.look.source='upload';try{setWorkPhoto(fp);}catch(e){}try{await delMsg(msg.message_id);}catch(e){}await afterCoreChange(p,'look','photo.look');}catch(e){state='idle';await toast('❌ '+e.message);}
     return;
   }
   if(state==='ws_prompt_edit_wait'&&msg.text&&!msg.text.startsWith('/')){ /*[L0-2a-ter] nouveau texte de prompt -> slice prompt*/
