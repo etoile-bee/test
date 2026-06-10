@@ -1,0 +1,120 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>PLAN DE RÉALISATION — V1</h1>
+<blockquote><strong>EN-TÊTE DE GOUVERNANCE (E131)</strong></blockquote>
+<blockquote>- <strong>Statut</strong> : <strong>B — Formalisation</strong> (ordonnance des capacités <strong>déjà validées</strong>, sans rien rouvrir).</blockquote>
+<blockquote>- <strong>Acquis-source(s)</strong> : <code>V1_FONCTIONNELLE</code> + <strong>fondation close</strong> (5 espaces, Lois I/II, invariants</blockquote>
+<blockquote>  INV-1→15, <strong>E128–E131</strong>, <code>AUDIT_REALISATION</code> dont les <strong>10 critères</strong>).</blockquote>
+<blockquote>- <strong>Modifie un élément déjà verrouillé</strong> : <strong>NON.</strong></blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Principe directeur</strong> : <strong>vitesse d'apprentissage</strong> et <strong>tests réels</strong> &gt; exhaustivité. **Plus petit</blockquote>
+<blockquote>incrément testable d'abord.<strong> </strong>Simulation de génération<strong> (matière mockée) </strong>tant que possible** pour</blockquote>
+<blockquote>apprendre <strong>sans dépenser</strong>.</blockquote>
+<blockquote><strong>Contraintes</strong> : tout sous <strong>E118</strong> (qualité avant livraison) / <strong>E119</strong> (livraison cohérente), derrière</blockquote>
+<blockquote><strong><code>/v4</code></strong>, <strong>zéro dépense par défaut</strong>. La <strong>génération réelle = bascule séparée décidée par Etoile</strong>,</blockquote>
+<blockquote>jamais automatique. <strong>Aucun paradigme média-au-centre</strong> (repos sans média, matière convoquée). **Aucune</blockquote>
+<blockquote>implémentation dans ce document** (c'est le plan).</blockquote>
+<hr>
+<h2>1. LES 7 FONCTIONS — fiches de réalisation</h2>
+<blockquote>Chaque fiche : **Ordre · Dépendances · Critères de recette (observables) · Testable immédiatement ·</blockquote>
+<blockquote>Simulable · Nécessite génération réelle.**</blockquote>
+<h3>F1 — CRÉER un projet  <em>(Ordre : 2)</em></h3>
+<ul><li><strong>Dépendances</strong> : Socle (écrire un projet), Univers (copie d'amorce), Pilotage (écrit), Conscience</li></ul>
+<p>  (première lecture) — donc <strong>après</strong> le socle technique de lecture/écriture (Lot 0).</p>
+<ul><li><strong>Recette</strong> : créer un projet en <strong>≤ ~4 actions</strong> (esquissable) ; <strong>identité stable</strong> ; **entrée immédiate</li></ul>
+<p>  en mémoire<strong> ; </strong>copie d'amorce** depuis l'Univers (pas de lien vivant) ; le repos s'affiche aussitôt.</p>
+<ul><li><strong>Testable immédiatement</strong> : oui (création + retour au repos), <strong>sans aucune génération</strong>.</li><li><strong>Simulable</strong> : N/A (pas de matière) — fonction <strong>100 % non-dépensière</strong>.</li><li><strong>Génération réelle</strong> : <strong>non</strong>.</li></ul>
+<h3>F2 — REPRENDRE un projet  <em>(Ordre : 3)</em></h3>
+<ul><li><strong>Dépendances</strong> : F1 (des projets existent), Socle (faits), Conscience (recalcul situation/titre).</li><li><strong>Recette</strong> : <strong>repos instantané, sans média</strong> ; rouvrir redonne <strong>exactement</strong> cap+situation+mémoire ;</li></ul>
+<p>  <strong>lecture recalculée</strong> (jeter le cache → même lecture).</p>
+<ul><li><strong>Testable immédiatement</strong> : oui (créer puis rouvrir), <strong>sans génération</strong>.</li><li><strong>Simulable</strong> : N/A.</li><li><strong>Génération réelle</strong> : <strong>non</strong>.</li></ul>
+<h3>F3 — PRODUIRE une image  <em>(Ordre : 4)</em></h3>
+<ul><li><strong>Dépendances</strong> : F1/F2, Pilotage (commande+contrat, écrit le verdict), Atelier (dépose le fait-média),</li></ul>
+<p>  Conscience (coût estimé, inventaire-faits), Socle (dépôt + décision).</p>
+<ul><li><strong>Recette</strong> : <strong>contrat affiché avant</strong> (coût) ; <strong>aucune production sans confirmation</strong> ; l'Atelier</li></ul>
+<p>  dépose une <strong>candidate + RAW</strong> (état <code>candidate</code> <strong>seulement</strong>) ; l'auteur <strong>décide</strong> le devenir **+</p>
+<p>  raison<strong> ; </strong>décision relisible<strong> ; </strong>dépense annoncée = dépense réelle** (quand réelle).</p>
+<ul><li><strong>Testable immédiatement</strong> : oui <strong>en simulation</strong> (parcours complet sans dépense).</li><li><strong>Simulable</strong> : <strong>OUI</strong> — <strong>candidate mockée</strong> (faux média) déposée comme fait <code>candidate</code>+RAW factice ; le</li></ul>
+<p>  <strong>parcours décisionnel est identique</strong>, <strong>zéro dépense</strong>.</p>
+<ul><li><strong>Génération réelle</strong> : <strong>oui</strong> (bascule séparée) — déclenchée <strong>uniquement</strong> par confirmation **+ GO</li></ul>
+<p>  Etoile** (INV-12).</p>
+<h3>F4 — PRODUIRE une vidéo  <em>(Ordre : 6)</em></h3>
+<ul><li><strong>Dépendances</strong> : <strong>F3</strong> (image retenue = source), Pilotage, Atelier, Conscience, Socle ; même projet.</li><li><strong>Recette</strong> : depuis une <strong>image retenue</strong>, <strong>script</strong> minimal + <strong>voix</strong> + <strong>montage simple</strong> ;</li></ul>
+<p>  <strong>contrat + gate QC avant</strong> ; <strong>lecture</strong> du résultat + <strong>décision</strong> de retenue ; <strong>un seul projet</strong></p>
+<p>  (image→vidéo sans changer d'outil).</p>
+<ul><li><strong>Testable immédiatement</strong> : oui <strong>en simulation</strong> (vidéo mockée).</li><li><strong>Simulable</strong> : <strong>OUI</strong> — <strong>rendu mocké</strong> (faux clip) ; parcours identique, zéro dépense.</li><li><strong>Génération réelle</strong> : <strong>oui</strong> (image réelle + voix + lipsync/rendu) — <strong>gatée</strong> (confirmation + GO Etoile).</li></ul>
+<h3>F5 — DÉCISIONS + MÉMOIRE  <em>(Ordre : 1 — transversal, posé tôt)</em></h3>
+<ul><li><strong>Dépendances</strong> : Socle (écrire décisions/états), Conscience (<strong>impact aval = dérivation</strong>, historique-vue),</li></ul>
+<p>  Pilotage (écrit) — <strong>prérequis de toutes les autres</strong> (toute décision passe par ici).</p>
+<ul><li><strong>Recette</strong> : chaque choix structurant <strong>persisté</strong> comme <strong>Décision + raison</strong> (sur le structurant) ;</li></ul>
+<p>  <strong>impact aval présenté</strong> (garder/MAJ/régénérer) <strong>au choix, jamais en silence</strong> ; <strong>historique relisible</strong></p>
+<p>  (actions + raisons) ; <strong>rien d'effacé</strong> ; impact aval <strong>calculé par la Conscience</strong>, consommé par le</p>
+<p>  Pilotage (AUD-G1).</p>
+<ul><li><strong>Testable immédiatement</strong> : oui (dès qu'on peut poser une décision simple, ex. au repos / sur F1).</li><li><strong>Simulable</strong> : N/A (la mémoire ne dépense pas).</li><li><strong>Génération réelle</strong> : <strong>non</strong>.</li></ul>
+<h3>F6 — CONSTITUER un livrable  <em>(Ordre : 5)</em></h3>
+<ul><li><strong>Dépendances</strong> : F3 (et/ou F4) — matière retenue ; Versions ; Socle ; Pilotage.</li><li><strong>Recette</strong> : <strong>retenir une version</strong> → <strong>livrable autoporteur</strong> (média final + script + légende courte +</li></ul>
+<p>  hashtags + paramètres + RAW) ; <strong>choix image/vidéo/les deux</strong> ; passage à l'état <strong><code>prêt-à-poster</code></strong> ;</p>
+<p>  paquet <strong>complet sans reconstruire le contexte</strong>.</p>
+<ul><li><strong>Testable immédiatement</strong> : oui <strong>en simulation</strong> (livrable à partir de matière mockée).</li><li><strong>Simulable</strong> : <strong>OUI</strong> (matière mockée → livrable « fictif » complet).</li><li><strong>Génération réelle</strong> : <strong>non</strong> par elle-même (elle <strong>emballe</strong> ce qui existe ; le coût est en amont F3/F4).</li></ul>
+<h3>F7 — PUBLIER  <em>(Ordre : 7)</em></h3>
+<ul><li><strong>Dépendances</strong> : F6 (livrable prêt), Pilotage, Socle.</li><li><strong>Recette</strong> : <strong>dernier regard</strong> (lecture + faits/invitations) ; **publier = irréversible, annoncé et</li></ul>
+<p>  confirmé avant<strong> ; version </strong>figée<strong> ; </strong>reste en mémoire** ; sort de la file <code>prêt-à-poster</code>.</p>
+<ul><li><strong>Testable immédiatement</strong> : oui (sur livrable simulé) — <strong>publier = statut</strong>, <strong>sans</strong> auto-diffusion.</li><li><strong>Simulable</strong> : <strong>OUI</strong> (publication = changement de statut ; pas de mise en ligne réelle en V1).</li><li><strong>Génération réelle</strong> : <strong>non</strong> (l'auto-diffusion est <strong>hors V1</strong>, déjà acté).</li></ul>
+<hr>
+<h2>2. DÉCOUPAGE EN LOTS (ordonnés)</h2>
+<blockquote>Chaque lot : <strong>Contenu · Prérequis · Critère de fin/recette · Testable sur iPhone ?</strong></blockquote>
+<ul><li><strong>Lot 0 — Socle de lecture/écriture + repos</strong> : pouvoir <strong>écrire des faits</strong> au Socle et **dériver une</li></ul>
+<p>  lecture<strong> (situation/titre minimaux) ; le </strong>repos<strong> s'affiche, </strong>sans média**.</p>
+<p>  <em>Prérequis</em> : néant. <em>Recette</em> : un projet « vide » s'ouvre et <strong>affiche un repos instantané</strong>.</p>
+<p>  <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 1 — Décisions + mémoire (F5)</strong> : poser une <strong>Décision + raison</strong>, la <strong>relire</strong> ; <strong>impact aval</strong></li></ul>
+<p>  (dérivation Conscience) présenté/consommé.</p>
+<p>  <em>Prérequis</em> : Lot 0. <em>Recette</em> : une décision posée est <strong>relisible</strong> ; impact aval <strong>au choix</strong>.</p>
+<p>  <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 2 — Créer + Reprendre (F1, F2)</strong> : création <strong>≤~4 actions</strong> + <strong>copie d'amorce</strong> ; <strong>reprise</strong></li></ul>
+<p>  instantanée, état exact.</p>
+<p>  <em>Prérequis</em> : Lots 0-1. <em>Recette</em> : créer puis rouvrir = <strong>même cap+situation+mémoire</strong>, sans média.</p>
+<p>  <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 3 — Produire image en SIMULATION (F3 mock)</strong> : convocation <strong>sous contrat</strong> (coût <strong>affiché</strong>) →</li></ul>
+<p>  <strong>candidate mockée</strong> + RAW factice → <strong>décision + raison</strong> ; <strong>zéro dépense</strong>.</p>
+<p>  <em>Prérequis</em> : Lots 0-2. <em>Recette</em> : parcours image <strong>complet sans dépense</strong> ; **rien ne part sans</p>
+<p>  confirmation**. <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 4 — Livrable + Publier en SIMULATION (F6, F7 mock)</strong> : retenue de version → <strong>livrable autoporteur</strong></li></ul>
+<p>  (fictif) → <strong>prêt-à-poster</strong> → <strong>publier (statut, irréversible, confirmé)</strong>.</p>
+<p>  <em>Prérequis</em> : Lot 3. <em>Recette</em> : boucle <strong>idée→publié simulée de bout en bout</strong>, <strong>zéro dépense</strong>.</p>
+<p>  <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 5 — Produire vidéo en SIMULATION (F4 mock)</strong> : image retenue → script+voix+montage simple → **rendu</li></ul>
+<p>  mocké** → décision.</p>
+<p>  <em>Prérequis</em> : Lot 3. <em>Recette</em> : parcours vidéo simulé complet, zéro dépense. <em>iPhone</em> : <strong>oui</strong>.</p>
+<ul><li><strong>Lot 6 — Bascule GÉNÉRATION RÉELLE (gate)</strong> : remplacer la simulation par la <strong>vraie matière</strong>, **derrière</li></ul>
+<p>  confirmation (INV-12) + GO Etoile**. Image d'abord, vidéo ensuite.</p>
+<p>  <em>Prérequis</em> : Lots 3-5 verts en simulation. <em>Recette</em> : <strong>dépense annoncée = dépense réelle</strong> ; **aucune</p>
+<p>  dépense sans confirmation<strong> ; </strong>désactivable** (retour simulation). <em>iPhone</em> : <strong>oui</strong> *(après GO,</p>
+<p>  dépense réelle)*.</p>
+<ul><li><strong>Lot 7 — Durcissement V1 (E118)</strong> : passe qualité (10 critères de l'audit), recherche de régressions,</li></ul>
+<p>  vérification d'étanchéité inter-projets, instantanéité du repos.</p>
+<p>  <em>Prérequis</em> : tous. <em>Recette</em> : <strong>10/10 critères</strong> observés au vert. <em>iPhone</em> : <strong>oui</strong>.</p>
+<blockquote><strong>Tout est testable sur iPhone dès le Lot 0</strong>, et **toute la boucle est éprouvable en SIMULATION (Lots</blockquote>
+<blockquote>0-5) sans dépenser un centime** avant la bascule réelle (Lot 6).</blockquote>
+<hr>
+<h2>3. LE PLUS PETIT INCRÉMENT TESTABLE SUR IPHONE</h2>
+<blockquote><strong>Lot 0</strong> : ouvrir un projet (même « vide ») et <strong>voir un repos instantané, sans média</strong> (cap+situation</blockquote>
+<blockquote>minimaux). C'est le <strong>tout premier truc éprouvable en main réelle</strong> — il valide d'emblée le</blockquote>
+<blockquote>non-négociable n°1 (repos instantané) <strong>sans aucune génération ni dépense</strong>.</blockquote>
+<hr>
+<h2>4. LES 4 JALONS EXACTS (réel vs simulé · dépense gatée)</h2>
+<table><thead><tr><th>Jalon</th><th>À partir de quel lot</th><th>Réel vs simulé</th><th>Dépense</th></tr></thead><tbody><tr><td><strong>CRÉER un projet réel</strong></td><td><strong>Lot 2</strong></td><td><strong>RÉEL</strong> (vrai projet en mémoire, copie d'amorce)</td><td><strong>aucune</strong></td></tr><tr><td><strong>GÉNÉRER une image</strong></td><td><strong>simulée dès Lot 3</strong> ; <strong>réelle au Lot 6</strong></td><td>simulée (candidate mockée) → puis <strong>réelle</strong></td><td>simulée = <strong>0</strong> ; réelle = <strong>gatée</strong> (confirmation INV-12 <strong>+ GO Etoile</strong>)</td></tr><tr><td><strong>GÉNÉRER une vidéo</strong></td><td><strong>simulée dès Lot 5</strong> ; <strong>réelle au Lot 6</strong> (après l'image réelle)</td><td>simulée (rendu mocké) → puis <strong>réelle</strong></td><td>simulée = <strong>0</strong> ; réelle = <strong>gatée</strong> (confirmation <strong>+ GO Etoile</strong>)</td></tr><tr><td><strong>PUBLIER</strong></td><td><strong>Lot 4</strong></td><td><strong>RÉEL en tant que statut</strong> (le livrable passe « publié », figé, conservé) ; <strong>auto-diffusion = hors V1</strong></td><td><strong>aucune</strong></td></tr></tbody></table>
+<blockquote>Précisions : « créer » et « publier » sont <strong>réels dès le départ</strong> (ils ne dépensent pas). « Générer »</blockquote>
+<blockquote>est <strong>réel au sens du parcours dès la simulation</strong>, et <strong>réel au sens de la matière</strong> seulement au **Lot</blockquote>
+<blockquote>6<strong>, </strong>toujours sous confirmation + GO Etoile<strong>. La bascule réelle est </strong>réversible** (retour simulation).</blockquote>
+<hr>
+<h2>VÉRIFICATION E131</h2>
+<p>Ce plan <strong>n'introduit aucun objet/invariant/règle/gouvernance nouveau</strong> : il <strong>ordonne</strong> des capacités V1</p>
+<p><strong>déjà validées</strong> et <strong>respecte</strong> E118/E119 + tous les invariants. <strong>→ Reste catégorie B.</strong> Aucun arrêt D.</p>
+<h2>VERDICT</h2>
+<blockquote><strong>🟢 PLAN V1 PRÊT.</strong> 7 fonctions ordonnancées · <strong>8 lots</strong> (0→7) testables sur iPhone · **plus petit</blockquote>
+<blockquote>incrément<strong> = repos instantané (Lot 0) · </strong>4 jalons** clairs (créer Lot 2 · image simulée Lot 3/réelle Lot</blockquote>
+<blockquote>6 · vidéo simulée Lot 5/réelle Lot 6 · publier Lot 4). **Toute la boucle est apprenable en SIMULATION sans</blockquote>
+<blockquote>dépense<strong> ; la </strong>génération réelle est une bascule séparée, gatée par confirmation (INV-12) + GO Etoile**.</blockquote>
+<blockquote>Aucun non-négociable sacrifié, aucun paradigme média-au-centre. **Prêt pour le go d'Etoile vers la</blockquote>
+<blockquote>construction du Lot 0** (sous E118/E119, derrière <code>/v4</code>, zéro dépense).</blockquote>
+<p>_Plan de réalisation V1 — formalisation (B). Dérivé de <code>V1_FONCTIONNELLE</code> + fondation close. Aucune</p>
+<p>implémentation, aucun nouvel objet/invariant/règle. Live intact. Lecture seule._</p></body></html>
