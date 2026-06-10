@@ -1,0 +1,244 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>MODÈLE MÉTIER — PHASE 1 : INVENTAIRE EXHAUSTIF DES OBJETS</h1>
+<blockquote><strong>Statut : ANALYSE / MODÉLISATION — PHASE 1 seule (livrable autonome).</strong> On définit **les objets du</blockquote>
+<blockquote>domaine** : ce qui existe et pourquoi. Aucune notion de support, de présentation ou de manipulation —</blockquote>
+<blockquote><strong>zéro vocabulaire d'interface</strong>. Les phases 2 à 5 (relations · cycle de vie · actions · règles) viendront</blockquote>
+<blockquote><strong>après validation de cette Phase 1</strong>. Live intact · fichiers verrouillés intacts · aucune dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Ancrage (référence absolue, <code>E127</code>) — les 6 piliers</strong> : ① Intention · ② Cohérence · ③ Mémoire ·</blockquote>
+<blockquote>④ Capitalisation · ⑤ Confiance · ⑥ Contrôle.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Phrase centrale</strong> : « Je pilote la transformation d'une <strong>intention</strong> en contenu <strong>publiable</strong>, par une</blockquote>
+<blockquote>suite de décisions <strong>cohérentes, réversibles et mémorisées</strong>, dans un système en qui j'ai <strong>confiance</strong> —</blockquote>
+<blockquote>jusqu'au seul acte définitif : <strong>publier</strong>. »</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Précision structurante</strong> : le système pose en permanence « **ce qui est produit sert-il encore</blockquote>
+<blockquote>l'intention ?<strong> » ; quand quelque chose s'écarte, il </strong>localise la pièce qui dérive<strong> et </strong>rend l'écart</blockquote>
+<blockquote>visible<strong> — il </strong>ne décide jamais** à la place de la personne.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Méthode de lecture</strong> — pour chaque objet : **RÔLE · POURQUOI il existe · CONTIENT (attributs) · CE QUI</blockquote>
+<blockquote>LE DIFFÉRENCIE**. La mention <em>(à confirmer)</em> signale une vraie question de modélisation laissée ouverte</blockquote>
+<blockquote>(E120), avec un défaut proposé et sa raison — <strong>non tranchée en douce</strong>. Base factuelle : le manifest</blockquote>
+<blockquote>existant (<code>ui/project_store.js</code>) ; ce document en exprime un <strong>modèle de domaine propre</strong>, pas du code.</blockquote>
+<hr>
+<h2>CARTE DES OBJETS — 4 familles (33 objets)</h2>
+<p>1. <strong>INTENTION (le pourquoi)</strong> — Intention · Message/Idée · Émotion · Public · Objectif de publication.</p>
+<p>2. <strong>IDENTITÉ &amp; MATIÈRE CRÉATIVE (qui/quoi/où/comment)</strong> — Personnage · Référence · Look · Décor · Ambiance ·</p>
+<p>   Consigne de génération · Script · Voix · Paramètres.</p>
+<p>3. <strong>PRODUCTION &amp; ÉTATS DU MÉDIA (ce qui est fabriqué)</strong> — Candidate · Variante · Média actif · RAW/média</p>
+<p>   intermédiaire · Montage · Légende · Hashtags · Contrôle qualité · Coût · Livrable · Version · Publication.</p>
+<p>4. <strong>MÉMOIRE &amp; CAPITALISATION (traçabilité &amp; réutilisation)</strong> — Projet · Série · Décision · Évaluation de</p>
+<p>   cohérence · Historique · Bibliothèque · Brique réutilisable.</p>
+<hr>
+<h1>FAMILLE 1 — INTENTION (le pourquoi)</h1>
+<h2>1. Intention — <em>la boussole</em></h2>
+<ul><li><strong>Rôle</strong> : exprimer la finalité d'un projet : *quoi dire, pour quoi faire ressentir, à qui, pour quelle</li></ul>
+<p>  destination*.</p>
+<ul><li><strong>Pourquoi</strong> : pilier ① — c'est la <strong>référence absolue</strong> à laquelle tout le reste se compare. Sans elle,</li></ul>
+<p>  la question centrale (« ça sert encore l'intention ? ») est impossible à poser.</p>
+<ul><li><strong>Contient</strong> : <code>message</code>, <code>émotion</code>, <code>personnage_visé</code> (lien), <code>public</code>, <code>objectif_publication</code> (lien),</li></ul>
+<p>  <code>créée_le</code>, <code>modifiée_le</code>.</p>
+<ul><li><strong>Différenciation</strong> : l'Intention est le <strong>pourquoi</strong> ; le Personnage est le <strong>qui</strong> ; Référence/Look/</li></ul>
+<p>  Décor sont des <strong>moyens visuels</strong>. L'Intention est <strong>propre à un projet</strong> (elle peut se répéter dans une</p>
+<p>  Série mais reste rattachée à chaque projet).</p>
+<h2>2. Message (ou Idée) — <em>le contenu de sens</em></h2>
+<ul><li><strong>Rôle</strong> : la chose précise à transmettre (l'angle, le propos).</li><li><strong>Pourquoi</strong> : pilier ① — l'une des 10 pièces surveillées pour la dérive.</li><li><strong>Contient</strong> : <code>texte_court</code>, <code>angle</code>, <code>mots_clés</code>.</li><li><strong>Différenciation</strong> : le Message est le <strong>fond</strong> ; le Script en est la <strong>mise en mots déroulée</strong> ; la</li></ul>
+<p>  Légende en est la <strong>formulation de publication</strong>.</p>
+<ul><li><em>(à confirmer)</em> <strong>Défaut : Message = attribut riche de l'Intention</strong> (pas un objet autonome) — <em>raison</em> :</li></ul>
+<p>  il n'a de sens que porté par une intention. <em>À confirmer</em> si l'on veut réutiliser un Message d'un projet</p>
+<p>  à l'autre (il deviendrait alors une Brique).</p>
+<h2>3. Émotion — <em>l'effet visé</em></h2>
+<ul><li><strong>Rôle</strong> : la tonalité affective recherchée (douceur, puissance, humour, luxe…).</li><li><strong>Pourquoi</strong> : piliers ① + ② — critère de cohérence (le ton du script/voix/montage doit la servir).</li><li><strong>Contient</strong> : <code>valeur</code> (libellé), <code>intensité</code> <em>(optionnel)</em>.</li><li><strong>Différenciation</strong> : l'Émotion est <strong>ce qu'on veut faire ressentir</strong> ; l'Ambiance est **le moyen</li></ul>
+<p>  visuel/sonore** d'y parvenir. Elles peuvent diverger (la cohérence le signale alors).</p>
+<ul><li><em>(à confirmer)</em> <strong>Défaut : Émotion = attribut de l'Intention</strong> (surveillé par la cohérence).</li></ul>
+<h2>4. Public — <em>le destinataire</em></h2>
+<ul><li><strong>Rôle</strong> : à qui s'adresse le contenu.</li><li><strong>Pourquoi</strong> : pilier ① — oriente message, ton, format.</li><li><strong>Contient</strong> : <code>description</code>, <code>plateforme_habituelle</code> <em>(optionnel)</em>.</li><li><strong>Différenciation</strong> : le Public est <strong>le destinataire (humain)</strong> ; l'Objectif est **la destination</li></ul>
+<p>  technique de diffusion**.</p>
+<ul><li><em>(à confirmer)</em> <strong>Défaut : Public = attribut de l'Intention.</strong></li></ul>
+<h2>5. Objectif de publication (Destination) — <em>où, sous quelle contrainte</em></h2>
+<ul><li><strong>Rôle</strong> : la cible de diffusion et ses contraintes : plateforme, format, durée visée.</li><li><strong>Pourquoi</strong> : pilier ① — fixe des <strong>contraintes mesurables</strong>, donc des dérives détectables (durée &gt;</li></ul>
+<p>  format, ratio non conforme).</p>
+<ul><li><strong>Contient</strong> : <code>plateforme</code>, <code>format</code> (ratio), <code>durée_cible</code>, <code>finalité</code> (publier / éprouver).</li><li><strong>Différenciation</strong> : l'Objectif porte les <strong>contraintes de diffusion</strong> ; les Paramètres portent les</li></ul>
+<p>  <strong>réglages de fabrication</strong>. L'un est <em>le but</em>, l'autre <em>le moyen technique</em>.</p>
+<ul><li><em>(à confirmer)</em> <strong>Défaut : Plateforme/Format/Durée = attributs de l'Objectif</strong> (lui-même composante de</li></ul>
+<p>  l'Intention) — <em>raison</em> : ils ne vivent jamais seuls. <em>À confirmer</em> : la <strong>Plateforme</strong> pourrait devenir</p>
+<p>  un objet réutilisable (profils de contraintes : « format court 9:16 ≤ 30 s »).</p>
+<hr>
+<h1>FAMILLE 2 — IDENTITÉ &amp; MATIÈRE CRÉATIVE</h1>
+<h2>6. Personnage — <em>l'identité durable</em></h2>
+<ul><li><strong>Rôle</strong> : l'entité incarnée qui porte les contenus.</li><li><strong>Pourquoi</strong> : piliers ① + ④ — <strong>transverse</strong> aux projets et <strong>capitalisable</strong>.</li><li><strong>Contient</strong> : <code>nom</code>, <code>traits_identitaires</code> (description stable), <code>références</code> (collection),</li></ul>
+<p>  <code>garde-robe</code> (collection de Looks), <code>voix_signature</code> <em>(à confirmer)</em>.</p>
+<ul><li><strong>Différenciation</strong> : le Personnage est <strong>qui</strong> ; l'Intention est <strong>pourquoi</strong> ; la Référence est **une</li></ul>
+<p>  preuve visuelle** de l'identité du Personnage à un instant.</p>
+<ul><li><em>(à confirmer)</em> <strong>Défaut : le Personnage POSSÈDE ses Références et une garde-robe de Looks</strong> — <em>raison</em> :</li></ul>
+<p>  « robe rouge sur Imany » a du sens rattaché au personnage. <em>À confirmer</em> : des Looks génériques pourraient</p>
+<p>  exister sans personnage (vivant alors seulement en Bibliothèque).</p>
+<h2>7. Référence — <em>la preuve d'identité visuelle</em></h2>
+<ul><li><strong>Rôle</strong> : image(s) faisant foi de l'identité du Personnage (visage, carnation, regard…).</li><li><strong>Pourquoi</strong> : piliers ② + ⑤ — <strong>étalon</strong> du contrôle d'identité (la production doit y rester fidèle).</li><li><strong>Contient</strong> : <code>image</code>, <code>libellé</code>, <code>verrou</code>, <code>historique</code>, <code>personnage</code> (lien).</li><li><strong>Différenciation</strong> : la Référence répond à « <strong>est-ce bien la même personne ?</strong> » ; le Look à « **comment</li></ul>
+<p>  est-elle présentée ?<strong> ». La Référence est </strong>stable<strong> ; le Look est </strong>variable**.</p>
+<h2>8. Look — <em>l'apparence choisie</em></h2>
+<ul><li><strong>Rôle</strong> : tenue / coiffure / style d'apparence pour une production.</li><li><strong>Pourquoi</strong> : piliers ② + ④ — capitalisable, surveillé pour cohérence avec l'intention/émotion.</li><li><strong>Contient</strong> : <code>libellé</code>, <code>description</code>, <code>image_de_référence</code>, <code>verrou</code>, <code>historique</code>,</li></ul>
+<p>  <code>personnage</code> <em>(via garde-robe, à confirmer)</em>.</p>
+<ul><li><strong>Différenciation</strong> : Look = <strong>vêtir/styliser le Personnage</strong> ; Décor = <strong>le lieu</strong> ; Ambiance =</li></ul>
+<p>  <strong>l'atmosphère</strong> ; Référence = <strong>l'identité</strong>. Le Look n'est PAS le Personnage (on change de look sans</p>
+<p>  changer d'identité).</p>
+<h2>9. Décor — <em>le lieu / l'arrière-plan</em></h2>
+<ul><li><strong>Rôle</strong> : l'environnement de la scène (studio, extérieur jour, bougies…).</li><li><strong>Pourquoi</strong> : piliers ② + ④ — capitalisable, surveillé pour cohérence.</li><li><strong>Contient</strong> : <code>libellé</code>, <code>description</code>, <code>image_de_référence</code>, <code>verrou</code>, <code>historique</code>.</li><li><strong>Différenciation</strong> : Décor = <strong>où</strong> (lieu concret) ; Ambiance = <strong>quelle tonalité</strong> (lumière, humeur).</li></ul>
+<p>  Un même Décor peut porter plusieurs Ambiances (studio « froid clinique » vs « chaud intime »).</p>
+<h2>10. Ambiance — <em>la tonalité visuelle/sonore</em></h2>
+<ul><li><strong>Rôle</strong> : l'atmosphère recherchée (lumière, couleur, mood) — le <strong>moyen</strong> de produire l'Émotion.</li><li><strong>Pourquoi</strong> : pilier ② — pièce de cohérence (l'ambiance doit servir l'émotion visée).</li><li><strong>Contient</strong> : <code>libellé</code>, <code>lumière</code>, <code>palette</code>, <code>tonalité</code>.</li><li><strong>Différenciation</strong> : Émotion = <strong>but ressenti</strong> ; Ambiance = <strong>moyen visuel/sonore</strong>.</li><li><em>(à confirmer)</em> <strong>Défaut : Ambiance = OBJET léger distinct</strong> (du Décor et des Paramètres) — <em>raison</em> :</li></ul>
+<p>  Etoile la liste explicitement comme distincte ; une même ambiance se réutilise sur des décors différents.</p>
+<p>  <em>À confirmer</em> : si elle est toujours indissociable du Décor en pratique, elle redevient un **attribut du</p>
+<p>  Décor**.</p>
+<h2>11. Consigne de génération (Prompt) — <em>l'instruction de fabrication</em></h2>
+<ul><li><strong>Rôle</strong> : le texte d'instruction qui guide la production d'un média (image / animation / synchro labiale).</li><li><strong>Pourquoi</strong> : piliers ④ + ⑤ — réutilisable, et son effet doit être explicite.</li><li><strong>Contient</strong> : <code>rôle</code> (image / vidéo / synchro), <code>nom</code>, <code>texte</code>, <code>négatif</code> (anti-artefacts), <code>verrou</code>,</li></ul>
+<p>  <code>historique</code>.</p>
+<ul><li><strong>Différenciation</strong> : la Consigne est <strong>comment on demande la fabrication</strong> ; le Script est **le contenu</li></ul>
+<p>  parlé<strong> ; le Message est </strong>le sens**. Une consigne sert un Look/Décor/Ambiance, pas l'inverse.</p>
+<h2>12. Script — <em>le déroulé parlé</em></h2>
+<ul><li><strong>Rôle</strong> : le texte qui sera dit (dialogue / voix off).</li><li><strong>Pourquoi</strong> : piliers ① + ② — porte le Message, surveillé pour cohérence d'émotion et de durée.</li><li><strong>Contient</strong> : <code>texte</code>, <code>durée_estimée</code>, <code>hooks</code> (variantes d'accroche) <em>(à confirmer)</em>, <code>version</code>.</li><li><strong>Différenciation</strong> : Script = <strong>mots prononcés</strong> ; Légende = <strong>texte d'accompagnement de publication</strong></li></ul>
+<p>  (non prononcé) ; Message = <strong>idée</strong> sous-jacente.</p>
+<ul><li><strong>Règle de domaine</strong> : le Script ne contient <strong>aucune marque technique</strong> (p. ex. mot « pause ») ; les</li></ul>
+<p>  silences relèvent de la Voix.</p>
+<h2>13. Voix — <em>l'incarnation sonore du script</em></h2>
+<ul><li><strong>Rôle</strong> : la synthèse/interprétation vocale du Script.</li><li><strong>Pourquoi</strong> : pilier ② — pièce de cohérence (le grain/ton de voix doit servir l'émotion).</li><li><strong>Contient</strong> : <code>script_source</code> (lien), <code>paramètres_voix</code> (timbre, rythme, silences), <code>média_audio</code>,</li></ul>
+<p>  <code>réactions</code> (défaut : aucune).</p>
+<ul><li><strong>Différenciation</strong> : la Voix <strong>interprète</strong> le Script sans en modifier le texte.</li></ul>
+<h2>14. Paramètres — <em>les réglages de fabrication (le « comment » technique)</em></h2>
+<ul><li><strong>Rôle</strong> : réglages de production propres au projet (nombre d'images, format, durée, retouches d'image,</li></ul>
+<p>  recadrage, options de rendu).</p>
+<ul><li><strong>Pourquoi</strong> : piliers ⑤ + ⑥ — explicites, réversibles, <strong>étanches</strong> (propres au projet).</li><li><strong>Contient</strong> : <code>nombre_images</code>, <code>mode</code> (éco/haute qualité), <code>format</code>, <code>durée</code>, <code>retouches_image</code>,</li></ul>
+<p>  <code>recadrage</code>, <code>options_rendu</code>, <code>surcharge_sous-titres</code> (propre au projet).</p>
+<ul><li><strong>Différenciation</strong> : Paramètres = <strong>le COMMENT technique</strong> ; Objectif = <strong>le but de diffusion</strong> ;</li></ul>
+<p>  Ambiance/Look/Décor = <strong>le QUOI créatif</strong>. Les Paramètres ne portent <strong>aucune intention de sens</strong>.</p>
+<ul><li><strong>Règle de domaine (étanchéité)</strong> : les Paramètres d'un projet <strong>ne se propagent jamais</strong> à un autre ;</li></ul>
+<p>  la réutilisation passe <strong>uniquement</strong> par une Brique explicite.</p>
+<hr>
+<h1>FAMILLE 3 — PRODUCTION &amp; ÉTATS DU MÉDIA</h1>
+<blockquote><strong>Distinction centrale (cinq états d'un média visuel)</strong> : <em>Candidate → Variante → Média actif → Livrable</em></blockquote>
+<blockquote>sur l'axe « devenir » ; et, sur un autre axe, <em>Version</em> (instantané du projet dans le temps). Ce sont des</blockquote>
+<blockquote><strong>états/rôles différents</strong>, pas des copies.</blockquote>
+<h2>15. Candidate (image produite) — <em>le brut non jugé</em></h2>
+<ul><li><strong>Rôle</strong> : un média fraîchement produit, <strong>pas encore évalué</strong>.</li><li><strong>Pourquoi</strong> : pilier ⑥ — rien n'est retenu sans décision.</li><li><strong>Contient</strong> : <code>média</code>, <code>consigne_source</code>, <code>produite_le</code>, <code>coût_associé</code>.</li><li><strong>Différenciation</strong> : Candidate = <strong>produite, pas choisie</strong>. Tant qu'aucune décision n'est prise, elle</li></ul>
+<p>  n'est ni active, ni variante, ni livrable.</p>
+<h2>16. Variante — <em>l'alternative conservée volontairement</em></h2>
+<ul><li><strong>Rôle</strong> : une candidate <strong>gardée comme option</strong> sans être l'option principale.</li><li><strong>Pourquoi</strong> : piliers ⑥ + ③ — permet de comparer, revenir, réactiver.</li><li><strong>Contient</strong> : <code>média</code>, <code>origine</code> (candidate / dérivée d'une autre), <code>raison_conservation</code> <em>(mémoire)</em>.</li><li><strong>Différenciation</strong> : Variante = <strong>trace volontaire</strong>, jamais promue automatiquement. Une Variante n'est</li></ul>
+<p>  <strong>pas</strong> un Livrable et n'est <strong>pas</strong> le Média actif tant qu'on ne l'a pas décidé.</p>
+<h2>17. Média actif — <em>le rôle de « source courante »</em></h2>
+<ul><li><strong>Rôle</strong> : <strong>désignation</strong> d'un unique média comme <strong>source des étapes suivantes</strong> du projet.</li><li><strong>Pourquoi</strong> : piliers ⑤ + ⑥ — il faut une et une seule source courante, explicite.</li><li><strong>Contient</strong> : ce n'est <strong>pas une copie</strong> mais un <strong>rôle</strong> porté par une Candidate/Variante :</li></ul>
+<p>  <code>média_désigné</code> (lien), <code>désigné_le</code>.</p>
+<ul><li><strong>Différenciation</strong> : « Média actif » est un <strong>rôle exclusif</strong> (un seul à la fois), réassignable. Une</li></ul>
+<p>  Variante peut <strong>devenir</strong> média actif ; un média actif <strong>reste</strong> une candidate/variante par nature.</p>
+<h2>18. RAW / média intermédiaire — <em>les états bruts conservés</em></h2>
+<ul><li><strong>Rôle</strong> : les productions brutes de chaque étape (image brute, synchro brute, vidéo avant montage,</li></ul>
+<p>  avant sous-titres, avant recadrage…).</p>
+<ul><li><strong>Pourquoi</strong> : piliers ③ + ⑥ — <strong>jamais écrasés</strong> ; permettent l'audit (« où est née une anomalie ») et</li></ul>
+<p>  le retour en arrière.</p>
+<ul><li><strong>Contient</strong> : <code>type_d_etape</code>, <code>média</code>, <code>produit_le</code>.</li><li><strong>Différenciation</strong> : le RAW est <strong>la matière d'origine</strong> ; le Montage/Livrable sont des <strong>états aboutis</strong>.</li></ul>
+<p>  Un RAW ne se remplace pas.</p>
+<h2>19. Montage — <em>l'assemblage temporel</em></h2>
+<ul><li><strong>Rôle</strong> : l'assemblage des plans / médias en une séquence rythmée (avec sous-titres, musique…).</li><li><strong>Pourquoi</strong> : piliers ② + ⑥ — le <strong>rythme</strong> et l'enchaînement servent l'émotion/le message.</li><li><strong>Contient</strong> : <code>plans</code> (médias retenus, dans l'ordre), <code>rythme</code> (cadence, durées par plan),</li></ul>
+<p>  <code>sous-titres</code>, <code>musique</code>, <code>version</code>.</p>
+<ul><li><strong>Différenciation</strong> : le Montage <strong>organise</strong> des médias existants ; il n'en crée pas. Le <strong>Rythme</strong> est</li></ul>
+<p>  un <em>(à confirmer ; défaut : attribut du Montage)</em> — c'est néanmoins l'une des 10 pièces surveillées par</p>
+<p>  la cohérence.</p>
+<h2>20. Légende — <em>le texte d'accompagnement de publication</em></h2>
+<ul><li><strong>Rôle</strong> : le texte publié à côté du média (forme courte + forme longue).</li><li><strong>Pourquoi</strong> : piliers ① + ② — doit servir le message et le public ; pièce de cohérence.</li><li><strong>Contient</strong> : <code>forme_courte</code>, <code>forme_longue</code>, <code>version</code>.</li><li><strong>Différenciation</strong> : Légende ≠ Script (l'une est lue par le public, l'autre prononcée). Copiable **sans</li></ul>
+<p>  le titre** (règle de forme métier).</p>
+<h2>21. Hashtags — <em>les marqueurs de diffusion</em></h2>
+<ul><li><strong>Rôle</strong> : mots-clés de diffusion rattachés à la publication.</li><li><strong>Pourquoi</strong> : pilier ① — sert l'objectif de diffusion.</li><li><strong>Contient</strong> : <code>liste</code>, <code>version</code>.</li><li><strong>Différenciation</strong> : <em>(à confirmer ; défaut : objet distinct mais toujours associé à un Livrable)</em> —</li></ul>
+<p>  <em>raison</em> : ils se gèrent/renouvellent séparément du texte de la Légende.</p>
+<h2>22. Contrôle qualité (QC) — <em>le verdict d'aptitude</em></h2>
+<ul><li><strong>Rôle</strong> : l'évaluation d'identité/anatomie/cohérence d'un média <strong>avant</strong> une étape coûteuse, et la</li></ul>
+<p>  validation finale.</p>
+<ul><li><strong>Pourquoi</strong> : piliers ⑤ + ② — on n'engage pas une dépense sur un média non conforme.</li><li><strong>Contient</strong> : <code>verdict</code> (conforme / alerte / forcé), <code>auteur</code>, <code>date</code>, <code>détails</code> (identité, cohérence,</li></ul>
+<p>  référence, look), <code>rapport</code> (historique des contrôles).</p>
+<ul><li><strong>Différenciation</strong> : le QC est un <strong>jugement d'aptitude technique</strong> (le média est-il sain ?), distinct de</li></ul>
+<p>  l'<strong>Évaluation de cohérence</strong> (le média sert-il l'<strong>intention</strong> ?). *(à confirmer ; défaut : deux objets,</p>
+<p>  axes différents.)*</p>
+<h2>23. Coût — <em>la mesure de dépense</em></h2>
+<ul><li><strong>Rôle</strong> : l'estimation et le relevé réel de ce que coûte une production (crédits, montant, temps).</li><li><strong>Pourquoi</strong> : piliers ⑤ + ① — l'effet (dépense) doit être explicite avant l'action, et tracé après.</li><li><strong>Contient</strong> : <code>estimé</code> (avant), <code>réel</code> (après), <code>crédits</code>, <code>temps</code>, <code>détail</code>, <code>action_liée</code>.</li><li><strong>Différenciation</strong> : le Coût est une <strong>mesure rattachée à une action de production</strong>, pas un média.</li></ul>
+<h2>24. Livrable — <em>le contenu validé pour diffusion</em></h2>
+<ul><li><strong>Rôle</strong> : un ensemble <strong>explicitement validé</strong> et <strong>autonome</strong>, prêt à diffuser (média final + script +</li></ul>
+<p>  légendes + hashtags + paramètres + infos + RAW).</p>
+<ul><li><strong>Pourquoi</strong> : piliers ⑥ + ③ — seul ce qui est validé entre ici ; tout y est pour diffuser sans</li></ul>
+<p>  reconstruire le contexte.</p>
+<ul><li><strong>Contient</strong> : <code>média_final</code>, <code>image(s)_source</code>, <code>script</code>, <code>légende_courte</code>, <code>légende_longue</code>,</li></ul>
+<p>  <code>hashtags</code>, <code>paramètres</code>, <code>infos_projet</code>, <code>coûts</code>, <code>RAW</code>, <code>version_source</code> (lien).</p>
+<ul><li><strong>Différenciation</strong> : un Livrable n'est <strong>ni</strong> candidate <strong>ni</strong> variante <strong>ni</strong> version : c'est un</li></ul>
+<p>  <strong>paquet validé et complet</strong>. Aucun média non validé n'y figure jamais.</p>
+<h2>25. Version — <em>l'instantané restaurable du projet</em></h2>
+<ul><li><strong>Rôle</strong> : un <strong>état figé du projet à un instant</strong> (média + réglages + créatifs), restaurable.</li><li><strong>Pourquoi</strong> : piliers ⑥ + ③ — revenir exactement à un état antérieur sans perdre les autres.</li><li><strong>Contient</strong> : <code>identifiant</code>, <code>date</code>, <code>libellé</code>, <code>média_référencé</code>, <code>instantané_paramètres</code>,</li></ul>
+<p>  <code>instantané_créatif</code>, <code>raison_retenue</code> <em>(mémoire : pourquoi cette version)</em>.</p>
+<ul><li><strong>Différenciation</strong> : la Version est un <strong>point de sauvegarde dans le temps</strong> ; le Livrable est un</li></ul>
+<p>  <strong>paquet de diffusion</strong>. Restaurer une Version <strong>ne supprime jamais</strong> les autres.</p>
+<h2>26. Publication — <em>l'acte de diffusion (le seul définitif)</em></h2>
+<ul><li><strong>Rôle</strong> : l'événement par lequel un Livrable est diffusé sur une plateforme.</li><li><strong>Pourquoi</strong> : pilier ⑥ — <strong>seul acte irréversible</strong> du domaine.</li><li><strong>Contient</strong> : <code>livrable_source</code> (lien), <code>plateforme</code>, <code>date</code>, <code>statut</code> (prêt-à-poster → publié),</li></ul>
+<p>  <code>identité_de_diffusion</code> <em>(à confirmer)</em>.</p>
+<ul><li><strong>Différenciation</strong> : la Publication est un <strong>événement</strong>, pas un média. <strong>Prêt-à-poster</strong> est un **état</li></ul>
+<p>  antérieur<strong> (Livrable complet, en attente), distinct de </strong>Publié** (acte consommé). *(à confirmer ;</p>
+<p>  défaut : Prêt-à-poster = état du Livrable, pas objet séparé.)*</p>
+<hr>
+<h1>FAMILLE 4 — MÉMOIRE &amp; CAPITALISATION</h1>
+<h2>27. Projet — <em>l'unité de production</em></h2>
+<ul><li><strong>Rôle</strong> : le conteneur d'une transformation « une Intention → un ou des Livrables ».</li><li><strong>Pourquoi</strong> : piliers ① → ⑥ — <strong>objet pivot</strong> qui regroupe tout et garde la cohérence.</li><li><strong>Contient</strong> : <code>intention</code>, <code>personnage_employé</code>, créatifs (référence/look/décor/ambiance/consigne/script/</li></ul>
+<p>  voix), <code>paramètres</code>, médias (candidates/variantes/média actif/RAW/montage), <code>livrables</code>, <code>versions</code>,</p>
+<p>  <code>décisions</code>, <code>coûts</code>, <code>QC</code>, <code>états</code> (avancement, diffusion), <code>créé_le</code>, <code>modifié_le</code>.</p>
+<ul><li><strong>Différenciation</strong> : le Projet <strong>contient</strong> ; la Série <strong>regroupe des projets</strong> ; l'Historique <strong>relate</strong>.</li></ul>
+<p>  Un Projet produit <strong>image seule / vidéo seule / les deux</strong> — jamais « projet image » vs « projet vidéo ».</p>
+<h2>28. Série — <em>le regroupement éditorial de projets</em></h2>
+<ul><li><strong>Rôle</strong> : relier plusieurs Projets partageant une ligne (même personnage, format récurrent, intention de</li></ul>
+<p>  fond).</p>
+<ul><li><strong>Pourquoi</strong> : piliers ④ + ③ — capitalisation d'une ligne éditoriale, mémoire d'ensemble, cohérence</li></ul>
+<p>  inter-projets (anti-répétition de sujets).</p>
+<ul><li><strong>Contient</strong> : <code>nom</code>, <code>ligne_éditoriale</code>, <code>projets_membres</code>, <code>personnage</code> <em>(souvent commun)</em>,</li></ul>
+<p>  <code>règles_de_cohérence</code>.</p>
+<ul><li><strong>Différenciation</strong> : Série = <strong>conteneur de Projets</strong>, pas un type de projet. *(à confirmer ; défaut :</li></ul>
+<p>  conteneur — raison : le projet reste autonome et peut exister hors série ; la série est un regroupement</p>
+<p>  par-dessus. À confirmer : une série « moule » imposant des réglages serait plutôt une Brique de</p>
+<p>  configuration.)*</p>
+<h2>29. Décision — <em>le choix tracé avec sa raison</em></h2>
+<ul><li><strong>Rôle</strong> : enregistrer un choix structurant <strong>et son pourquoi</strong> (garder un média, retenir une variante,</li></ul>
+<p>  assumer un écart, changer un look, publier).</p>
+<ul><li><strong>Pourquoi</strong> : pilier ③ (cœur) — rend le projet <strong>relisible des mois après</strong>.</li><li><strong>Contient</strong> : <code>date</code>, <code>objet_concerné</code>, <code>action</code>, <code>raison</code> (courte, optionnelle mais proposée), <code>auteur</code>.</li><li><strong>Différenciation</strong> : la Décision capte <strong>le pourquoi</strong> ; l'Historique capte <strong>la chronologie</strong> ; la</li></ul>
+<p>  Version capte <strong>l'état</strong>. C'est ce qui manque le plus aujourd'hui (le moteur trace l'action, pas la</p>
+<p>  raison).</p>
+<h2>30. Évaluation de cohérence — <em>la lecture d'alignement à l'intention</em></h2>
+<ul><li><strong>Rôle</strong> : un <strong>état dérivé</strong> (non saisi) qui, pour chaque <strong>pièce</strong>, indique si elle **sert encore</li></ul>
+<p>  l'intention<strong> ou </strong>signale une dérive<strong>, avec le </strong>pourquoi** du signal.</p>
+<ul><li><strong>Pourquoi</strong> : pilier ② (cœur) — matérialise la question centrale.</li><li><strong>Contient</strong> : par pièce — <code>pièce</code> (parmi : **message · image · look · décor · voix · script · montage ·</li></ul>
+<p>  rythme · légende · publication<strong>), <code>état</code> (alignée / à vérifier / non définie / </strong>écart assumé**),</p>
+<p>  <code>raison_du_signal</code>.</p>
+<ul><li><strong>Différenciation</strong> : l'Évaluation <strong>ne juge pas le goût</strong> et <strong>ne décide rien</strong> : elle **signale et</li></ul>
+<p>  localise<strong>. Distincte du QC (aptitude technique). Un </strong>écart assumé** est une Décision qui éteint le signal.</p>
+<h2>31. Historique — <em>la mémoire chronologique</em></h2>
+<ul><li><strong>Rôle</strong> : la trace ordonnée de tout ce qui s'est passé (projets, décisions, versions, productions,</li></ul>
+<p>  publications).</p>
+<ul><li><strong>Pourquoi</strong> : piliers ③ + ⑥ — mémoire permanente, base du retour en arrière et de l'audit.</li><li><strong>Contient</strong> : <code>entrées</code> chronologiques <code>{ date, objet, événement, raison? }</code>.</li><li><strong>Différenciation</strong> : l'Historique <strong>relate</strong> (mémoire) ; la Bibliothèque <strong>outille</strong> (réutilisation).</li></ul>
+<p>  L'Historique <strong>n'est pas</strong> un stock séparé : c'est la mémoire <strong>dérivée</strong> du même ensemble de Projets.</p>
+<h2>32. Bibliothèque — <em>le catalogue de briques réutilisables</em></h2>
+<ul><li><strong>Rôle</strong> : rassembler les <strong>Briques réutilisables</strong> (Looks, Décors, Ambiances, Presets, Consignes, Styles</li></ul>
+<p>  de sous-titres, Enchaînements) disponibles pour tout Projet.</p>
+<ul><li><strong>Pourquoi</strong> : pilier ④ — capitalisation transverse.</li><li><strong>Contient</strong> : collections de Briques, chacune avec sa <strong>provenance</strong>.</li><li><strong>Différenciation</strong> : la Bibliothèque est un <strong>outil de réemploi transverse</strong> ; l'Historique est une</li></ul>
+<p>  <strong>mémoire chronologique</strong>. En tirer une brique = <strong>copie explicite</strong> (étanchéité).</p>
+<h2>33. Brique réutilisable (Preset / acquis promu) — <em>l'unité de capitalisation</em></h2>
+<ul><li><strong>Rôle</strong> : un acquis (Look, Décor, Ambiance, réglages = Preset, Consigne, Style de sous-titres,</li></ul>
+<p>  Enchaînement de montage) <strong>promu</strong> pour être réemployé.</p>
+<ul><li><strong>Pourquoi</strong> : pilier ④ — transforme un succès ponctuel en actif réutilisable.</li><li><strong>Contient</strong> : <code>type</code>, <code>nom</code>, <code>contenu</code>, <code>provenance</code> (projet d'origine), <code>créée_le</code>.</li><li><strong>Différenciation</strong> : une Brique est <strong>détachée d'un projet</strong> et <strong>réutilisable</strong> ; un créatif « normal »</li></ul>
+<p>  est <strong>rattaché</strong> à son projet. La réutilisation <strong>copie</strong> la brique dans le projet cible (jamais d'héritage</p>
+<p>  silencieux).</p>
+<hr>
+<h1>RÉCAPITULATIF — LES DISTINCTIONS PIÉGEUSES</h1>
+<table><thead><tr><th>Distinction</th><th>La bonne question</th><th>Verdict</th></tr></thead><tbody><tr><td><strong>Référence vs Look vs Décor vs Ambiance vs Paramètres</strong></td><td>Référence = <strong>qui</strong> (identité stable) · Look = <strong>comment vêtu/stylisé</strong> · Décor = <strong>où</strong> (lieu) · Ambiance = <strong>quelle atmosphère</strong> (moyen de l'émotion) · Paramètres = <strong>réglages techniques</strong> (sans sens créatif)</td><td>5 objets distincts (Ambiance <em>à confirmer</em>)</td></tr><tr><td><strong>Candidate vs Variante vs Média actif vs Livrable vs Version</strong></td><td>Candidate = <strong>produite, pas jugée</strong> · Variante = <strong>alternative gardée</strong> · Média actif = <strong>rôle exclusif de source courante</strong> · Livrable = <strong>paquet validé pour diffusion</strong> · Version = <strong>instantané du projet dans le temps</strong></td><td>4 états « devenir » + 1 axe temporel</td></tr><tr><td><strong>Bibliothèque vs Historique</strong></td><td>Bibliothèque = <strong>réemploi transverse</strong> (briques) · Historique = <strong>mémoire chronologique</strong> (ce qui s'est passé)</td><td>2 rôles opposés</td></tr><tr><td><strong>Série vs Projet</strong></td><td>Projet = <strong>unité de production</strong> (1 intention → livrables) · Série = <strong>conteneur de projets</strong> (ligne éditoriale)</td><td>Série = conteneur <em>(à confirmer)</em></td></tr><tr><td><strong>Personnage vs Intention</strong></td><td>Personnage = <strong>qui</strong> (identité durable, transverse) · Intention = <strong>pourquoi</strong> (propre au projet)</td><td>2 objets distincts</td></tr></tbody></table>
+<hr>
+<h1>QUESTIONS DE MODÉLISATION OUVERTES (Phase 1 — à confirmer, E120)</h1>
+<table><thead><tr><th>#</th><th>Question</th><th>Défaut proposé</th><th>Raison</th></tr></thead><tbody><tr><td>M1</td><td><strong>Ambiance</strong> = objet ou attribut ?</td><td>Objet léger distinct</td><td>listée à part ; réutilisable sur plusieurs décors</td></tr><tr><td>M3</td><td><strong>Personnage</strong> possède-t-il Références/Looks ?</td><td>Oui (références + garde-robe)</td><td>un look n'a de sens que porté par un personnage</td></tr><tr><td>M4</td><td><strong>Message / Émotion / Public</strong> = objets ou attributs de l'Intention ?</td><td>Attributs riches de l'Intention</td><td>n'existent pas sans intention</td></tr><tr><td>M5</td><td><strong>Plateforme/Format/Durée</strong> = attributs de l'Objectif ou objets réutilisables ?</td><td>Attributs de l'Objectif</td><td>toujours liés ; <em>option</em> : profils réutilisables</td></tr><tr><td>M6</td><td><strong>Hashtags</strong> = objet distinct ou partie de la Légende ?</td><td>Objet distinct associé au Livrable</td><td>se renouvellent séparément du texte</td></tr><tr><td>M7</td><td><strong>Rythme</strong> = objet ou attribut du Montage ?</td><td>Attribut du Montage (mais pièce de cohérence)</td><td>n'existe pas hors d'un montage</td></tr><tr><td>M8</td><td><strong>Prêt-à-poster</strong> = état ou objet ?</td><td>État du Livrable</td><td>évite un stock séparé (source unique)</td></tr><tr><td>M9</td><td><strong>QC</strong> vs <strong>Évaluation de cohérence</strong> = un ou deux objets ?</td><td>Deux objets (axes différents)</td><td>aptitude technique ≠ alignement intention</td></tr><tr><td>M10</td><td><strong>Voix-signature</strong> = attribut du Personnage ?</td><td>Oui (capitalisable)</td><td>cohérence d'identité sonore</td></tr><tr><td>M2*</td><td><strong>Série</strong> = conteneur ou type de projet ?</td><td>Conteneur</td><td>le projet reste autonome ; <em>(relation — sera détaillée en Phase 2)</em></td></tr></tbody></table>
+<blockquote><em>M2 touche surtout les relations (Phase 2) ; rappelé ici car il conditionne le statut d'objet de la Série.</em></blockquote>
+<hr>
+<p><strong>Constat fondateur (rappel)</strong> : l'<strong>Intention</strong> est ici posée comme <strong>objet de premier niveau</strong> — c'est</p>
+<p>précisément ce qui <strong>manque</strong> au moteur aujourd'hui (<code>grep intention ui/*.js</code> = 0). Le reste</p>
+<p>(référence/look/décor/prompt) existe déjà comme <strong>moyens</strong> ; il leur manquait la <strong>fin</strong>.</p>
+<hr>
+<p>⏸️ <strong>FIN DE LA PHASE 1.</strong> Les phases 2 (Relations) · 3 (Cycle de vie) · 4 (Actions) · 5 (Règles) **ne sont</p>
+<p>pas traitées ici<strong> : elles attendent la </strong>validation de cet inventaire** par Etoile.</p>
+<p>_Phase 1 — inventaire des objets. Dérivé de E127 (6 piliers) et de la phrase centrale. Base factuelle :</p>
+<p>manifest existant. Aucune implémentation, aucune représentation. Lecture seule._</p></body></html>
