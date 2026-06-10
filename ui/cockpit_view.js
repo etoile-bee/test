@@ -65,7 +65,8 @@ function viewSource(flow, m) {
       // E123 — VALIDATION D'IMAGE EXPLICITE : devenir de l'image courante (rien n'est livrable sans action explicite)
       rows.push([{ text: '◀︎', cb: 'CAND_PREV' }, { text: '🎬 Aperçu candidat', cb: 'NOOP' }, { text: '▶︎', cb: 'CAND_NEXT' }]);
       rows.push([{ text: '✅ Garder', cb: 'CAND_KEEP' }, { text: '⭐ Livrable', cb: 'CAND_DELIVER' }, { text: '◫ Variante', cb: 'CAND_VAR' }]);
-      rows.push([{ text: '🔄 Régénérer', cb: 'CAND_REGEN' }, { text: '🎨 Éditer', cb: 'CAND_EDIT' }, { text: '🗑 Rejeter', cb: 'CAND_REJECT' }]);
+      rows.push([{ text: '🔄 Régénérer', cb: 'CAND_REGEN' }, { text: '🔁 Varier', cb: 'CAND_VARY' }, { text: '🎨 Éditer', cb: 'CAND_EDIT' }]);
+      rows.push([{ text: '🗑 Rejeter', cb: 'CAND_REJECT' }]);
     }
   } else {
     cap = hdr(m) + '\n<b>SOURCE</b> — média de la vidéo ?';
@@ -97,8 +98,8 @@ function viewParams(flow, m) {
       [{ text: '💬 Sous-titres ▸', cb: 'P_SUBS' }, { text: '🎵 Musique ▸', cb: 'P_MUS' }],
     ];
   }
-  // « 🎨 Ajuster » = sous-état inline (design C.9), pas un écran. + barre (Valider gated).
-  lignes.push([{ text: '🎨 Ajuster', cb: 'ADJUST' }]);
+  // « 🎨 Ajuster » = sous-état inline (design C.9). + Versions (Q4) + Préréglages (Q5) accessibles.
+  lignes.push([{ text: '🎨 Ajuster', cb: 'ADJUST' }, { text: '🕘 Versions', cb: 'VERSIONS' }, { text: '⭐ Préréglages', cb: 'PRESETS' }]);
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: lignes.concat(actionBar(flow, 'parametres', m)) };
 }
 

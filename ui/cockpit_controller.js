@@ -67,6 +67,22 @@ function createController(deps) {
     return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: [[{ text: '💲 Lancer', cb: 'GEN_CONFIRM' }, { text: '✖️ Annuler', cb: 'GEN_CANCEL' }]] };
   }
 
+  // Q4 — vue Versions (snapshot + restauration). Q5 — vue Préréglages (enregistrer + appliquer explicitement).
+  function versionsView() {
+    const m = manifest() || {}; const vs = m.versions || [];
+    const rows = [[{ text: '💾 Enregistrer version', cb: 'VERS_SNAP' }]];
+    vs.slice(-6).forEach(v => rows.push([{ text: '↩️ ' + (v.label || v.id), cb: 'VERS_RESTORE_' + v.id }]));
+    rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+    return { media: FLOW.previewMedia(m), raw: true, caption: '🕘 <b>Versions</b> · ' + vs.length + '\n<i>Restaurer ne supprime jamais les autres.</i>', rows: rows };
+  }
+  function presetsView() {
+    const m = manifest() || {}; const names = LS ? LS.listPresets(base, persona) : [];
+    const rows = [[{ text: '⭐ Enregistrer ce réglage', cb: 'PRESET_SAVE' }]];
+    names.slice(0, 8).forEach(n => rows.push([{ text: '⬇️ Appliquer « ' + n + ' »', cb: 'PRESET_APPLY_' + n }]));
+    rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+    return { media: FLOW.previewMedia(m), raw: true, caption: '⭐ <b>Préréglages</b> (persona)\n<i>Application = copie explicite dans ce projet (E124).</i>', rows: rows };
+  }
+
   // E123 — applique le devenir explicite d'une image candidate (via le store) + impact aval E115 si nécessaire.
   function candidateOutcome(outcome) {
     const rel = (manifest().image_candidates || [])[ui.candIdx];
@@ -113,6 +129,8 @@ function createController(deps) {
     if (ui.step === 'confirm') return confirmView();
     if (ui.step === 'planche') return VIEW.viewPlanche(manifest());
     if (ui.step === 'imgedit') return VIEW.viewImgEdit(manifest());
+    if (ui.step === 'versions') return versionsView();
+    if (ui.step === 'presets') return presetsView();
     return renderStep();
   }
 
@@ -139,6 +157,7 @@ function createController(deps) {
       if (ui.picker) { ui.picker = null; ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'impact') { ui.pendingSlice = null; ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render() }; }
       if (ui.step === 'imgedit' || ui.step === 'planche') { ui.step = 'source'; return { render: render() }; }
+      if (ui.step === 'versions' || ui.step === 'presets') { ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
       const p = FLOW.prevStep(ui.step);
       if (p) { ui.step = p; return { render: render() }; }
@@ -168,6 +187,8 @@ function createController(deps) {
     // Lot 6 (A5) — PUBLIER : sort de Prêt-à-poster, reste dans l'Historique (statut métier ; pas d'auto-post)
     if (a === 'PUBLISH') { S.publish(base, persona, ui.projectId, nowv()); return { render: render(), notice: '📣 Publié (retiré de la file, conservé en Historique)' }; }
     // Q4 — versions restaurables : snapshot + restauration (versions validées jamais perdues)
+    if (a === 'VERSIONS') { ui.step = 'versions'; return { render: render() }; }
+    if (a === 'PRESETS') { ui.step = 'presets'; return { render: render() }; }
     if (a === 'VERS_SNAP') { const id = S.snapshotVersion(base, persona, ui.projectId, 'version', nowv()); return { render: render(), notice: '💾 Version ' + id + ' enregistrée' }; }
     if (a.indexOf('VERS_RESTORE_') === 0) { S.restoreVersion(base, persona, ui.projectId, a.slice(13), nowv()); return { render: render(), notice: '↩️ Version restaurée' }; }
     // Q5 — préréglages persona : enregistrer le réglage courant ; appliquer EXPLICITEMENT (copie -> projet, E124-safe)
@@ -203,6 +224,13 @@ function createController(deps) {
     if (a === 'CAND_REJECT') return candidateOutcome('rejeter');
     if (a === 'CAND_REGEN') { const m = manifest(); const cands = generate(ui.flow, m) || []; if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = 'source'; return { render: render(), notice: '🔄 Régénéré' }; }
     if (a === 'CAND_EDIT') { ui.step = 'imgedit'; return { render: render(), notice: '🎨 Édition image' }; }
+    // Q2 — VARIER : nouvelle variante par prompt depuis l'image choisie ; la SOURCE est conservée (variantes), img2img au câblage
+    if (a === 'CAND_VARY') {
+      const rel = (manifest().image_candidates || [])[ui.candIdx];
+      if (rel) { S.setImageOutcome(base, persona, ui.projectId, rel, 'variante', nowv()); const m = manifest(); m.vary_from = rel; S.saveManifest(base, persona, ui.projectId, m, nowv()); }
+      ui.pendingGen = 'image'; ui.step = 'confirm';
+      return { render: render(), notice: '🔁 Varier (source conservée) — change le prompt puis lance' };
+    }
     // Lot 3 — planche-contact (aperçu) + sélection explicite d'une image (reste séparée, A7)
     if (a === 'PLANCHE') { ui.step = 'planche'; return { render: render() }; }
     if (a.indexOf('CAND_SEL_') === 0) { ui.candIdx = parseInt(a.slice(9), 10) || 0; ui.step = 'source'; return { render: render() }; }
