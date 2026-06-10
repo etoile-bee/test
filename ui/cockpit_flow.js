@@ -7,8 +7,10 @@
 //   - Module PUR : pas de dépendance Telegram ni d'I/O ; gates(manifest) -> bool. Pilotable par programme (compat Auto E7/C5).
 // ─────────────────────────────────────────────────────────────────────────────
 
-const FLOWS = ['photo', 'video'];
-const STEPS = ['source', 'parametres', 'finaliser']; // identique PHOTO/VIDÉO (symétrie verrou 10)
+// MODÈLE (A) — UN SEUL PROJET, deux PHASES (photo, vidéo) ; même grammaire par phase. Un seul manifest.
+const FLOWS = ['photo', 'video'];          // ici « flow » = PHASE du projet unique (pas un projet séparé)
+const PHASES = ['photo', 'video'];
+const STEPS = ['source', 'parametres', 'finaliser']; // identique aux 2 phases (symétrie verrou 10)
 const STEP_LABEL = { source: 'SOURCE', parametres: 'PARAMÈTRES', finaliser: 'FINALISER' };
 
 function qcPasse(m) { return !!(m && m.qc && (m.qc.verdict === 'ok' || m.qc.verdict === 'force')); }
@@ -56,8 +58,14 @@ function validate(flow, step, manifest) {
     return { ok: false, reason: (GATE_REASON[flow] && GATE_REASON[flow][step]) || 'Étape incomplète.' };
   }
   if (isLast(step)) {
-    // FINALISER validé (QC OK) -> lancer Final HD puis publication. (le caller exécute la génération payante)
-    return { ok: true, action: 'finaliser', effect: { statut_qualite: 'production', statut_publication: 'pret_a_poster' } };
+    // FINALISER validé (QC OK) -> Final HD. Effet selon la PHASE (modèle A) :
+    //  - phase VIDÉO : livrable final = la vidéo -> production + entre en PRÊT-À-POSTER.
+    //  - phase PHOTO : image finalisée (production) ; on propose ENSUITE la vidéo (go:video) ou la publication —
+    //    pas de passage automatique en prêt-à-poster (un projet avec vidéo finit par la vidéo).
+    if (flow === 'video') return { ok: true, action: 'finaliser', phase: 'video', effect: { statut_qualite: 'production', statut_publication: 'pret_a_poster' } };
+    // phase PHOTO : l'IMAGE est finalisée mais le PROJET reste EN COURS (la vidéo suit) -> aucun changement de statut projet ;
+    // le projet demeure « brouillon » (donc reste le projet courant/ré-éditable, modèle A) ; on propose la vidéo.
+    return { ok: true, action: 'finaliser', phase: 'photo', effect: {}, offer: 'video' };
   }
   return { ok: true, next: nextStep(step) };
 }
@@ -68,9 +76,26 @@ function resumeStep(flow, manifest) {
   return STEPS[STEPS.length - 1];
 }
 
+// ── MODÈLE (A) : PHASES d'un projet unique, ré-éditables et réversibles ──
+// La phase vidéo est « disponible » dès qu'une image est le média actif (E41 : l'image validée EST la source vidéo).
+function videoUnlocked(m) { return hasMedia(m); }
+// Phase courante DÉRIVÉE du manifest (E122 : reconstructible) : vidéo si un travail vidéo existe, sinon photo.
+function phaseOf(m) { return videoDownstreamExists(m) ? 'video' : 'photo'; }
+// L'aval VIDÉO existe-t-il ? (script / média vidéo / montage touché) — pour E115 (propagation Conserver/MàJ/Régénérer).
+function videoDownstreamExists(m) {
+  return hasScript(m) || !!(m && m.video_media) || !!(m && m.montage && m.montage.touched) || !!(m && m.livrables && m.livrables.video_final);
+}
+// Slices AMONT (phase photo) dont une modif peut impacter l'aval vidéo (E114/E115).
+const UPSTREAM_PHOTO = ['reference', 'look', 'decor', 'prompt', 'image', 'nb'];
+// Une modif d'un slice amont impacte-t-elle un aval VIDÉO déjà existant ? -> déclenche le prompt E115.
+function changeImpactsDownstream(m, slice) {
+  return UPSTREAM_PHOTO.indexOf(slice) >= 0 && videoDownstreamExists(m);
+}
+
 module.exports = {
-  FLOWS, STEPS, STEP_LABEL, GATES,
+  FLOWS, PHASES, STEPS, STEP_LABEL, GATES,
   steps, firstStep, stepIndex, nextStep, prevStep, isLast,
   previewMedia, canValidate, validate, resumeStep,
   qcPasse, hasScript, hasMedia,
+  videoUnlocked, phaseOf, videoDownstreamExists, changeImpactsDownstream, UPSTREAM_PHOTO,
 };

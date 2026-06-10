@@ -28,7 +28,9 @@ chk('PHOTO Valider(parametres) -> finaliser', r2.ok && r2.next === 'finaliser');
 let r3 = F.validate('photo', 'finaliser', avecMedia);
 chk('PHOTO finaliser BLOQUÉ sans QC (C4/E92)', r3.ok === false && /qualité/i.test(r3.reason));
 let r3b = F.validate('photo', 'finaliser', { media_actif: 'images/x.jpg', qc: { verdict: 'ok' } });
-chk('PHOTO finaliser OK après QC -> action finaliser + effet publication', r3b.ok && r3b.action === 'finaliser' && r3b.effect.statut_publication === 'pret_a_poster' && r3b.effect.statut_qualite === 'production');
+chk('(A) PHOTO finaliser OK -> action finaliser + offre vidéo (projet PAS encore pret_a_poster)', r3b.ok && r3b.action === 'finaliser' && r3b.offer === 'video' && !(r3b.effect && r3b.effect.statut_publication));
+let r3v = F.validate('video', 'finaliser', { media_actif: 'x', qc: { verdict: 'ok' } });
+chk('(A) VIDÉO finaliser OK -> production + PRÊT-À-POSTER (livrable final)', r3v.ok && r3v.effect.statut_publication === 'pret_a_poster' && r3v.effect.statut_qualite === 'production');
 
 // VIDÉO : parametres exige un script (gate différent mais grammaire identique)
 chk('VIDÉO source débloqué par média', F.canValidate('video', 'source', avecMedia) === true);

@@ -19,16 +19,36 @@ function createController(deps) {
   const nowv = () => (typeof deps.now === 'function' ? deps.now() : deps.now); // horodatage (valeur), injectable pour tests
 
   // === SEUL ÉTAT D'UI : des pointeurs (E122). Aucune donnée métier ici. ===
-  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null };
+  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null, pendingSlice: null };
 
   function manifest() { return ui.projectId ? S.loadManifest(base, persona, ui.projectId) : null; }
 
-  // Ouvre/crée le projet actif d'un flux ; l'étape est RECONSTRUITE depuis le manifest (E122 : pointeur dérivable).
+  // MODÈLE (A) : UN SEUL projet, plusieurs points d'entrée (phases). go:photo/go:video changent UNIQUEMENT
+  // la phase d'entrée DANS LE MÊME projet — jamais un projet séparé (E121/E122). L'étape est RECONSTRUITE.
   function ensureProject(flow) {
-    let cur = S.currentProject(base, persona);
+    let cur = S.currentProject(base, persona); // le projet en cours (un seul)
     if (!cur) { cur = { projectId: S.createProject(base, persona, {}, nowv()).projectId }; }
     ui.projectId = cur.projectId; ui.flow = flow; ui.candIdx = 0; ui.picker = null;
-    ui.step = FLOW.resumeStep(flow, manifest());
+    ui.step = FLOW.resumeStep(flow, manifest()); // vidéo : source auto-satisfaite par l'image validée (E41)
+  }
+
+  // Vue d'IMPACT E115 (Conserver / Mettre à jour / Régénérer) — jamais d'effacement silencieux de l'aval.
+  function impactView(slice) {
+    const m = manifest();
+    return {
+      media: FLOW.previewMedia(m), raw: true,
+      caption: '⚠️ <b>Impact aval</b> — modifier « ' + (slice || ui.pendingSlice) + '» peut affecter la vidéo déjà commencée.',
+      rows: [
+        [{ text: '✅ Conserver l\'aval', cb: 'PX_KEEP' }, { text: '🔄 Mettre à jour', cb: 'PX_UPDATE' }, { text: '♻️ Régénérer', cb: 'PX_REGEN' }],
+      ],
+    };
+  }
+  // Applique une modif AMONT (photo) ; si l'aval vidéo existe -> prompt E115 AVANT de continuer.
+  // returnStep = étape où revenir après application (on NE saute PAS via resumeStep pendant la navigation active).
+  function applyUpstream(slice, mutate, returnStep) {
+    const m = manifest(); if (m) { mutate(m); S.saveManifest(base, persona, ui.projectId, m, nowv()); }
+    if (FLOW.changeImpactsDownstream(manifest(), slice)) { ui.pendingSlice = slice; ui.step = 'impact'; return { render: impactView(slice) }; }
+    ui.picker = null; if (returnStep) ui.step = returnStep; return { render: render() };
   }
 
   function renderStep() {
@@ -51,6 +71,7 @@ function createController(deps) {
     if (ui.step === 'lib') return LIB.grid(ui.libKey, libItems(ui.libKey), ui.libPage);
     if (ui.step === 'libdetail') { const it = libItems(ui.libKey)[ui.candIdx] || {}; return LIB.detail(ui.libKey, ui.candIdx, it); }
     if (ui.step === 'picker') return pickerView(ui.picker, manifest());
+    if (ui.step === 'impact') return impactView();
     return renderStep();
   }
 
@@ -75,8 +96,13 @@ function createController(deps) {
     if (a === 'RESUME') { ui.picker = null; ui.step = ui.flow ? FLOW.resumeStep(ui.flow, manifest()) : 'home'; return { render: render() }; }
     if (a === 'BACK') {
       if (ui.picker) { ui.picker = null; ui.step = 'parametres'; return { render: render() }; }
+      if (ui.step === 'impact') { ui.pendingSlice = null; ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
-      const p = FLOW.prevStep(ui.step); ui.step = p || 'home'; if (!p) ui.flow = null; return { render: render() };
+      const p = FLOW.prevStep(ui.step);
+      if (p) { ui.step = p; return { render: render() }; }
+      // (A) RÉVERSIBLE : depuis VIDÉO·source, ⬅ revient à PHOTO·finaliser (mêmes données, rien perdu)
+      if (ui.flow === 'video') { ui.flow = 'photo'; ui.step = 'finaliser'; return { render: render() }; }
+      ui.flow = null; ui.step = 'home'; return { render: render() };
     }
 
     // Ouvrir un projet existant (depuis RÉCENTS/HISTORIQUE) — pointeur projectId, étape reconstruite
@@ -102,14 +128,34 @@ function createController(deps) {
     if (a === 'CAND_PREV') { ui.candIdx = Math.max(0, ui.candIdx - 1); return { render: render() }; }
     if (a === 'CAND_NEXT') { const m = manifest(); const n = (m.image_candidates || []).length; ui.candIdx = Math.min(n - 1, ui.candIdx + 1); return { render: render() }; }
     if (a === 'CAND_PICK') {
-      // SÉLECTION EXPLICITE -> média validé devient média ACTIF dans le dossier (propagation C.4/E37)
-      const m = manifest(); const rel = (m.image_candidates || [])[ui.candIdx];
-      if (rel) S.setActiveMedia(base, persona, ui.projectId, rel, 'image', nowv());
-      return { render: render(), notice: '✅ Image active' };
+      // SÉLECTION EXPLICITE -> média validé devient média ACTIF (propagation C.4/E37) ; impact aval E115 si vidéo commencée
+      const rel = (manifest().image_candidates || [])[ui.candIdx];
+      return applyUpstream('image', (m) => { if (rel) { m.media_actif = rel; m.historique_versions = m.historique_versions || []; m.historique_versions.push({ ts: nowv(), etape: 'image', action: 'validé', ref: rel }); } }, 'source');
     }
 
     // Paramètres : ouvrir un picker focalisé (1 décision) — pas de surcharge
     if (a.indexOf('P_') === 0) { ui.picker = a.slice(2).toLowerCase(); ui.step = 'picker'; return { render: render() }; }
+    // Application d'une valeur de picker : SET_<champ>=<valeur> -> écrit le manifest (amont) + impact E115 éventuel
+    if (a.indexOf('SET_') === 0) {
+      const body = a.slice(4); const eq = body.indexOf('='); const field = (eq >= 0 ? body.slice(0, eq) : body).toLowerCase(); const val = eq >= 0 ? body.slice(eq + 1) : '';
+      const sliceMap = { ref: 'reference', tenue: 'look', decor: 'look', prompt: 'prompt', nb: 'nb' };
+      const slice = sliceMap[field] || field;
+      return applyUpstream(slice, (m) => {
+        if (field === 'ref') { m.reference = Object.assign({}, m.reference, { label: val }); }
+        else if (field === 'tenue') { m.look = m.look || {}; m.look.tenue = val; }
+        else if (field === 'decor') { m.look = m.look || {}; m.look.decor = val; }
+        else if (field === 'prompt') { m.prompts = [{ role: 'image', name: val || 'défaut', text: (m.prompts && m.prompts[0] && m.prompts[0].text) || '' }]; }
+        else if (field === 'nb') { m.parametres.nb_images = parseInt(val, 10) || 1; }
+      }, 'parametres');
+    }
+    // E115 — résolution de l'impact aval (jamais d'effacement silencieux)
+    if (a === 'PX_KEEP') { ui.pendingSlice = null; const m = manifest(); if (m) { m._dirty = null; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render(), notice: '✅ Aval conservé' }; }
+    if (a === 'PX_UPDATE') { ui.pendingSlice = null; const m = manifest(); if (m) { m._dirty = { video: true }; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render(), notice: '🔄 Aval à resynchroniser' }; }
+    if (a === 'PX_REGEN') {
+      ui.pendingSlice = null; const m = manifest();
+      if (m) { m.scripts = []; m.video_media = null; m.montage = { touched: false }; if (m.livrables) m.livrables.video_final = null; m._dirty = null; S.saveManifest(base, persona, ui.projectId, m, nowv()); }
+      ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render(), notice: '♻️ Aval réinitialisé' };
+    }
 
     // QC (C4/E92) — ENREGISTRÉ dans le dossier + rapport QC (jamais en UI)
     if (a === 'QC_RUN') { S.recordQC(base, persona, ui.projectId, 'ok', { identite: true, coherence: true, reference: true, look: true }, 'auto', nowv()); return { render: render() }; }
@@ -122,9 +168,16 @@ function createController(deps) {
       const r = FLOW.validate(ui.flow, ui.step, manifest());
       if (!r.ok) return { render: render(), notice: r.reason };
       if (r.action === 'finaliser') {
-        const m = manifest(); m.statut_qualite = r.effect.statut_qualite; m.statut_publication = r.effect.statut_publication;
+        const m = manifest();
+        if (r.effect.statut_qualite) m.statut_qualite = r.effect.statut_qualite;
+        if (r.effect.statut_publication) m.statut_publication = r.effect.statut_publication;
         S.saveManifest(base, persona, ui.projectId, m, nowv());
-        return { render: render(), notice: '🚀 Final HD (branché au câblage)' };
+        if (r.offer === 'video') {
+          // (A) sans rupture : l'image finalisée alimente NATURELLEMENT la vidéo (même projet, E41/E43)
+          ui.flow = 'video'; ui.step = FLOW.resumeStep('video', manifest());
+          return { render: render(), notice: '✅ Image finalisée → vidéo' };
+        }
+        return { render: render(), notice: '🚀 Final HD → Prêt-à-poster' };
       }
       ui.step = r.next; return { render: render() };
     }
