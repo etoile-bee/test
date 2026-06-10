@@ -1,0 +1,46 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>AUDIT DU STATUT DES EXIGENCES — aucune extension cachée ?</h1>
+<blockquote><strong>Statut : AUDIT (préalable obligatoire, gate strict).</strong> Objectif : <strong>démontrer</strong> qu'entre le modèle</blockquote>
+<blockquote>consolidé et aujourd'hui, il n'y a eu <strong>aucune extension cachée du système</strong> — uniquement des</blockquote>
+<blockquote><strong>CLARIFICATIONS</strong>, des <strong>FORMALISATIONS</strong> et des <strong>preuves</strong>. <strong>Aucune implémentation.</strong> Live intact ·</blockquote>
+<blockquote>zéro dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Trois statuts stricts</strong> : <strong>CLARIFICATION</strong> (précise un acquis existant) · <strong>FORMALISATION</strong> (met en</blockquote>
+<blockquote>forme/structure un acquis existant) · <strong>NOUVELLE RÈGLE</strong> (introduit un objet/invariant/responsabilité/</blockquote>
+<blockquote>règle métier/comportement système <strong>non déjà validé</strong>).</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>RÈGLE DURE</strong> : <strong>une seule</strong> « nouvelle règle » → <strong>ARRÊT</strong>, signalement, <strong>PART 2 NON lancée</strong>.</blockquote>
+<hr>
+<h2>TABLEAU DES E### (du modèle consolidé à aujourd'hui)</h2>
+<table><thead><tr><th>E###</th><th>Énoncé court</th><th>STATUT</th><th>ACQUIS-SOURCE précis (déjà validé)</th></tr></thead><tbody><tr><td><strong>E118</strong></td><td>Protocole qualité avant chaque livraison (12 étapes / 8 tests)</td><td><strong>FORMALISATION</strong></td><td>discipline qualité déjà exigée : [[E116]] (grille parcours) · [[E117]] (garde-fou amont) · [[E72]] (filet/tests)</td></tr><tr><td><strong>E119</strong></td><td>Méthode de livraison unique cohérente</td><td><strong>FORMALISATION</strong></td><td>[[E117]] (gouvernance) · [[E71]] (maquette d'abord) — met en forme la séquence déjà voulue</td></tr><tr><td><strong>E120</strong></td><td>Conformité aux exigences validées (relecture E1→…, tableau)</td><td><strong>FORMALISATION</strong></td><td>[[E116]]/[[E117]] — formalise la discipline de conformité déjà requise</td></tr><tr><td><strong>E121</strong></td><td>Source de données unique (RÉCENTS = vue de l'Historique)</td><td><strong>FORMALISATION</strong></td><td>[[E52]]/[[E93]]/[[E94]] (Historique = mémoire complète) → devient <strong>INV-10</strong></td></tr><tr><td><strong>E122</strong></td><td>L'UI/les vues ne détiennent jamais l'état</td><td><strong>FORMALISATION</strong></td><td>[[E5]]/[[E6]] (état conservé/repris) → devient <strong>INV-10</strong> + garde-fou câblage</td></tr><tr><td><strong>E123</strong></td><td>Livrables explicites (validation d'image ; sélection Image/Vidéo)</td><td><strong>FORMALISATION</strong></td><td>[[E37]] (sélection) · [[E57]]/[[E96]] (prêt-à-poster/validation) → objet <strong>Livrable</strong></td></tr><tr><td><strong>E124</strong></td><td>Étanchéité inter-projets (réglages ne fuient jamais)</td><td><strong>FORMALISATION</strong></td><td>[[E102]] (non-réutilisation auto des paramètres) + incident « filtre couleur » → devient <strong>INV-11</strong></td></tr><tr><td><strong>E125</strong></td><td>Dossier livrable autonome</td><td><strong>FORMALISATION</strong></td><td>[[E93]] (projet unique complet) · [[E57]] → objet <strong>Livrable</strong> (paquet)</td></tr><tr><td><strong>E126</strong></td><td>Arbitrage proactif par module (zones grises remontées)</td><td><strong>FORMALISATION</strong></td><td>[[E120]]/[[E117]] — formalise la remontée d'arbitrages déjà voulue</td></tr><tr><td><strong>E127</strong></td><td>Modèle métier = 6 piliers (référence absolue)</td><td><strong>FORMALISATION</strong></td><td><strong>modèle métier validé par Etoile</strong> (les 6 piliers sont sa formulation) ; synthétise E1→E126</td></tr><tr><td><strong>E128</strong></td><td>Étanchéité des responsabilités (3 règles : M15 unique · geste = mapping · Atelier = faits-médias)</td><td><strong>CLARIFICATION</strong></td><td>conséquences de [[E122]] (UI ne détient pas l'état) + architecture 5 espaces + audit d'étanchéité ; M15 = arbitrage M15 déjà validé</td></tr><tr><td><strong>E129</strong></td><td>Responsabilité du sens (clarifications des Lois I/II)</td><td><strong>CLARIFICATION</strong></td><td><strong>Lois I/II</strong> déjà validées (E127/Conscience) + frontière du miroir = A</td></tr><tr><td><strong>E130</strong></td><td>Règle de lecture (3 vérités : monde / projet / lecture dérivée)</td><td><strong>CLARIFICATION</strong></td><td>[[E122]] + [[E128]] + architecture (Socle/Univers/Conscience déjà validés)</td></tr></tbody></table>
+<hr>
+<h2>ÉLÉMENTS CONNEXES (non-E###) — vérifiés pour honnêteté</h2>
+<ul><li><strong>M1→M18</strong> (décisions de modélisation) : <strong>arbitrages validés par Etoile</strong> lors de la phase modèle</li></ul>
+<p>  (Ambiance/Série/Personnage/Intention composite/…/Univers/étanchéité M12). → <strong>acquis validés</strong>, pas des</p>
+<p>  E### nouvelles.</p>
+<ul><li><strong>INV-1→INV-15</strong> : <strong>invariants nommés et validés</strong> avec le modèle v2 (INV-15 ajouté à la demande</li></ul>
+<p>  d'Etoile). → <strong>acquis validés</strong>.</p>
+<ul><li><strong>Signaux calme/maturité/tension/priorité — CALIBRATION (A/B)</strong> : <strong>explicitement NON gravée</strong> ; **point</li></ul>
+<p>  d'arrêt signalé<strong> dans <code>STRUCTURE_CONSCIENCE §8</code>, </strong>en attente d'autorisation d'Etoile<strong>. → </strong>n'introduit</p>
+<p>  AUCUNE règle<strong> (rien n'a été défini en douce) ; c'est un </strong>point ouvert**, pas une extension.</p>
+<hr>
+<h2>VÉRIFICATION ADVERSARIALE (recherche d'une « nouvelle règle » cachée)</h2>
+<ul><li><strong>Un nouvel OBJET introduit sans validation ?</strong> → <strong>non.</strong> Univers / Média produit unifié / Intention</li></ul>
+<p>  composite / polarité protégée (niv.3) ont tous été <strong>validés</strong> (M11/M20/M4/M23). Aucun objet surgi en douce.</p>
+<ul><li><strong>Un nouvel INVARIANT non validé ?</strong> → <strong>non.</strong> INV-1→15 validés ; E128/E129/E130 sont des <strong>clarifications</strong></li></ul>
+<p>  d'invariants/lois existants.</p>
+<ul><li><strong>Une nouvelle RESPONSABILITÉ système non validée ?</strong> → <strong>non.</strong> Les 5 espaces <strong>redistribuent</strong> des</li></ul>
+<p>  responsabilités <strong>déjà décrites</strong> (cartographie/architecture validées), sans en créer.</p>
+<ul><li><strong>Un nouveau COMPORTEMENT système non validé ?</strong> → <strong>non.</strong> Le seul candidat (calibration des signaux) a</li></ul>
+<p>  été <strong>arrêté et signalé</strong>, <strong>pas</strong> introduit.</p>
+<ul><li><strong>Une nouvelle RÈGLE MÉTIER ?</strong> → <strong>non.</strong> E118→E130 sont <strong>Clarification ou Formalisation</strong> d'acquis</li></ul>
+<p>  validés.</p>
+<hr>
+<h2>VERDICT — PART 1</h2>
+<blockquote><strong>🟢 AUCUNE EXTENSION CACHÉE.</strong> Toutes les E### (E118→E130) sont des <strong>CLARIFICATIONS</strong> ou des</blockquote>
+<blockquote><strong>FORMALISATIONS</strong> d'acquis <strong>déjà validés</strong> ; aucune n'est une <strong>NOUVELLE RÈGLE</strong> (aucun objet/invariant/</blockquote>
+<blockquote>responsabilité/règle/comportement non validé introduit). Le seul élément qui aurait nécessité une règle</blockquote>
+<blockquote>nouvelle (calibration des signaux) a été <strong>explicitement arrêté et signalé</strong>, <strong>non introduit</strong>.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>→ GATE OUVERTE : PART 2 (audit global des 5 espaces) AUTORISÉE.</strong></blockquote>
+<p>_Audit du statut des exigences — préalable à l'audit global. Aucune implémentation, aucun nouvel objet. Live</p>
+<p>intact. Lecture seule._</p></body></html>
