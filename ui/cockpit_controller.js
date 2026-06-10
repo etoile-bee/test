@@ -98,6 +98,8 @@ function createController(deps) {
     if (ui.step === 'picker') return pickerView(ui.picker, manifest());
     if (ui.step === 'impact') return impactView();
     if (ui.step === 'confirm') return confirmView();
+    if (ui.step === 'planche') return VIEW.viewPlanche(manifest());
+    if (ui.step === 'imgedit') return VIEW.viewImgEdit(manifest());
     return renderStep();
   }
 
@@ -123,6 +125,7 @@ function createController(deps) {
     if (a === 'BACK') {
       if (ui.picker) { ui.picker = null; ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'impact') { ui.pendingSlice = null; ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render() }; }
+      if (ui.step === 'imgedit' || ui.step === 'planche') { ui.step = 'source'; return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
       const p = FLOW.prevStep(ui.step);
       if (p) { ui.step = p; return { render: render() }; }
@@ -171,7 +174,18 @@ function createController(deps) {
     if (a === 'CAND_VAR') return candidateOutcome('variante');
     if (a === 'CAND_REJECT') return candidateOutcome('rejeter');
     if (a === 'CAND_REGEN') { const m = manifest(); const cands = generate(ui.flow, m) || []; if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = 'source'; return { render: render(), notice: '🔄 Régénéré' }; }
-    if (a === 'CAND_EDIT') { ui.picker = 'image'; ui.step = 'picker'; return { render: render(), notice: '🎨 Édition image' }; }
+    if (a === 'CAND_EDIT') { ui.step = 'imgedit'; return { render: render(), notice: '🎨 Édition image' }; }
+    // Lot 3 — planche-contact (aperçu) + sélection explicite d'une image (reste séparée, A7)
+    if (a === 'PLANCHE') { ui.step = 'planche'; return { render: render() }; }
+    if (a.indexOf('CAND_SEL_') === 0) { ui.candIdx = parseInt(a.slice(9), 10) || 0; ui.step = 'source'; return { render: render() }; }
+    // Lot 4 — ÉDITION IMAGE PAR PROJET (E124 : écrit dans le manifest du projet, JAMAIS global)
+    if (a.indexOf('IMG_') === 0) {
+      if (a === 'IMG_RESET') { const m = manifest(); m.parametres.image_fx = {}; m.parametres.crop = null; S.saveManifest(base, persona, ui.projectId, m, nowv()); return { render: render(), notice: '🔄 Réinitialisé' }; }
+      if (a === 'IMG_CROP') { S.setCrop(base, persona, ui.projectId, { tool: 'crop', ratio: 'free' }, nowv()); return { render: render(), notice: '✂️ Recadrage (outil)' }; }
+      const d = { IMG_BR_UP: ['brightness', 5], IMG_BR_DN: ['brightness', -5], IMG_CT_UP: ['contrast', 5], IMG_CT_DN: ['contrast', -5], IMG_SA_UP: ['saturation', 5], IMG_SA_DN: ['saturation', -5], IMG_TE_UP: ['temperature', 100], IMG_TE_DN: ['temperature', -100] }[a];
+      if (d) { const m = manifest(); const fx = Object.assign({}, m.parametres.image_fx); fx[d[0]] = (fx[d[0]] || 0) + d[1]; S.setImageFx(base, persona, ui.projectId, fx, nowv()); }
+      return { render: render() };
+    }
     // E123 — sélection des livrables en FINALISER (Image/Vidéo)
     if (a === 'LIV_IMG') { const m = manifest(); const cur = !(m.livrables_select && m.livrables_select.image === false); S.setLivrableSelect(base, persona, ui.projectId, 'image', !cur, nowv()); return { render: render() }; }
     if (a === 'LIV_VID') { const m = manifest(); const cur = !(m.livrables_select && m.livrables_select.video === false); S.setLivrableSelect(base, persona, ui.projectId, 'video', !cur, nowv()); return { render: render() }; }

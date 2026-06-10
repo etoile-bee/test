@@ -55,7 +55,7 @@ function viewSource(flow, m) {
   let rows, cap;
   if (flow === 'photo') {
     cap = hdr(m) + '\n<b>SOURCE</b> — d\'où vient l\'image ?';
-    const nbRow = [1, 2, 3].map(n => ({ text: (n === nb ? '🔵 ' : '') + n + (n > 1 ? ' imgs' : ' img'), cb: 'NB_' + n })); // E35
+    const nbRow = [1, 2, 3, 4, 6].map(n => ({ text: (n === nb ? '🔵' : '') + n, cb: 'NB_' + n })); // E35 (Lot3 : 1/2/3/4/6, images séparées)
     rows = [
       [{ text: '✨ Nouveau look', cb: 'SRC_NEW' }, { text: '🖼 Galerie', cb: 'SRC_GAL' }, { text: '📤 Upload', cb: 'SRC_UP' }],
       nbRow,
@@ -124,6 +124,37 @@ function viewFinaliser(flow, m) {
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows.concat(actionBar(flow, 'finaliser', m)) };
 }
 
+// Lot 3 — VUE PLANCHE-CONTACT (aperçu d'ensemble des N images séparées ; sélection explicite, A7).
+// Le composite n'est qu'un APERÇU : chaque image reste un fichier séparé, sélectionnable/réutilisable.
+function viewPlanche(m) {
+  const cands = (m && m.image_candidates) || [];
+  const rows = [];
+  for (let i = 0; i < cands.length; i += 3) {
+    rows.push(cands.slice(i, i + 3).map((c, j) => ({ text: '🖼 ' + (i + j + 1), cb: 'CAND_SEL_' + (i + j) })));
+  }
+  rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+  return { media: FLOW.previewMedia(m), raw: true, caption: hdr(m) + '\n▦ <b>Planche contact</b> · ' + cands.length + ' images\n<i>Aperçu d\'ensemble — touche une image pour la traiter (séparée).</i>', rows: rows };
+}
+
+// Lot 4 — ÉDITION IMAGE (boîte à outils) PAR PROJET (E124 : écrit dans le manifest du projet, jamais global).
+function viewImgEdit(m) {
+  const fx = (m && m.parametres && m.parametres.image_fx) || {};
+  const v = (k) => (fx[k] != null ? fx[k] : 0);
+  const crop = (m && m.parametres && m.parametres.crop) ? '✂️ recadré' : '✂️ Recadrer';
+  return {
+    media: FLOW.previewMedia(m), raw: true,
+    caption: hdr(m) + '\n🎨 <b>Édition image</b> <i>(ce projet uniquement)</i>',
+    rows: [
+      [{ text: '➖', cb: 'IMG_BR_DN' }, { text: '☀️ ' + v('brightness'), cb: 'NOOP' }, { text: '➕', cb: 'IMG_BR_UP' }],
+      [{ text: '➖', cb: 'IMG_CT_DN' }, { text: '◐ ' + v('contrast'), cb: 'NOOP' }, { text: '➕', cb: 'IMG_CT_UP' }],
+      [{ text: '➖', cb: 'IMG_SA_DN' }, { text: '🌈 ' + v('saturation'), cb: 'NOOP' }, { text: '➕', cb: 'IMG_SA_UP' }],
+      [{ text: '➖', cb: 'IMG_TE_DN' }, { text: '🌡 ' + v('temperature'), cb: 'NOOP' }, { text: '➕', cb: 'IMG_TE_UP' }],
+      [{ text: crop, cb: 'IMG_CROP' }, { text: '🔄 Réinit', cb: 'IMG_RESET' }],
+      [{ text: '◀ Retour', cb: 'BACK' }],
+    ],
+  };
+}
+
 // Dispatcher d'étape.
 function view(flow, step, m) {
   if (step === 'source') return viewSource(flow, m);
@@ -132,4 +163,4 @@ function view(flow, step, m) {
   return home();
 }
 
-module.exports = { home, view, viewSource, viewParams, viewFinaliser, actionBar, hdr };
+module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, actionBar, hdr };
