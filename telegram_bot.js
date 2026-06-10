@@ -1631,6 +1631,9 @@ try{ Object.keys(MEDIA_MODULES).forEach(k=>{ if(uiRouter.REGISTRY[k]) uiRouter.R
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
+// [fix/restart-feedback] accusé UNIVERSEL : toast si clic bouton (callback dispo), sinon (commande TAPÉE = pas de callback)
+// un message bref éphémère. Corrige /restart /stop /status qui ne renvoyaient AUCUN retour quand tapés.
+async function ack(text){ try{ if(lastCbId){ await toast(text); } else { await system(text); } }catch(e){} }
 // Édite l'écran d'édition EN PLACE (photo de travail + boutons), comme la carte
 async function editScreen(caption,rows){
   let frame=null;try{const f=await renderWorkingFrame(null,true);frame=f&&f.frame;if(f)editPrevFrame=f.frame;}catch(e){} /*éditeur : grading visible*/
@@ -2827,10 +2830,10 @@ async function handle(upd){
       [{text:'⏹ Tout arrêter',callback_data:'TECH_STOP'}],
       [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
     ]);return;}
-    if(d==='TECH_STATUS'){await toast(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3] statut = toast métier, pas de message technique*/
+    if(d==='TECH_STATUS'){await ack(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3] statut = toast métier, pas de message technique*/
     if(d==='TECH_RESTART'){
-      if(proc||testProc){await toast('⏳ Une création est en cours — patiente.');return;}
-      await toast('⏳ Un instant…'); /*[C3] redémarrage silencieux (toast, pas de message technique)*/
+      if(proc||testProc){await ack('⏳ Une création est en cours — patiente.');return;}
+      await ack('⏳ Un instant, je reviens…'); /*[C3] redémarrage silencieux (toast, pas de message technique)*/
       try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
       try{releaseLock();}catch(e){}process.exit(0);return;
     }
@@ -2840,7 +2843,7 @@ async function handle(upd){
       if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
       if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} if(!(genJob&&genJob.running))genJob=null;
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
-      state='idle';await toast(stopped?'⏹ Arrêté.':'✅ Rien en cours.');return; /*[C3] toast métier*/
+      state='idle';await ack(stopped?'⏹ Arrêté.':'✅ Rien en cours.');return; /*[C3] toast métier*/
     }
     // [chantier2] FLUX UNIFIÉ : toutes les entrées de génération legacy (wizard anglais T_/L_/D_,
     // GO/SCRIPT_OK/AUTO_ALL/EXPRESS_GO) redirigent vers LA CARTE (openCard) — anti-bypass, zéro anglais.
@@ -3423,13 +3426,13 @@ async function handle(upd){
     try{_k.execSync('pkill -9 -f "curl.*tmpfiles" 2>/dev/null');}catch(e){}
     try{_k.execSync('pkill -9 -f "ffmpeg.*/tmp/wf_" 2>/dev/null');}catch(e){}
     state='idle';
-    await toast(stopped?'⏹ Arrêté.':'✅ Rien en cours.'); /*[C3] toast métier, plus d'anglais technique*/
+    await ack(stopped?'⏹ Arrêté.':'✅ Rien en cours.'); /*[C3] toast métier, plus d'anglais technique*/
     return;
   }
-  if(txt==='/status'){await toast(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3]*/
+  if(txt==='/status'){await ack(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3]*/
   if(txt==='/restart'){ /*restartcmd v1 : redemarrage depuis le chat — pm2 relance automatiquement a l'exit*/
-    if(proc||testProc){await toast('⏳ Une création est en cours — patiente.');return;}
-    await toast('⏳ Un instant…'); /*[C3] redémarrage silencieux*/
+    if(proc||testProc){await ack('⏳ Une création est en cours — patiente.');return;}
+    await ack('⏳ Un instant, je reviens…'); /*[C3] redémarrage silencieux*/
     /*restartcmd v2 : ACK de l'update aupres de Telegram AVANT de mourir — sinon /restart est relivre en boucle*/
     try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
     releaseLock();process.exit(0);
