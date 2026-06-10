@@ -29,12 +29,11 @@ function navRows(mod, ctx) {
     else nav.push({ text: '➡ Suivant 🔒', callback_data: 'RLOCK' }); // désactivé tant que le choix n'est pas fait
   }
   if (nav.length) rows.push(nav);
-  // E112 : barre SYSTÈME figée — 🛑 Stop | 🔄 Restart | ❓ Aide (Aide TOUJOURS à droite)
-  rows.push([
-    { text: '🛑 Stop', callback_data: 'TECH_STOP' },
-    { text: '🔄 Restart', callback_data: 'TECH_RESTART' },
-    { text: '❓ Aide', callback_data: 'RH_' + mod.id },
-  ]);
+  // [v6 · #5] barre système DISCRÈTE : juste ❓ Aide (les contrôles techniques Stop/Restart ne trônent plus
+  // dans l'expérience métier ; Stop reste accessible via /stop, et n'apparaît que pendant une génération).
+  const sys = [{ text: '❓ Aide', callback_data: 'RH_' + mod.id }];
+  if (ctx && ctx.busy) sys.unshift({ text: '🛑 Stop', callback_data: 'TECH_STOP' }); // Stop visible uniquement si une création tourne
+  rows.push(sys);
   return rows;
 }
 

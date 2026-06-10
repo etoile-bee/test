@@ -1129,7 +1129,7 @@ async function uiShow(id,caption,rows,mode){
   const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)activeRootMid=nm; return nm; // navigate (ou bloc actif disparu) : NOUVEAU bloc racine
 }
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
-function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw),placeholder:()=>wsPlaceholder()}; } // [MC2] placeholder garanti pour la ceinture routeur
+function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw),placeholder:()=>wsPlaceholder(),busy:!!(proc||(genJob&&genJob.running)||newlook.busy)}; } // [MC2] placeholder ; [#5] busy -> bouton Stop visible seulement en génération
 // [L0-2a-bis] WORKSPACE MÉDIA (canvas du projet PHOTO) : bloc photo unique édité EN PLACE (vignette + contexte), distinct du menu texte.
 let wsOpen=false; // un workspace média (newlook.mediaId) est ouvert
 let refGalIdx=0;  // pointeur galerie pour le choix de référence/look
@@ -1205,7 +1205,15 @@ async function afterCoreChange(p,slice,ret){
 }
 
 function draftTag(){ try{ return genState.activeDraftId?genState.activeDraftId.replace('draft_','').replace(/-/g,'/').slice(0,16):'(nouveau)'; }catch(e){ return '(nouveau)'; } }
-function projName(p){ return (p&&p.name)||draftTag(); }
+// [v6] LIBELLÉS MÉTIER (plus de noms de fichiers / ids techniques dans l'UI)
+const _MOIS=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+function draftLabel(){ try{ const id=genState.activeDraftId; if(!id)return 'nouveau projet'; const m=id.match(/(\d{4})-(\d{2})-(\d{2})-(\d{2})-(\d{2})/); if(m)return parseInt(m[3],10)+' '+(_MOIS[parseInt(m[2],10)-1]||'')+' · '+m[4]+':'+m[5]; return 'projet'; }catch(e){ return 'projet'; } }
+function modeLabel(m){ return ({eco:'Aperçu',planche:'Planche',hd:'Final HD'})[m]||m||'Aperçu'; } // [v6] Aperçu / Final HD (plus de « eco »)
+function refLabel(){ try{ return (activePersona().name)||'Imany'; }catch(e){ return 'Imany'; } }
+function lookLabelOf(p){ try{ let lb={categories:{}};try{lb=nlMod().readLookbook();}catch(e){} const c=p&&p.look; if(!c)return '—'; if(c.extra)return c.extra.slice(0,24); const cat=(lb.categories[c.category]||{}).label; if(cat)return cat; return c.file?'Look perso':'—'; }catch(e){ return '—'; } }
+function decorLabelOf(p){ try{ let lb={envs:{}};try{lb=nlMod().readLookbook();}catch(e){} const c=p&&p.look; return (c&&(lb.envs[c.env]||{}).label)||(c&&c.env)||'—'; }catch(e){ return '—'; } }
+function mediaLabelOf(p){ try{ if(p&&p.image&&p.image.urls&&p.image.urls.length){ const i=(p.image.validated!=null?p.image.validated:(p.image.idx||0)); return 'Image '+(i+1)+'/'+p.image.urls.length; } if(lookFile(p))return 'Look choisi'; return 'Aperçu référence'; }catch(e){ return '—'; } }
+function projName(p){ return (p&&p.name)||draftLabel(); }
 function lookFile(p){ // image du look actif (chemin réel, unique) ou null
   try{ if(p.look.file&&fs.existsSync(p.look.file))return p.look.file; }catch(e){}
   try{ if(workingSource&&fs.existsSync(workingSource))return workingSource; }catch(e){}
@@ -1257,14 +1265,10 @@ function persistProjMedia(urls,draftId){
   return out.length?out:(urls||[]);
 }
 // [L0-2a-ter · point 6] EN-TÊTE DE CONTEXTE — toujours visible, identique à chaque étape du workspace.
-function wsHeader(p,stepLabel){
-  let src=null;try{src=nlRefFile();}catch(e){}
-  const lf=lookFile(p);
+function wsHeader(p,stepLabel){ // [v6] libellés métier (plus de noms de fichiers)
   return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'👗 Look : '+escH(lf?path.basename(lf):'—')+'\n'
-    +'🎯 Réf : '+escH(src?path.basename(src):'—')+'\n'
-    +'✍️ Prompt : '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n'
-    +'📝 Brouillon : '+escH(draftTag())+'\n';
+    +'👗 Look : '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
+    +'🎯 Réf : '+escH(refLabel())+' · ✍️ '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n';
 }
 // [fix/root-causes-v1 · C4] EN-TÊTE DE CONTEXTE PERMANENT — affiché sur TOUT écran (menus inclus).
 // réf active · look · décor · prompt · nb images · média actif.
@@ -1273,13 +1277,11 @@ function cockpitHeader(p){
     let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
     let src=null;try{src=nlRefFile();}catch(e){}
     const lf=lookFile(p);
-    const catL=(p&&p.look)?(p.look.extra?('✍️ '+p.look.extra.slice(0,14)):(((lb.categories[p.look.category]||{}).label)||p.look.category||'—')):'—';
-    const envL=(p&&p.look&&((lb.envs[p.look.env]||{}).label))||(p&&p.look&&p.look.env)||'—';
     const nb=(p&&p.look&&p.look.mode==='eco')?(p.look.count||1):1;
-    let m=null;try{m=videoMedia(p);}catch(e){m=lf;}
+    // [v6] libellés MÉTIER : plus aucun nom de fichier / id
     return '📁 <b>'+escH(projName(p))+'</b>\n'
-      +'🎯 '+escH(src?path.basename(src):'—')+' · 👗 '+escH(catL)+' · 🌆 '+escH(envL)+'\n'
-      +'✍️ '+escH((p&&p.prompt&&p.prompt.name)||'défaut')+' · 📸 '+nb+' · 🖼 '+escH(m?path.basename(m):'—')+'\n──────────\n';
+      +'🎯 '+escH(refLabel())+' · 👗 '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
+      +'✍️ '+escH((p&&p.prompt&&p.prompt.name)||'défaut')+' · 📸 '+nb+' · 🖼 '+escH(mediaLabelOf(p))+'\n──────────\n';
   }catch(e){ return ''; }
 }
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
@@ -1293,16 +1295,14 @@ function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette 
   const envLabel = (lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
   const srcLabel = {new:'✨ Nouveau (généré)',gallery:'🖼 Galerie',upload:'📤 Upload'}[p.look.source]||'— (à choisir)';
   const lf=lookFile(p); const img=wsMedia(p,lf);
-  const cap = wsHeader(p,'LOOK 1/2')
+  const cap = wsHeader(p,'Look')
     +'──────────\n'
-    +'Source : <b>'+escH(srcLabel)+'</b> · 👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
-    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+(p.look.count||1)):'')+'\n'
-    +(p.look.source?'✅ Look choisi — ➡ Suivant pour l\'image.':'Choisis une <b>source</b> (ou configure), puis ➡ Suivant.');
+    +(p.look.source?'✅ Look prêt — ➡ Suivant pour l\'image.':'Choisis ta tenue/décor, puis ➡ Suivant.');
   const rows=[
-    [{text:(p.look.source==='new'?'✅ ':'')+'✨ Nouveau',cb:'PL_SRC_new'},{text:(p.look.source==='gallery'?'✅ ':'')+'🖼 Galerie',go:'photo.lookgal'},{text:(p.look.source==='upload'?'✅ ':'')+'📤 Upload',cb:'PL_SRC_up'}],
     [{text:'👗 Tenue',cb:'PL_TENUE'},{text:'🌆 Décor',cb:'PL_ENV'}],
-    (p.look.mode==='eco'?[{text:'🎛 Format',cb:'PL_FMT'},{text:'📸 Nombre',cb:'PL_NB'}]:[{text:'🎛 Format',cb:'PL_FMT'}]),
     [{text:'🎯 Référence',go:'photo.ref'},{text:'✍️ Prompt',go:'photo.prompt'}],
+    [{text:'🖼 Galerie',go:'photo.lookgal'},{text:'📤 Upload',cb:'PL_SRC_up'}],
+    (p.look.mode==='eco'?[{text:'🔢 '+(p.look.count||1)+' image(s)',cb:'PL_NB'}]:[]),
   ];
   return {image:img,raw:false,caption:cap,rows};
 }
@@ -1325,23 +1325,21 @@ function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image 
   const p=ensureProj();const c=photoImageCost();
   const has=p.image.urls.length;
   const img=wsMedia(p); /* [MC2] B1/B1.1/B1.2 : résolveur garanti, jamais null */
-  let cap=wsHeader(p,'IMAGE 2/2')+'──────────\n'
-    +(has?'🖼 <i>Aperçu : image '+(p.image.idx+1)+'/'+has+'</i>\n':'🖼 <i>Aperçu : look/référence (aucune image générée)</i>\n')
-    +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+' · 🧾 <b>💰 '+c.prix+'</b>\n';
+  let cap=wsHeader(p,'Image')+'──────────\n'
+    +(has?'🖼 <i>Image '+(p.image.idx+1)+'/'+has+'</i>\n':'👁 <i>Aperçu gratuit (référence/look) — la version Final HD est payante.</i>\n');
   const rows=[];
-  if(p.image.confirming){ // confirmation de génération DANS le workspace (pas de nouveau bloc)
-    cap+='\n⚠️ <b>Confirmer la génération</b> — action <b>payante</b> ('+(c.cr?c.cr+' cr':'à calibrer')+').\nPrompt : '+escH(((p.prompt&&p.prompt.name)||'défaut'));
-    rows.push([{text:'✅ Confirmer 💲',cb:'PL_GEN_DO'},{text:'◀️ Annuler',cb:'PL_GEN_NO'}]);
+  if(p.image.confirming){ // confirmation Final HD DANS le workspace (pas de nouveau bloc)
+    cap+='\n✨ <b>Lancer la version Final HD ?</b>\nGénération payante'+(c.cr?(' (~'+c.cr+' cr)'):'')+'.';
+    rows.push([{text:'✅ Lancer Final HD',cb:'PL_GEN_DO'},{text:'◀️ Annuler',cb:'PL_GEN_NO'}]);
     return {image:img,raw:!!has,caption:cap,rows};
   }
   if(!has){
-    cap+='\nAppuie sur 💲 pour générer — une <b>confirmation</b> sera demandée (action payante).';
-    rows.push([{text:'💲 Générer'+(c.cr?(' ('+c.cr+' cr)'):''),cb:'PL_GEN'}]);
+    cap+='\nQuand l\'aperçu te convient, lance la version Final HD (confirmation demandée).';
+    rows.push([{text:'✨ Lancer Final HD',cb:'PL_GEN'}]);
   } else {
-    cap+='\n'+(p.image.validated!=null?('✅ Image '+(p.image.validated+1)+'/'+has+' validée.'):('Sélectionne l\'image à garder.'));
+    cap+='\n'+(p.image.validated!=null?('✅ Image '+(p.image.validated+1)+'/'+has+' validée.'):('Choisis l\'image à garder.'));
     if(has>1)rows.push([{text:'‹',cb:'PL_PREV'},{text:(p.image.idx+1)+'/'+has,cb:'PL_NOOP'},{text:'›',cb:'PL_NEXT'}]);
-    rows.push([{text:(p.image.validated===p.image.idx?'✅ Validée':'✅ Valider cette image'),cb:'PL_PICK'}]);
-    rows.push([{text:'🎨 Éditer',cb:'PL_EDIT'},{text:'🔁 Régénérer 💲',cb:'PL_GEN'}]);
+    rows.push([{text:(p.image.validated===p.image.idx?'✅ Validée':'✅ Valider'),cb:'PL_PICK'},{text:'🎨 Éditer',cb:'PL_EDIT'}]);
     rows.push([{text:'🎬 Faire une vidéo',go:'video.source'}]); // [L0-2b] enchaînement naturel IMAGE → VIDÉO
   }
   return {image:img,raw:!!has,caption:cap,rows};
@@ -1490,15 +1488,12 @@ function videoMedia(p){ // média actif pour la vidéo : explicite, sinon image 
   const lf=lookFile(p); if(lf)return lf;
   try{ return refThumb(); }catch(e){} return null;
 }
-function videoMediaLabel(p){ const m=videoMedia(p); return m?path.basename(m):'—'; }
-// En-tête de contexte VIDÉO (point 3) : 📁 Projet · 🖼 Média actif · 🎯 Réf · ✍️ Script · 📝 Brouillon · étape.
+function videoMediaLabel(p){ return mediaLabelOf(p); } // [v6] libellé métier (plus de nom de fichier)
+// En-tête de contexte VIDÉO (point 3) : 📁 Projet · 🖼 Média actif · 🎯 Réf · ✍️ Script · étape.
 function wsHeaderV(p,stepLabel){
-  let src=null;try{src=nlRefFile();}catch(e){}
   return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'🖼 Média : '+escH(videoMediaLabel(p))+'\n'
-    +'🎯 Réf : '+escH(src?path.basename(src):'—')+'\n'
-    +'✍️ Script : '+escH((p.video.script&&p.video.script.name)||'—')+'\n'
-    +'📝 Brouillon : '+escH(draftTag())+'\n──────────\n';
+    +'🖼 Média : '+escH(mediaLabelOf(p))+' · 🎯 '+escH(refLabel())+'\n'
+    +'✍️ Script : '+escH((p.video.script&&p.video.script.name)||'—')+'\n──────────\n';
 }
 function videoCost(p){ try{ const c=estimateCost((p.video&&p.video.duration)||'23s'); return c; }catch(e){ return {parts:1,total:0,cr:null}; } }
 // Bibliothèque de SCRIPTS : scripts/<persona>/*.json (même mécanique que les prompts)
@@ -1572,17 +1567,15 @@ function videoLegendeView(){ // LÉGENDE : éditable (slice)
 }
 function videoExportView(){ // EXPORT : récap coût + confirmation OBLIGATOIRE (génération hors test)
   const p=ensureProj(); p.step='video'; p.video.step='export'; const m=videoMedia(p); const c=videoCost(p);
-  const prix=(c.cr?(c.cr+' cr Higgsfield + voix ≈ '):'~')+(c.total?c.total.toFixed(2):'?')+COST.CURRENCY+(c.parts>1?(' · '+c.parts+' parties'):'');
-  let cap=wsHeaderV(p,'EXPORT')
-    +'🚀 <b>Export / Génération vidéo</b>\n'
-    +'🧾 Coût estimé : <b>💰 '+prix+'</b> · ⏳ '+prodTimeLabel()+'\n';
+  let cap=wsHeaderV(p,'Finalisation')
+    +'🚀 <b>Vidéo Final HD</b>\n'
+    +'👁 Aperçu prêt. Lance la version finale quand tu es prête.\n';
   const rows=[];
   if(p.video.confirming){
-    cap+='\n⚠️ <b>Confirmer la génération vidéo</b> — action <b>payante</b>.\nMédia : '+escH(videoMediaLabel(p))+' · Script : '+escH((p.video.script&&p.video.script.name)||'—');
-    rows.push([{text:'✅ Confirmer 💲',cb:'VX_GO'},{text:'◀️ Annuler',cb:'VX_NO'}]);
+    cap+='\n✨ <b>Lancer la vidéo Final HD ?</b>\nGénération payante'+(c.cr?(' (~'+c.cr+' cr)'):'')+' · ⏳ '+prodTimeLabel();
+    rows.push([{text:'✅ Lancer Final HD',cb:'VX_GO'},{text:'◀️ Annuler',cb:'VX_NO'}]);
   } else {
-    cap+='\nVérifie média + script, puis 💲 pour générer (confirmation requise — rien sans ton accord).';
-    rows.push([{text:'💲 Générer la vidéo',cb:'VX_GEN'}]);
+    rows.push([{text:'✨ Lancer la vidéo Final HD',cb:'VX_GEN'}]);
   }
   return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
