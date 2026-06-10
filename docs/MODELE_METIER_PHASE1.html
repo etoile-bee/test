@@ -20,8 +20,10 @@
 <blockquote>(E120), avec un défaut proposé et sa raison — <strong>non tranchée en douce</strong>. Base factuelle : le manifest</blockquote>
 <blockquote>existant (<code>ui/project_store.js</code>) ; ce document en exprime un <strong>modèle de domaine propre</strong>, pas du code.</blockquote>
 <hr>
-<h2>CARTE DES OBJETS — 4 familles (33 objets)</h2>
-<p>1. <strong>INTENTION (le pourquoi)</strong> — Intention · Message/Idée · Émotion · Public · Objectif de publication.</p>
+<h2>CARTE DES OBJETS — 5 familles (34 objets)</h2>
+<p>0. <strong>UNIVERS (le monde / la marque)</strong> — Univers <em>(objet de 1er niveau, validé 10/06 — M11)</em>.</p>
+<p>1. <strong>INTENTION (le pourquoi)</strong> — Intention <em>(objet composite, M4)</em> · Message/Idée · Émotion · Public ·</p>
+<p>   Objectif de publication.</p>
 <p>2. <strong>IDENTITÉ &amp; MATIÈRE CRÉATIVE (qui/quoi/où/comment)</strong> — Personnage · Référence · Look · Décor · Ambiance ·</p>
 <p>   Consigne de génération · Script · Voix · Paramètres.</p>
 <p>3. <strong>PRODUCTION &amp; ÉTATS DU MÉDIA (ce qui est fabriqué)</strong> — Candidate · Variante · Média actif · RAW/média</p>
@@ -29,17 +31,35 @@
 <p>4. <strong>MÉMOIRE &amp; CAPITALISATION (traçabilité &amp; réutilisation)</strong> — Projet · Série · Décision · Évaluation de</p>
 <p>   cohérence · Historique · Bibliothèque · Brique réutilisable.</p>
 <hr>
+<h1>FAMILLE 0 — UNIVERS (le monde / la marque)</h1>
+<h2>0. Univers — <em>le monde</em> ✅ <em>(objet de 1er niveau, validé 10/06 — M11)</em></h2>
+<ul><li><strong>Rôle</strong> : le cadre <strong>durable</strong> au sommet de la hiérarchie (ex. « Imany », « Victoria Castelli ») :</li></ul>
+<p>  <strong>UNIVERS → PERSONNAGE → PROJET → LIVRABLES</strong>.</p>
+<ul><li><strong>Pourquoi</strong> : piliers ④ + ⑤ — donne un <strong>propriétaire clair</strong> aux acquis transverses et **décharge le</li></ul>
+<p>  Personnage** de tout ce qui n'est pas son identité.</p>
+<ul><li><strong>Contient / possède</strong> : <code>nom_du_monde</code>, <strong>Bibliothèques</strong> (Décors, Ambiances, Presets, Consignes, Styles</li></ul>
+<p>  de sous-titres, Enchaînements), <strong>règles éditoriales</strong> (ligne, sujets, anti-répétition), **règles</p>
+<p>  visuelles<strong> (charte : cadrage, colorimétrie par défaut, style de sous-titres), </strong>lignes de publication**</p>
+<p>  (plateformes, comptes, calendrier), l'ensemble des <strong>Personnages</strong> et des <strong>Séries</strong>.</p>
+<ul><li><strong>Différenciation</strong> : l'Univers est <strong>le monde/la marque</strong> (cadre, règles, canaux, multi-personnages) ;</li></ul>
+<p>  le <strong>Personnage</strong> est <strong>qui incarne</strong> ; l'<strong>Intention</strong> est <strong>pourquoi</strong> d'un projet précis.</p>
+<ul><li><strong>Règle d'étanchéité (M12, validé 10/06)</strong> : les valeurs de l'Univers ne sont qu'un <strong>point de départ</strong></li></ul>
+<p>  <strong>copié explicitement</strong> dans un projet ; <strong>jamais d'héritage vivant</strong>, **jamais de modification</p>
+<p>  rétroactive** d'un projet existant quand l'Univers/Personnage/bibliothèque change.</p>
+<hr>
 <h1>FAMILLE 1 — INTENTION (le pourquoi)</h1>
-<h2>1. Intention — <em>la boussole</em></h2>
+<h2>1. Intention — <em>la boussole</em> ✅ <em>(OBJET COMPOSITE, validé 10/06 — M4)</em></h2>
 <ul><li><strong>Rôle</strong> : exprimer la finalité d'un projet : *quoi dire, pour quoi faire ressentir, à qui, pour quelle</li></ul>
-<p>  destination*.</p>
+<p>  destination<em>. <strong>Ce n'est pas un simple champ</strong> : c'est un <strong>objet composite</strong> réunissant </em>*au minimum</p>
+<p>  Message + Émotion + Public + Objectif<strong> — la boussole qui </strong>guide toutes les décisions**.</p>
 <ul><li><strong>Pourquoi</strong> : pilier ① — c'est la <strong>référence absolue</strong> à laquelle tout le reste se compare. Sans elle,</li></ul>
 <p>  la question centrale (« ça sert encore l'intention ? ») est impossible à poser.</p>
-<ul><li><strong>Contient</strong> : <code>message</code>, <code>émotion</code>, <code>personnage_visé</code> (lien), <code>public</code>, <code>objectif_publication</code> (lien),</li></ul>
+<ul><li><strong>Contient (composantes obligatoires)</strong> : <code>message</code> (Message/Idée), <code>émotion</code> (Émotion), <code>public</code></li></ul>
+<p>  (Public), <code>objectif_publication</code> (Objectif → plateforme·format·durée, M5) ; + <code>personnage_visé</code> (lien),</p>
 <p>  <code>créée_le</code>, <code>modifiée_le</code>.</p>
-<ul><li><strong>Différenciation</strong> : l'Intention est le <strong>pourquoi</strong> ; le Personnage est le <strong>qui</strong> ; Référence/Look/</li></ul>
-<p>  Décor sont des <strong>moyens visuels</strong>. L'Intention est <strong>propre à un projet</strong> (elle peut se répéter dans une</p>
-<p>  Série mais reste rattachée à chaque projet).</p>
+<ul><li><strong>Différenciation</strong> : l'Intention est le <strong>pourquoi</strong> ; le Personnage est le <strong>qui</strong> ; l'Univers est le</li></ul>
+<p>  <strong>monde</strong> ; Référence/Look/Décor sont des <strong>moyens visuels</strong>. L'Intention est <strong>propre à un projet</strong></p>
+<p>  (elle peut se répéter dans une Série mais reste rattachée à chaque projet).</p>
 <h2>2. Message (ou Idée) — <em>le contenu de sens</em></h2>
 <ul><li><strong>Rôle</strong> : la chose précise à transmettre (l'angle, le propos).</li><li><strong>Pourquoi</strong> : pilier ① — l'une des 10 pièces surveillées pour la dérive.</li><li><strong>Contient</strong> : <code>texte_court</code>, <code>angle</code>, <code>mots_clés</code>.</li><li><strong>Différenciation</strong> : le Message est le <strong>fond</strong> ; le Script en est la <strong>mise en mots déroulée</strong> ; la</li></ul>
 <p>  Légende en est la <strong>formulation de publication</strong>.</p>
@@ -72,6 +92,10 @@
 <ul><li>✅ <em>(validé 10/06 — M3)</em> <strong>Le Personnage POSSÈDE ses Références ET sa garde-robe de Looks</strong> (et sa</li></ul>
 <p>  voix-signature, M10). <em>Raison</em> : « robe rouge sur Imany » a du sens rattaché au personnage. *(Des Looks</p>
 <p>  génériques sans personnage restent possibles via la Bibliothèque, sans contredire cette possession.)*</p>
+<ul><li>✅ <em>(validé 10/06 — M11)</em> <strong>Déchargé du “monde”</strong> : le Personnage <strong>appartient à un Univers</strong> et **ne</li></ul>
+<p>  porte plus** bibliothèques, règles éditoriales/visuelles ni lignes de publication — celles-ci sont</p>
+<p>  <strong>possédées par l'Univers</strong>. Le Personnage garde <strong>uniquement son identité</strong> (traits, références,</p>
+<p>  garde-robe, voix).</p>
 <h2>7. Référence — <em>la preuve d'identité visuelle</em></h2>
 <ul><li><strong>Rôle</strong> : image(s) faisant foi de l'identité du Personnage (visage, carnation, regard…).</li><li><strong>Pourquoi</strong> : piliers ② + ⑤ — <strong>étalon</strong> du contrôle d'identité (la production doit y rester fidèle).</li><li><strong>Contient</strong> : <code>image</code>, <code>libellé</code>, <code>verrou</code>, <code>historique</code>, <code>personnage</code> (lien).</li><li><strong>Différenciation</strong> : la Référence répond à « <strong>est-ce bien la même personne ?</strong> » ; le Look à « **comment</li></ul>
 <p>  est-elle présentée ?<strong> ». La Référence est </strong>stable<strong> ; le Look est </strong>variable**.</p>
@@ -229,7 +253,9 @@
 <h1>DÉCISIONS DE MODÉLISATION (Phase 1 — statut après arbitrage Etoile 10/06)</h1>
 <blockquote><strong>Phase 1 VALIDÉE par Etoile (10/06).</strong> Arbitrages tranchés ci-dessous ; M4/M5/M7 restent des **défauts</blockquote>
 <blockquote>à confirmer**.</blockquote>
-<table><thead><tr><th>#</th><th>Question</th><th>Décision</th><th>Statut</th></tr></thead><tbody><tr><td>M1</td><td><strong>Ambiance</strong> = objet ou attribut ?</td><td><strong>OBJET distinct</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M2</td><td><strong>Série</strong> = conteneur ou type de projet ?</td><td><strong>CONTENEUR de projets</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M3</td><td><strong>Personnage</strong> possède Références/Looks ?</td><td><strong>OUI : possède ses Références + sa garde-robe de Looks</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M4</td><td><strong>Message / Émotion / Public</strong> = objets ou attributs ?</td><td>Attributs riches de l'Intention</td><td>⏳ <strong>défaut, à confirmer</strong></td></tr><tr><td>M5</td><td><strong>Plateforme/Format/Durée</strong> = attributs ou objets ?</td><td>Attributs de l'Objectif (option : profils réutilisables)</td><td>⏳ <strong>défaut, à confirmer</strong></td></tr><tr><td>M6</td><td><strong>Hashtags</strong> = objet distinct ou partie de Légende ?</td><td><strong>OBJET distinct</strong> (associé au Livrable)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M7</td><td><strong>Rythme</strong> = objet ou attribut du Montage ?</td><td>Attribut du Montage (pièce de cohérence)</td><td>⏳ <strong>défaut, à confirmer</strong></td></tr><tr><td>M8</td><td><strong>Prêt-à-poster</strong> = état ou objet ?</td><td><strong>ÉTAT du Livrable</strong> (pas un objet)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M9</td><td><strong>QC</strong> vs <strong>Évaluation de cohérence</strong></td><td><strong>DEUX objets distincts</strong> (axes différents)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M10</td><td><strong>Voix-signature</strong> = attribut du Personnage ?</td><td><strong>APPARTIENT au Personnage</strong></td><td>✅ <strong>validé 10/06</strong></td></tr></tbody></table>
+<table><thead><tr><th>#</th><th>Question</th><th>Décision</th><th>Statut</th></tr></thead><tbody><tr><td>M1</td><td><strong>Ambiance</strong> = objet ou attribut ?</td><td><strong>OBJET distinct</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M2</td><td><strong>Série</strong> = conteneur ou type de projet ?</td><td><strong>CONTENEUR de projets</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M3</td><td><strong>Personnage</strong> possède Références/Looks ?</td><td><strong>OUI : possède ses Références + sa garde-robe de Looks</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M4</td><td><strong>Intention</strong> = champ ou objet composite ?</td><td><strong>OBJET COMPOSITE</strong> (Message + Émotion + Public + Objectif min.)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M5</td><td><strong>Plateforme/Format/Durée</strong> = attributs de l'Objectif ?</td><td><strong>OUI</strong> (∈ Objectif dès la naissance du projet)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M6</td><td><strong>Hashtags</strong> = objet distinct ou partie de Légende ?</td><td><strong>OBJET distinct</strong> (associé au Livrable)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M7</td><td><strong>Rythme</strong> = objet ou attribut du Montage ?</td><td><strong>Attribut du Montage</strong> (pièce de cohérence)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M8</td><td><strong>Prêt-à-poster</strong> = état ou objet ?</td><td><strong>ÉTAT du Livrable</strong> (pas un objet)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M9</td><td><strong>QC</strong> vs <strong>Évaluation de cohérence</strong></td><td><strong>DEUX objets distincts</strong> (axes différents)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M10</td><td><strong>Voix-signature</strong> = attribut du Personnage ?</td><td><strong>APPARTIENT au Personnage</strong></td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M11</td><td><strong>Univers</strong> au-dessus du Personnage ?</td><td><strong>OUI, systématique</strong> (UNIVERS → PERSONNAGE → PROJET → LIVRABLES)</td><td>✅ <strong>validé 10/06</strong></td></tr><tr><td>M12</td><td>Règles de l'Univers appliquées aux projets ?</td><td><strong>OUI mais par COPIE EXPLICITE</strong> ; jamais d'héritage vivant ni de modif rétroactive</td><td>✅ <strong>validé 10/06</strong></td></tr></tbody></table>
+<blockquote><strong>Toutes les questions M1–M12 sont tranchées.</strong> Le modèle d'objets (Phase 1) est <strong>figé</strong> :</blockquote>
+<blockquote><strong>34 objets, 5 familles</strong> (ajout d'<strong>Univers</strong> ; Intention promue <strong>objet composite</strong>).</blockquote>
 <hr>
 <p><strong>Constat fondateur (rappel)</strong> : l'<strong>Intention</strong> est ici posée comme <strong>objet de premier niveau</strong> — c'est</p>
 <p>précisément ce qui <strong>manque</strong> au moteur aujourd'hui (<code>grep intention ui/*.js</code> = 0). Le reste</p>

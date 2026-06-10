@@ -6,16 +6,25 @@
 > actions · règles) viendront **après validation de cette Phase 2**. Live intact · fichiers verrouillés
 > intacts · aucune dépense.
 >
-> **Phase 1 validée par Etoile (10/06)** ; arbitrages intégrés ici : **M1** Ambiance = objet · **M2** Série
-> = conteneur de projets · **M3** Personnage possède Références + garde-robe de Looks · **M6** Hashtags =
-> objet · **M8** Prêt-à-poster = état du Livrable · **M9** QC et Évaluation de cohérence = deux objets ·
-> **M10** Voix-signature appartient au Personnage. (M4/M5/M7 = défauts à confirmer.)
+> **Phases 1 & 2 validées par Etoile (10/06).** Arbitrages intégrés : **M1** Ambiance = objet · **M2** Série
+> = conteneur · **M3** Personnage possède Références + garde-robe · **M6** Hashtags = objet · **M8**
+> Prêt-à-poster = état du Livrable · **M9** QC ≠ Évaluation de cohérence · **M10** Voix-signature au
+> Personnage · **M4** Intention = OBJET COMPOSITE · **M5** Plateforme/Format/Durée ∈ Objectif · **M7**
+> Rythme = attribut du Montage · **M11** **Univers = objet de 1er niveau, systématique** (UNIVERS →
+> PERSONNAGE → PROJET → LIVRABLES) · **M12** règles de l'Univers appliquées **par copie explicite
+> uniquement** (jamais d'héritage vivant, jamais de modif rétroactive). **Toutes les questions M1–M12 sont
+> tranchées.**
 >
 > **Ancrage `E127`** : ① Intention · ② Cohérence · ③ Mémoire · ④ Capitalisation · ⑤ Confiance · ⑥ Contrôle.
 
 ---
 
-## A. ANALYSE PRÉALABLE — faut-il un objet UNIVERS au-dessus du Personnage ? *(hypothèse, non intégrée)*
+## A. ANALYSE — l'objet UNIVERS au-dessus du Personnage ✅ *(VALIDÉ 10/06 — M11/M12 ; intégré)*
+
+> **Mise à jour** : Etoile a **validé** l'objet **Univers** (M11 = oui, systématique) et son mode
+> d'application **par copie explicite** (M12). L'analyse ci-dessous a conduit à cette décision ; elle est
+> conservée pour la traçabilité. **L'Univers n'est plus une hypothèse** : il est **objet de 1er niveau**,
+> au sommet de la hiérarchie **UNIVERS → PERSONNAGE → PROJET → LIVRABLES**.
 
 ### A.1 La question
 Etoile pressent un objet de **niveau supérieur au Personnage** : l'**Univers** (ex. « Imany »,
@@ -156,18 +165,19 @@ canaux) ▸ **Personnage** = *qui* incarne ▸ **Intention** = *pourquoi* de ce 
 ## D. DIAGRAMME DE STRUCTURE COMPLET (texte)
 
 > Légende : ◆ composition (meurt avec le tout) · ○ appartenance (survit) · → dérivation · — association ·
-> ★ rôle exclusif. Les blocs `┈┈ UNIVERS ┈┈` en **pointillé** = **hypothèse à valider** (A.3).
+> ★ rôle exclusif. Le bloc **UNIVERS** est désormais **validé** (M11/M12, sommet de la hiérarchie).
 
 ```
-┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ HYPOTHÈSE À VALIDER (M11/M12) ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
-┊ UNIVERS  (le monde / la marque — ex. Imany, Victoria Castelli)          ┊
-┊   ○ possède ▸ Bibliothèque(s)                                           ┊
-┊   ○ possède ▸ règles éditoriales · règles visuelles (charte) · lignes   ┊
-┊                de publication                                           ┊
-┊   ○ possède ▸ Personnage (1..n)                                         ┊
-┊   ○ possède ▸ Série (0..n)                                              ┊
-┊        (par défaut : copie non silencieuse des règles → Projet, M12)    ┊
-┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+═════════════════════ UNIVERS ✅ (validé 10/06 — M11/M12) ═════════════════════
+║ UNIVERS  (le monde / la marque — ex. Imany, Victoria Castelli)          ║
+║   ○ possède ▸ Bibliothèque(s)                                           ║
+║   ○ possède ▸ règles éditoriales · règles visuelles (charte) · lignes   ║
+║                de publication                                           ║
+║   ○ possède ▸ Personnage (1..n)                                         ║
+║   ○ possède ▸ Série (0..n)                                              ║
+║   ⇒ vers un Projet : COPIE EXPLICITE des règles (M12) — jamais d'héritage ║
+║      vivant, jamais de modif rétroactive (étanchéité stricte)           ║
+═══════════════════════════════════════════════════════════════════════════════
             │                                   │
             ▼ (○, hypothèse)                    ▼ (○, hypothèse)
    PERSONNAGE  (qui incarne)            SÉRIE  (conteneur éditorial, M2)
@@ -293,21 +303,22 @@ canaux) ▸ **Personnage** = *qui* incarne ▸ **Intention** = *pourquoi* de ce 
 
 ## G. QUESTIONS DE MODÉLISATION OUVERTES (Phase 2)
 
-| # | Question (relationnelle) | Défaut proposé | Statut |
+| # | Question | Décision | Statut |
 |---|---|---|---|
-| **M11** | L'**Univers** existe-t-il toujours (conteneur, même à 1 personnage) ? | Oui, toujours (propriétaire clair des bibliothèques/règles) | 🆕 à valider |
-| **M12** | Les **règles visuelles/éditoriales** de l'Univers s'appliquent-elles **par défaut** aux projets ? | Oui, **par copie non silencieuse** (surchargeable, étanche) | 🆕 à valider |
-| M4 | Message/Émotion/Public = attributs de l'Intention ? | Attributs | ⏳ défaut, à confirmer |
-| M5 | Plateforme/Format/Durée = attributs de l'Objectif ? | Attributs | ⏳ défaut, à confirmer |
-| M7 | Rythme = attribut du Montage ? | Attribut | ⏳ défaut, à confirmer |
+| **M11** | L'**Univers** existe-t-il (conteneur, même à 1 personnage) ? | **OUI, systématique** (UNIVERS → PERSONNAGE → PROJET → LIVRABLES) | ✅ validé 10/06 |
+| **M12** | Les règles de l'Univers s'appliquent-elles aux projets ? | **OUI mais par COPIE EXPLICITE** — jamais d'héritage vivant ni de modif rétroactive | ✅ validé 10/06 |
+| M4 | Intention = champ ou objet ? | **OBJET COMPOSITE** (Message+Émotion+Public+Objectif) | ✅ validé 10/06 |
+| M5 | Plateforme/Format/Durée ∈ Objectif ? | **OUI** (dès la naissance du projet) | ✅ validé 10/06 |
+| M7 | Rythme = attribut du Montage ? | **Attribut** | ✅ validé 10/06 |
 
-> Rappel : M1/M2/M3/M6/M8/M9/M10 sont **tranchés** (Phase 1, 10/06) et **intégrés** ci-dessus.
+> **Toutes les questions M1–M12 sont tranchées.** Le modèle d'objets (Phase 1) et de relations (Phase 2)
+> est **figé**. Aucune question de modélisation ouverte ne subsiste à ce stade.
 
 ---
 
-⏸️ **FIN DE LA PHASE 2.** Les phases 3 (Cycle de vie) · 4 (Actions) · 5 (Règles) **ne sont pas traitées
-ici** : elles attendent la **validation de ces relations** par Etoile. L'objet **Univers** reste une
-**hypothèse en pointillé**, non intégrée tant qu'Etoile n'a pas tranché M11/M12.
+⏸️ **FIN DE LA PHASE 2** (validée 10/06). Les phases 3 (Cycle de vie) · 4 (Actions) · 5 (Règles) **ne sont
+pas traitées ici** : elles attendent le signal. L'objet **Univers** est désormais **validé et intégré**
+(sommet de la hiérarchie), avec étanchéité stricte par **copie explicite** (M12).
 
 _Phase 2 — relations. Dérivé de E127 (6 piliers). Base factuelle : manifest existant. Aucune
 implémentation, aucune représentation. Phase 1 : `docs/MODELE_METIER_PHASE1.md`. Lecture seule._

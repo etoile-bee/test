@@ -23,9 +23,11 @@
 
 ---
 
-## CARTE DES OBJETS — 4 familles (33 objets)
+## CARTE DES OBJETS — 5 familles (34 objets)
 
-1. **INTENTION (le pourquoi)** — Intention · Message/Idée · Émotion · Public · Objectif de publication.
+0. **UNIVERS (le monde / la marque)** — Univers *(objet de 1er niveau, validé 10/06 — M11)*.
+1. **INTENTION (le pourquoi)** — Intention *(objet composite, M4)* · Message/Idée · Émotion · Public ·
+   Objectif de publication.
 2. **IDENTITÉ & MATIÈRE CRÉATIVE (qui/quoi/où/comment)** — Personnage · Référence · Look · Décor · Ambiance ·
    Consigne de génération · Script · Voix · Paramètres.
 3. **PRODUCTION & ÉTATS DU MÉDIA (ce qui est fabriqué)** — Candidate · Variante · Média actif · RAW/média
@@ -35,18 +37,39 @@
 
 ---
 
+# FAMILLE 0 — UNIVERS (le monde / la marque)
+
+## 0. Univers — *le monde* ✅ *(objet de 1er niveau, validé 10/06 — M11)*
+- **Rôle** : le cadre **durable** au sommet de la hiérarchie (ex. « Imany », « Victoria Castelli ») :
+  **UNIVERS → PERSONNAGE → PROJET → LIVRABLES**.
+- **Pourquoi** : piliers ④ + ⑤ — donne un **propriétaire clair** aux acquis transverses et **décharge le
+  Personnage** de tout ce qui n'est pas son identité.
+- **Contient / possède** : `nom_du_monde`, **Bibliothèques** (Décors, Ambiances, Presets, Consignes, Styles
+  de sous-titres, Enchaînements), **règles éditoriales** (ligne, sujets, anti-répétition), **règles
+  visuelles** (charte : cadrage, colorimétrie par défaut, style de sous-titres), **lignes de publication**
+  (plateformes, comptes, calendrier), l'ensemble des **Personnages** et des **Séries**.
+- **Différenciation** : l'Univers est **le monde/la marque** (cadre, règles, canaux, multi-personnages) ;
+  le **Personnage** est **qui incarne** ; l'**Intention** est **pourquoi** d'un projet précis.
+- **Règle d'étanchéité (M12, validé 10/06)** : les valeurs de l'Univers ne sont qu'un **point de départ**
+  **copié explicitement** dans un projet ; **jamais d'héritage vivant**, **jamais de modification
+  rétroactive** d'un projet existant quand l'Univers/Personnage/bibliothèque change.
+
+---
+
 # FAMILLE 1 — INTENTION (le pourquoi)
 
-## 1. Intention — *la boussole*
+## 1. Intention — *la boussole* ✅ *(OBJET COMPOSITE, validé 10/06 — M4)*
 - **Rôle** : exprimer la finalité d'un projet : *quoi dire, pour quoi faire ressentir, à qui, pour quelle
-  destination*.
+  destination*. **Ce n'est pas un simple champ** : c'est un **objet composite** réunissant **au minimum
+  Message + Émotion + Public + Objectif** — la boussole qui **guide toutes les décisions**.
 - **Pourquoi** : pilier ① — c'est la **référence absolue** à laquelle tout le reste se compare. Sans elle,
   la question centrale (« ça sert encore l'intention ? ») est impossible à poser.
-- **Contient** : `message`, `émotion`, `personnage_visé` (lien), `public`, `objectif_publication` (lien),
+- **Contient (composantes obligatoires)** : `message` (Message/Idée), `émotion` (Émotion), `public`
+  (Public), `objectif_publication` (Objectif → plateforme·format·durée, M5) ; + `personnage_visé` (lien),
   `créée_le`, `modifiée_le`.
-- **Différenciation** : l'Intention est le **pourquoi** ; le Personnage est le **qui** ; Référence/Look/
-  Décor sont des **moyens visuels**. L'Intention est **propre à un projet** (elle peut se répéter dans une
-  Série mais reste rattachée à chaque projet).
+- **Différenciation** : l'Intention est le **pourquoi** ; le Personnage est le **qui** ; l'Univers est le
+  **monde** ; Référence/Look/Décor sont des **moyens visuels**. L'Intention est **propre à un projet**
+  (elle peut se répéter dans une Série mais reste rattachée à chaque projet).
 
 ## 2. Message (ou Idée) — *le contenu de sens*
 - **Rôle** : la chose précise à transmettre (l'angle, le propos).
@@ -99,6 +122,10 @@
 - ✅ *(validé 10/06 — M3)* **Le Personnage POSSÈDE ses Références ET sa garde-robe de Looks** (et sa
   voix-signature, M10). *Raison* : « robe rouge sur Imany » a du sens rattaché au personnage. *(Des Looks
   génériques sans personnage restent possibles via la Bibliothèque, sans contredire cette possession.)*
+- ✅ *(validé 10/06 — M11)* **Déchargé du “monde”** : le Personnage **appartient à un Univers** et **ne
+  porte plus** bibliothèques, règles éditoriales/visuelles ni lignes de publication — celles-ci sont
+  **possédées par l'Univers**. Le Personnage garde **uniquement son identité** (traits, références,
+  garde-robe, voix).
 
 ## 7. Référence — *la preuve d'identité visuelle*
 - **Rôle** : image(s) faisant foi de l'identité du Personnage (visage, carnation, regard…).
@@ -362,13 +389,18 @@
 | M1 | **Ambiance** = objet ou attribut ? | **OBJET distinct** | ✅ **validé 10/06** |
 | M2 | **Série** = conteneur ou type de projet ? | **CONTENEUR de projets** | ✅ **validé 10/06** |
 | M3 | **Personnage** possède Références/Looks ? | **OUI : possède ses Références + sa garde-robe de Looks** | ✅ **validé 10/06** |
-| M4 | **Message / Émotion / Public** = objets ou attributs ? | Attributs riches de l'Intention | ⏳ **défaut, à confirmer** |
-| M5 | **Plateforme/Format/Durée** = attributs ou objets ? | Attributs de l'Objectif (option : profils réutilisables) | ⏳ **défaut, à confirmer** |
+| M4 | **Intention** = champ ou objet composite ? | **OBJET COMPOSITE** (Message + Émotion + Public + Objectif min.) | ✅ **validé 10/06** |
+| M5 | **Plateforme/Format/Durée** = attributs de l'Objectif ? | **OUI** (∈ Objectif dès la naissance du projet) | ✅ **validé 10/06** |
 | M6 | **Hashtags** = objet distinct ou partie de Légende ? | **OBJET distinct** (associé au Livrable) | ✅ **validé 10/06** |
-| M7 | **Rythme** = objet ou attribut du Montage ? | Attribut du Montage (pièce de cohérence) | ⏳ **défaut, à confirmer** |
+| M7 | **Rythme** = objet ou attribut du Montage ? | **Attribut du Montage** (pièce de cohérence) | ✅ **validé 10/06** |
 | M8 | **Prêt-à-poster** = état ou objet ? | **ÉTAT du Livrable** (pas un objet) | ✅ **validé 10/06** |
 | M9 | **QC** vs **Évaluation de cohérence** | **DEUX objets distincts** (axes différents) | ✅ **validé 10/06** |
 | M10 | **Voix-signature** = attribut du Personnage ? | **APPARTIENT au Personnage** | ✅ **validé 10/06** |
+| M11 | **Univers** au-dessus du Personnage ? | **OUI, systématique** (UNIVERS → PERSONNAGE → PROJET → LIVRABLES) | ✅ **validé 10/06** |
+| M12 | Règles de l'Univers appliquées aux projets ? | **OUI mais par COPIE EXPLICITE** ; jamais d'héritage vivant ni de modif rétroactive | ✅ **validé 10/06** |
+
+> **Toutes les questions M1–M12 sont tranchées.** Le modèle d'objets (Phase 1) est **figé** :
+> **34 objets, 5 familles** (ajout d'**Univers** ; Intention promue **objet composite**).
 
 ---
 
