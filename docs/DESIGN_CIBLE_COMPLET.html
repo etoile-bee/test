@@ -1,18 +1,7 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Design cible complet — Podcast Workflow</title>
-<style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}
-h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}
-h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}
-h3{color:#2d3f5e;margin-top:1.2em}
-table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}
-th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}
-th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}
-code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}
-pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}
-blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#243; border-radius:0 6px 6px 0}
-hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}
-ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>DESIGN CIBLE COMPLET — Podcast Workflow (à valider AVANT toute implémentation)</h1>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Design cible complet v3 — Podcast Workflow</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>DESIGN CIBLE COMPLET v3 — Podcast Workflow (à FIGER par Etoile avant toute implémentation)</h1>
 <blockquote><strong>STATUT : GEL.</strong> Aucune implémentation structurelle, aucun patch déployé, aucun restart sans le go d'Etoile.</blockquote>
-<blockquote><strong>Live actuel : <code>7e24dac</code></strong> (rollback effectué). Baseline de comparaison du diagnostic : <code>7e24dac</code> vs <code>1fb4ca3</code>.</blockquote>
+<blockquote><strong>Live actuel : <code>7e24dac</code></strong> (version stable, rollback effectué). Baseline de comparaison du diagnostic : <code>7e24dac</code> vs <code>1fb4ca3</code>.</blockquote>
+<blockquote><strong>v3</strong> = principe directeur validé par Etoile + 5 raffinements intégrés + règles permanentes gravées <strong>[[E118]]</strong> (protocole qualité avant livraison) et <strong>[[E119]]</strong> (méthode de livraison unique cohérente) dans <code>docs/EXIGENCES.md</code>. <strong>Implémentation interdite tant que cette cible n'est pas figée par Etoile.</strong></blockquote>
 <hr>
 <h2>★ PRINCIPE DIRECTEUR (Etoile)</h2>
 <blockquote><strong>LE PROJET est un vrai DOSSIER DE PRODUCTION</strong> — look, référence, prompts, scripts, images, vidéos, légendes, exports, RAW (si dispo) — <strong>qui PILOTE le cockpit, pas l'inverse.</strong></blockquote>
@@ -31,18 +20,63 @@ ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><bod
 <h2>C) DESIGN CIBLE — sections nommées</h2>
 <h3>C.1 — GESTION DU PROJET ACTIF</h3>
 <ul><li>Le projet vit comme <strong>dossier de production</strong> (voir C.2), chargé en mémoire (<code>proj</code> = vue), identifié par <code>projectId</code> stable.</li><li><strong>Autosave</strong> à chaque action, <strong>dans le dossier projet</strong>.</li><li><strong>« Nouveau » n'efface JAMAIS</strong> : il <strong>archive</strong> le projet courant (statut → archivé, reste dans Historique) puis ouvre un nouveau dossier. ⇒ remplacer <code>clearActiveDraft()</code> (destructif) par un <strong>archivage non destructif</strong>.</li><li><strong>Reprise</strong> : à l'ouverture/au boot, si un projet est « en cours », proposer en 1 ligne « ↩️ Reprendre <em>&lt;nom&gt;</em> · 🏠 Accueil » (repositionne à l'étape exacte).</li></ul>
-<h3>C.2 — DOSSIER PROJET (dossier de production)</h3>
-<ul><li><strong>Cible</strong> : <code>projects/&lt;persona&gt;/&lt;projectId&gt;/</code> = <code>project.json</code> (réf · look · décor · prompts · scripts · légendes · paramètres · coûts · statut) + <code>images/</code> + <code>variants/</code> + <code>videos/</code> + <code>video_final.mp4</code> + <code>exports/</code> + <code>raw/</code> (si dispo) + <code>intermediaires/</code>.</li><li>Chaque génération <strong>écrit dans le dossier du projet</strong> (fin des dumps globaux <code>looks/</code>, <code>outputs/generations/</code>, <code>outputs/proj_media/</code>).</li><li>Le dossier <strong>pilote</strong> le cockpit : l'UI affiche ce que contient le dossier.</li></ul>
+<h3>C.2 — DOSSIER PROJET AUTOPORTEUR ★ (raffinement 1)</h3>
+<p><strong>Objectif explicite</strong> : pouvoir <strong>rouvrir un projet des mois plus tard</strong> et <strong>comprendre exactement comment il a été construit</strong> (tout est dans le dossier, rien d'implicite, rien d'externe).</p>
+<p><strong>Structure de fichiers cible</strong></p>
+<pre><code>projects/&lt;persona&gt;/&lt;projectId&gt;/
+├── project.json            ← MANIFEST (source de vérité, voir schéma)
+├── reference/              ← image(s) de référence personnage utilisée(s)
+├── images/                 ← images générées (validées + candidates)
+├── variants/               ← variantes/poses d'une même génération
+├── videos/                 ← rendus vidéo (tests + intermédiaires)
+├── video_final.mp4         ← livrable final
+├── exports/                ← exports prêts (mp4 + légende + style snapshot)
+├── raw/                    ← RAW si disponible (image/lipsync/vidéo bruts)
+├── intermediaires/         ← fichiers de travail (frames, covers, planches)
+└── logs/                   ← logs génération + rapport QC</code></pre>
+<p><strong>Schéma du MANIFEST <code>project.json</code></strong> (complet et autoporteur)</p>
+<pre><code>{
+  "projectId": "imany_2026-06-10_14-22-03",
+  "persona": "imany",
+  "name": "&lt;nom lisible&gt;",
+  "statut": "brouillon | en_cours | termine | pret_a_poster | publie | archive",
+  "cree_le": "2026-06-10T14:22:03Z",
+  "modifie_le": "2026-06-10T15:01:10Z",
+  "reference": { "fichier": "reference/imany_ref.jpg", "label": "Imany", "verrou": true },
+  "look":   { "tenue": "...", "decor": "...", "source": "nouveau|galerie|upload", "fichier": "images/look.jpg" },
+  "prompts":  [ { "role": "image", "name": "défaut", "text": "..." } ],
+  "scripts":  [ { "name": "...", "text": "...", "duree": "23s" } ],
+  "legendes": { "courte": "...", "longue": "...", "tags": "..." },
+  "parametres": { "nb_images": 1, "mode": "eco", "format": "9:16", "sous_titres": {...}, "image_fx": {...}, "zoom": {...}, "musique": {...} },
+  "media_actif": "images/look.jpg",      // ← LE média actif vit ICI (voir C.4)
+  "couts":  { "credits": 12, "eur_estime": 0.70, "detail": { "tts": "...", "lipsync": "..." } },
+  "moteur_ia": { "image": "Seedream", "script": "Anthropic", "lipsync": "Kling", "versions": {...} },
+  "livrables": { "video_final": "video_final.mp4", "exports": ["exports/v1.mp4"] },
+  "historique_versions": [
+    { "ts": "...", "etape": "look",  "action": "généré",  "ref": "images/look.jpg" },
+    { "ts": "...", "etape": "image", "action": "validé",  "ref": "images/img2.jpg" },
+    { "ts": "...", "etape": "video", "action": "exporté", "ref": "exports/v1.mp4" }
+  ]
+}</code></pre>
+<ul><li>Le manifest contient <strong>référence · look · décor · prompts · scripts · légendes · paramètres complets · coûts · moteur IA utilisé · date/heure · pointeurs images/variantes/vidéos/exports/RAW · HISTORIQUE DES VERSIONS</strong>.</li><li>Chaque génération <strong>écrit dans le dossier du projet</strong> + <strong>ajoute une entrée</strong> à <code>historique_versions</code> (fin des dumps globaux <code>looks/</code>, <code>outputs/generations/</code>, <code>outputs/proj_media/</code>).</li><li>Le dossier <strong>pilote</strong> le cockpit : l'UI n'affiche que ce que contient le dossier (le manifest est la source de vérité).</li></ul>
 <h3>C.3 — CONSERVATION DU CONTEXTE</h3>
 <ul><li><strong>Invariant</strong> : toute navigation (menu, retour, bibliothèque, édition) <strong>conserve</strong> le projet, l'étape et le média actif.</li><li>Aucune vue annexe ne mute le projet ; revenir d'une bibliothèque/édition replace <strong>exactement</strong> à l'étape d'où l'on vient, média actif intact.</li><li>Le <strong>bloc média unique</strong> sert de fil continu (voir GARANTIE TECHNIQUE).</li></ul>
-<h3>C.4 — PROPAGATION DU MÉDIA</h3>
-<ul><li><strong>Règle clé</strong> : <strong>le média validé devient AUTOMATIQUEMENT le média actif</strong>, propagé à <strong>toutes</strong> les étapes suivantes et repris à chaque étape — <strong>sans tap supplémentaire</strong>.</li><li>« Sélectionner = valider » : l'image affichée/choisie <strong>est</strong> l'image du projet ; l'aval lit toujours <strong>le média actif du projet</strong>, jamais un index orphelin. (Corrige A2 + A3.)</li></ul>
-<h3>C.5 — HISTORIQUE</h3>
-<ul><li><strong>Mémoire COMPLÈTE et PERMANENTE</strong> de <strong>tous</strong> les projets (dossier C.2), retrouvable des semaines après avec vidéo · images · prompts · scripts · paramètres · exports · RAW.</li><li><strong>Publier ne retire jamais de l'Historique.</strong> C'est l'archive de référence.</li></ul>
-<h3>C.6 — PRÊT-À-POSTER</h3>
-<ul><li><strong>FILE D'ATTENTE</strong> : uniquement les contenus <strong>en attente de publication/validation</strong>.</li><li><strong>Publier ⇒ le contenu QUITTE la file</strong> (mais reste dans l'Historique).</li><li>Invariant : <em>publié = retiré de Prêt-à-poster, conservé pour toujours dans Historique.</em></li></ul>
-<h3>C.7 — BIBLIOTHÈQUES (STUDIO)</h3>
-<ul><li><strong>STUDIO = UNIQUEMENT des bibliothèques</strong> : <strong>Looks · Références · Scripts · Prompts · Médias · Projets archivés</strong>. Aucune production ne s'y fait.</li><li><strong>Consultées DANS le bloc</strong> (in-bloc), jamais un écran qui « sort » du cockpit ; <strong>retour = exactement</strong> à l'étape/projet d'origine, média actif intact.</li><li><strong>Consultation ≠ mutation</strong> : parcourir n'altère jamais le projet ; appliquer un élément exige une <strong>action explicite et confirmée</strong> (fin du 1-tap involontaire).</li></ul>
+<h3>C.4 — PERSISTANCE ABSOLUE DU MÉDIA ACTIF ★ (raffinement 2)</h3>
+<p><strong>Règle</strong> : <strong>« le média VALIDÉ devient le média actif du projet »</strong>, et il est <strong>retrouvé</strong> :</p>
+<ul><li>à l'<strong>étape suivante</strong> · après un <strong>retour arrière</strong> · après un <strong>passage en bibliothèque</strong> · après un <strong>retour menu</strong> · après un <strong>redémarrage</strong> · après une <strong>reprise plusieurs jours après</strong>.</li></ul>
+<p><strong>Mécanisme</strong> : le média actif <strong>vit DANS LE DOSSIER PROJET</strong> (<code>project.json → media_actif</code>, pointant un fichier du dossier), <strong>jamais dans l'écran ni dans une variable d'UI</strong>.</p>
+<ul><li>Valider une image ⇒ écrire <code>media_actif</code> dans le manifest (+ entrée <code>historique_versions</code>).</li><li><strong>Chaque étape lit <code>media_actif</code> depuis le manifest</strong> au rendu (résolution unique « média actif du projet ») → plus aucune dépendance à un <code>idx</code>/drapeau volatile (cause des régressions A2/A3).</li><li>Au boot/reprise : <code>media_actif</code> est rechargé depuis le dossier → l'utilisateur retrouve <strong>exactement</strong> son média, même des jours plus tard.</li><li>« Sélectionner = valider » : l'image affichée/choisie <strong>est</strong> le média actif du projet.</li></ul>
+<h3>C.5 — HISTORIQUE ★ (raffinement 4)</h3>
+<ul><li><strong>Mémoire COMPLÈTE, PERMANENTE, JAMAIS SUPPRIMÉE</strong> de <strong>tous</strong> les projets — <strong>tous les fichiers du projet</strong> (dossier C.2) : vidéo · images · variantes · prompts · scripts · légendes · paramètres · coûts · moteur IA · exports · RAW · historique des versions.</li><li>Retrouvable des <strong>semaines/mois</strong> après, à l'identique.</li><li><strong>Publier ne retire jamais de l'Historique.</strong> C'est l'archive de référence.</li></ul>
+<h3>C.6 — PRÊT-À-POSTER ★ (raffinement 4)</h3>
+<ul><li><strong>FILE D'ATTENTE</strong> stricte : <strong>uniquement</strong> les contenus <strong>en attente</strong> de publication/validation.</li><li><strong>Publié/validé ⇒ le contenu QUITTE Prêt-à-poster</strong> mais <strong>reste INTÉGRALEMENT dans l'Historique</strong>.</li><li>Invariant : <em>Prêt-à-poster = transitoire ; Historique = permanent. Aucun contenu n'est jamais perdu.</em></li></ul>
+<h3>C.12 — ÉDITION (règle absolue) ★ (raffinement 5)</h3>
+<ul><li><strong>Règle ABSOLUE</strong> : <strong>aucune fonction d'édition</strong> (image, sous-titres, montage, script, légende, référence, prompt, zoom, musique) <strong>n'ouvre une nouvelle fenêtre / un nouveau cockpit / un nouveau parcours.</strong></li><li><strong>Toute modification se fait DANS le projet courant, in-cockpit</strong> (sous-état du bloc unique), puis revient à l'étape exacte. C'est garanti structurellement par l'<strong>identité unique de bloc</strong> (voir GARANTIE TECHNIQUE E.3) — fin de F1.</li></ul>
+<h3>C.7 — BIBLIOTHÈQUES (STUDIO) ★ (raffinement 3)</h3>
+<ul><li><strong>STUDIO = UNIQUEMENT des bibliothèques</strong> : <strong>Looks · Références · Scripts · Prompts · Médias · Projets archivés</strong>. Aucune production ne s'y fait.</li><li><strong>3 règles permanentes</strong> :</li></ul>
+<p>  1. <strong>« Consulter ne modifie JAMAIS »</strong> — parcourir une bibliothèque n'altère ni le projet en cours, ni son look, ni son média actif.</p>
+<p>  2. <strong>« Sélectionner est TOUJOURS une action explicite »</strong> — appliquer un élément = un geste dédié et confirmé (jamais sur simple tap de vignette ; c'est l'aggravateur A1 à supprimer).</p>
+<p>  3. <strong>Aucune bibliothèque n'ouvre un second cockpit / second projet / second flux</strong> — on consulte <strong>in-bloc</strong>, puis on revient <strong>EXACTEMENT au même endroit</strong> (même étape, même média actif).</p>
 <h3>C.8 — RÈGLES DE NAVIGATION : « VALIDER → étape suivante »</h3>
 <ul><li>Plus de « Suivant » conditionné à un drapeau caché. Chaque étape a <strong>« ✅ Valider »</strong> ; valider <strong>fait apparaître l'étape suivante</strong>, conserve le contexte et <strong>reprend automatiquement le média actif</strong>.</li><li>La progression est pilotée par l'<strong>action de validation</strong>, pas par un état interne. (Corrige A2.)</li></ul>
 <h3>C.9 — APERÇU = ÉTAT PERMANENT (pas une étape)</h3>
@@ -84,13 +118,16 @@ ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><bod
 <h2>F) ROLLBACK — FAIT</h2>
 <p><code>7e24dac</code> est <strong>live</strong> (bot up, cockpit re-posté, watcher ré-armé). Corrige les 2 aggravateurs (grille 1-tap, en-tête appauvri) ; <strong>ne corrige pas</strong> les bugs de fond (redesign requis). Commits <code>1fb4ca3</code>/audit/design conservés dans git (<code>fix/root-causes-v1</code>).</p>
 <hr>
-<h2>CE QUI RESTE À VALIDER PAR ETOILE (avant toute implémentation)</h2>
+<h2>G) RÈGLES PERMANENTES GRAVÉES (docs/EXIGENCES.md + docs/PLAN_CORRECTIONS.md)</h2>
+<ul><li><strong>[[E118]] — PROTOCOLE QUALITÉ AVANT CHAQUE LIVRAISON</strong> (rigueur « découverte du filtre couleur ») : 12 étapes documentées (audit · parcours PHOTO · parcours VIDÉO · test bibliothèques · test Historique · test Prêt-à-poster · test reprise projet · test propagation média · recherche de régressions · rapport · corrections · re-validation). <strong>Objectif : zéro régression évidente découverte par Etoile après livraison.</strong></li><li><strong>[[E119]] — MÉTHODE DE LIVRAISON UNIQUE COHÉRENTE</strong> : design cible <strong>FINAL validé</strong> → implémentation <strong>COMPLÈTE</strong> → audit complet → auto-tests complets → <strong>LIVRAISON UNIQUE</strong> → <strong>PUIS</strong> campagne de tests utilisateurs. <strong>Fin des micro-livraisons / ajustements écran-par-écran.</strong></li></ul>
+<hr>
+<h2>À FIGER PAR ETOILE (avant toute implémentation — déclenche E119)</h2>
 <p>1. <strong>Principe directeur</strong> « le dossier projet pilote le cockpit ».</p>
-<p>2. <strong>Grammaire</strong> SOURCE → PARAMÈTRES → FINALISER → PRÊT-À-POSTER (Aperçu = permanent, Ajuster = inline).</p>
-<p>3. <strong>Dossier projet</strong> (C.2) + <strong>archivage non destructif</strong> sur « Nouveau » (C.1).</p>
-<p>4. <strong>Historique permanent</strong> vs <strong>Prêt-à-poster file</strong> (C.5/C.6).</p>
-<p>5. <strong>Valider→suivant</strong> + <strong>propagation média auto</strong> (C.8/C.4).</p>
-<p>6. <strong>STUDIO = bibliothèques uniquement</strong> (C.7).</p>
-<p>7. <strong>Une seule identité de bloc</strong> + garantie technique (E) — fin de F1.</p>
-<p>8. <strong>Image brute</strong> + crop seulement en édition (C.10).</p>
-<p>_Rien n'est implémenté ni déployé avant validation explicite d'Etoile._</p></body></html>
+<p>2. <strong>Dossier projet AUTOPORTEUR</strong> (C.2 : manifest + historique des versions, rouvrable des mois après).</p>
+<p>3. <strong>Persistance absolue du média actif</strong> dans le dossier (C.4).</p>
+<p>4. <strong>Bibliothèques</strong> : consulter ≠ modifier · sélection explicite · aucun second cockpit (C.7).</p>
+<p>5. <strong>Historique permanent</strong> vs <strong>Prêt-à-poster file</strong> (C.5/C.6).</p>
+<p>6. <strong>Édition</strong> : aucune nouvelle fenêtre, tout in-cockpit (C.12).</p>
+<p>7. <strong>Grammaire</strong> SOURCE → PARAMÈTRES → FINALISER → PRÊT-À-POSTER (Aperçu = permanent, Ajuster = inline) (D).</p>
+<p>8. <strong>Valider→suivant</strong> (C.8) · <strong>STUDIO = bibliothèques uniquement</strong> (C.7) · <strong>une seule identité de bloc</strong> + garantie technique (E) · <strong>image brute</strong> (C.10) · <strong>désencombrement</strong> (C.11).</p>
+<p>_Une fois cette cible <strong>figée</strong> par Etoile, [[E119]] s'applique : implémentation complète unique, puis [[E118]] (auto-tests), puis livraison unique. <strong>Rien n'est implémenté ni déployé avant ce gel.</strong>_</p></body></html>
