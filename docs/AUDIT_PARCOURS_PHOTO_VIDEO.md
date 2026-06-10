@@ -232,3 +232,147 @@ _Audit livré. Aucune correction tant qu'Etoile n'a pas validé le PARCOURS CIBL
 **On retire comme étapes** : Référence, Galerie-réf, Galerie-look, Prompt, Biblio-prompt, Galerie-source, Biblio-script, Montage(obligatoire), Légende(séparée). **On garde le contrôle** via lignes/pickers inline dans Paramètres + Ajuster inline. **Net : ~7-9 écrans → 3.**
 
 _Enrichissement audit. Cible resserrée à valider AVANT toute modification structurelle (cat.2)._
+
+---
+
+# APPROFONDISSEMENT — 6 POINTS À VÉRIFIER AVANT DE VALIDER LA CIBLE
+
+> Analyse du comportement **réel** (code déployé `1fb4ca3`) + **cible** proposée. Aucune implémentation structurelle : à valider d'abord.
+
+## POINT 1 — GESTION DU PROJET ACTIF (le plus critique)
+
+### Réel aujourd'hui
+- **Où vit le projet** : un objet unique `proj` en mémoire (slices `look` / `image` / `prompt` / `video`), miroir vers le moteur de génération (`newlook`). Identité stable = `genState.activeDraftId`.
+- **Sauvegarde** : `autosaveDraft()` écrit `drafts/<persona>/<draftId>.json` à **chaque navigation** (entrée d'écran, /menu, Retour). Le draft capture look, images, prompt, vidéo (script/montage/légende), nb, fx. Les médias générés sont **stabilisés** dans `outputs/proj_media/<draftId>/<n>.jpg` (copie locale → survit à l'expiration des URLs temporaires).
+- **Reprise** : `ensureProj()` recharge `proj` depuis le draft via `listDrafts()` si la mémoire est vide ; `resumeDraft(id)` (bouton « 📂 Reprendre un projet ») restaure l'état **et repositionne à l'écran exact** (`currentStepModule` → photo.look / photo.image / video.*).
+- **Survie aux retours menu** : non destructif. Entrer dans **Studio / Historique / Looks** = vue média annexe (lecture) ; le retour `◀️ Retour` (`WS_RESUME`) renvoie **exactement à l'étape du projet en cours** (`currentStepModule`). Le projet n'est jamais réinitialisé implicitement (`ensureProj` ne reset pas).
+- **Après /restart ou reboot pm2** : `genState.activeDraftId` est persistant ; le draft reste sur disque. Le projet **n'est PAS reconstruit au boot** — il est rechargé **paresseusement** à la 1ʳᵉ interaction (`ensureProj`). Le boot ne ré-affiche le cockpit que si `REOPEN_FLAG` est posé (cas `/restart` ou déploiement piloté), sinon boot **silencieux**.
+
+### Écarts / risques
+- **Pas de « reprise » proactive au boot** : après reboot, l'utilisateur revoit l'ACCUEIL, pas son projet en cours — il doit re-rentrer (ou « Reprendre »). Le contexte n'est pas *perdu* mais pas *re-présenté*.
+- **Un seul projet actif à la fois** : ouvrir un nouveau projet bascule `activeDraftId` ; les anciens drafts coexistent mais ne sont listés que via « Reprendre ».
+
+### Cible
+- **Au boot/restart** : si un draft « en cours » existe, le cockpit propose en 1 ligne « ↩️ Reprendre *<nom projet>* · 🏠 Accueil » (reprise 1 tap, sans perte).
+- **Indicateur permanent** dans l'en-tête (déjà en place : `📁 <nom>`), + état « brouillon / terminé ».
+- **Règle invariante** : toute navigation = autosave ; aucune action ne détruit un projet sans confirmation explicite.
+
+## POINT 2 — ÉDITION : TOUT DANS LE COCKPIT (état réel par action)
+
+> Garantie visée : **aucune** action Éditer/Modifier/Montage/Script/Légende/Référence/Prompt ne crée un nouveau bloc.
+
+| Action | Entrée | Reste dans le bloc ? | Détail vérifié |
+|---|---|---|---|
+| **Référence** | `photo.ref` (PR_*) | ✅ in-bloc | rendu routeur `editMessageMedia`, média unique |
+| **Prompt** | `photo.prompt` (PP_*) | ✅ in-bloc | idem ; biblio prompts `photo.promptlib` in-bloc |
+| **Script vidéo** | `video.script` (VP_*) | ✅ in-bloc | édition via saisie texte, re-render in-place |
+| **Légende** | `video.legende` (VL_*) | ✅ in-bloc | idem |
+| **Montage / Éditeur avancé via Image** | `PL_EDIT` | ✅ in-bloc | **bridge** `cockpit.mid = newlook.mediaId` avant `showEditHome()` |
+| **Montage / Éditeur avancé via Montage** | `VM_EDIT` | ✅ in-bloc | **bridge** identique + `editReturn='video.montage'` (Retour = même bloc) |
+| **Éditeur avancé via menu VIDÉO** | `EDIT_HOME` (bouton « 🎨 Éditer / Montage », `registry.js`) | ⚠️ **PEUT créer un 2ᵉ bloc** | **PAS de bridge** : `showEditHome()` rend dans `cockpit.mid` ; si ≠ `newlook.mediaId`, `editScreen`→`cockpitPhoto` retombe sur `send()` = nouveau message |
+| **Sous-titres** | `EDIT_SUBS` (S_*) | ⚠️ écrit un fichier verrouillé | modifie `subtitle_style.js` (fichier sous verrou) ; rendu in-bloc mais effet global |
+| **Filtres image** | `IMG_*` | ✅ in-bloc | `editScreen` sur `cockpit.mid` (bridgé si venu de PL_EDIT) |
+
+### Cause racine (F1)
+Il existe **DEUX identités de bloc** : `newlook.mediaId` (workspace routeur) et `cockpit.mid` (carte/éditeur legacy). Les chemins `PL_EDIT`/`VM_EDIT` les **réconcilient** ; le chemin `EDIT_HOME` (et tout point d'entrée éditeur non bridgé) **ne les réconcilie pas** → c'est là que F1 recrée encore un bloc.
+
+### Cible
+- **Une seule identité de bloc** (fusionner `cockpit.mid` et `newlook.mediaId`, ou bridge systématique à **chaque** entrée éditeur).
+- **Édition = sous-état de l'écran courant**, jamais un module séparé : « Ajuster » s'ouvre *dans* Paramètres/Aperçu.
+- Sous-titres/musique/zooms = pickers focalisés in-bloc (et ne pas écrire les fichiers verrouillés sans jeton).
+
+## POINT 3 — PROJET TERMINÉ = DOSSIER PROJET
+
+### Réel aujourd'hui — stockage **éparpillé**
+| Élément | Emplacement |
+|---|---|
+| Métadonnées projet (draft) | `drafts/<persona>/<draftId>.json` |
+| Médias stabilisés du projet | `outputs/proj_media/<draftId>/<n>.jpg` |
+| Looks gardés | `looks/gen_<horodatage>_pN.jpg` |
+| Images/vidéos générées | `outputs/generations/*.jpg` · `*.mp4` (à plat) |
+| Tests locaux | `outputs/tests/test_*.mp4` |
+| Export « prêt » | `outputs/ready_to_post/<nom>/` (mp4 + .txt + .style.json) |
+| Sous-titres / filtres | `subtitle_style.js` · `style.json` (**globaux**, pas par projet) |
+
+- **« Nouveau »** ne perd pas l'ancien : `clearActiveDraft()` (après génération finale ou `NL_CANCEL`) supprime **le draft**, mais les médias gardés (`nlSave`) restent dans `looks/` et `outputs/generations/`.
+- **MAIS** : il n'existe **aucun dossier unique par projet** regroupant {vidéo finale, images, variantes, prompt, script, légende, paramètres, médias intermédiaires, RAW}. Les pièces sont dispersées sur 5–6 emplacements, reliées seulement par `draftId` (métadonnées) et l'horodatage (médias) — corrélation fragile.
+
+### Cible
+- **Un dossier par projet** : `projects/<persona>/<projectId>/` contenant `project.json` (réf·look·décor·prompt·nb·script·légende·params·coûts), `images/`, `variants/`, `video_final.mp4`, `raw/` (si dispo), `exports/`.
+- À chaque génération : on **écrit dans le dossier du projet** (au lieu des dumps globaux), et l'Historique liste ces dossiers.
+- « Nouveau » = nouveau dossier ; l'ancien reste complet et ré-ouvrable.
+
+## POINT 4 — HISTORIQUE vs PRÊT-À-POSTER
+
+### Réel aujourd'hui
+- **Prêt-à-poster** = `outputs/ready_to_post/` : on y **copie** un export (`mp4` + `.txt` légende + `.style.json`). C'est un **dossier d'export**, pas une file de validation : rien ne « sort » quand on publie.
+- **Historique** = `outputs/generations/` : **liste plate** de `.jpg`/`.mp4` triés par date (12 récents en vue). **Aucune** métadonnée par projet (prompt/script/params/exports/RAW absents), pas de regroupement, pas de permanence garantie (dump technique).
+
+### Écart vs intention d'Etoile
+- Aucune distinction « en attente de publication » vs « archive permanente ».
+- Un contenu publié **reste** dans `ready_to_post` (pas de sortie) **et** n'a pas d'archive projet complète dans Historique.
+
+### Cible
+- **Prêt-à-poster** = file d'attente **uniquement** des contenus à publier/valider ; publier ⇒ le contenu **quitte** la file.
+- **Historique** = archive **complète et permanente** de **tous** les projets (dossier projet du point 3), retrouvable des semaines après (vidéo, images, prompt, script, params, exports, RAW). Publier ne retire jamais de l'Historique.
+- Invariant : *publié = retiré de Prêt-à-poster, conservé dans Historique*.
+
+## POINT 5 — APERÇU GRATUIT → VALIDATION → FINAL HD
+
+### Réel aujourd'hui
+- **Aperçu gratuit** : `/apercu` (et `EDIT_PREVIEW`) → rend ~2 frames du look courant **avec le style appliqué** (zéro dépense). Rendu local gratuit aussi via `/test`.
+- **Coût affiché AVANT génération** : oui, à la confirmation —
+  - PHOTO (`photo.image`, `confirming=true`) : « ✨ Lancer Final HD ? Génération payante (~N cr) » (`photoImageCost` : crédits + ≈ €).
+  - VIDÉO (`video.export`, `confirming=true`) : « Lancer la vidéo Final HD ? Génération payante (~N cr) · ⏳ <temps> » (`videoCost`/`estimateCost` : parts, mots, TTS, lipsync, crédits, €).
+- **Confirmation obligatoire** (PL_GEN → confirm → lancement ; VX_GO).
+
+### Manques
+- Affichage **partiel** : crédits + € sont là, mais **pas un panneau pré-génération unifié** montrant clairement **durée · coût · crédits · nb images/plans · format · moteur** côte à côte.
+- **Solde de crédits** non affiché. **Format** (9:16…) et **moteur** (Anthropic script + Kling lipsync) **implicites**. Décomposition TTS/lipsync non montrée. Temps estimé générique.
+
+### Cible
+- **Panneau « Avant de lancer »** unique et identique PHOTO/VIDÉO : `⏱ Durée · 🎞 Nb plans/images · 🖼 Format · ⚙️ Moteur · 💳 Coût (cr ≈ €) · 🔋 Crédits restants`, puis **Aperçu gratuit** → **Ajuster** → **Lancer Final HD**.
+
+## POINT 6 — PARCOURS CIBLE SYMÉTRIQUE (verdict par écran)
+
+### Symétrie réelle aujourd'hui (asymétrique)
+- **PHOTO** : `photo.look` (hub : 👗 Tenue · 🌆 Décor · 🎯 Réf · ✍️ Prompt · 🖼 Galerie · 📤 Upload · 🔢 Nb) → `photo.image` (navigation + ✅ Valider + 🎨 Éditer + 🎬 Vidéo).
+- **VIDÉO** : `video.source` → `video.script` → `video.montage` → `video.legende` → `video.export` (séquentiel, étapes atomiques, pas de hub).
+- ⇒ Deux logiques différentes à apprendre. PHOTO concentre les décisions dans un hub ; VIDÉO les étale en 5 étapes.
+
+### Cible symétrique : `SOURCE → PARAMÈTRES → APERÇU → AJUSTER → FINALISER`
+| Écran | PHOTO | VIDÉO | Verdict |
+|---|---|---|---|
+| **① SOURCE** | d'où vient l'image (nouveau look / galerie / upload) | d'où vient la vidéo (look projet / image générée / galerie / upload) | **INDISPENSABLE** (1 décision : l'origine) |
+| **② PARAMÈTRES** | réf · tenue · décor · prompt · nb — **en lignes** | script · durée · sous-titres · musique — **en lignes** | **INDISPENSABLE** (voir arbitrage ci-dessous) |
+| **③ APERÇU** | 2 frames gratuites + panneau coût/crédits/format/moteur | 1 extrait gratuit + même panneau | **INDISPENSABLE** (moment « je vois avant de payer ») |
+| **④ AJUSTER** | retouche image / sélection / nb (inline) | montage / sous-titres / musique (inline) | **FUSIONNABLE** dans ③ (sous-action de l'aperçu) — *à arbitrer* |
+| **⑤ FINALISER** | récap + **Lancer Final HD** | récap + **légende** + **Lancer Final HD** | **INDISPENSABLE** (1 décision : dépenser) |
+| Réf / Galeries / Biblio prompt / Biblio script / Montage / Légende séparés | — | — | **SUPPRIMABLES** comme écrans : absorbés en lignes/pickers de ②, ou déplacés dans Studio |
+
+### ARBITRAGE CRITIQUE : « moins d'écrans » VS « une étape = une décision »
+La crainte = un écran **Paramètres surchargé** mélangeant réf/tenue/décor/prompt/nb. Réponse de conception :
+
+- **Paramètres = une LISTE de lignes**, pas un formulaire éclaté. Chaque ligne montre l'**état courant** et **ouvre un picker focalisé in-bloc** (une décision à la fois) :
+  ```
+  ② PARAMÈTRES (PHOTO)
+  🎯 Référence : Imany ▸           (tap → picker réf in-bloc, puis retour à la liste)
+  👗 Tenue : robe noire ▸
+  🌆 Décor : studio ▸
+  ✍️ Prompt : défaut ▸
+  🔢 Images : 1 ▸
+  ────────
+  👁 Aperçu gratuit   ✨ Finaliser
+  ```
+  ⇒ L'écran **ne montre jamais 5 décisions ouvertes** : il montre 5 **résumés** d'1 ligne ; on n'ouvre qu'**un** picker à la fois (« une décision principale active à la fois »), in-bloc, sans sous-menu complexe ni nouveau message.
+
+- **Garder APERÇU (③) et AJUSTER (④) DISTINCTS** plutôt que tout comprimer : « voir » et « retoucher » sont deux intentions différentes ; les fusionner surcharge. Recommandation : **③ Aperçu** reste un moment propre (voir + coût) ; **④ Ajuster** n'apparaît **que si** l'utilisateur le demande (« 🎨 Ajuster » depuis l'aperçu), en sous-état inline — pas un écran permanent.
+
+- **Bilan écrans** : **socle = 3 écrans obligatoires** (SOURCE · PARAMÈTRES · FINALISER) + **APERÇU** comme 3ᵉ moment fort recommandé (donc **3 à 4 écrans**), **AJUSTER** = sous-état inline (0 écran permanent). Symétrie stricte PHOTO ≡ VIDÉO. **Objectif tenu : minimum d'écrans SANS cacher de fonction ni empiler les décisions.**
+
+### Recommandation de validation
+Valider : (a) **3 écrans + Aperçu** (vs 3 stricts) ; (b) le modèle **Paramètres = lignes + picker focalisé in-bloc** ; (c) **Aperçu et Ajuster distincts**. Une fois ces 3 arbitrages tranchés, la CAT.2 pourra être spécifiée écran par écran.
+
+---
+
+_Approfondissement des 6 points — comportement réel (code `1fb4ca3`) + cible. À valider AVANT toute implémentation structurelle (cat.2)._
