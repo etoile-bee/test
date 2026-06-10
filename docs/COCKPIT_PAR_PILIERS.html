@@ -1,0 +1,213 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>COCKPIT PAR LES PILIERS — la forme dérivée du modèle métier</h1>
+<blockquote><strong>Statut : CONCEPTION (aucune implémentation).</strong> Le modèle métier validé par Etoile (10/06) est la</blockquote>
+<blockquote><strong>référence absolue</strong> (<code>E127</code>). Ce document descend vers la <strong>forme concrète</strong> du cockpit — sur le</blockquote>
+<blockquote>médium réel (Telegram, bloc unique édité en place) — mais <strong>chaque choix part du besoin</strong> : il dérive</blockquote>
+<blockquote>d'au moins un des 6 piliers. Rien n'est dessiné « parce que c'est joli » ou « parce que le moteur sait</blockquote>
+<blockquote>le faire ». Live intact · fichiers verrouillés intacts · aucune dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Phrase centrale (boussole de tout le document)</strong> :</blockquote>
+<blockquote>« Je pilote la transformation d'une <strong>intention</strong> en contenu <strong>publiable</strong>, par une suite de décisions</blockquote>
+<blockquote><strong>cohérentes, réversibles et mémorisées</strong>, dans un système en qui j'ai <strong>confiance</strong> — jusqu'au seul</blockquote>
+<blockquote>acte définitif : <strong>publier</strong>. »</blockquote>
+<hr>
+<h2>0. CONSTAT FONDATEUR (E120) — l'intention-boussole MANQUE</h2>
+<p>Vérification factuelle du moteur (<code>ui/project_store.js</code>, objet <code>manifest</code>) :</p>
+<table><thead><tr><th>Objet de 1er niveau présent</th><th>Objet de 1er niveau ABSENT</th></tr></thead><tbody><tr><td>référence · look · décor · prompt (zones) · paramètres · média actif · variantes · livrables · versions · QC · coûts · statuts</td><td><strong>INTENTION</strong> (message · émotion · personnage · public · objectif de publication)</td></tr></tbody></table>
+<blockquote><code>grep -rni "intention" ui/*.js</code> = <strong>0 résultat</strong>. Le projet sait dire <strong>COMMENT</strong> il fabrique (réf,</blockquote>
+<blockquote>look, décor, prompt) mais <strong>pas POURQUOI</strong> ni <strong>POUR QUI</strong> ni <strong>POUR QUELLE DESTINATION</strong>.</blockquote>
+<p><strong>Conclusion</strong> : le soupçon d'Etoile est confirmé. Le <strong>pilier 1 n'a aucun support moteur</strong>. Tout le</p>
+<p>reste (réf/look/décor/prompt) sont des <strong>moyens</strong> orphelins d'une <strong>fin</strong>. C'est le **déficit</p>
+<p>structurel** : sans intention de premier niveau, la question centrale « est-ce que ça sert encore</p>
+<p>l'intention ? » est <strong>littéralement impossible à poser</strong> par l'outil. → **L'intention est la fondation à</p>
+<p>poser en premier ; tous les autres piliers s'y accrochent.**</p>
+<hr>
+<h2>1. PILIER 1 — INTENTION (la boussole) → <em>à construire, fondation</em></h2>
+<p><strong>Besoin</strong> : une boussole <strong>présente en permanence</strong>, courte, modifiable, qui gouverne tout le projet.</p>
+<h3>1.1 L'objet INTENTION (premier niveau du manifest)</h3>
+<pre><code>intention: {
+  message:    "ce que je veux dire (1 phrase)",
+  emotion:    "ce que je veux faire ressentir",
+  personnage: "qui porte le message (réf liée)",
+  public:     "à qui je parle",
+  objectif:   { plateforme: "TikTok|Reels|Shorts", format: "9:16", duree_cible: "23s", destination: "publier|tester" },
+  cree_le, modifie_le
+}</code></pre>
+<p>Au même rang que <code>reference</code>/<code>look</code>/<code>zones</code>. C'est <strong>la première chose</strong> qu'on définit, <strong>la dernière</strong></p>
+<p>qu'on perd.</p>
+<h3>1.2 Capture — au démarrage, douce et brève (1 écran, 5 décisions courtes)</h3>
+<blockquote>📸 PHOTO / 🎬 VIDÉO ouvre d'abord une <strong>mini-capture d'intention</strong> (skippable, mais proposée) :</blockquote>
+<pre><code>🧭 Ton intention (30 s) — tu pourras tout changer après
+┌──────────────────────────────────────────┐
+│ ✍️ Message   : ____________________  ▸     │
+│ 😊 Émotion   : [douceur][punch][luxe][fun]▸│
+│ 👤 Personnage: 🎯 Imany ▾                   │
+│ 👥 Public    : ____________________  ▸     │
+│ 📍 Objectif  : [TikTok ·9:16· 23s] ▸       │
+├──────────────────────────────────────────┤
+│ ✅ Définir l'intention   ⏭ Plus tard       │
+└──────────────────────────────────────────┘</code></pre>
+<p><em>Pilier servi : ① Intention.</em> « Plus tard » est permis (confiance/contrôle) mais l'outil rappellera</p>
+<p>gentiment que la boussole est vide.</p>
+<h3>1.3 Présence permanente — ligne 0 du bandeau, sur CHAQUE écran projet</h3>
+<blockquote>Le bandeau d'état actuel (3 lignes) gagne une <strong>ligne 0</strong> au-dessus du nom :</blockquote>
+<pre><code>🧭 « réveille-toi puissante » · 😊 douceur · 👥 femmes 25-40 · 📍 TikTok·9:16·23s   ✎
+📁 Projet · 10 juin 15h52 · ⏳ en cours
+🎯 Imany🔒 · 👗 Robe rouge · 🌆 Studio · ✍️ P1
+⚙️ 2img·23s·9:16 · ◫ 1 var · 📦 1 liv</code></pre>
+<p>Tap sur la ligne 🧭 (ou ✎) = éditer l'intention. <em>Courte, toujours là, modifiable.</em> <em>Pilier ①.</em></p>
+<hr>
+<h2>2. PILIER 2 — COHÉRENCE (rendre la dérive lisible, sans décider) → <em>à construire (mécanisme)</em></h2>
+<p><strong>Besoin</strong> : l'outil <strong>ne juge pas le goût</strong>. Il pose en permanence la question centrale et, si quelque</p>
+<p>chose dérive, il <strong>localise la pièce</strong> et <strong>laisse choisir</strong>.</p>
+<h3>2.1 La question centrale, récurrente et non culpabilisante</h3>
+<p>Un point d'accès permanent (bandeau + 📊 Projet + à chaque grande validation) :</p>
+<blockquote><code>🧭 Sert l'intention ?</code> → ouvre la <strong>Lecture de cohérence</strong>.</blockquote>
+<h3>2.2 Lecture de cohérence — les 10 pièces face à l'intention</h3>
+<pre><code>🧭 Est-ce que ça sert encore : « réveille-toi puissante » ?
+
+Pièce         état        signal (le POURQUOI du doute)
+✍️ Message     ✓ aligné    —
+🖼 Image       ✓ aligné    —
+👗 Look        ⚠ à vérifier  changé après l'intention (était « tailleur »)
+🌆 Décor       ✓ aligné    —
+🎙 Voix        — non défini —
+📝 Script      ⚠ à vérifier  ton « fun » vs émotion visée « douceur »
+🎬 Montage     ✓ aligné    —
+🥁 Rythme      ✓ aligné    —
+🏷 Légende     ⚠ vide       objectif = publier, légende absente
+📤 Publication ✓ TikTok 9:16 —
+
+→ par pièce :  [👁 Voir]   [🛠 Ajuster]   [✓ C'est voulu]</code></pre>
+<ul><li>L'outil <strong>signale</strong> (heuristiques <strong>explicables</strong>, jamais un score de goût) : durée &gt; format,</li></ul>
+<p>  zone modifiée après l'intention, émotion du script ≠ émotion visée, légende vide alors qu'objectif =</p>
+<p>  publier, personnage ≠ référence verrouillée…</p>
+<ul><li>Chaque signal est <strong>accompagné de son pourquoi</strong> (1 ligne).</li><li><strong>Décision = Etoile.</strong> <code>✓ C'est voulu</code> <strong>assume</strong> la pièce (marque « écart assumé », trace dans la</li></ul>
+<p>  mémoire) — l'outil <strong>n'y revient plus</strong> sans raison. <strong>Aucune correction automatique. Aucun blocage.</strong></p>
+<p><em>Piliers servis : ② Cohérence (cœur), ③ Mémoire (l'écart assumé est tracé), ⑥ Contrôle (laisse choisir).</em></p>
+<hr>
+<h2>3. PILIER 3 — MÉMOIRE (le POURQUOI, relisible des mois après) → <em>partiel → à compléter</em></h2>
+<p><strong>Besoin</strong> : conserver <strong>intention + variantes testées + choix faits AVEC leur raison + version retenue</strong>.</p>
+<p><strong>Aujourd'hui</strong> : <code>versions[]</code> (snapshots) et <code>historique_versions[]</code> (journal d'actions) existent, mais</p>
+<p>ils enregistrent le <strong>QUOI</strong>, pas le <strong>POURQUOI</strong>. Il manque la <strong>raison</strong> attachée aux décisions.</p>
+<h3>3.1 La décision tracée = action + raison (à ajouter)</h3>
+<p>À chaque choix structurant (garder une image, retenir une variante, assumer un écart, publier) :</p>
+<pre><code>🗂 Journal des décisions
+10 juin 15:58 — Variante B retenue comme média actif
+               « plus douce que A, colle à l'émotion visée »   ✎
+10 juin 16:04 — Look changé (tailleur → robe rouge)
+               « le tailleur faisait trop corporate »          ✎
+10 juin 16:10 — Écart script assumé (ton fun)
+               « clin d'œil voulu, public le connaît »         ✎</code></pre>
+<p>Raison <strong>courte, optionnelle mais proposée</strong> (jamais bloquante = confiance). Relisible tel quel des mois</p>
+<p>après.</p>
+<h3>3.2 « Pourquoi cette version ? » sur la version retenue</h3>
+<p>Chaque version validée porte une <strong>note de retenue</strong> (<code>raison_retenue</code>) : *pourquoi celle-ci et pas une</p>
+<p>autre*. Visible dans l'historique des versions.</p>
+<p><em>Piliers servis : ③ Mémoire (cœur), ② Cohérence (les écarts assumés sont mémorisés).</em></p>
+<hr>
+<h2>4. PILIER 4 — CAPITALISATION (promouvoir/réutiliser des briques) → <em>partiel → à étendre</em></h2>
+<p><strong>Besoin</strong> : transformer un acquis en <strong>brique réutilisable</strong> : look, décor, <strong>preset</strong>, **style</p>
+<p>sous-titres<strong>, </strong>enchaînement** (séquence de montage).</p>
+<p><strong>Aujourd'hui</strong> : presets (réglages image) + enregistrement de zones en bibliothèque existent. Manque :</p>
+<p>le <strong>style sous-titres</strong> comme brique nommée, et <strong>l'enchaînement/montage</strong> comme brique réutilisable,</p>
+<p>avec <strong>provenance</strong> (« vient du projet X »).</p>
+<h3>4.1 « Promouvoir en brique » — geste uniforme</h3>
+<p>Depuis n'importe quel composant abouti :</p>
+<pre><code>⭐ Promouvoir cette brique
+[👗 Look] [🌆 Décor] [🎨 Preset image] [💬 Style sous-titres] [🎬 Enchaînement]
+→ nom : ____   · visible ensuite dans STUDIO, réutilisable dans tout projet</code></pre>
+<ul><li>Réutilisation = <strong>copie explicite dans le projet</strong> (jamais d'héritage silencieux — respecte</li></ul>
+<p>  l'étanchéité E124 et la confiance).</p>
+<ul><li>Chaque brique garde sa <strong>provenance</strong> (mémoire).</li></ul>
+<p><em>Piliers servis : ④ Capitalisation (cœur), ③ Mémoire (provenance), ⑤ Confiance (copie explicite).</em></p>
+<hr>
+<h2>5. PILIER 5 — CONFIANCE (prévisibilité par contrat) → <em>en place → à durcir</em></h2>
+<p><strong>Besoin</strong> : <strong>contrat</strong> tenu — effet explicite <strong>avant</strong> l'action ; valider = exactement l'annoncé ;</p>
+<p>le verrou tient ; la reprise restaure l'état <strong>exact</strong> ; <strong>rien en silence</strong>.</p>
+<p><strong>Aujourd'hui</strong> : panneau de coût avant dépense, vue d'impact (garder/MAJ/régénérer), verrous de zones,</p>
+<p>reprise après restart — tout cela existe et est prouvé. <strong>À durcir</strong> : l'**annonce d'effet avant</p>
+<p>chaque action conséquente** n'est pas encore systématique.</p>
+<h3>5.1 Le contrat d'action (à généraliser)</h3>
+<p>Tout bouton qui <strong>modifie</strong> ou <strong>dépense</strong> annonce d'abord, en une ligne, <strong>ce qui va se passer</strong> :</p>
+<pre><code>🔁 Régénérer l'image
+   → remplace l'image actuelle · conserve look+décor verrouillés · ~0 € (test)
+   [✅ Faire exactement ça]   [✖️ Annuler]</code></pre>
+<p>Règle : <strong>ce qui est annoncé = ce qui se produit</strong>, ni plus ni moins. Le verrou affiché <strong>tient</strong></p>
+<p>toujours. Reprise = état <strong>exact</strong> (déjà garanti par le manifest source de vérité).</p>
+<p><em>Piliers servis : ⑤ Confiance (cœur), ② Cohérence (ce que touche/préserve l'action est explicite).</em></p>
+<hr>
+<h2>6. PILIER 6 — CONTRÔLE (tout réversible jusqu'à publier) → <em>partiel → à compléter</em></h2>
+<p><strong>Besoin</strong> : revenir · <strong>comparer</strong> · restaurer · <strong>réactiver une variante écartée</strong> ·</p>
+<p><strong>garder / mettre à jour / régénérer AU CHOIX</strong> (jamais auto). <strong>Publier = seul acte irréversible.</strong></p>
+<p><strong>Aujourd'hui</strong> : retour partout, versions restaurables, vue d'impact (garder/MAJ/régénérer),</p>
+<p>variantes conservées. <strong>Manque</strong> : <strong>comparer</strong> deux variantes côte à côte, et <strong>réactiver</strong> une image</p>
+<p><strong>rejetée/écartée</strong> (le rejet n'est pas une corbeille définitive).</p>
+<h3>6.1 Comparer (à ajouter)</h3>
+<pre><code>⚖️ Comparer   A ◀ ▶ B
+[A] média actif     [B] variante #2
+👁 voir A · 👁 voir B · ★ retenir A · ★ retenir B · ◫ garder les deux</code></pre>
+<h3>6.2 Réactiver une variante écartée (à ajouter)</h3>
+<p>La pièce « rejeté » devient <strong>réactivable</strong> : <code>↩️ Réactiver</code> la repasse en variante/candidate (rien</p>
+<p>n'est détruit avant publication).</p>
+<h3>6.3 Garder / Mettre à jour / Régénérer — au choix, jamais auto (en place)</h3>
+<p>La vue d'impact existante est l'incarnation exacte du pilier : aucune étape aval n'est effacée en silence.</p>
+<h3>6.4 Publier = la seule porte sans retour</h3>
+<pre><code>📤 Publier — action DÉFINITIVE
+   après publication, cette version est figée (l'historique la conserve)
+   [✅ Publier]   [⬅ pas encore]</code></pre>
+<p><em>Piliers servis : ⑥ Contrôle (cœur), ⑤ Confiance (publier est clairement marqué irréversible).</em></p>
+<hr>
+<h2>7. LIRE LE PROJET D'UN COUP D'ŒIL — l'écran 📊 Projet refondu</h2>
+<p>Le 📊 actuel montre zones/objets. Refondu par les piliers, il devient <strong>la carte du projet</strong> :</p>
+<pre><code>📊 « réveille-toi puissante »                        🧭 Sert l'intention ? ⚠ 3 signaux
+─────────────────────────────────────────────
+🧭 INTENTION   message · 😊 douceur · 👥 25-40 · 📍 TikTok 9:16 23s          ✎
+🧱 COMPOSANTS  🎯 Imany🔒 · 👗 Robe · 🌆 Studio · ✍️ P1 · ⚙️ 2img 23s
+◫ VARIANTES   3 testées  ·  ⚖️ Comparer
+🗂 DÉCISIONS   « variante B retenue : plus douce »  (+4)
+📦 LIVRABLES   1 prêt  ·  🕘 versions : 2
+📌 ÉTAT        ⏳ en cours  →  prochaine étape : script
+─────────────────────────────────────────────
+[🧭 Intention] [🧱 Composants] [◫ Variantes] [🗂 Décisions] [📦 Livrables] [📤 Publier]</code></pre>
+<p>On y voit, en un écran : **l'intention, l'état, les composants, les variantes, les livrables, et la</p>
+<p>question centrale** avec le nombre de signaux. <em>Tous les piliers convergent ici.</em></p>
+<hr>
+<h2>8. MATRICE DE JUSTIFICATION — chaque élément → le(s) pilier(s) qu'il sert</h2>
+<blockquote>Légende : ① Intention ② Cohérence ③ Mémoire ④ Capitalisation ⑤ Confiance ⑥ Contrôle.</blockquote>
+<blockquote>Verdict : <strong>RESTE</strong> (justifié) · <strong>COUPÉ/À REQUALIFIER</strong> (non/mal justifié) · <strong>MANQUE</strong> (pilier non servi).</blockquote>
+<h3>8.1 Ce qui existe dans /v4 (audit)</h3>
+<table><thead><tr><th>Élément /v4 actuel</th><th>Pilier(s)</th><th>Verdict</th></tr></thead><tbody><tr><td>Bandeau d'état projet</td><td>② ⑤</td><td><strong>RESTE</strong> (gagne la ligne 🧭 — ①)</td></tr><tr><td>Écran 📊 Projet</td><td>② ③ ⑥</td><td><strong>RESTE</strong> (refondu §7)</td></tr><tr><td>Zones réf/look/décor/prompt + verrou</td><td>② ⑤</td><td><strong>RESTE</strong></td></tr><tr><td>Historique de zone + restaurer</td><td>③ ⑥</td><td><strong>RESTE</strong></td></tr><tr><td>Écran candidat (3 états)</td><td>⑥</td><td><strong>RESTE</strong></td></tr><tr><td>Variantes (conserver)</td><td>⑥ ③</td><td><strong>RESTE</strong> (gagne ⚖️ comparer + ↩️ réactiver — ⑥)</td></tr><tr><td>Livrables + dossier livrable autonome</td><td>— vers ⑤/④</td><td><strong>RESTE</strong> (sert la destination = ①/⑥)</td></tr><tr><td>Versions (snapshot/restore)</td><td>③ ⑥</td><td><strong>RESTE</strong> (gagne « raison retenue » — ③)</td></tr><tr><td>Préréglages (presets)</td><td>④</td><td><strong>RESTE</strong> (étendu : style sous-titres, enchaînement)</td></tr><tr><td>Gate QC avant dépense</td><td>⑤ ②</td><td><strong>RESTE</strong></td></tr><tr><td>Panneau coût avant génération</td><td>⑤ ①</td><td><strong>RESTE</strong> (l'objectif/destination = ①)</td></tr><tr><td>Vue d'impact garder/MAJ/régénérer</td><td>⑥ ⑤</td><td><strong>RESTE</strong></td></tr><tr><td>Récents/Historique (vues, source unique)</td><td>③ ⑥</td><td><strong>RESTE</strong></td></tr><tr><td>Planche contact</td><td>⑥</td><td><strong>RESTE</strong></td></tr><tr><td>Édition image (sliders FX)</td><td>② ⑥</td><td><strong>RESTE — À SURVEILLER</strong> : risque « réglage de goût » ; à cadrer comme <em>ajuster pour servir l'intention</em>, sinon dérive vers le tripotage</td></tr><tr><td>Publier (statut)</td><td>⑥</td><td><strong>RESTE</strong> (marqué seul irréversible §6.4)</td></tr><tr><td>Aide ❓</td><td>⑤</td><td><strong>RESTE</strong></td></tr></tbody></table>
+<p>→ <strong>Constat d'audit</strong> : le cockpit-v4 a été construit lean (E105 : une fonction = une place), donc</p>
+<p><strong>peu de choses sont à COUPER</strong>. Le seul point « à requalifier » est l'édition image (cadrer son sens).</p>
+<p>Le vrai problème n'est <strong>pas</strong> le superflu — c'est le <strong>manque</strong>.</p>
+<h3>8.2 Ce qui MANQUE (un pilier non servi)</h3>
+<table><thead><tr><th>Manque</th><th>Pilier non servi</th><th>Gravité</th></tr></thead><tbody><tr><td><strong>Objet INTENTION + capture + ligne permanente</strong></td><td>① (entier)</td><td>🔴 <strong>FONDATION</strong></td></tr><tr><td><strong>Mécanisme cohérence/dérive</strong> (question + 10 pièces + localisation)</td><td>② (mécanisme)</td><td>🔴 critique</td></tr><tr><td><strong>Raison attachée aux décisions</strong> + « pourquoi cette version »</td><td>③</td><td>🟠 élevé</td></tr><tr><td><strong>Comparer variantes</strong> + <strong>réactiver une variante écartée</strong></td><td>⑥</td><td>🟠 élevé</td></tr><tr><td><strong>Brique « style sous-titres » / « enchaînement »</strong> + provenance</td><td>④</td><td>🟡 moyen</td></tr><tr><td><strong>Annonce d'effet systématique avant action</strong> (contrat)</td><td>⑤</td><td>🟡 moyen</td></tr></tbody></table>
+<hr>
+<h2>9. MAPPING MOTEUR — déjà supporté vs à construire</h2>
+<table><thead><tr><th>Capacité</th><th>Moteur actuel</th><th>À construire</th></tr></thead><tbody><tr><td>Dossier projet = source de vérité</td><td>✅ <code>project_store</code></td><td>—</td></tr><tr><td>Réf/look/décor/prompt + verrous + historique</td><td>✅ <code>zones</code></td><td>—</td></tr><tr><td>Variantes / candidates / rejetées</td><td>✅</td><td><strong>réactivation</strong> depuis rejeté ; <strong>comparaison</strong></td></tr><tr><td>Livrables + dossier livrable autonome</td><td>✅ E125</td><td>lier à la <strong>destination</strong> (objectif intention)</td></tr><tr><td>Versions snapshot/restore</td><td>✅ Q4</td><td>champ <strong><code>raison_retenue</code></strong></td></tr><tr><td>Journal d'actions</td><td>✅ <code>historique_versions</code></td><td>champ <strong><code>raison</code></strong> par décision (le POURQUOI)</td></tr><tr><td>Coûts / QC / étanchéité</td><td>✅</td><td>—</td></tr><tr><td><strong>INTENTION (objet 1er niveau)</strong></td><td>❌ <strong>absent</strong></td><td><strong><code>manifest.intention</code> + capture + rendu permanent</strong></td></tr><tr><td><strong>Évaluateur de cohérence/dérive</strong></td><td>❌ absent</td><td>module <strong>lecture seule</strong>, heuristiques explicables, <strong>non décisionnel</strong></td></tr><tr><td><strong>Briques capitalisées</strong> (style sous-titres, enchaînement)</td><td>◑ presets/zones</td><td>extension + <strong>provenance</strong></td></tr><tr><td><strong>Contrat d'action</strong> (effet avant action)</td><td>◑ partiel</td><td>généralisation à tout bouton conséquent</td></tr></tbody></table>
+<hr>
+<h2>10. DÉCISIONS DE PREMIER NIVEAU PRISES (E120/E126) — sans escalade</h2>
+<ul><li><strong>V6</strong> — Intention = <strong>objet de 1er niveau</strong> dans le manifest (pas un simple champ de prompt).</li><li><strong>V7</strong> — Présence permanente = <strong>ligne 🧭 en tête du bandeau</strong>, tappable pour éditer.</li><li><strong>V8</strong> — Capture au démarrage <strong>proposée mais skippable</strong> (« Plus tard ») — confiance/contrôle.</li><li><strong>V9</strong> — La cohérence est <strong>un signal explicable, jamais un score de goût</strong> ; <code>✓ C'est voulu</code> assume</li></ul>
+<p>  et tracé ; <strong>aucune correction/blocage auto</strong>.</p>
+<ul><li><strong>V10</strong> — Les 10 pièces surveillées = **message · image · look · décor · voix · script · montage ·</li></ul>
+<p>  rythme · légende · publication** (exactement la liste d'Etoile).</p>
+<ul><li><strong>V11</strong> — La <strong>raison</strong> d'une décision est <strong>courte et optionnelle</strong> (proposée, jamais bloquante).</li><li><strong>V12</strong> — Réutiliser une brique = <strong>copie explicite dans le projet</strong> (jamais d'héritage silencieux).</li><li><strong>V13</strong> — <strong>Publier</strong> = seul écran à confirmation « action définitive » ; tout le reste est réversible.</li></ul>
+<p><strong>Aucun conflit E120 détecté</strong> avec les exigences existantes : l'intention <strong>renforce</strong> E1/E104/E105</p>
+<p>(elle donne la raison d'être du cockpit), E116/E117 (cohérence de parcours), E124 (étanchéité : briques</p>
+<p>copiées, pas héritées). Le mécanisme de cohérence <strong>n'enfreint pas</strong> « l'outil ne juge pas » — il</p>
+<p><strong>signale et laisse choisir</strong> (E127).</p>
+<hr>
+<h2>11. CE QUI NE CHANGE PAS (garanties)</h2>
+<ul><li><strong>Live <code>/v4</code> intact</strong> : ce document est de la <strong>conception</strong> ; aucune implémentation tant qu'Etoile n'a</li></ul>
+<p>  pas validé la forme.</p>
+<ul><li><strong>Fichiers verrouillés intacts</strong> · <strong>aucune dépense</strong> · <strong>modèle A</strong> (un projet, image+vidéo = livrables).</li><li>L'existant justifié (§8.1 RESTE) est <strong>conservé</strong> ; on <strong>ajoute la fondation manquante</strong>, on ne</li></ul>
+<p>  reconstruit pas ce qui sert déjà un pilier.</p>
+<hr>
+<h2>12. PROCHAINE PORTE (à ta main, Etoile)</h2>
+<p>Si tu <strong>valides cette forme</strong>, l'ordre d'implémentation dérivé des piliers serait :</p>
+<p>1. <strong>Fondation ① Intention</strong> (objet + capture + ligne permanente) — sans elle, rien ne tient.</p>
+<p>2. <strong>② Cohérence/dérive</strong> (lecture des 10 pièces, signal explicable, non décisionnel).</p>
+<p>3. <strong>③ Mémoire du pourquoi</strong> (raison par décision + raison de la version retenue).</p>
+<p>4. <strong>⑥ Contrôle+</strong> (comparer / réactiver) puis <strong>④ briques</strong> et <strong>⑤ contrat d'action</strong>.</p>
+<p>Chaque lot livré sous le protocole E118/E119, auto-testé, zéro dépense, derrière <code>/v4</code>.</p>
+<p>_Document de conception — dérivé de E127 (6 piliers). Réf. : <code>docs/EXIGENCES.md</code> (E127), <code>docs/VISION_COCKPIT_FINAL.md</code>, <code>docs/RAPPORT_COCKPIT_V41.md</code>. Lecture seule._</p></body></html>
