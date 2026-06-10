@@ -3,24 +3,19 @@ function fresh(){ for(const m of ['../ui/registry','../ui/router']){try{delete r
 const uiRouter=fresh(); const {REGISTRY}=uiRouter;
 let ok=0,ko=0; const ck=(n,c)=>{ if(c){ok++;console.log('✅ '+n);} else {ko++;console.log('❌ '+n);} };
 
-// ── UN MOTEUR, PLUSIEURS ENTRÉES : accueil = PHOTO/VIDÉO (production) + STUDIO/HISTORIQUE/LOOKS (bibliothèque) ──
+// ── [P4] MENU PRINCIPAL = 4 entrées : PHOTO · VIDÉO · STUDIO · RÉCENTS ──
 const homeRows=REGISTRY.home.render().rows;
 const labels=[].concat(...homeRows).map(b=>b.text);
-ck('accueil = PHOTO, VIDÉO, STUDIO, HISTORIQUE, LOOKS', ['PHOTO','VIDÉO','STUDIO','HISTORIQUE','LOOKS'].every(t=>labels.some(l=>l.includes(t))));
+ck('accueil = 4 entrées PHOTO/VIDÉO/STUDIO/RÉCENTS', ['PHOTO','VIDÉO','STUDIO','RÉCENTS'].every(t=>labels.some(l=>l.includes(t))) && labels.length===4);
+ck('accueil NE contient PLUS Looks/Historique (déplacés dans Studio)', !labels.some(l=>/LOOKS|HISTORIQUE/.test(l)));
 ck('PHOTO entre au DÉBUT du pipeline (go photo.look)', homeRows[0][0].go==='photo.look');
 ck('VIDÉO entre au stade vidéo du MÊME pipeline (go video.source)', homeRows[0][1].go==='video.source');
-ck('UN SEUL MOTEUR : photo.image.next === video.source (continuation, pas section)', REGISTRY['photo.image']?REGISTRY['photo.image'].next==='video.source':true);
-// [v5] entrées bibliothèque NE pointent PLUS vers du legacy (cb) mais vers des modules média (go)
-const allHome=[].concat(...homeRows);
-ck('LOOKS -> module média studio.looks (plus de MENU_LOOKS legacy)', allHome.some(b=>b.go==='studio.looks'));
-ck('HISTORIQUE -> module média studio.historique (plus de STUDIO_HIST legacy)', allHome.some(b=>b.go==='studio.historique'));
+ck('UN SEUL MOTEUR : photo.image.next === video.source', REGISTRY['photo.image']?REGISTRY['photo.image'].next==='video.source':true);
+// [P3/P4] Studio = TOUTES les bibliothèques en modules média (grilles)
 { const sb=[].concat(...REGISTRY.studio.render().rows);
-  ck('Studio › Looks -> studio.looks (média)', sb.some(b=>b.go==='studio.looks'));
-  ck('Studio › Références -> studio.references (média)', sb.some(b=>b.go==='studio.references'));
-  ck('Studio › Décors -> studio.decors (média)', sb.some(b=>b.go==='studio.decors'));
-  ck('Studio › Modèles -> studio.modeles (média)', sb.some(b=>b.go==='studio.modeles'));
-  ck('Studio › Personas -> studio.personas (média)', sb.some(b=>b.go==='studio.personas'));
-  ck('Studio : plus aucun bouton legacy cb sauf Médias', sb.filter(b=>b.cb).every(b=>b.cb==='FILES_HOME')); }
+  ['studio.looks','studio.historique','studio.photos','studio.videos','studio.posted','studio.references','studio.decors','studio.modeles','studio.personas']
+    .forEach(g=>ck('Studio › '+g+' (go média)', sb.some(b=>b.go===g)));
+  ck('Studio : aucun bouton legacy cb', sb.filter(b=>b.cb).length===0); }
 
 // ── C1 : on enveloppe les menus comme le fait telegram_bot.js (média + en-tête) ──
 function wrap(id){ const mod=REGISTRY[id]; const orig=mod.render; mod.media=true;

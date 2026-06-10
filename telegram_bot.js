@@ -1268,25 +1268,21 @@ function persistProjMedia(urls,draftId){
   return out.length?out:(urls||[]);
 }
 // [L0-2a-ter · point 6] EN-TÊTE DE CONTEXTE — toujours visible, identique à chaque étape du workspace.
-function wsHeader(p,stepLabel){ // [v6] libellés métier (plus de noms de fichiers)
-  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'👗 Look : '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
-    +'🎯 Réf : '+escH(refLabel())+' · ✍️ '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n';
-}
-// [fix/root-causes-v1 · C4] EN-TÊTE DE CONTEXTE PERMANENT — affiché sur TOUT écran (menus inclus).
-// réf active · look · décor · prompt · nb images · média actif.
-function cockpitHeader(p){
+// [P1 · #1] EN-TÊTE EN UNE SEULE LIGNE (libellés métier, zéro nom de fichier) :
+// 📁 Projet(date) · étape · 🎯 réf · 👗 look · 🖼 média · extra(mode/script).
+function hdr1(p,stepLabel,extra){
   try{
-    let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
-    let src=null;try{src=nlRefFile();}catch(e){}
-    const lf=lookFile(p);
-    const nb=(p&&p.look&&p.look.mode==='eco')?(p.look.count||1):1;
-    // [v6] libellés MÉTIER : plus aucun nom de fichier / id
-    return '📁 <b>'+escH(projName(p))+'</b>\n'
-      +'🎯 '+escH(refLabel())+' · 👗 '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
-      +'✍️ '+escH((p&&p.prompt&&p.prompt.name)||'défaut')+' · 📸 '+nb+' · 🖼 '+escH(mediaLabelOf(p))+'\n──────────\n';
-  }catch(e){ return ''; }
+    const bits=['📁 <b>'+escH(projName(p))+'</b>'];
+    if(stepLabel)bits.push(escH(stepLabel));
+    bits.push('🎯 '+escH(refLabel()));
+    bits.push('👗 '+escH(lookLabelOf(p)));
+    bits.push('🖼 '+escH(mediaLabelOf(p)));
+    if(extra)bits.push(extra);
+    return bits.join(' · ')+'\n──────────\n';
+  }catch(e){ return '📁 <b>'+escH(projName(p))+'</b>\n──────────\n'; }
 }
+function wsHeader(p,stepLabel){ const nb=(p&&p.look&&p.look.mode==='eco')?(' ×'+(p.look.count||1)):''; return hdr1(p,stepLabel,'🎛 '+escH(modeLabel(p&&p.look&&p.look.mode))+nb); }
+function cockpitHeader(p){ return hdr1(p,''); }
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
   const p=ensureProj();
@@ -1452,33 +1448,43 @@ uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', titl
 // [v5] BIBLIOTHÈQUE EN BLOC MÉDIA (non destructive) — LOOKS & HISTORIQUE rendus DANS le cockpit
 // (plus de bloc legacy qui casse la continuité). Vue annexe : on consulte/réutilise sans perdre le projet.
 // ─────────────────────────────────────────────────────────────────────────────
-let _slLooksIdx=0;
-function studioLooksView(){ // parcourir la galerie de looks DANS le bloc média ; « Utiliser » = source du projet (non destructif)
-  const p=ensureProj(); const list=looksList();
-  if(!list.length)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+'👗 <b>LOOKS</b> — bibliothèque vide.\n\nCrée un look via 📸 PHOTO.',rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
-  if(_slLooksIdx>=list.length||_slLooksIdx<0)_slLooksIdx=0;
-  const f=path.join(getLooksDir(),list[_slLooksIdx]);
-  const cap=cockpitHeader(p)+'👗 <b>LOOKS</b> · '+(_slLooksIdx+1)+'/'+list.length+'\n🖼 <i>'+escH(list[_slLooksIdx])+'</i>\n\nVue bibliothèque (consultation). « Utiliser » applique ce look au projet en cours, sans rien perdre.';
-  return {image:f,raw:false,caption:cap,rows:[
-    [{text:'‹',cb:'SL_PREV'},{text:(_slLooksIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'SL_NEXT'}],
-    [{text:'👗 Utiliser ce look',cb:'SL_USE'}],
-    [{text:'◀️ Retour',cb:'WS_RESUME'}],
-  ]};
+// [P3 · #3/#18] BIBLIOTHÈQUES EN GRILLE — 6 cartes max/écran, nav ‹ ›, libellés MÉTIER (zéro nom de fichier).
+const GRID_PAGE=6; const _gridPage={}; // {key: page}
+function _genDir(){ try{ return fs.realpathSync(path.join(BASE,'outputs','generations')); }catch(e){ return path.join(BASE,'outputs','generations'); } }
+function _byDate(dir,re){ try{ return fs.readdirSync(dir).filter(f=>re.test(f)).map(f=>{let t=0;try{t=fs.statSync(path.join(dir,f)).mtimeMs;}catch(e){}return {f,p:path.join(dir,f),t};}).sort((a,b)=>b.t-a.t); }catch(e){ return []; } }
+function gridItems(key){
+  if(key==='looks'){ return looksList().map(f=>({label:'👗 Look · '+(dateFromName(f)||'—'), img:path.join(getLooksDir(),f), file:path.join(getLooksDir(),f), kind:'look'})); }
+  if(key==='photos'){ return _byDate(_genDir(),/\.jpg$/i).map(x=>({label:'🖼 Image · '+(dateFromName(x.f)||'—'), img:x.p, file:x.p, kind:'photo'})); }
+  if(key==='videos'){ const d=_byDate(_genDir(),/\.mp4$/i); let r=[]; try{r=fs.readdirSync(readyDir()).filter(f=>/\.mp4$/i.test(f)).map(f=>({f,p:path.join(readyDir(),f),t:0}));}catch(e){} return d.concat(r).map(x=>({label:'🎬 Vidéo · '+(dateFromName(x.f)||'—'), img:null, file:x.p, kind:'video'})); }
+  if(key==='posted'){ try{ return fs.readdirSync(readyDir()).map(f=>({label:'📤 '+(dateFromName(f)||f.slice(0,16)), img:null, file:path.join(readyDir(),f), kind:'posted'})); }catch(e){ return []; } }
+  if(key==='historique'){ const im=_byDate(_genDir(),/\.jpg$/i).map(x=>({label:'🖼 Image · '+(dateFromName(x.f)||'—'),img:x.p,file:x.p,kind:'photo',t:x.t})); const vi=_byDate(_genDir(),/\.mp4$/i).map(x=>({label:'🎬 Vidéo · '+(dateFromName(x.f)||'—'),img:null,file:x.p,kind:'video',t:x.t})); return im.concat(vi).sort((a,b)=>b.t-a.t); }
+  return [];
 }
-function studioHistoriqueView(){ // historique des productions DANS le bloc média (lecture)
-  const p=ensureProj(); let files=[];
-  try{ const real=fs.realpathSync(path.join(BASE,'outputs','generations')); files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(path.join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,12).map(x=>x.f); }catch(e){}
-  const lignes=files.length?files.map((x,i)=>(i+1)+'. '+x.replace(/\.jpg$/,'')).join('\n'):'(vide)';
-  const cap=cockpitHeader(p)+'🕘 <b>HISTORIQUE</b> · '+files.length+' récentes\n'+escH(lignes.slice(0,700))+'\n\n📱 Fichiers : iCloud › podcast-outputs/generations';
-  return {image:wsMedia(p),raw:false,caption:cap,rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
+const GRID_TITLES={looks:'👗 LOOKS',photos:'🖼 PHOTOS',videos:'🎬 VIDÉOS',posted:'📤 PRÊT À POSTER',historique:'🕘 HISTORIQUE'};
+function studioGridView(key){
+  const p=ensureProj(); const items=gridItems(key); const total=items.length;
+  const pages=Math.max(1,Math.ceil(total/GRID_PAGE)); let pg=_gridPage[key]||0; if(pg>=pages)pg=pages-1; if(pg<0)pg=0; _gridPage[key]=pg;
+  if(!total)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+GRID_TITLES[key]+' — vide.',rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
+  const slice=items.slice(pg*GRID_PAGE,pg*GRID_PAGE+GRID_PAGE);
+  const cap=cockpitHeader(p)+'<b>'+GRID_TITLES[key]+'</b> · '+total+(pages>1?(' · page '+(pg+1)+'/'+pages):'');
+  const rows=[]; for(let i=0;i<slice.length;i+=2){ rows.push(slice.slice(i,i+2).map((it,j)=>({text:it.label,cb:'G_'+key+'_'+(pg*GRID_PAGE+i+j)}))); }
+  if(pages>1)rows.push([{text:'‹ Précédent',cb:'G_'+key+'_PREV'},{text:'Suivant ›',cb:'G_'+key+'_NEXT'}]);
+  rows.push([{text:'◀️ Retour',cb:'WS_RESUME'}]);
+  // vignette : 1re carte image de la page si dispo, sinon média projet
+  const firstImg=slice.map(it=>it.img).find(Boolean);
+  return {image:firstImg||wsMedia(p),raw:false,caption:cap,rows};
 }
-uiRouter.REGISTRY['studio.looks']={ id:'studio.looks', parent:'studio', title:'👗 Looks', owner:'STUDIO', media:true,
-  help:'Bibliothèque de looks (consultation, non destructive). Navigue ‹ › ; « Utiliser » applique le look au projet en cours sans perdre le travail.',
-  render:()=>studioLooksView() };
-uiRouter.REGISTRY['studio.historique']={ id:'studio.historique', parent:'studio', title:'🕘 Historique', owner:'STUDIO', media:true,
-  help:'Historique des productions récentes (lecture). Vue annexe : ne casse pas le projet en cours.',
-  render:()=>studioHistoriqueView() };
-try{ MEDIA_MODULES['studio.looks']=1; MEDIA_MODULES['studio.historique']=1; }catch(e){}
+['looks','photos','videos','posted','historique'].forEach(key=>{
+  uiRouter.REGISTRY['studio.'+key]={ id:'studio.'+key, parent:'studio', owner:'STUDIO', media:true, title:GRID_TITLES[key],
+    help:'Bibliothèque en grille (6/écran), non destructive : consulte/réutilise sans casser le projet en cours.',
+    render:()=>studioGridView(key) };
+  MEDIA_MODULES['studio.'+key]=1;
+});
+// [v7] Bibliothèques restantes en VUE MÉDIA (lecture, non destructive) — entrer ne casse plus la continuité.
+function studioLibView(title,lines,extraRows){ const p=ensureProj();
+  const body=(lines&&lines.length)?lines.slice(0,14).map(s=>'• '+s).join('\n'):'(vide)';
+  return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+title+'\n'+escH(body.slice(0,800)),rows:(extraRows||[]).concat([[{text:'◀️ Retour',cb:'WS_RESUME'}]])};
+}
 // [v7] Bibliothèques restantes en VUE MÉDIA (lecture, non destructive) — entrer ne casse plus la continuité.
 function studioLibView(title,lines,extraRows){ const p=ensureProj();
   const body=(lines&&lines.length)?lines.slice(0,14).map(s=>'• '+s).join('\n'):'(vide)';
@@ -1504,11 +1510,7 @@ function videoMedia(p){ // média actif pour la vidéo : explicite, sinon image 
 }
 function videoMediaLabel(p){ return mediaLabelOf(p); } // [v6] libellé métier (plus de nom de fichier)
 // En-tête de contexte VIDÉO (point 3) : 📁 Projet · 🖼 Média actif · 🎯 Réf · ✍️ Script · étape.
-function wsHeaderV(p,stepLabel){
-  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'🖼 Média : '+escH(mediaLabelOf(p))+' · 🎯 '+escH(refLabel())+'\n'
-    +'✍️ Script : '+escH((p.video.script&&p.video.script.name)||'—')+'\n──────────\n';
-}
+function wsHeaderV(p,stepLabel){ const dur=(p.video&&p.video.duration)||'23s'; return hdr1(p,stepLabel,'✍️ '+escH((p.video&&p.video.script&&p.video.script.name)||'—')+' · ⏱ '+escH(dur)); }
 function videoCost(p){ try{ const c=estimateCost((p.video&&p.video.duration)||'23s'); return c; }catch(e){ return {parts:1,total:0,cr:null}; } }
 // Bibliothèque de SCRIPTS : scripts/<persona>/*.json (même mécanique que les prompts)
 function scriptsDir(){ const d=path.join(BASE,'scripts_lib',_persona()); try{fs.mkdirSync(d,{recursive:true});}catch(e){} return d; }
@@ -2533,7 +2535,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('G_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2609,11 +2611,16 @@ async function handle(upd){
       return;
     }
     // [v5] STUDIO · LOOKS dans le bloc média (consultation/réutilisation non destructive)
-    if(d&&d.indexOf('SL_')===0){
-      const list=looksList();
-      if(d==='SL_PREV'){ if(list.length){_slLooksIdx=(_slLooksIdx-1+list.length)%list.length;} await routeBlock('studio.looks','inplace'); return; }
-      if(d==='SL_NEXT'){ if(list.length){_slLooksIdx=(_slLooksIdx+1)%list.length;} await routeBlock('studio.looks','inplace'); return; }
-      if(d==='SL_USE'){ const f=list[_slLooksIdx]; if(f){ const p=ensureProj(); const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('👗 Look appliqué au projet'); } await routeBlock('studio.looks','inplace'); return; }
+    // [P3] GRILLES bibliothèque : G_<key>_<PREV|NEXT|index>
+    if(d&&d.indexOf('G_')===0){
+      const rest=d.slice(2); const us=rest.lastIndexOf('_'); const key=rest.slice(0,us); const act=rest.slice(us+1);
+      if(act==='PREV'){ _gridPage[key]=Math.max(0,(_gridPage[key]||0)-1); await routeBlock('studio.'+key,'inplace'); return; }
+      if(act==='NEXT'){ _gridPage[key]=(_gridPage[key]||0)+1; await routeBlock('studio.'+key,'inplace'); return; }
+      const idx=parseInt(act,10);
+      if(!isNaN(idx)){ const items=gridItems(key); const it=items[idx];
+        if(it){ if(it.kind==='look'){ const p=ensureProj(); p.look.file=it.file; p.look.source='gallery'; try{setWorkPhoto(it.file);}catch(e){} await toast('👗 Look appliqué au projet'); }
+          else { await toast((it.label||'').replace(/<[^>]+>/g,'')); } } /*photo/vidéo/posted : ouverture détaillée = lot suivant*/
+        await routeBlock('studio.'+key,'inplace'); return; }
       return;
     }
     // [v8 · point 7] retour bibliothèque -> EXACTEMENT l'étape du projet en cours (ou accueil si aucun projet)
