@@ -46,3 +46,13 @@
 Menu principal **4 entrées** : 📸 PHOTO · 🎬 VIDÉO · 🏛 STUDIO · 🕘 RÉCENTS. **Looks/Historique rejoignent STUDIO.** Studio = bibliothèque/archives/reprise (non destructif) ; cockpit production = parcours de création. (MAJ `COCKPIT_CIBLE_UX`.)
 
 _Suivi vivant — mis à jour à chaque lot._
+
+---
+## PRÉCISIONS des 10 captures live (2026-06-10)
+**Déjà bon (ne pas casser)** : aperçu média persistant sur TOUTES les étapes (#2 ✅) ; entrée VIDÉO = picker source « D'où part la vidéo ? » (#6 ✅) ; terminologie Aperçu/Final HD appliquée (✅).
+**À corriger (preuves)** :
+- 🔴 **#15** message technique « Chargement… » visible en haut sur Script/Montage/Finalisation → supprimer/neutraliser (audit tout « Chargement… »/transitoire). **Quick win P1.**
+- **#1** en-tête encore 2-3 lignes (« 9 juin · 21:29 · MONTAGE » / « Média : Image 1/1 · Imany » / « Script : perso ») → 1 ligne. **Quick win P1.** *(corrigé sur ux-round2 via hdr1 — à vérifier en live).*
+- **#12** Montage : retirer jargon « Archivo Black 52px » ; Montage trop pauvre → détailler (zoom, sous-titres, musique, rythme, plans, transitions, voix, style) OU bloc Vidéo compact ; **#13** confiner l'éditeur.
+- **#10** Finalisation trop pauvre → récap complet (média source · réf · look · décor · script · durée · sous-titres · musique · format · coût · crédits · mode).
+- **#16** trop de boutons ; **#7** durée vidéo non visible ; **#8** Look montre « 3 image(s) » mais pas le mode planche 1/2/3/4/6.
