@@ -166,19 +166,25 @@ vérité** ; la vérité vit dans le projet et l'univers.)*
 14. **INV-14 — Hiérarchie du monde.** **UNIVERS → PERSONNAGE → PROJET → LIVRABLES** : l'Univers porte le
     monde (bibliothèques, règles, lignes de publication, personnages, séries), le Personnage porte
     **seulement** son identité (références, garde-robe, voix). *(④)*
+15. **INV-15 — Séparation stricte modèle métier / représentation.** Le modèle **ne dépend JAMAIS** d'une
+    technologie particulière (messagerie, web, application de bureau, moteur de génération…). Toute
+    représentation est **remplaçable** sans remettre en cause objets, relations, cycles de vie, décisions,
+    règles ni invariants. **Si demain le canal actuel disparaît ou est entièrement remplacé, le modèle
+    métier reste identique.** *(transverse — garantit la pérennité de tous les autres invariants)*
 
-> **Test de fidélité d'une future représentation** : si une représentation viole **un seul** de ces 14
+> **Test de fidélité d'une future représentation** : si une représentation viole **un seul** de ces 15
 > invariants, elle trahit le modèle — quelle que soit sa technologie.
 
 ---
 
-## QUESTION DE MODÉLISATION OUVERTE (Phase 5)
+## DÉCISION DE MODÉLISATION (Phase 5)
 
-| # | Question | Défaut proposé | Raison | Statut |
-|---|---|---|---|---|
-| **M18** | Une **migration** (changement de stockage/technologie) doit-elle **préserver les identifiants** des objets de mémoire (décisions, versions, livrables) ? | **Oui** — identités stables à travers les migrations, pour que l'historique et les liens restent valides | sans identités stables, la mémoire (③) et la traçabilité se brisent à la première migration | 🆕 à confirmer |
+| # | Question | Décision (validé 10/06) | Statut |
+|---|---|---|---|
+| **M18** | Préserver les identifiants des objets de mémoire à travers les migrations ? | **OUI (obligatoire).** Les identifiants des **objets de mémoire** (décisions, versions, livrables, publications, variantes, objets historiques) sont **STABLES dans le temps** et **PRÉSERVÉS** à travers toute migration / changement de stockage / technologie / interface / moteur. Identité stable = condition de la **traçabilité**, des **références croisées** et de la **continuité de la mémoire**. | ✅ validé 10/06 |
 
-> Rappel : M1→M17 sont **tranchées et intégrées**. M18 est une garantie de **pérennité** (survie INV-9).
+> **M1→M18 toutes tranchées.** Aucune question de modélisation ne reste ouverte. M18 renforce INV-9
+> (survie) et appuie le nouvel **INV-15** (séparation modèle/représentation).
 
 ---
 
@@ -192,12 +198,12 @@ Les **cinq phases** sont désormais constituées :
 | **2** | Relations (composition/appartenance/dérivation/association/rôle exclusif) + Univers | `docs/MODELE_METIER_PHASE2.md` |
 | **3** | Cycle de vie + focus Décision (le pourquoi) | `docs/MODELE_METIER_PHASE3.md` |
 | **4** | Actions (squelette OBJET/ÉTAT/ACTION/DÉCISION) | `docs/MODELE_METIER_PHASE4.md` |
-| **5** | Règles fondamentales (7 catégories) + 14 invariants indépendants du médium | `docs/MODELE_METIER_PHASE5.md` |
+| **5** | Règles fondamentales (7 catégories) + **15 invariants** indépendants du médium | `docs/MODELE_METIER_PHASE5.md` |
 
-**Décisions de modélisation** : **M1→M17 tranchées** ; **M18** seule ouverte (pérennité des identités).
-Le modèle est **complet, cohérent et indépendant de toute forme**. Il peut maintenant faire l'objet d'une
-**validation d'ensemble** par Etoile — après quoi, et seulement après, la question de la **forme** (toute
-représentation) pourra être reprise, en dérivant rigoureusement de ces invariants.
+**Décisions de modélisation** : **M1→M18 toutes tranchées**. Le modèle est **complet, cohérent et
+indépendant de toute forme**, et **validé dans son ensemble** par Etoile (10/06). La question de la
+**forme** (toute représentation) pourra être reprise ensuite, en dérivant rigoureusement des **15
+invariants**.
 
 _Phase 5 — règles + invariants. Dérivé de E127 (6 piliers) et de la phrase centrale. Modèle complet :
 Phases 1→5. Aucune implémentation, aucune représentation. Live intact. Lecture seule._

@@ -93,19 +93,25 @@
 <p>14. <strong>INV-14 — Hiérarchie du monde.</strong> <strong>UNIVERS → PERSONNAGE → PROJET → LIVRABLES</strong> : l'Univers porte le</p>
 <p>    monde (bibliothèques, règles, lignes de publication, personnages, séries), le Personnage porte</p>
 <p>    <strong>seulement</strong> son identité (références, garde-robe, voix). <em>(④)</em></p>
-<blockquote><strong>Test de fidélité d'une future représentation</strong> : si une représentation viole <strong>un seul</strong> de ces 14</blockquote>
+<p>15. <strong>INV-15 — Séparation stricte modèle métier / représentation.</strong> Le modèle <strong>ne dépend JAMAIS</strong> d'une</p>
+<p>    technologie particulière (messagerie, web, application de bureau, moteur de génération…). Toute</p>
+<p>    représentation est <strong>remplaçable</strong> sans remettre en cause objets, relations, cycles de vie, décisions,</p>
+<p>    règles ni invariants. **Si demain le canal actuel disparaît ou est entièrement remplacé, le modèle</p>
+<p>    métier reste identique.** <em>(transverse — garantit la pérennité de tous les autres invariants)</em></p>
+<blockquote><strong>Test de fidélité d'une future représentation</strong> : si une représentation viole <strong>un seul</strong> de ces 15</blockquote>
 <blockquote>invariants, elle trahit le modèle — quelle que soit sa technologie.</blockquote>
 <hr>
-<h2>QUESTION DE MODÉLISATION OUVERTE (Phase 5)</h2>
-<table><thead><tr><th>#</th><th>Question</th><th>Défaut proposé</th><th>Raison</th><th>Statut</th></tr></thead><tbody><tr><td><strong>M18</strong></td><td>Une <strong>migration</strong> (changement de stockage/technologie) doit-elle <strong>préserver les identifiants</strong> des objets de mémoire (décisions, versions, livrables) ?</td><td><strong>Oui</strong> — identités stables à travers les migrations, pour que l'historique et les liens restent valides</td><td>sans identités stables, la mémoire (③) et la traçabilité se brisent à la première migration</td><td>🆕 à confirmer</td></tr></tbody></table>
-<blockquote>Rappel : M1→M17 sont <strong>tranchées et intégrées</strong>. M18 est une garantie de <strong>pérennité</strong> (survie INV-9).</blockquote>
+<h2>DÉCISION DE MODÉLISATION (Phase 5)</h2>
+<table><thead><tr><th>#</th><th>Question</th><th>Décision (validé 10/06)</th><th>Statut</th></tr></thead><tbody><tr><td><strong>M18</strong></td><td>Préserver les identifiants des objets de mémoire à travers les migrations ?</td><td><strong>OUI (obligatoire).</strong> Les identifiants des <strong>objets de mémoire</strong> (décisions, versions, livrables, publications, variantes, objets historiques) sont <strong>STABLES dans le temps</strong> et <strong>PRÉSERVÉS</strong> à travers toute migration / changement de stockage / technologie / interface / moteur. Identité stable = condition de la <strong>traçabilité</strong>, des <strong>références croisées</strong> et de la <strong>continuité de la mémoire</strong>.</td><td>✅ validé 10/06</td></tr></tbody></table>
+<blockquote><strong>M1→M18 toutes tranchées.</strong> Aucune question de modélisation ne reste ouverte. M18 renforce INV-9</blockquote>
+<blockquote>(survie) et appuie le nouvel <strong>INV-15</strong> (séparation modèle/représentation).</blockquote>
 <hr>
 <h2>✅ MODÈLE MÉTIER COMPLET — prêt pour validation d'ensemble</h2>
 <p>Les <strong>cinq phases</strong> sont désormais constituées :</p>
-<table><thead><tr><th>Phase</th><th>Objet</th><th>Fichier</th></tr></thead><tbody><tr><td><strong>1</strong></td><td>Inventaire des objets (34 objets / 5 familles)</td><td><code>docs/MODELE_METIER_PHASE1.md</code></td></tr><tr><td><strong>2</strong></td><td>Relations (composition/appartenance/dérivation/association/rôle exclusif) + Univers</td><td><code>docs/MODELE_METIER_PHASE2.md</code></td></tr><tr><td><strong>3</strong></td><td>Cycle de vie + focus Décision (le pourquoi)</td><td><code>docs/MODELE_METIER_PHASE3.md</code></td></tr><tr><td><strong>4</strong></td><td>Actions (squelette OBJET/ÉTAT/ACTION/DÉCISION)</td><td><code>docs/MODELE_METIER_PHASE4.md</code></td></tr><tr><td><strong>5</strong></td><td>Règles fondamentales (7 catégories) + 14 invariants indépendants du médium</td><td><code>docs/MODELE_METIER_PHASE5.md</code></td></tr></tbody></table>
-<p><strong>Décisions de modélisation</strong> : <strong>M1→M17 tranchées</strong> ; <strong>M18</strong> seule ouverte (pérennité des identités).</p>
-<p>Le modèle est <strong>complet, cohérent et indépendant de toute forme</strong>. Il peut maintenant faire l'objet d'une</p>
-<p><strong>validation d'ensemble</strong> par Etoile — après quoi, et seulement après, la question de la <strong>forme</strong> (toute</p>
-<p>représentation) pourra être reprise, en dérivant rigoureusement de ces invariants.</p>
+<table><thead><tr><th>Phase</th><th>Objet</th><th>Fichier</th></tr></thead><tbody><tr><td><strong>1</strong></td><td>Inventaire des objets (34 objets / 5 familles)</td><td><code>docs/MODELE_METIER_PHASE1.md</code></td></tr><tr><td><strong>2</strong></td><td>Relations (composition/appartenance/dérivation/association/rôle exclusif) + Univers</td><td><code>docs/MODELE_METIER_PHASE2.md</code></td></tr><tr><td><strong>3</strong></td><td>Cycle de vie + focus Décision (le pourquoi)</td><td><code>docs/MODELE_METIER_PHASE3.md</code></td></tr><tr><td><strong>4</strong></td><td>Actions (squelette OBJET/ÉTAT/ACTION/DÉCISION)</td><td><code>docs/MODELE_METIER_PHASE4.md</code></td></tr><tr><td><strong>5</strong></td><td>Règles fondamentales (7 catégories) + <strong>15 invariants</strong> indépendants du médium</td><td><code>docs/MODELE_METIER_PHASE5.md</code></td></tr></tbody></table>
+<p><strong>Décisions de modélisation</strong> : <strong>M1→M18 toutes tranchées</strong>. Le modèle est **complet, cohérent et</p>
+<p>indépendant de toute forme<strong>, et </strong>validé dans son ensemble** par Etoile (10/06). La question de la</p>
+<p><strong>forme</strong> (toute représentation) pourra être reprise ensuite, en dérivant rigoureusement des **15</p>
+<p>invariants**.</p>
 <p>_Phase 5 — règles + invariants. Dérivé de E127 (6 piliers) et de la phrase centrale. Modèle complet :</p>
 <p>Phases 1→5. Aucune implémentation, aucune représentation. Live intact. Lecture seule._</p></body></html>

@@ -1,0 +1,168 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>MODÈLE MÉTIER — AUDIT CRITIQUE (Phases 1→5)</h1>
+<blockquote><strong>Statut : AUDIT ADVERSARIAL (analyse).</strong> Objectif : <strong>chercher les faiblesses</strong>, pas tamponner. Même</blockquote>
+<blockquote>exigence d'honnêteté que pour le constat « l'Intention manquait » et « l'Univers manquait ». **Zéro</blockquote>
+<blockquote>vocabulaire d'interface.** Live intact · fichiers verrouillés intacts · aucune dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote>Périmètre : modèle complet validé (34 objets / 5 familles), M1→M18 tranchées, 15 invariants. Pour chaque</blockquote>
+<blockquote>faiblesse : <strong>gravité (🔴/🟠/🟡) · explication · recommandation (défaut + raison, « à confirmer »)</strong> —</blockquote>
+<blockquote><strong>rien n'est tranché en douce.</strong> Les recommandations sont numérotées <strong>AUD-n</strong> (deviendraient M19+ si</blockquote>
+<blockquote>Etoile décide de les retenir).</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Ancrage <code>E127</code></strong> : ① Intention · ② Cohérence · ③ Mémoire · ④ Capitalisation · ⑤ Confiance · ⑥ Contrôle.</blockquote>
+<hr>
+<h2>SYNTHÈSE EN UNE LIGNE</h2>
+<p>Le modèle est <strong>fondamentalement sain et cohérent</strong> (l'ossature pilier→objet→relation→cycle→règle tient),</p>
+<p><strong>mais il confond encore par endroits OBJET / ÉTAT / ATTRIBUT</strong> — ce qui **gonfle artificiellement le</p>
+<p>compte d'objets<strong> et crée 2-3 ambiguïtés à lever </strong>avant** de reprendre la forme. Aucune faiblesse n'est</p>
+<p>rédhibitoire ; trois corrections sont prioritaires (AUD-1, AUD-2, AUD-7).</p>
+<hr>
+<h2>AXE 1 — CONTRADICTIONS</h2>
+<h3>🔴 AUD-1 — « Média actif » est compté comme OBJET mais défini comme ÉTAT</h3>
+<ul><li><strong>Explication</strong> : la Phase 1 liste <strong>Média actif comme objet n°17</strong> (sur 34), or la Phase 4 (et l'exemple</li></ul>
+<p>  canonique d'Etoile) le définit explicitement comme un <strong>ÉTAT / rôle exclusif</strong> (« Média actif = un</p>
+<p>  ÉTAT »). C'est une <strong>contradiction directe avec INV-3</strong> (séparation OBJET/ÉTAT) au cœur du modèle.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>retirer « Média actif » de la liste des objets** ; le</li></ul>
+<p>  traiter comme un <strong>état/rôle</strong> porté par un média produit. <em>Raison</em> : cohérence avec l'exemple canonique</p>
+<p>  et INV-3 ; conséquence : le compte d'objets baisse.</p>
+<h3>🟠 AUD-2 — Candidate / Variante / Média actif : objets distincts ou ÉTATS d'un même média ?</h3>
+<ul><li><strong>Explication</strong> : si « média actif » est un <strong>état</strong> (AUD-1), alors par <strong>symétrie</strong>, <em>candidate</em>,</li></ul>
+<p>  <em>variante</em>, <em>écartée</em>, <em>livrable-source</em> ressemblent fortement à des **états successifs d'un même OBJET</p>
+<p>  “Média produit”<strong>, pas à des objets distincts. Les modéliser en objets séparés </strong>multiplie les entités**</p>
+<p>  pour une seule réalité (le même fichier qui change de statut).</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>un seul OBJET « Média produit »<strong> doté d'un </strong>cycle</li></ul>
+<p>  d'états<strong> {candidate → variante → actif → écarté ; et “retenu pour livrable”}. </strong>Le Livrable reste un</p>
+<p>  objet distinct** (c'est un <em>paquet</em> : média + légende + hashtags + params…), pas un simple média.</p>
+<p>  <em>Raison</em> : aligne le modèle sur sa propre règle OBJET/ÉTAT (INV-3), simplifie sans rien perdre du sens</p>
+<p>  (les transitions restent des Décisions).</p>
+<h3>🟡 AUD-3 — INV-14 (hiérarchie) vs liens réels de Phase 2</h3>
+<ul><li><strong>Explication</strong> : INV-14 pose <strong>UNIVERS → PERSONNAGE → PROJET → LIVRABLES</strong> (lecture « le Personnage est</li></ul>
+<p>  au-dessus du Projet »), alors que la Phase 2 dit **Projet — <em>emploie</em> → Personnage** (association ; le</p>
+<p>  Personnage <em>survit</em> au projet, n'en est pas le parent). Léger télescopage : le Projet est-il **possédé</p>
+<p>  par<strong> le Personnage, ou </strong>par l'Univers** (et <em>emploie</em> un Personnage) ?</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : le </strong>Projet appartient à l'Univers** (conteneur) et</li></ul>
+<p>  <strong>emploie</strong> un Personnage (association + copie). La hiérarchie INV-14 est <strong>conceptuelle</strong> (« un projet</p>
+<p>  est fait pour un personnage, dans un univers »), pas une chaîne de possession stricte. <em>Raison</em> : évite</p>
+<p>  de faire du Personnage un propriétaire de projets, ce qui recréerait la surcharge qu'on vient de retirer.</p>
+<hr>
+<h2>AXE 2 — DOUBLONS</h2>
+<h3>🟠 AUD-4 — Message / Émotion / Public / Objectif : objets <strong>ou</strong> composantes de l'Intention ?</h3>
+<ul><li><strong>Explication</strong> : M4 a tranché <strong>Intention = objet composite</strong> (Message+Émotion+Public+Objectif). Mais la</li></ul>
+<p>  Phase 1 <strong>compte encore ces 4 comme des objets</strong> (n°2,3,4,5). C'est un <strong>doublon de niveau</strong> : ils sont</p>
+<p>  à la fois « objets » et « composantes de l'Intention ».</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : les traiter comme </strong>composantes structurées de l'Intention**</li></ul>
+<p>  (attributs riches), <strong>pas comme objets de 1er niveau</strong>. <em>Raison</em> : cohérence avec M4 ; un Message/Émotion</p>
+<p>  n'a pas d'identité ni de cycle de vie propres hors de l'Intention.</p>
+<h3>🟠 AUD-5 — Candidate vs RAW (média brut)</h3>
+<ul><li><strong>Explication</strong> : une <strong>Candidate</strong> = média produit non jugé ; le <strong>RAW image</strong> = brut de l'étape image,</li></ul>
+<p>  jamais écrasé. Au point de génération, <strong>c'est souvent le même fichier dans deux rôles</strong> (« le brut » et</p>
+<p>  « le candidat à juger »). Risque de doublon conceptuel.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : faire du </strong>RAW un rôle d'immuabilité/conservation** porté par</li></ul>
+<p>  un média (« cette version brute ne sera jamais écrasée ») plutôt qu'un <strong>objet</strong> parallèle. <em>Raison</em> :</p>
+<p>  évite de dupliquer la matière ; conserve la garantie (jamais écrasé) comme <strong>propriété</strong>, pas comme entité.</p>
+<h3>🟠 AUD-6 — Coût : objet ou attribut ?</h3>
+<ul><li><strong>Explication</strong> : le <strong>Coût</strong> est modélisé en objet, mais il n'a ni cycle de vie propre ni identité</li></ul>
+<p>  autonome : il <strong>mesure</strong> une action de production (estimé/réel). C'est un candidat naturel à l'<strong>attribut</strong>.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>Coût = attribut structuré** rattaché à l'action/au média</li></ul>
+<p>  produit (estimé avant, réel après). <em>Raison</em> : un coût n'existe pas « seul » ; il qualifie une production.</p>
+<h3>🟡 AUD-12 — Public vs personnage_visé (référence en double du Personnage)</h3>
+<ul><li><strong>Explication</strong> : l'Intention porte <code>public</code> (l'audience) <strong>et</strong> <code>personnage_visé</code> (lien Personnage),</li></ul>
+<p>  alors que le <strong>Projet emploie déjà un Personnage</strong>. Le Personnage est donc référencé <strong>deux fois</strong></p>
+<p>  (Intention + Projet). <em>Public</em> et <em>personnage_visé</em> ne sont pas doublons entre eux (audience ≠ incarnation),</p>
+<p>  mais <code>personnage_visé</code> <strong>double</strong> le lien du Projet.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>un seul lien Personnage<strong>, porté par le </strong>Projet**</li></ul>
+<p>  (emploie) ; l'Intention n'a pas besoin de re-référencer le Personnage. <em>Raison</em> : source unique du lien,</p>
+<p>  évite l'incohérence si l'un change.</p>
+<h3>🟡 AUD-13 — Doublons examinés et jugés <strong>sains</strong> (à conserver)</h3>
+<ul><li><strong>Ambiance vs Décor</strong> : distincts (atmosphère vs lieu) — <strong>OK</strong> (M1), risque résiduel seulement si en</li></ul>
+<p>  pratique l'ambiance est toujours liée à un décor (à surveiller à l'usage).</p>
+<ul><li><strong>Consigne/Prompt vs Script</strong> : distincts (instruction de fabrication vs texte prononcé) — <strong>OK</strong>.</li><li><strong>Évaluation de cohérence vs Contrôle qualité</strong> : distincts (alignement intention vs aptitude technique) —</li></ul>
+<p>  <strong>OK</strong> (M9) ; veiller au nommage pour éviter la confusion à l'usage.</p>
+<ul><li><strong>Série vs Univers</strong> : distincts (regroupement éditorial de projets vs le monde entier) — <strong>OK</strong> (un</li></ul>
+<p>  univers peut contenir plusieurs séries).</p>
+<hr>
+<h2>AXE 3 — OBJETS REDONDANTS (attribut/état plutôt qu'objet, ou fusion)</h2>
+<p>Synthèse des candidats issus des axes 1-2 (tous <em>à confirmer</em>) :</p>
+<table><thead><tr><th>Objet listé</th><th>Statut proposé</th><th>Réf.</th></tr></thead><tbody><tr><td><strong>Média actif</strong></td><td>→ <strong>ÉTAT/rôle</strong> (pas objet)</td><td>AUD-1</td></tr><tr><td><strong>Candidate · Variante</strong></td><td>→ <strong>états</strong> d'un OBJET « Média produit » unique</td><td>AUD-2</td></tr><tr><td><strong>Message · Émotion · Public · Objectif</strong></td><td>→ <strong>composantes</strong> de l'Intention</td><td>AUD-4</td></tr><tr><td><strong>RAW</strong></td><td>→ <strong>rôle d'immuabilité</strong> d'un média</td><td>AUD-5</td></tr><tr><td><strong>Coût</strong></td><td>→ <strong>attribut</strong> d'une production</td><td>AUD-6</td></tr><tr><td><strong>Hashtags</strong></td><td>objet validé (M6), mais réexaminable comme <strong>attribut du Livrable</strong></td><td>🟡 AUD-14</td></tr></tbody></table>
+<blockquote><strong>Si ces regroupements sont retenus</strong>, le modèle passerait d'environ <strong>34 « objets »</strong> à **~24-26 objets</blockquote>
+<blockquote>de 1er niveau<strong> + un jeu clair d'</strong>états / composantes / attributs / rôles<strong> — </strong>sans rien perdre du</blockquote>
+<blockquote>sens**.</blockquote>
+<hr>
+<h2>AXE 4 — RESPONSABILITÉS MAL RÉPARTIES</h2>
+<h3>🟠 AUD-7 — « Look » vit à trois endroits : garde-robe, Bibliothèque, et copie projet</h3>
+<ul><li><strong>Explication</strong> : un Look existe comme <strong>brique réutilisable</strong> (garde-robe du Personnage <strong>et/ou</strong></li></ul>
+<p>  Bibliothèque de l'Univers) <strong>et</strong> comme <strong>copie employée dans le Projet</strong>. Sous <strong>un seul nom “Look”</strong>,</p>
+<p>  on a en réalité <strong>deux notions</strong> : le <strong>modèle</strong> (réutilisable) et l'<strong>instance appliquée</strong> (dans un</p>
+<p>  projet). Frontière floue → confusion sur « quel Look est le vrai ».</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : distinguer nommément </strong>« Look-modèle »** (brique,</li></ul>
+<p>  réutilisable, en Bibliothèque/garde-robe) et <strong>« Look appliqué »</strong> (instance copiée dans le projet,</p>
+<p>  étanche M12). Idem pour <strong>Décor / Ambiance / Consigne / Preset</strong>. <em>Raison</em> : clarifie la possession et</p>
+<p>  l'étanchéité ; supprime l'ambiguïté « modèle vs instance ».</p>
+<h3>🟠 AUD-8 — Règles éditoriales : Univers <strong>et</strong> Série</h3>
+<ul><li><strong>Explication</strong> : l'<strong>Univers</strong> porte des <em>règles éditoriales/visuelles</em> ; la <strong>Série</strong> porte des *règles</li></ul>
+<p>  de cohérence inter-projets*. Recouvrement possible des responsabilités (où vit l'anti-répétition ?).</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>Univers = règles globales** (charte, ligne, lignes de</li></ul>
+<p>  publication) ; <strong>Série = contraintes spécifiques à un sous-ensemble</strong> (ex. anti-répétition entre <strong>ses</strong></p>
+<p>  projets). <em>Raison</em> : deux portées distinctes, pas de chevauchement.</p>
+<h3>🟡 AUD-9 — Évaluation de cohérence : objet <strong>dérivé</strong> au milieu d'objets persistants</h3>
+<ul><li><strong>Explication</strong> : c'est le seul « objet » qui est en réalité une <strong>lecture dérivée</strong> (recalculée), pas un</li></ul>
+<p>  objet stocké à identité stable. Le ranger parmi les objets peut tromper.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : le qualifier explicitement de </strong>vue/évaluation dérivée**</li></ul>
+<p>  (comme l'Historique), distincte des objets persistants. <em>Raison</em> : éviter de lui prêter un cycle de vie</p>
+<p>  d'objet (il n'a ni création ni archivage propres ; seuls les <strong>écarts assumés</strong> qu'il produit sont des</p>
+<p>  Décisions persistantes).</p>
+<hr>
+<h2>AXE 5 — RISQUES DE COMPLEXITÉ INUTILE</h2>
+<h3>🟠 AUD-10 — Le compte « 34 objets » mélange quatre niveaux</h3>
+<ul><li><strong>Explication</strong> : « 34 objets » additionne des <strong>objets de 1er niveau</strong> (Projet, Univers, Personnage,</li></ul>
+<p>  Livrable, Décision…), des <strong>états</strong> (Média actif), des <strong>composantes</strong> (Message/Émotion/Public/Objectif),</p>
+<p>  des <strong>attributs</strong> (Coût) et des <strong>rôles</strong> (RAW). Mélanger ces niveaux **donne une fausse impression de</p>
+<p>  complexité** et fragilise la rigueur OBJET/ÉTAT/ACTION/DÉCISION qu'Etoile demande.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : produire une </strong>taxonomie à 4 niveaux** — *objets de 1er</li></ul>
+<p>  niveau<em> · </em>états<em> · </em>composantes/attributs<em> · </em>rôles dérivés<em> — et </em>*n'appeler “objets” que le 1er</p>
+<p>  niveau** (~24-26). <em>Raison</em> : c'est la simplification la plus rentable ; elle clarifie sans rien retirer.</p>
+<h3>🟡 AUD-11 — Objets « rares » : Série, Ambiance, Hashtags</h3>
+<ul><li><strong>Explication</strong> : certains objets seront peu manipulés au quotidien (Série, Ambiance distincte, Hashtags</li></ul>
+<p>  comme objet). Ils sont <strong>justifiés</strong> mais ajoutent de la surface.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>les garder** (ils servent un pilier) mais les marquer</li></ul>
+<p>  <strong>“optionnels/avancés”</strong> dans le modèle, pour ne pas alourdir le tronc commun. <em>Raison</em> : présence</p>
+<p>  justifiée, poids maîtrisé.</p>
+<hr>
+<h2>AXE 6 — ÉLÉMENTS ENCORE AMBIGUS</h2>
+<h3>🟡 AUD-15 — La pièce de cohérence « publication » vs l'objet <strong>Publication</strong></h3>
+<ul><li><strong>Explication</strong> : parmi les 10 pièces surveillées figure <strong>« publication »</strong>, alors que <strong>Publication</strong></li></ul>
+<p>  est aussi l'<strong>événement irréversible</strong>. Or on ne peut pas « vérifier la dérive » d'un acte non encore</p>
+<p>  posé. La pièce désigne en fait l'<strong>adéquation de l'objectif/destination</strong> (plateforme/format) à</p>
+<p>  l'intention.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : renommer la pièce surveillée </strong>« destination/objectif »**</li></ul>
+<p>  (et réserver « Publication » à l'événement). <em>Raison</em> : lève la confusion nom-événement vs nom-critère.</p>
+<h3>🟡 AUD-16 — « Média produit » : où s'arrête le mineur, où commence le structurant ?</h3>
+<ul><li><strong>Explication</strong> : « éditer (retouche locale) » d'une candidate est <em>mineur</em> (pas de Décision), mais une</li></ul>
+<p>  retouche peut devenir <em>un remplacement de fait</em>. Frontière fine entre <strong>retouche</strong> et <strong>remplacement</strong>.</p>
+<ul><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : règle simple — </strong>tant que le média garde son identité**</li></ul>
+<p>  (mêmes pixels d'origine ajustés) = mineur ; <strong>dès qu'un nouveau média est généré</strong> (régénération) =</p>
+<p>  structurant (remplacement). <em>Raison</em> : critère objectif aligné sur M15.</p>
+<h3>🟡 AUD-17 — « Idée » vs « Message » : deux noms, un concept</h3>
+<ul><li><strong>Explication</strong> : la Phase 1 nomme l'objet « Message (ou Idée) ». Deux étiquettes pour une chose.</li><li>**Recommandation <em>(défaut, à confirmer)</em><strong> : </strong>un seul terme** (« Message »), « Idée » comme synonyme</li></ul>
+<p>  informel. <em>Raison</em> : vocabulaire unique = moins d'ambiguïté.</p>
+<hr>
+<h2>SYNTHÈSE — le modèle est-il sain ? quelles corrections d'abord ?</h2>
+<p><strong>Le modèle est sain dans l'ensemble.</strong> Sa philosophie (6 piliers), ses relations, ses cycles de vie, son</p>
+<p>focus Décision et ses 15 invariants sont <strong>solides et cohérents</strong>. Les faiblesses trouvées **ne remettent</p>
+<p>pas en cause l'architecture<strong> : ce sont surtout des </strong>questions de niveau** (objet vs état vs</p>
+<p>composante/attribut/rôle) et <strong>deux frontières à préciser</strong>.</p>
+<p><strong>Corrections PRIORITAIRES avant de reprendre la forme :</strong></p>
+<p>1. <strong>🔴 AUD-1 + 🟠 AUD-2</strong> — trancher OBJET vs ÉTAT pour les médias produits (Média actif = état ; et</p>
+<p>   Candidate/Variante = états d'un « Média produit » unique ?). *C'est la correction la plus structurante :</p>
+<p>   elle découle de la propre règle OBJET/ÉTAT du modèle.*</p>
+<p>2. <strong>🟠 AUD-10 + AUD-4 + AUD-6</strong> — assainir le <strong>compte d'objets</strong> via une taxonomie à 4 niveaux</p>
+<p>   (objets / états / composantes-attributs / rôles) : Message/Émotion/Public/Objectif → composantes ;</p>
+<p>   Coût → attribut.</p>
+<p>3. <strong>🟠 AUD-7</strong> — distinguer <strong>modèle (brique) vs instance appliquée</strong> pour Look/Décor/Ambiance/Consigne.</p>
+<p><strong>Secondaires</strong> : AUD-3 (hiérarchie vs association), AUD-5 (RAW = rôle), AUD-8 (règles Univers/Série),</p>
+<p>AUD-12 (lien Personnage unique), AUD-9/15/16/17 (clarifications de nommage/frontières).</p>
+<blockquote><strong>Recommandation de méthode</strong> : appliquer AUD-1/2/10 <strong>avant</strong> de reprendre la forme — car une forme</blockquote>
+<blockquote>dérivée d'un modèle qui confond objet et état hériterait de la confusion. Les autres points peuvent être</blockquote>
+<blockquote>traités en passe de nettoyage. <strong>Aucune de ces recommandations n'est tranchée</strong> : elles attendent</blockquote>
+<blockquote>l'arbitrage d'Etoile (deviendront M19+ si retenues).</blockquote>
+<p>_Audit critique — Phases 1→5. Dérivé de E127. Aucune implémentation, aucune représentation. Live intact.</p>
+<p>Lecture seule._</p></body></html>
