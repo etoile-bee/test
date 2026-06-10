@@ -1,0 +1,198 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>MODÈLE MÉTIER — PHASE 2 : RELATIONS ENTRE OBJETS</h1>
+<blockquote><strong>Statut : ANALYSE / MODÉLISATION — PHASE 2 seule (livrable autonome).</strong> On cartographie <strong>les liens</strong></blockquote>
+<blockquote>entre les objets définis en Phase 1 : qui contient quoi, qui appartient à quoi, qui dérive de quoi, qui</blockquote>
+<blockquote>est associé à quoi, qui désigne quoi. <strong>Zéro vocabulaire d'interface.</strong> Les phases 3 à 5 (cycle de vie ·</blockquote>
+<blockquote>actions · règles) viendront <strong>après validation de cette Phase 2</strong>. Live intact · fichiers verrouillés</blockquote>
+<blockquote>intacts · aucune dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Phase 1 validée par Etoile (10/06)</strong> ; arbitrages intégrés ici : <strong>M1</strong> Ambiance = objet · <strong>M2</strong> Série</blockquote>
+<blockquote>= conteneur de projets · <strong>M3</strong> Personnage possède Références + garde-robe de Looks · <strong>M6</strong> Hashtags =</blockquote>
+<blockquote>objet · <strong>M8</strong> Prêt-à-poster = état du Livrable · <strong>M9</strong> QC et Évaluation de cohérence = deux objets ·</blockquote>
+<blockquote><strong>M10</strong> Voix-signature appartient au Personnage. (M4/M5/M7 = défauts à confirmer.)</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Ancrage <code>E127</code></strong> : ① Intention · ② Cohérence · ③ Mémoire · ④ Capitalisation · ⑤ Confiance · ⑥ Contrôle.</blockquote>
+<hr>
+<h2>A. ANALYSE PRÉALABLE — faut-il un objet UNIVERS au-dessus du Personnage ? <em>(hypothèse, non intégrée)</em></h2>
+<h3>A.1 La question</h3>
+<p>Etoile pressent un objet de <strong>niveau supérieur au Personnage</strong> : l'<strong>Univers</strong> (ex. « Imany »,</p>
+<p>« Victoria Castelli ») qui regrouperait **plusieurs personnages, des bibliothèques, des règles</p>
+<p>éditoriales, des règles visuelles, des lignes de publication**.</p>
+<h3>A.2 Cet objet existe-t-il DÉJÀ implicitement ? — oui, par surcharge</h3>
+<p>Examen du modèle actuel : aujourd'hui le **Personnage joue déjà, en plus de son rôle d'identité, un rôle</p>
+<p>de “monde”**. Trois indices convergents :</p>
+<p>1. <strong>Les bibliothèques sont déjà rattachées à un “monde”, pas globales.</strong> Décors, consignes, presets,</p>
+<p>   styles sont, dans les faits, propres à un univers de production (un même catalogue de décors n'a pas</p>
+<p>   vocation à mélanger deux marques distinctes). Or la Phase 1 a posé la Bibliothèque comme « transverse aux</p>
+<p>   projets » sans dire <strong>transverse à quoi exactement</strong> — la réponse naturelle est : *transverse à un</p>
+<p>   univers*.</p>
+<p>2. <strong>Le Personnage porte deux natures hétérogènes.</strong> D'un côté <strong>l'incarnation</strong> (visage, carnation,</p>
+<p>   regard, garde-robe, voix) ; de l'autre, dès qu'on parle de « la marque Imany », on lui prête des</p>
+<p>   <strong>règles éditoriales</strong> (ligne, sujets, anti-répétition), des <strong>règles visuelles</strong> (charte : cadrage,</p>
+<p>   colorimétrie par défaut, style de sous-titres) et des <strong>lignes de publication</strong> (plateformes, comptes,</p>
+<p>   rythme). Ces éléments ne sont <strong>pas</strong> de l'identité physique : ils sont du <strong>monde</strong>.</p>
+<p>3. <strong>Le besoin multi-personnages.</strong> Une marque/univers peut accueillir <strong>plusieurs personnages</strong> (une</p>
+<p>   égérie principale + des secondaires, ou des déclinaisons). Le modèle actuel ne permet pas de regrouper</p>
+<p>   plusieurs personnages sous un même monde partageant règles et bibliothèques.</p>
+<p>→ <strong>Conclusion</strong> : le rôle d'Univers <strong>existe bel et bien</strong>, mais il est aujourd'hui **dissous dans le</p>
+<p>Personnage (surchargé)<strong>. Ce n'est pas un manque « invisible » : c'est une </strong>confusion de deux objets en</p>
+<p>un**. Le symptôme le plus net est la Bibliothèque « transverse » qui n'a pas de propriétaire clair.</p>
+<h3>A.3 Recommandation</h3>
+<p><strong>Oui, introduire un objet UNIVERS au-dessus du Personnage</strong> — <em>en analyse ; à valider avant intégration</em>.</p>
+<p>Répartition proposée :</p>
+<table><thead><tr><th>Porté par <strong>UNIVERS</strong> (le monde / la marque)</th><th>Conservé par <strong>PERSONNAGE</strong> (l'incarnation)</th></tr></thead><tbody><tr><td>nom du monde (Imany, Victoria Castelli…)</td><td>nom de la personne</td></tr><tr><td><strong>Bibliothèques</strong> (Décors, Ambiances, Presets, Consignes, Styles de sous-titres, Enchaînements)</td><td><strong>Références</strong> (preuves d'identité)</td></tr><tr><td><strong>règles éditoriales</strong> (ligne, sujets, anti-répétition)</td><td><strong>garde-robe de Looks</strong> propres</td></tr><tr><td><strong>règles visuelles</strong> (charte : cadrage, colorimétrie par défaut, style de sous-titres)</td><td><strong>voix-signature</strong></td></tr><tr><td><strong>lignes de publication</strong> (plateformes, comptes, calendrier)</td><td>traits identitaires (visage, carnation, regard)</td></tr><tr><td>l'ensemble des <strong>Personnages</strong> + des <strong>Séries</strong></td><td>—</td></tr></tbody></table>
+<p><strong>Distinction à trois niveaux</strong> : <strong>Univers</strong> = le <em>monde</em> (cadre durable, multi-personnages, règles,</p>
+<p>canaux) ▸ <strong>Personnage</strong> = <em>qui</em> incarne ▸ <strong>Intention</strong> = <em>pourquoi</em> de ce projet précis.</p>
+<h3>A.4 Question de modélisation ouverte (nouvelle)</h3>
+<ul><li>**M11 <em>(à confirmer)</em><strong> : un créateur a-t-il toujours </strong>1 Univers** (alors l'Univers peut être implicite</li></ul>
+<p>  et léger quand il n'y a qu'un personnage) <strong>ou</strong> plusieurs ? <strong>Défaut proposé</strong> : l'Univers existe</p>
+<p>  <strong>toujours</strong> comme conteneur (même réduit à un seul Personnage), car c'est lui qui possède proprement les</p>
+<p>  bibliothèques et les règles. <em>Raison</em> : donne enfin un propriétaire clair à la Bibliothèque et aux</p>
+<p>  chartes. <em>À valider.</em></p>
+<ul><li>**M12 <em>(à confirmer)</em><strong> : les </strong>règles visuelles<strong> de l'Univers (charte) s'</strong>appliquent-elles par</li></ul>
+<p>  défaut<strong> aux projets (en restant </strong>surchargeables<strong> et </strong>étanches<strong> par projet, E124) ? </strong>Défaut** : oui,</p>
+<p>  comme <strong>valeurs par défaut copiées</strong> (jamais héritées en silence). <em>À valider.</em></p>
+<blockquote>⚠️ <strong>Non intégré</strong> : ci-dessous, l'Univers apparaît <strong>en pointillé</strong> dans le diagramme, comme</blockquote>
+<blockquote><strong>hypothèse à valider</strong>. Le reste du modèle Phase 2 tient <strong>avec ou sans</strong> Univers (sans lui, son rôle</blockquote>
+<blockquote>reste — par défaut — porté par le Personnage, comme aujourd'hui).</blockquote>
+<hr>
+<h2>B. TYPOLOGIE DES LIENS (vocabulaire de relation employé)</h2>
+<table><thead><tr><th>Lien</th><th>Symbole</th><th>Sens</th><th>Le composant survit-il seul ?</th></tr></thead><tbody><tr><td><strong>Composition</strong></td><td>◆ contient</td><td>le tout <strong>possède fortement</strong> ; le composant <strong>n'existe pas sans le tout</strong> et meurt avec lui</td><td>non</td></tr><tr><td><strong>Appartenance</strong></td><td>○ possède</td><td>le tout <strong>possède</strong> ; le composant peut <strong>préexister / survivre</strong> au-delà</td><td>oui</td></tr><tr><td><strong>Dérivation</strong></td><td>→ dérive de</td><td>l'objet est <strong>produit / calculé</strong> à partir d'un autre</td><td>—</td></tr><tr><td><strong>Association</strong></td><td>— lié à</td><td><strong>référence</strong> sans possession</td><td>oui (indépendant)</td></tr><tr><td><strong>Rôle exclusif</strong></td><td>★ désigne</td><td><strong>désignation unique</strong> d'un objet existant dans un rôle</td><td>—</td></tr></tbody></table>
+<hr>
+<h2>C. RÉPONSES EXPLICITES (les questions posées)</h2>
+<h3>C.1 Un <strong>Projet</strong> contient quoi ?</h3>
+<p><strong>Composition (◆)</strong> — meurent avec le projet :</p>
+<ul><li><strong>1 Intention</strong> (◆) — la boussole du projet.</li><li><strong>les créatifs employés</strong> : Référence retenue, Look retenu, Décor retenu, <strong>Ambiance</strong> retenue (M1),</li></ul>
+<p>  Consigne de génération, Script, Voix. <em>(Ce sont des <strong>emplois</strong> : voir C.7 pour l'origine.)</em></p>
+<ul><li><strong>1 jeu de Paramètres</strong> (◆, étanche au projet).</li><li><strong>les médias</strong> : Candidates (◆), Variantes (◆), <strong>1 Média actif</strong> (★ rôle exclusif), RAW/médias</li></ul>
+<p>  intermédiaires (◆, jamais écrasés), Montage (◆).</p>
+<ul><li><strong>les éléments de diffusion</strong> : Légende (◆), <strong>Hashtags</strong> (◆, M6), Contrôle qualité (◆), Coûts (◆).</li><li><strong>les Livrables</strong> (◆) et <strong>les Versions</strong> (◆).</li><li><strong>la mémoire du projet</strong> : Décisions (◆), <strong>Évaluation de cohérence</strong> (→ dérivée), contribution à</li></ul>
+<p>  l'Historique.</p>
+<ul><li><strong>les Publications</strong> issues du projet (◆ côté projet ; événement défini en C.5).</li></ul>
+<p><strong>Association (—)</strong> — référencés, vivent ailleurs :</p>
+<ul><li><strong>1 Personnage employé</strong> (— lié à) ; <strong>des Briques copiées</strong> depuis la Bibliothèque (—).</li></ul>
+<h3>C.2 Une <strong>Intention</strong> appartient à quoi ?</h3>
+<ul><li><strong>Composition</strong> : l'Intention <strong>appartient à exactement un Projet</strong> (◆) — elle naît et meurt avec lui.</li><li><strong>Association</strong> : elle <strong>vise un Personnage</strong> (—) et <strong>porte un Objectif de publication</strong> (qui **référence</li></ul>
+<p>  une Plateforme** — M5 par défaut : attribut).</p>
+<ul><li><em>(Note Univers, hypothèse)</em> : une Intention <strong>hérite par défaut</strong> des règles éditoriales de l'Univers du</li></ul>
+<p>  Personnage <em>(à valider, M12 — copie non silencieuse)</em>.</p>
+<h3>C.3 Un <strong>Livrable</strong> provient de quoi ?</h3>
+<ul><li><strong>Dérivation (→)</strong> : un Livrable <strong>provient d'une Version validée</strong> d'un Projet.</li><li><strong>Composition (◆)</strong> : il <strong>contient</strong> (copies autonomes) média final + image(s) source + Script +</li></ul>
+<p>  Légende (courte/longue) + <strong>Hashtags</strong> (M6) + Paramètres + infos projet + Coûts + RAW.</p>
+<ul><li><strong>Appartenance</strong> : il <strong>appartient au Projet</strong> (◆ côté projet).</li><li><strong>État</strong> : un Livrable porte l'<strong>état “Prêt-à-poster”</strong> (M8 — c'est un <strong>état</strong>, pas un objet) tant qu'il</li></ul>
+<p>  n'est pas publié.</p>
+<ul><li><strong>Association</strong> : il <strong>alimente</strong> une Publication (—).</li></ul>
+<h3>C.4 Une <strong>Variante</strong> est liée à quoi ?</h3>
+<ul><li><strong>Composition</strong> : elle <strong>appartient au Projet</strong> (◆).</li><li><strong>Dérivation (→)</strong> : elle <strong>dérive d'une Candidate</strong> (ou d'une autre Variante dont elle est déclinée).</li><li><strong>Rôle exclusif (★)</strong> : elle peut <strong>être désignée Média actif</strong> (sans cesser d'être une variante).</li><li><strong>Association</strong> : elle est <strong>comparable</strong> à d'autres Variantes ; sa promotion peut produire un <strong>Livrable</strong>.</li></ul>
+<h3>C.5 Une <strong>Publication</strong> est liée à quoi ?</h3>
+<ul><li><strong>Dérivation (→)</strong> : elle <strong>provient d'un Livrable</strong> (sa source).</li><li><strong>Association</strong> : elle <strong>vise une Plateforme</strong> (— ; relève des lignes de publication de l'Univers,</li></ul>
+<p>  hypothèse) ; elle <strong>appartient au Projet</strong> (◆ côté projet) et <strong>inscrit une trace définitive</strong> dans</p>
+<p>  l'Historique.</p>
+<ul><li><strong>Nature</strong> : c'est un <strong>événement</strong> (pas un média), et le <strong>seul acte irréversible</strong>.</li></ul>
+<h3>C.6 Une <strong>Série</strong> relie quoi ? (M2 — conteneur)</h3>
+<ul><li><strong>Composition / Regroupement (◆ faible)</strong> : une Série <strong>regroupe plusieurs Projets</strong> (ses membres) — mais</li></ul>
+<p>  un Projet <strong>reste autonome</strong> et peut exister <strong>hors série</strong>.</p>
+<ul><li><strong>Association</strong> : elle <strong>partage souvent un Personnage</strong> (—) et **porte des règles de cohérence</li></ul>
+<p>  inter-projets** (anti-répétition de sujets/looks rapprochés).</p>
+<ul><li><em>(Note Univers, hypothèse)</em> : une Série <strong>appartient à un Univers</strong> (○).</li></ul>
+<h3>C.7 Un <strong>Personnage</strong> possède quoi ? (M3 + M10)</h3>
+<ul><li><strong>Appartenance (○)</strong> — possédés par le Personnage, réutilisables par tout projet qui l'emploie :</li><li><strong>ses Références</strong> (preuves d'identité visuelle),</li><li><strong>sa garde-robe de Looks</strong> (M3),</li><li><strong>sa Voix-signature</strong> (M10).</li><li><strong>Association</strong> : il <strong>est employé par</strong> des Projets (—) et <strong>rassemblé par</strong> des Séries (—).</li><li><em>(Note Univers, hypothèse)</em> : le Personnage <strong>appartient à un Univers</strong> (○), qui possède de son côté les</li></ul>
+<p>  <strong>Bibliothèques</strong> transverses et les <strong>règles</strong>.</p>
+<hr>
+<h2>D. DIAGRAMME DE STRUCTURE COMPLET (texte)</h2>
+<blockquote>Légende : ◆ composition (meurt avec le tout) · ○ appartenance (survit) · → dérivation · — association ·</blockquote>
+<blockquote>★ rôle exclusif. Les blocs <code>┈┈ UNIVERS ┈┈</code> en <strong>pointillé</strong> = <strong>hypothèse à valider</strong> (A.3).</blockquote>
+<pre><code>┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈ HYPOTHÈSE À VALIDER (M11/M12) ┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+┊ UNIVERS  (le monde / la marque — ex. Imany, Victoria Castelli)          ┊
+┊   ○ possède ▸ Bibliothèque(s)                                           ┊
+┊   ○ possède ▸ règles éditoriales · règles visuelles (charte) · lignes   ┊
+┊                de publication                                           ┊
+┊   ○ possède ▸ Personnage (1..n)                                         ┊
+┊   ○ possède ▸ Série (0..n)                                              ┊
+┊        (par défaut : copie non silencieuse des règles → Projet, M12)    ┊
+┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈┈
+            │                                   │
+            ▼ (○, hypothèse)                    ▼ (○, hypothèse)
+   PERSONNAGE  (qui incarne)            SÉRIE  (conteneur éditorial, M2)
+     ○ possède ▸ Référence (1..n)         ◆ regroupe ▸ Projet (1..n)   [membres, autonomes]
+     ○ possède ▸ Look (garde-robe)        — partage  ▸ Personnage
+     ○ possède ▸ Voix-signature (M10)     — porte    ▸ règles de cohérence inter-projets
+            │
+            │ — employé par
+            ▼
+╔══════════════════════════ PROJET (unité de production) ══════════════════════════╗
+║  ◆ INTENTION (1)                                                                  ║
+║      • message · émotion · public        (attributs — M4, défaut à confirmer)     ║
+║      • — vise ▸ Personnage                                                        ║
+║      • ◆ Objectif de publication ▸ plateforme · format · durée (M5, défaut)       ║
+║                                                                                   ║
+║  — emploie ▸ Personnage (1)        — copie ▸ Brique(s) depuis Bibliothèque        ║
+║                                                                                   ║
+║  CRÉATIFS EMPLOYÉS (retenus dans le projet)                                       ║
+║      Référence · Look · Décor · ◆ Ambiance (M1) · Consigne · Script              ║
+║      Script —interprété par▸ Voix                                                 ║
+║      ◆ Paramètres (étanches au projet, E124)                                      ║
+║                                                                                   ║
+║  PRODUCTION (médias)                                                              ║
+║      ◆ Candidate (1..n)  →donne→  Variante | (★) Média actif | (écartée)          ║
+║      ◆ Variante (0..n)   →dérive de→ Candidate ;  ★peut devenir Média actif       ║
+║      ★ Média actif (0..1, rôle EXCLUSIF) ▸ désigne une Candidate/Variante         ║
+║      ◆ RAW / média intermédiaire (jamais écrasé)                                  ║
+║      ◆ Montage  ▸ plans = Variantes/Médias retenus ; rythme (M7, attribut défaut) ║
+║                                                                                   ║
+║  ÉLÉMENTS DE DIFFUSION                                                            ║
+║      ◆ Légende (courte/longue) · ◆ Hashtags (M6, objet) · ◆ Contrôle qualité     ║
+║      ◆ Coût (estimé/réel, — lié à une action de production)                       ║
+║                                                                                   ║
+║  ◆ Version (0..n, instantanés restaurables)  ──validée──→  LIVRABLE               ║
+║                                                                                   ║
+║  ◆ LIVRABLE (0..n)  →provient de→ Version validée                                 ║
+║      contient (copies) : média final · image(s) source · Script · Légende ·      ║
+║                          Hashtags · Paramètres · infos · Coûts · RAW              ║
+║      état : « Prêt-à-poster » (M8, ÉTAT du Livrable, pas un objet)                ║
+║                         │ — alimente                                              ║
+║                         ▼                                                         ║
+║  ◆ PUBLICATION (événement, IRRÉVERSIBLE)  →provient de→ Livrable                  ║
+║      — vise ▸ Plateforme   ·   inscrit ▸ trace définitive dans l'Historique       ║
+║                                                                                   ║
+║  MÉMOIRE DU PROJET                                                                ║
+║      ◆ Décision (action + raison)                                                 ║
+║      → Évaluation de cohérence (DÉRIVÉE ; 10 pièces : message·image·look·décor·   ║
+║         voix·script·montage·rythme·légende·publication)  [≠ Contrôle qualité, M9] ║
+╚═══════════════════════════════════════════════════════════════════════════════════╝
+            │ contribue à
+            ▼
+   HISTORIQUE  (→ dérivé de l'ensemble des Projets/Décisions/Versions/Publications ;
+                mémoire chronologique permanente)
+
+   BIBLIOTHÈQUE  (○ possédée par l'Univers — hypothèse ; sinon par le Personnage)
+       ◆ contient ▸ Brique réutilisable (Look · Décor · Ambiance · Preset ·
+                     Consigne · Style de sous-titres · Enchaînement)
+       chaque Brique : — provenance ▸ Projet d'origine
+       Projet — copie ▸ Brique   (copie EXPLICITE, jamais héritage silencieux, E124)</code></pre>
+<hr>
+<h2>E. TABLE DES LIENS (nature de chaque relation)</h2>
+<table><thead><tr><th>Depuis</th><th>Relation</th><th>Vers</th><th>Cardinalité</th><th>Notes</th></tr></thead><tbody><tr><td>Univers <em>(hyp.)</em></td><td>○ possède</td><td>Bibliothèque, règles, Personnage, Série</td><td>1 → n</td><td>A.3 ; à valider (M11/M12)</td></tr><tr><td>Personnage</td><td>○ possède</td><td>Référence</td><td>1 → n</td><td>M3</td></tr><tr><td>Personnage</td><td>○ possède</td><td>Look (garde-robe)</td><td>1 → n</td><td>M3</td></tr><tr><td>Personnage</td><td>○ possède</td><td>Voix-signature</td><td>1 → 1</td><td>M10</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Intention</td><td>1 → 1</td><td>la boussole</td></tr><tr><td>Intention</td><td>◆ appartient à</td><td>Projet</td><td>1 → 1</td><td>naît/meurt avec lui</td></tr><tr><td>Intention</td><td>— vise</td><td>Personnage</td><td>1 → 1</td><td>qui porte le message</td></tr><tr><td>Intention</td><td>◆ contient</td><td>Objectif de publication</td><td>1 → 1</td><td>M5 (attribut composé, défaut)</td></tr><tr><td>Objectif</td><td>— vise</td><td>Plateforme</td><td>1 → 1</td><td>lignes de publication (Univers, hyp.)</td></tr><tr><td>Projet</td><td>— emploie</td><td>Personnage</td><td>1 → 1</td><td>association (Personnage survit)</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Référence/Look/Décor/Ambiance/Consigne/Script/Voix employés</td><td>1 → n</td><td>emplois (origine : Personnage/Bibliothèque)</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Ambiance</td><td>0 → n</td><td>M1 (objet)</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Paramètres</td><td>1 → 1</td><td>étanches (E124)</td></tr><tr><td>Script</td><td>— interprété par</td><td>Voix</td><td>1 → 1</td><td>la voix ne change pas le texte</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Candidate</td><td>0 → n</td><td>brut non jugé</td></tr><tr><td>Variante</td><td>→ dérive de</td><td>Candidate / Variante</td><td>1 → 1</td><td>trace volontaire</td></tr><tr><td>Média actif</td><td>★ désigne</td><td>Candidate / Variante</td><td>0 → 1</td><td><strong>rôle exclusif</strong></td></tr><tr><td>Projet</td><td>◆ contient</td><td>RAW / média intermédiaire</td><td>0 → n</td><td>jamais écrasé</td></tr><tr><td>Montage</td><td>◆ assemble</td><td>Variantes/Médias retenus</td><td>1 → n</td><td>rythme = attribut (M7, défaut)</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Légende</td><td>0 → n</td><td>≠ Script</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Hashtags</td><td>0 → n</td><td>M6 (objet)</td></tr><tr><td>Projet</td><td>◆ contient</td><td>Contrôle qualité</td><td>0 → n</td><td>M9 (aptitude technique)</td></tr><tr><td>Évaluation de cohérence</td><td>→ dérive de</td><td>Intention + 10 pièces</td><td>1 → 1</td><td>M9 (alignement intention) ; <strong>signale, ne décide pas</strong></td></tr><tr><td>Coût</td><td>— lié à</td><td>action de production</td><td>n → 1</td><td>estimé/réel</td></tr><tr><td>Version</td><td>◆ appartient à</td><td>Projet</td><td>0 → n</td><td>instantané restaurable</td></tr><tr><td>Livrable</td><td>→ provient de</td><td>Version validée</td><td>1 → 1</td><td>paquet autonome</td></tr><tr><td>Livrable</td><td>(état)</td><td>« Prêt-à-poster »</td><td>—</td><td>M8 (état, pas objet)</td></tr><tr><td>Publication</td><td>→ provient de</td><td>Livrable</td><td>1 → 1</td><td>événement</td></tr><tr><td>Publication</td><td>— vise</td><td>Plateforme</td><td>1 → 1</td><td>irréversible</td></tr><tr><td>Série</td><td>◆ regroupe</td><td>Projet</td><td>1 → n</td><td>M2 (conteneur ; membres autonomes)</td></tr><tr><td>Série</td><td>— partage</td><td>Personnage</td><td>1 → 1</td><td>souvent commun</td></tr><tr><td>Décision</td><td>◆ appartient à</td><td>Projet</td><td>0 → n</td><td>action + raison (mémoire)</td></tr><tr><td>Historique</td><td>→ dérive de</td><td>Projets/Décisions/Versions/Publications</td><td>1 → n</td><td>mémoire chronologique</td></tr><tr><td>Bibliothèque</td><td>◆ contient</td><td>Brique réutilisable</td><td>1 → n</td><td>catalogue de réemploi</td></tr><tr><td>Brique</td><td>— provenance</td><td>Projet d'origine</td><td>1 → 1</td><td>traçabilité (③)</td></tr><tr><td>Projet</td><td>— copie</td><td>Brique</td><td>n → n</td><td>copie explicite (④ + E124)</td></tr></tbody></table>
+<hr>
+<h2>F. POINTS D'ANCRAGE SUR LES PILIERS (pourquoi ces liens)</h2>
+<ul><li><strong>Composition forte des médias/décisions/versions dans le Projet</strong> → pilier ③ (mémoire) + ⑥ (contrôle) :</li></ul>
+<p>  tout reste regroupé et réversible dans le conteneur unique.</p>
+<ul><li><strong>Appartenance des Références/Looks/Voix au Personnage</strong> (et des Bibliothèques/règles à l'Univers, hyp.)</li></ul>
+<p>  → pilier ④ (capitalisation) : on réutilise l'identité et les acquis sans les recréer.</p>
+<ul><li><strong>Copie explicite des Briques (jamais d'héritage silencieux)</strong> → piliers ⑤ (confiance) + ④, et</li></ul>
+<p>  <strong>étanchéité</strong> des Paramètres → E124.</p>
+<ul><li><strong>Média actif = rôle exclusif</strong> et <strong>Variante dérivée</strong> → pilier ⑥ : comparer/réactiver/promouvoir sans</li></ul>
+<p>  perte.</p>
+<ul><li><strong>Livrable → Version validée</strong>, <strong>Publication → Livrable (irréversible)</strong> → pilier ⑥ : tout réversible</li></ul>
+<p>  jusqu'au seul acte définitif.</p>
+<ul><li><strong>Évaluation de cohérence dérivée, distincte du QC</strong> → pilier ② : signaler la dérive parmi les 10 pièces,</li></ul>
+<p>  sans décider.</p>
+<hr>
+<h2>G. QUESTIONS DE MODÉLISATION OUVERTES (Phase 2)</h2>
+<table><thead><tr><th>#</th><th>Question (relationnelle)</th><th>Défaut proposé</th><th>Statut</th></tr></thead><tbody><tr><td><strong>M11</strong></td><td>L'<strong>Univers</strong> existe-t-il toujours (conteneur, même à 1 personnage) ?</td><td>Oui, toujours (propriétaire clair des bibliothèques/règles)</td><td>🆕 à valider</td></tr><tr><td><strong>M12</strong></td><td>Les <strong>règles visuelles/éditoriales</strong> de l'Univers s'appliquent-elles <strong>par défaut</strong> aux projets ?</td><td>Oui, <strong>par copie non silencieuse</strong> (surchargeable, étanche)</td><td>🆕 à valider</td></tr><tr><td>M4</td><td>Message/Émotion/Public = attributs de l'Intention ?</td><td>Attributs</td><td>⏳ défaut, à confirmer</td></tr><tr><td>M5</td><td>Plateforme/Format/Durée = attributs de l'Objectif ?</td><td>Attributs</td><td>⏳ défaut, à confirmer</td></tr><tr><td>M7</td><td>Rythme = attribut du Montage ?</td><td>Attribut</td><td>⏳ défaut, à confirmer</td></tr></tbody></table>
+<blockquote>Rappel : M1/M2/M3/M6/M8/M9/M10 sont <strong>tranchés</strong> (Phase 1, 10/06) et <strong>intégrés</strong> ci-dessus.</blockquote>
+<hr>
+<p>⏸️ <strong>FIN DE LA PHASE 2.</strong> Les phases 3 (Cycle de vie) · 4 (Actions) · 5 (Règles) **ne sont pas traitées</p>
+<p>ici<strong> : elles attendent la </strong>validation de ces relations<strong> par Etoile. L'objet </strong>Univers** reste une</p>
+<p><strong>hypothèse en pointillé</strong>, non intégrée tant qu'Etoile n'a pas tranché M11/M12.</p>
+<p>_Phase 2 — relations. Dérivé de E127 (6 piliers). Base factuelle : manifest existant. Aucune</p>
+<p>implémentation, aucune représentation. Phase 1 : <code>docs/MODELE_METIER_PHASE1.md</code>. Lecture seule._</p></body></html>

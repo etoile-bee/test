@@ -93,12 +93,12 @@
 - **Rôle** : l'entité incarnée qui porte les contenus.
 - **Pourquoi** : piliers ① + ④ — **transverse** aux projets et **capitalisable**.
 - **Contient** : `nom`, `traits_identitaires` (description stable), `références` (collection),
-  `garde-robe` (collection de Looks), `voix_signature` *(à confirmer)*.
+  `garde-robe` (collection de Looks), `voix_signature` *(validé 10/06 — M10)*.
 - **Différenciation** : le Personnage est **qui** ; l'Intention est **pourquoi** ; la Référence est **une
   preuve visuelle** de l'identité du Personnage à un instant.
-- *(à confirmer)* **Défaut : le Personnage POSSÈDE ses Références et une garde-robe de Looks** — *raison* :
-  « robe rouge sur Imany » a du sens rattaché au personnage. *À confirmer* : des Looks génériques pourraient
-  exister sans personnage (vivant alors seulement en Bibliothèque).
+- ✅ *(validé 10/06 — M3)* **Le Personnage POSSÈDE ses Références ET sa garde-robe de Looks** (et sa
+  voix-signature, M10). *Raison* : « robe rouge sur Imany » a du sens rattaché au personnage. *(Des Looks
+  génériques sans personnage restent possibles via la Bibliothèque, sans contredire cette possession.)*
 
 ## 7. Référence — *la preuve d'identité visuelle*
 - **Rôle** : image(s) faisant foi de l'identité du Personnage (visage, carnation, regard…).
@@ -111,7 +111,7 @@
 - **Rôle** : tenue / coiffure / style d'apparence pour une production.
 - **Pourquoi** : piliers ② + ④ — capitalisable, surveillé pour cohérence avec l'intention/émotion.
 - **Contient** : `libellé`, `description`, `image_de_référence`, `verrou`, `historique`,
-  `personnage` *(via garde-robe, à confirmer)*.
+  `personnage` *(via garde-robe — validé 10/06, M3)*.
 - **Différenciation** : Look = **vêtir/styliser le Personnage** ; Décor = **le lieu** ; Ambiance =
   **l'atmosphère** ; Référence = **l'identité**. Le Look n'est PAS le Personnage (on change de look sans
   changer d'identité).
@@ -128,10 +128,8 @@
 - **Pourquoi** : pilier ② — pièce de cohérence (l'ambiance doit servir l'émotion visée).
 - **Contient** : `libellé`, `lumière`, `palette`, `tonalité`.
 - **Différenciation** : Émotion = **but ressenti** ; Ambiance = **moyen visuel/sonore**.
-- *(à confirmer)* **Défaut : Ambiance = OBJET léger distinct** (du Décor et des Paramètres) — *raison* :
-  Etoile la liste explicitement comme distincte ; une même ambiance se réutilise sur des décors différents.
-  *À confirmer* : si elle est toujours indissociable du Décor en pratique, elle redevient un **attribut du
-  Décor**.
+- ✅ *(validé 10/06 — M1)* **Ambiance = OBJET distinct** (du Décor et des Paramètres). *Raison* : une même
+  ambiance se réutilise sur des décors différents ; elle est capitalisable indépendamment.
 
 ## 11. Consigne de génération (Prompt) — *l'instruction de fabrication*
 - **Rôle** : le texte d'instruction qui guide la production d'un média (image / animation / synchro labiale).
@@ -227,7 +225,7 @@
 - **Rôle** : mots-clés de diffusion rattachés à la publication.
 - **Pourquoi** : pilier ① — sert l'objectif de diffusion.
 - **Contient** : `liste`, `version`.
-- **Différenciation** : *(à confirmer ; défaut : objet distinct mais toujours associé à un Livrable)* —
+- **Différenciation** : ✅ *(validé 10/06 — M6)* **objet distinct** (toujours associé à un Livrable) —
   *raison* : ils se gèrent/renouvellent séparément du texte de la Légende.
 
 ## 22. Contrôle qualité (QC) — *le verdict d'aptitude*
@@ -237,8 +235,8 @@
 - **Contient** : `verdict` (conforme / alerte / forcé), `auteur`, `date`, `détails` (identité, cohérence,
   référence, look), `rapport` (historique des contrôles).
 - **Différenciation** : le QC est un **jugement d'aptitude technique** (le média est-il sain ?), distinct de
-  l'**Évaluation de cohérence** (le média sert-il l'**intention** ?). *(à confirmer ; défaut : deux objets,
-  axes différents.)*
+  l'**Évaluation de cohérence** (le média sert-il l'**intention** ?). ✅ *(validé 10/06 — M9 : deux objets
+  distincts, axes différents.)*
 
 ## 23. Coût — *la mesure de dépense*
 - **Rôle** : l'estimation et le relevé réel de ce que coûte une production (crédits, montant, temps).
@@ -270,8 +268,8 @@
 - **Contient** : `livrable_source` (lien), `plateforme`, `date`, `statut` (prêt-à-poster → publié),
   `identité_de_diffusion` *(à confirmer)*.
 - **Différenciation** : la Publication est un **événement**, pas un média. **Prêt-à-poster** est un **état
-  antérieur** (Livrable complet, en attente), distinct de **Publié** (acte consommé). *(à confirmer ;
-  défaut : Prêt-à-poster = état du Livrable, pas objet séparé.)*
+  antérieur** (Livrable complet, en attente), distinct de **Publié** (acte consommé). ✅ *(validé 10/06 —
+  M8 : Prêt-à-poster = ÉTAT du Livrable, pas un objet séparé.)*
 
 ---
 
@@ -293,10 +291,8 @@
   inter-projets (anti-répétition de sujets).
 - **Contient** : `nom`, `ligne_éditoriale`, `projets_membres`, `personnage` *(souvent commun)*,
   `règles_de_cohérence`.
-- **Différenciation** : Série = **conteneur de Projets**, pas un type de projet. *(à confirmer ; défaut :
-  conteneur — raison : le projet reste autonome et peut exister hors série ; la série est un regroupement
-  par-dessus. À confirmer : une série « moule » imposant des réglages serait plutôt une Brique de
-  configuration.)*
+- **Différenciation** : ✅ *(validé 10/06 — M2)* Série = **CONTENEUR de Projets**, pas un type de projet.
+  *Raison* : le projet reste autonome et peut exister hors série ; la série est un regroupement par-dessus.
 
 ## 29. Décision — *le choix tracé avec sa raison*
 - **Rôle** : enregistrer un choix structurant **et son pourquoi** (garder un média, retenir une variante,
@@ -356,22 +352,23 @@
 
 ---
 
-# QUESTIONS DE MODÉLISATION OUVERTES (Phase 1 — à confirmer, E120)
+# DÉCISIONS DE MODÉLISATION (Phase 1 — statut après arbitrage Etoile 10/06)
 
-| # | Question | Défaut proposé | Raison |
+> **Phase 1 VALIDÉE par Etoile (10/06).** Arbitrages tranchés ci-dessous ; M4/M5/M7 restent des **défauts
+> à confirmer**.
+
+| # | Question | Décision | Statut |
 |---|---|---|---|
-| M1 | **Ambiance** = objet ou attribut ? | Objet léger distinct | listée à part ; réutilisable sur plusieurs décors |
-| M3 | **Personnage** possède-t-il Références/Looks ? | Oui (références + garde-robe) | un look n'a de sens que porté par un personnage |
-| M4 | **Message / Émotion / Public** = objets ou attributs de l'Intention ? | Attributs riches de l'Intention | n'existent pas sans intention |
-| M5 | **Plateforme/Format/Durée** = attributs de l'Objectif ou objets réutilisables ? | Attributs de l'Objectif | toujours liés ; *option* : profils réutilisables |
-| M6 | **Hashtags** = objet distinct ou partie de la Légende ? | Objet distinct associé au Livrable | se renouvellent séparément du texte |
-| M7 | **Rythme** = objet ou attribut du Montage ? | Attribut du Montage (mais pièce de cohérence) | n'existe pas hors d'un montage |
-| M8 | **Prêt-à-poster** = état ou objet ? | État du Livrable | évite un stock séparé (source unique) |
-| M9 | **QC** vs **Évaluation de cohérence** = un ou deux objets ? | Deux objets (axes différents) | aptitude technique ≠ alignement intention |
-| M10 | **Voix-signature** = attribut du Personnage ? | Oui (capitalisable) | cohérence d'identité sonore |
-| M2* | **Série** = conteneur ou type de projet ? | Conteneur | le projet reste autonome ; *(relation — sera détaillée en Phase 2)* |
-
-> *M2 touche surtout les relations (Phase 2) ; rappelé ici car il conditionne le statut d'objet de la Série.*
+| M1 | **Ambiance** = objet ou attribut ? | **OBJET distinct** | ✅ **validé 10/06** |
+| M2 | **Série** = conteneur ou type de projet ? | **CONTENEUR de projets** | ✅ **validé 10/06** |
+| M3 | **Personnage** possède Références/Looks ? | **OUI : possède ses Références + sa garde-robe de Looks** | ✅ **validé 10/06** |
+| M4 | **Message / Émotion / Public** = objets ou attributs ? | Attributs riches de l'Intention | ⏳ **défaut, à confirmer** |
+| M5 | **Plateforme/Format/Durée** = attributs ou objets ? | Attributs de l'Objectif (option : profils réutilisables) | ⏳ **défaut, à confirmer** |
+| M6 | **Hashtags** = objet distinct ou partie de Légende ? | **OBJET distinct** (associé au Livrable) | ✅ **validé 10/06** |
+| M7 | **Rythme** = objet ou attribut du Montage ? | Attribut du Montage (pièce de cohérence) | ⏳ **défaut, à confirmer** |
+| M8 | **Prêt-à-poster** = état ou objet ? | **ÉTAT du Livrable** (pas un objet) | ✅ **validé 10/06** |
+| M9 | **QC** vs **Évaluation de cohérence** | **DEUX objets distincts** (axes différents) | ✅ **validé 10/06** |
+| M10 | **Voix-signature** = attribut du Personnage ? | **APPARTIENT au Personnage** | ✅ **validé 10/06** |
 
 ---
 
