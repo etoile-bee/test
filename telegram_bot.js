@@ -2513,6 +2513,35 @@ const sessions={};let activeChat=CHAT_ID;
 function _ssave(id){const s=sessions[id]||(sessions[id]={});for(const k of SESSION_VARS){try{s[k]=eval(k);}catch(e){}}}
 function _sload(id){const s=sessions[id];if(!s)return;for(const k of SESSION_VARS){try{if(k in s)eval(k+'=s[k]');}catch(e){}}}
 function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeChat=id; if(sessions[id])_sload(id); else { gwReset(); state='idle'; } }
+// ═════════════════════════════════════════════════════════════════════════════
+// [cockpit-v4] MONTAGE STRANGLER-FIG (E107) — nouveau cockpit À CÔTÉ de l'ancien, derrière /v4.
+//   N'altère PAS le flux par défaut : activé seulement après /v4 (v4active), quitté par /menu.
+//   Réutilise les primitives d'envoi existantes (sendPhotoKb/editPhotoKb/editVideoKb/tg) ; image BRUTE.
+//   Génération STUB GRATUITE (copie de looks existants) — AUCUNE dépense ; la vraie génération payante
+//   sera branchée derrière le gate QC au moment de la bascule. Tout requis en LAZY (n'impacte pas le boot).
+// ═════════════════════════════════════════════════════════════════════════════
+let v4active=false, _v4=null;
+function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
+function v4Generate(flow, m){ // GRATUIT : copie des looks existants dans le dossier projet -> candidats (rel)
+  try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
+    return looks.map((f,i)=> PS.importFile(BASE, _persona(), m.projectId, 'images', path.join(getLooksDir(), f), 'cand'+i+'.jpg')); }
+  catch(e){ jlog('v4Generate err '+e.message); return []; }
+}
+function cockpitV4(){
+  if(_v4) return _v4;
+  const V4=require('./ui/cockpit_integration');
+  const rk=(rm)=>rm?rm.inline_keyboard:null;
+  const prims={
+    sendPhoto:(media,caption,rm,raw)=>sendPhotoKb(media,cap1024(caption),rk(rm)),
+    editPhoto:async(mid,media,caption,rm,raw)=>{const r=await editPhotoKb(mid,media,cap1024(caption),rk(rm));return r===false?{ok:false}:{ok:true};},
+    editCaption:(mid,caption,rm)=>tg('editMessageCaption',{message_id:mid,caption:cap1024(caption),parse_mode:'HTML',...(rm?{reply_markup:rm}:{})}),
+    sendVideo:async(media,caption,rm)=>{ try{ const FormData=require('form-data');const form=new FormData();form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(media),{filename:'v.mp4',contentType:'video/mp4'});if(caption){form.append('caption',cap1024(caption));form.append('parse_mode','HTML');}if(rm)form.append('reply_markup',JSON.stringify(rm));const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});return await r.json(); }catch(e){ return {ok:false}; } },
+    editVideo:async(mid,media,caption,rm)=>{const r=await editVideoKb(mid,media,cap1024(caption),rk(rm));return r===false?{ok:false}:{ok:true};},
+  };
+  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), generate:v4Generate, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
+  return _v4;
+}
+
 async function handle(upd){
   // Callback
   if(upd.callback_query){
@@ -2531,6 +2560,8 @@ async function handle(upd){
     /*fix toasts : on n'« avale » plus le tap d'office — les handlers ont 2.5s pour répondre par un toast, sinon accusé vide (sinon AUCUN toast ne s'affichait jamais : un tap = une seule réponse possible)*/
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
+    // [cockpit-v4] INTERCEPT : si le nouveau cockpit est actif (/v4), il prend la main sur TOUS les callbacks.
+    if(v4active){ try{ await cockpitV4().handle(d); }catch(e){ jlog('v4 handle err '+e.message); } cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return; }
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
     if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
@@ -3405,7 +3436,8 @@ async function handle(upd){
     ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
-  if(txt==='/start'||txt==='/menu'){await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL (navigate)*/
+  if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
+  if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
