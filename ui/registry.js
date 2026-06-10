@@ -9,12 +9,15 @@ const REGISTRY = {
   // ── Accueil : 4 entrées directes + pilotage visible (E104) ─────────────────
   home: {
     id: 'home', parent: null, title: '🏠 ACCUEIL', owner: 'Système',
-    help: 'L\'accueil donne accès aux 4 sections : 📸 PHOTO (créer une image), 🎬 VIDÉO (créer une vidéo), 🏛 STUDIO (bibliothèque & gestion), 🕘 RÉCENTS (historique & projets). La barre du bas est la même partout : ❓ Aide · ⏹ Stop · 🔄 Restart.',
+    help: 'Trois choix : ✨ Générer un nouveau contenu · 📂 Reprendre un projet · 📤 Importer une photo. La bibliothèque (looks, décors, références, historique) est dans 🏛 Studio (accessible plus bas).',
     render: () => ({
-      caption: '🏠 <b>ACCUEIL</b> — choisis une section :',
+      // [C5] Premier niveau = EXACTEMENT 3 choix ; une action attendue claire.
+      caption: '<b>Que veut-on faire ?</b>',
       rows: [
-        [{ text: '📸 PHOTO', go: 'photo' }, { text: '🎬 VIDÉO', go: 'video' }],
-        [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 RÉCENTS', go: 'recents' }],
+        [{ text: '✨ Générer un nouveau contenu', go: 'photo.look' }],
+        [{ text: '📂 Reprendre un projet', cb: 'RX_DRAFTS' }],
+        [{ text: '📤 Importer une photo', cb: 'HOME_UPLOAD' }],
+        [{ text: '🏛 Studio', go: 'studio' }],
       ],
     }),
   },

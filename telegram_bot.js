@@ -1180,6 +1180,20 @@ function projFromDraft(d){
 }
 function projToNewlook(){ if(!proj)return; newlook.category=proj.look.category; newlook.env=proj.look.env; newlook.mode=proj.look.mode; newlook.count=proj.look.count; newlook.extra=proj.look.extra; } // miroir vers le moteur existant (génération réelle)
 function ensureProj(){ if(proj)return proj; let d=null; try{ if(genState.activeDraftId)d=listDrafts().find(x=>x.draftId===genState.activeDraftId)||null; }catch(e){} proj=d?projFromDraft(d):projDefaults(); projToNewlook(); return proj; }
+// [fix/root-causes-v1 · C7] MODÈLE DE DÉPENDANCES ENTRE ÉTAPES (re-éditabilité permanente, piloté par proj).
+// Quelle étape AMONT impacte quelles étapes AVAL. Utilisé pour proposer « Conserver / Mettre à jour / Régénérer »
+// quand on modifie une étape dont l'aval existe déjà (sans jamais perdre le travail).
+const PROJ_DEPS={ ref:['image','video'], look:['image','video'], decor:['image','video'], prompt:['image','video'], nb:['image'], image:['video'], script:['video'], montage:['video'], params:['video'] };
+function projDownstream(slice){ return PROJ_DEPS[slice]||[]; }
+function projDownstreamExists(p,slice){ // un aval dépendant a-t-il déjà du travail ?
+  try{ return projDownstream(slice).some(s=>{
+    if(s==='image')return !!(p&&p.image&&p.image.urls&&p.image.urls.length);
+    if(s==='video')return !!(p&&p.video&&((p.video.script&&p.video.script.text)||p.video.media));
+    return false;
+  }); }catch(e){ return false; }
+}
+// Marque l'aval « à revoir » sans rien supprimer (le prompt UX décidera Conserver/MàJ/Régénérer).
+function projMarkDirty(p,slice){ try{ p._dirty=p._dirty||{}; projDownstream(slice).forEach(s=>{p._dirty[s]=true;}); }catch(e){} return p; }
 
 function draftTag(){ try{ return genState.activeDraftId?genState.activeDraftId.replace('draft_','').replace(/-/g,'/').slice(0,16):'(nouveau)'; }catch(e){ return '(nouveau)'; } }
 function projName(p){ return (p&&p.name)||draftTag(); }
@@ -1242,6 +1256,22 @@ function wsHeader(p,stepLabel){
     +'🎯 Réf : '+escH(src?path.basename(src):'—')+'\n'
     +'✍️ Prompt : '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n'
     +'📝 Brouillon : '+escH(draftTag())+'\n';
+}
+// [fix/root-causes-v1 · C4] EN-TÊTE DE CONTEXTE PERMANENT — affiché sur TOUT écran (menus inclus).
+// réf active · look · décor · prompt · nb images · média actif.
+function cockpitHeader(p){
+  try{
+    let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
+    let src=null;try{src=nlRefFile();}catch(e){}
+    const lf=lookFile(p);
+    const catL=(p&&p.look)?(p.look.extra?('✍️ '+p.look.extra.slice(0,14)):(((lb.categories[p.look.category]||{}).label)||p.look.category||'—')):'—';
+    const envL=(p&&p.look&&((lb.envs[p.look.env]||{}).label))||(p&&p.look&&p.look.env)||'—';
+    const nb=(p&&p.look&&p.look.mode==='eco')?(p.look.count||1):1;
+    let m=null;try{m=videoMedia(p);}catch(e){m=lf;}
+    return '📁 <b>'+escH(projName(p))+'</b>\n'
+      +'🎯 '+escH(src?path.basename(src):'—')+' · 👗 '+escH(catL)+' · 🌆 '+escH(envL)+'\n'
+      +'✍️ '+escH((p&&p.prompt&&p.prompt.name)||'défaut')+' · 📸 '+nb+' · 🖼 '+escH(m?path.basename(m):'—')+'\n──────────\n';
+  }catch(e){ return ''; }
 }
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
@@ -1520,6 +1550,20 @@ uiRouter.REGISTRY['video.export']={ id:'video.export', parent:'video.legende', t
   render:()=>videoExportView() };
 // [MC2] marque tous les modules workspace comme MÉDIA -> la ceinture routeur leur interdit le repli texte
 try{ Object.keys(MEDIA_MODULES).forEach(k=>{ if(uiRouter.REGISTRY[k]) uiRouter.REGISTRY[k].media=true; }); }catch(e){}
+// ─────────────────────────────────────────────────────────────────────────────
+// [fix/root-causes-v1 · C1+C4] COCKPIT MÉDIA UNIQUE — les MENUS (accueil + sections) deviennent
+// eux aussi des blocs MÉDIA rendus sur l'UNIQUE bloc cockpit (newlook.mediaId) : zéro nouveau bloc
+// à l'entrée PHOTO/VIDÉO et au retour accueil ; en-tête de contexte permanent ; projet conservé.
+// On enveloppe le render existant (boutons inchangés) : + image (wsMedia) + en-tête + media:true.
+[ 'home','photo','video','studio','recents' ].forEach(id=>{
+  const mod=uiRouter.REGISTRY[id]; if(!mod||mod._wrapped)return;
+  const orig=mod.render; mod._wrapped=true; mod.media=true; MEDIA_MODULES[id]=1;
+  mod.render=(ctx)=>{
+    try{ const out=orig?orig(ctx)||{}:{}; let p=null; try{p=ensureProj();}catch(e){}
+      return { image: wsMedia(p), raw:false, caption: cockpitHeader(p)+(out.caption||mod.title||''), rows: out.rows||[] };
+    }catch(e){ return { image: wsPlaceholder(), raw:false, caption:(mod.title||id), rows:[] }; }
+  };
+});
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2429,7 +2473,16 @@ async function handle(upd){
     } /*[L0-1d] aide contextuelle EN PLACE (édite le bloc courant)*/
     if(d==='RLOCK'){await toast('🔒 Choisis d\'abord');return;} /*[L0-1c] ➡ Suivant désactivé tant que le choix n'est pas fait*/
     if(d==='RX_REFS'){await showRefMenu();return;} /*[L0-1] pont STUDIO→Références (fonction existante)*/
-    if(d==='RX_DRAFTS'){const ds=listDrafts();if(!ds.length){await uiShow('recents.drafts','📝 Aucun brouillon en cours.',[[{text:'◀️ Retour',callback_data:'R_recents'}]],'inplace');return;}const rows=ds.slice(0,12).map(x=>[{text:'📝 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);rows.push([{text:'◀️ Retour',callback_data:'R_recents'}]);await uiShow('recents.drafts','📝 <b>Brouillons / En cours</b> ('+ds.length+') — reprendre :',rows,'inplace');return;} /*[L0-1d-fix2] EN PLACE dans le bloc actif*/
+    if(d==='RX_DRAFTS'){ /*[C1] liste des projets rendue sur l'UNIQUE bloc média (plus de bloc texte séparé)*/
+      const ds=listDrafts(); let p=null;try{p=ensureProj();}catch(e){}
+      if(!ds.length){ await uiShowMedia(wsMedia(p),cockpitHeader(p)+'📂 <b>Aucun projet en cours.</b>\n\nLance « ✨ Générer un nouveau contenu ».',[[{text:'◀️ Accueil',callback_data:'R_home'}]]); return; }
+      const rows=ds.slice(0,10).map(x=>[{text:'📂 '+({look:'Look',image:'Image',video:'Vidéo'}[x.step]||x.step)+' · '+(x.draftId||'').replace('draft_','').replace(/-/g,'/').slice(0,16),callback_data:'RX_DRAFT_'+x.draftId}]);
+      rows.push([{text:'◀️ Accueil',callback_data:'R_home'}]);
+      await uiShowMedia(wsMedia(p),cockpitHeader(p)+'📂 <b>Reprendre un projet</b> ('+ds.length+')',rows); return;
+    }
+    if(d==='HOME_UPLOAD'){ /*[C5] 3e choix accueil : importer une photo -> workspace look, attente d'upload (même bloc)*/
+      const p=ensureProj(); p.look.source='upload'; state='ws_look_upload_wait'; await toast('📤 Envoie ta photo'); await routeBlock('photo.look','inplace'); return;
+    }
     if(d&&d.indexOf('RX_DRAFT_')===0){await resumeDraft(d.slice(9));return;} /*[L0-1e] reprend le MÊME draftId (pas de doublon)*/
     // [L0-2a] WORKFLOW PHOTO — handlers PL_* (écrivent le slice du projet actif, re-rendent EN PLACE dans le bloc actif)
     if(d&&d.indexOf('PL_')===0){
@@ -2518,7 +2571,7 @@ async function handle(upd){
     }
     // Menu principal
     if(d==='MAIN_MENU'&&editReturn){ const r=editReturn; editReturn=null; await routeBlock(r,'inplace'); return; } /*[L0-2b] sortie de l'éditeur ouvert depuis le workspace -> revient dans le bloc workspace (pas de nouveau bloc)*/
-    if(d==='MAIN_MENU'){await routeBlock('home','navigate');return;} /*[F12] retour unifié = ACCUEIL du ROUTEUR (cohérent avec /menu), plus de showHome legacy*/
+    if(d==='MAIN_MENU'){await routeBlock('home');return;} /*[F12] retour unifié = ACCUEIL du ROUTEUR (cohérent avec /menu), plus de showHome legacy*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
     if(d==='CREER_EXPRESS'){await showLookSource('express');return;} /*[flux-look] Express : ÉTAPE LOOK puis script éditable*/
     if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO — full manuel*/
@@ -2688,10 +2741,10 @@ async function handle(upd){
       [{text:'⏹ Tout arrêter',callback_data:'TECH_STOP'}],
       [{text:'◀️ Retour',callback_data:'MAIN_MENU'}],
     ]);return;}
-    if(d==='TECH_STATUS'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+    if(d==='TECH_STATUS'){await toast(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3] statut = toast métier, pas de message technique*/
     if(d==='TECH_RESTART'){
-      if(proc||testProc){await send('⛔ Génération ou test en cours — utilise ⏹ d\'abord.');return;}
-      await send('🔄 Redémarrage... (retour dans ~5s)');
+      if(proc||testProc){await toast('⏳ Une création est en cours — patiente.');return;}
+      await toast('⏳ Un instant…'); /*[C3] redémarrage silencieux (toast, pas de message technique)*/
       try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
       try{releaseLock();}catch(e){}process.exit(0);return;
     }
@@ -2701,7 +2754,7 @@ async function handle(upd){
       if(proc){try{proc.kill('SIGKILL');}catch(e){}proc=null;stopped=true;}
       if(testProc){try{testProc.kill('SIGKILL');}catch(e){}testProc=null;stopped=true;} if(!(genJob&&genJob.running))genJob=null;
       try{require('child_process').execSync('pkill -9 -f "node.*workflow.js" 2>/dev/null');stopped=true;}catch(e){}
-      state='idle';await system(stopped?'⏹ Stoppé.':'Rien en cours.');return;
+      state='idle';await toast(stopped?'⏹ Arrêté.':'✅ Rien en cours.');return; /*[C3] toast métier*/
     }
     // [chantier2] FLUX UNIFIÉ : toutes les entrées de génération legacy (wizard anglais T_/L_/D_,
     // GO/SCRIPT_OK/AUTO_ALL/EXPRESS_GO) redirigent vers LA CARTE (openCard) — anti-bypass, zéro anglais.
@@ -3262,7 +3315,7 @@ async function handle(upd){
     ensureTopic().then(()=>showRecap()).catch(()=>{}); /*le sujet auto ne doit JAMAIS retarder la pose des 3 blocs*/
     return;
   }
-  if(txt==='/start'||txt==='/menu'){await routeBlock('home','navigate');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL (navigate)*/
+  if(txt==='/start'||txt==='/menu'){await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL (navigate)*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
@@ -3272,7 +3325,7 @@ async function handle(upd){
   if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
   if(txt==='/reference'){await showRefMenu();return;} /*[C5] changer la référence Imany*/
   if(txt==='/help'){await send(HELP_TXT);return;}
-  if(txt==='/go'||txt==='go'){await routeBlock('home','navigate');return;} /*[L0-1d-fix] /go = NOUVEAU bloc ACCUEIL (navigate)*/
+  if(txt==='/go'||txt==='go'){await routeBlock('home');return;} /*[L0-1d-fix] /go = NOUVEAU bloc ACCUEIL (navigate)*/
   if(txt==='/stop'){ /*stopall v2 : abort génération orchestrée + tue workflow/test + enfants*/
     let stopped=false;
     if(genJob&&genJob.running){genAbort=true;stopped=true;} // annulation propre de la génération bot
@@ -3284,14 +3337,13 @@ async function handle(upd){
     try{_k.execSync('pkill -9 -f "curl.*tmpfiles" 2>/dev/null');}catch(e){}
     try{_k.execSync('pkill -9 -f "ffmpeg.*/tmp/wf_" 2>/dev/null');}catch(e){}
     state='idle';
-    if(stopped)await send('⏹ Stopped — generation et test arretes partout.',[[{text:'🔄 Nouvelle vidéo',callback_data:'NEW_GO'}]]);
-    else await system('Nothing running.');
+    await toast(stopped?'⏹ Arrêté.':'✅ Rien en cours.'); /*[C3] toast métier, plus d'anglais technique*/
     return;
   }
-  if(txt==='/status'){await send(proc?'🟢 Running ('+state+')':'⚪ Idle');return;}
+  if(txt==='/status'){await toast(proc?'⏳ Occupé…':'✅ Prêt');return;} /*[C3]*/
   if(txt==='/restart'){ /*restartcmd v1 : redemarrage depuis le chat — pm2 relance automatiquement a l'exit*/
-    if(proc||testProc){await send('⛔ Génération ou test en cours — redémarrage refusé. Utilise /stop d\'abord si besoin.');return;}
-    await send('🔄 Redémarrage du bot... (retour dans ~5s avec le code à jour)');
+    if(proc||testProc){await toast('⏳ Une création est en cours — patiente.');return;}
+    await toast('⏳ Un instant…'); /*[C3] redémarrage silencieux*/
     /*restartcmd v2 : ACK de l'update aupres de Telegram AVANT de mourir — sinon /restart est relivre en boucle*/
     try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
     releaseLock();process.exit(0);
@@ -3423,7 +3475,7 @@ async function handle(upd){
   // Topic typed
   if(state==='setup_topic'){state='idle';await openCard();return;} /*[chantier2] legacy state -> carte*/
   // Workflow free answer
-  if(state==='question'&&proc){wfInput(txt);state='running';await send('Sent: '+txt);return;}
+  if(state==='question'&&proc){wfInput(txt);state='running';return;} /*[C3] plus de « Sent: » technique*/
 
   await system('Tape /menu pour commencer ! Ou /help pour les commandes.');
 }
@@ -3484,8 +3536,7 @@ tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer 
   {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
-(async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>
-system('🤖 <b>Bot prêt !</b>\n\nTape /menu pour le menu principal.')).then(()=>{ /*[L0-1d] message système éphémère (auto-delete)*/
+(async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>{ /*[C3] boot SILENCIEUX — aucun message technique dans le chat utilisateur*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
 }).catch(e=>{console.error(e.message);process.exit(1);});
