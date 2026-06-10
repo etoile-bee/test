@@ -1,0 +1,111 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>MODÈLE MÉTIER — PHASE 5 : RÈGLES FONDAMENTALES + INVARIANTS</h1>
+<blockquote><strong>Statut : ANALYSE / MODÉLISATION — PHASE 5 (DERNIÈRE phase).</strong> Règles métier fondamentales + invariants</blockquote>
+<blockquote>indépendants du médium. <strong>Zéro vocabulaire d'interface.</strong> Live intact · fichiers verrouillés intacts ·</blockquote>
+<blockquote>aucune dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Phases 1→4 validées (10/06) — M1→M17 toutes tranchées.</strong> Le modèle d'objets (34 objets / 5 familles),</blockquote>
+<blockquote>leurs relations, leurs cycles de vie et leurs actions (squelette OBJET/ÉTAT/ACTION/DÉCISION) sont figés.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Ancrage <code>E127</code></strong> : ① Intention · ② Cohérence · ③ Mémoire · ④ Capitalisation · ⑤ Confiance · ⑥ Contrôle.</blockquote>
+<blockquote><strong>Phrase centrale</strong> : « Je pilote la transformation d'une intention en contenu publiable, par une suite de</blockquote>
+<blockquote>décisions cohérentes, réversibles et mémorisées, dans un système en qui j'ai confiance — jusqu'au seul</blockquote>
+<blockquote>acte définitif : publier. »</blockquote>
+<hr>
+<h2>RÈGLES FONDAMENTALES — les 7 catégories</h2>
+<blockquote>Pour chaque règle : <strong>énoncé · objets concernés · pilier(s)</strong>. Les piliers dominants sont <strong>⑤ Confiance</strong>,</blockquote>
+<blockquote><strong>⑥ Contrôle</strong> et <strong>③ Mémoire</strong>.</blockquote>
+<h3>1. Ce qui est IMPOSSIBLE À PERDRE</h3>
+<p><strong>Énoncé</strong> : ces éléments doivent <strong>toujours être retrouvables</strong>, quelles que soient les manipulations,</p>
+<p>fermetures ou pannes. Aucun n'est laissé dans un emplacement volatile.</p>
+<table><thead><tr><th>Objet concerné</th><th>Pourquoi impossible à perdre</th></tr></thead><tbody><tr><td><strong>Intention</strong> (composite)</td><td>la boussole — sans elle, plus rien n'a de sens</td></tr><tr><td><strong>Décisions</strong> (+ raisons / annotations)</td><td>le <strong>pourquoi</strong> du projet (③)</td></tr><tr><td><strong>RAW / médias intermédiaires</strong></td><td>matière d'origine, audit d'un défaut (③/⑥)</td></tr><tr><td><strong>Versions</strong></td><td>points de retour (⑥)</td></tr><tr><td><strong>Variantes</strong> (même écartées)</td><td>réactivables jusqu'à la publication (⑥)</td></tr><tr><td><strong>Livrables</strong> validés</td><td>le résultat publiable</td></tr><tr><td><strong>Historique</strong></td><td>mémoire chronologique complète (③)</td></tr><tr><td><strong>Coûts</strong> réels</td><td>traçabilité de la dépense (⑤)</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ③ Mémoire · ⑤ Confiance · ⑥ Contrôle.</p>
+<h3>2. Ce qui est IMPOSSIBLE À MODIFIER</h3>
+<p><strong>Énoncé</strong> : certains objets sont <strong>immuables dans leur fait</strong> ; on peut <strong>ajouter</strong> (annoter, versionner)</p>
+<p>mais <strong>jamais réécrire le passé</strong>.</p>
+<table><thead><tr><th>Objet concerné</th><th>Règle d'immuabilité</th></tr></thead><tbody><tr><td><strong>Décision</strong> (fait posé)</td><td>immuable ; on <strong>annote</strong> (daté, M14), on <strong>supersède</strong>, on ne réécrit pas (③)</td></tr><tr><td><strong>RAW / médias intermédiaires</strong></td><td>jamais écrasés ni retouchés</td></tr><tr><td><strong>Version</strong> (instantané)</td><td>figée une fois prise ; une restauration n'en altère aucune</td></tr><tr><td><strong>Publication</strong> (événement passé)</td><td>un acte publié est un fait définitif</td></tr><tr><td><strong>Entrée d'Historique</strong></td><td>jamais réécrite</td></tr><tr><td><strong>Provenance</strong> d'une Brique</td><td>trace d'origine non falsifiable (③/④)</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ③ Mémoire · ⑤ Confiance.</p>
+<h3>3. Ce qui est IMPOSSIBLE À SUPPRIMER</h3>
+<p><strong>Énoncé</strong> : ces objets ne disparaissent <strong>jamais</strong> ; au pire ils sont <strong>archivés</strong> (conservés, hors flux</p>
+<p>actif), jamais détruits.</p>
+<table><thead><tr><th>Objet concerné</th><th>Sort autorisé</th></tr></thead><tbody><tr><td><strong>Projet</strong></td><td>archivé (jamais détruit, rouvrable)</td></tr><tr><td><strong>Décisions</strong> + <strong>Historique</strong></td><td>jamais supprimés (mémoire permanente, ③)</td></tr><tr><td><strong>RAW</strong> + <strong>Versions</strong></td><td>conservés durablement</td></tr><tr><td><strong>Livrables publiés</strong></td><td>conservés (trace de ce qui est sorti)</td></tr><tr><td><strong>Variantes / Candidates écartées</strong></td><td>écartées ≠ supprimées (réactivables jusqu'à publication, ⑥)</td></tr><tr><td><strong>Univers / Personnage / Brique</strong></td><td>archivables, jamais détruits</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ③ Mémoire · ⑥ Contrôle. <em>(Distinction clé : <strong>écarter/archiver ≠ supprimer</strong>.)</em></p>
+<h3>4. Ce qui est TOUJOURS RÉVERSIBLE (jusqu'à la publication)</h3>
+<p><strong>Énoncé</strong> : tant qu'un contenu n'est pas publié, <strong>toute décision peut être défaite</strong> : revenir,</p>
+<p>comparer, restaurer, réactiver, choisir <strong>garder / mettre à jour / régénérer</strong> — **au choix, jamais en</p>
+<p>automatique**.</p>
+<table><thead><tr><th>Objet / action concernés</th><th>Réversibilité</th></tr></thead><tbody><tr><td><strong>Média actif</strong> (état)</td><td>réassignable à tout moment ; l'ancien redevient variante</td></tr><tr><td><strong>Variante écartée</strong></td><td><strong>réactivable</strong> (nouvelle décision, sans effacer l'ancienne)</td></tr><tr><td><strong>Version</strong></td><td><strong>restaurable</strong> (sans supprimer les autres)</td></tr><tr><td><strong>Look/Décor/Ambiance/Référence/Consigne</strong> employés</td><td>remplaçables ; l'ancien reste dans l'historique de l'objet</td></tr><tr><td><strong>Intention / direction</strong></td><td>une direction abandonnée reste relisible et peut être reprise</td></tr><tr><td><strong>Aval impacté</strong> (modif amont)</td><td>choix explicite <strong>garder / mettre à jour / régénérer</strong> — jamais d'effacement silencieux</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ⑥ Contrôle (cœur) · ⑤ Confiance.</p>
+<h3>5. Ce qui devient IRRÉVERSIBLE</h3>
+<p><strong>Énoncé</strong> : un <strong>seul</strong> acte est définitif. Tout le reste lui reste réversible <strong>jusqu'à</strong> lui.</p>
+<table><thead><tr><th>Objet concerné</th><th>Règle</th></tr></thead><tbody><tr><td><strong>Publication</strong></td><td><strong>seul acte irréversible</strong> ; la version publiée est figée et conservée. Avant publication : tout réversible. Après : la <strong>trace</strong> est permanente</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ⑥ Contrôle (« le seul acte définitif : publier ») · ⑤ Confiance (l'irréversibilité est</p>
+<p><strong>annoncée</strong> clairement avant l'acte).</p>
+<h3>6. Ce qui doit SURVIVRE (fermeture · redémarrage · migration · changement d'interface)</h3>
+<p><strong>Énoncé</strong> : l'<strong>état complet</strong> du travail doit survivre à toute interruption et à tout changement</p>
+<p>technique. À la reprise, on retrouve <strong>exactement</strong> où on en était — <strong>rien en silence</strong>.</p>
+<table><thead><tr><th>Objet concerné</th><th>Doit survivre car…</th></tr></thead><tbody><tr><td><strong>Projet</strong> entier (intention, créatifs, médias, paramètres, états)</td><td>reprise exacte (⑤)</td></tr><tr><td><strong>Média actif</strong> (état) + <strong>Variantes</strong> + <strong>Versions</strong></td><td>continuité du travail (⑥)</td></tr><tr><td><strong>Décisions</strong> + <strong>Historique</strong> + <strong>Coûts</strong></td><td>mémoire et traçabilité (③)</td></tr><tr><td><strong>Univers / Personnage / Bibliothèque</strong> + leurs <strong>Briques</strong></td><td>capital réutilisable (④)</td></tr><tr><td><strong>Verrous</strong> (référence/look/décor/consigne)</td><td>un verrou posé <strong>tient</strong> après reprise (⑤)</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ⑤ Confiance (reprise exacte) · ③ Mémoire · ⑥ Contrôle · ④ Capitalisation.</p>
+<h3>7. Ce qui constitue la SOURCE DE VÉRITÉ</h3>
+<p><strong>Énoncé</strong> : il existe <strong>une seule source de vérité</strong> ; toute lecture en découle, aucune représentation ne</p>
+<p>la détient ni ne la double.</p>
+<table><thead><tr><th>Élément</th><th>Statut</th></tr></thead><tbody><tr><td><strong>Dossier de PROJET</strong> (intention, créatifs employés, médias, paramètres, médias actifs, versions, livrables, décisions, coûts, états)</td><td><strong>SOURCE DE VÉRITÉ du projet</strong></td></tr><tr><td><strong>UNIVERS</strong> (bibliothèques, règles, lignes de publication, personnages, séries)</td><td><strong>SOURCE DE VÉRITÉ du monde</strong> (copiée, jamais héritée vivante — M12)</td></tr><tr><td><strong>Historique</strong></td><td><strong>vue dérivée</strong> de l'ensemble des projets/décisions/versions/publications</td></tr><tr><td><strong>Évaluation de cohérence</strong></td><td><strong>état dérivé</strong> (jamais une source)</td></tr><tr><td>Toute liste (récents, prêt-à-poster, états)</td><td><strong>vues filtrées</strong> d'une source unique, jamais un stockage parallèle</td></tr></tbody></table>
+<p><strong>Piliers</strong> : ⑤ Confiance · ③ Mémoire · ⑥ Contrôle. <em>(Principe : </em>*les vues ne deviennent jamais la</p>
+<p>vérité** ; la vérité vit dans le projet et l'univers.)*</p>
+<hr>
+<h2>INVARIANTS DU MODÈLE — garanties indépendantes du médium</h2>
+<blockquote>**« Si ces règles sont respectées, peu importe que le rendu se fasse par messagerie, par le web, en</blockquote>
+<blockquote>application de bureau ou autrement, le système reste fidèle à sa philosophie. »** Ce sont les invariants</blockquote>
+<blockquote>que <strong>toute future représentation devra respecter</strong> — ils appartiennent au <strong>domaine</strong>, pas à la forme.</blockquote>
+<p>1. <strong>INV-1 — Primauté de l'intention.</strong> Tout projet possède une <strong>Intention</strong> (objet composite :</p>
+<p>   message·émotion·public·objectif), présente et consultable en permanence ; toute production peut être</p>
+<p>   confrontée à elle. <em>(①)</em></p>
+<p>2. <strong>INV-2 — Question centrale permanente, sans décision automatique.</strong> Le système sait, à tout moment,</p>
+<p>   exprimer « <strong>ce qui est produit sert-il encore l'intention ?</strong> », <strong>localiser</strong> la pièce qui dérive</p>
+<p>   parmi les <strong>10</strong> (message·image·look·décor·voix·script·montage·rythme·légende·publication) et **rendre</p>
+<p>   l'écart visible<strong> — il </strong>ne décide jamais** à la place de la personne. <em>(②/⑥)</em></p>
+<p>3. <strong>INV-3 — Séparation OBJET / ÉTAT / ACTION / DÉCISION.</strong> Ces quatre notions restent distinctes ; un</p>
+<p>   <strong>état</strong> n'est jamais confondu avec l'<strong>objet</strong> qui le porte, ni une <strong>action</strong> (geste) avec la</p>
+<p>   <strong>décision</strong> (choix + raison) qu'elle matérialise. <em>(transverse)</em></p>
+<p>4. <strong>INV-4 — Toute décision structurante porte son pourquoi.</strong> Une décision structurante <strong>majeure</strong> exige</p>
+<p>   une <strong>raison</strong> ; les autres la <strong>proposent</strong> ; une décision sans raison est **tracée mais marquée</p>
+<p>   incomplète<strong> (M13/M17). </strong>1 action structurante = 1 décision** ; les conséquences automatiques ne sont</p>
+<p>   pas des décisions (M16). <em>(③)</em></p>
+<p>5. <strong>INV-5 — Immuabilité du passé.</strong> Décisions, RAW, versions, entrées d'historique, publications **ne se</p>
+<p>   réécrivent jamais<strong> ; on </strong>annote<strong> ou on </strong>supersède** (M14). <em>(③/⑤)</em></p>
+<p>6. <strong>INV-6 — Réversibilité totale jusqu'à la publication.</strong> Revenir, comparer, restaurer, **réactiver une</p>
+<p>   variante écartée<strong>, choisir </strong>garder/mettre à jour/régénérer<strong> — toujours possible, </strong>jamais en</p>
+<p>   automatique<strong>, </strong>jamais d'effacement silencieux**. <em>(⑥/⑤)</em></p>
+<p>7. <strong>INV-7 — Un seul acte irréversible : publier.</strong> Tout le reste lui reste réversible ; l'irréversibilité</p>
+<p>   est <strong>annoncée</strong> avant l'acte. <em>(⑥/⑤)</em></p>
+<p>8. <strong>INV-8 — Rien ne se perd, rien ne se supprime en silence.</strong> Écarter/archiver ≠ supprimer ; les objets de</p>
+<p>   mémoire sont permanents. <em>(③/⑥)</em></p>
+<p>9. <strong>INV-9 — Survie de l'état complet.</strong> Le travail survit à la fermeture, au redémarrage, à une migration</p>
+<p>   et à un changement de représentation ; la reprise restaure l'état <strong>exact</strong>, <strong>verrous compris</strong>. <em>(⑤)</em></p>
+<p>10. <strong>INV-10 — Source de vérité unique.</strong> Le <strong>dossier de projet</strong> (et l'<strong>Univers</strong> pour le monde) est la</p>
+<p>    source ; toute liste/lecture en <strong>dérive</strong> ; aucune représentation ne détient ni ne double l'état. <em>(⑤/③)</em></p>
+<p>11. <strong>INV-11 — Étanchéité stricte par copie explicite.</strong> Les valeurs d'Univers/Personnage/Bibliothèque</p>
+<p>    entrent dans un projet <strong>par copie</strong> ; <strong>aucun héritage vivant</strong>, <strong>aucune modification rétroactive</strong></p>
+<p>    d'un projet né (M12 / E124). <em>(⑤)</em></p>
+<p>12. <strong>INV-12 — Le contrat d'effet.</strong> Toute action conséquente <strong>annonce son effet avant</strong> ; **valider</p>
+<p>    produit exactement l'annoncé<strong> ; </strong>le verrou tient**. <em>(⑤)</em></p>
+<p>13. <strong>INV-13 — Capitalisation tracée.</strong> Un acquis se <strong>promeut</strong> en brique réutilisable **avec sa</p>
+<p>    provenance<strong> ; la réutilisation est une </strong>copie**. <em>(④/③)</em></p>
+<p>14. <strong>INV-14 — Hiérarchie du monde.</strong> <strong>UNIVERS → PERSONNAGE → PROJET → LIVRABLES</strong> : l'Univers porte le</p>
+<p>    monde (bibliothèques, règles, lignes de publication, personnages, séries), le Personnage porte</p>
+<p>    <strong>seulement</strong> son identité (références, garde-robe, voix). <em>(④)</em></p>
+<blockquote><strong>Test de fidélité d'une future représentation</strong> : si une représentation viole <strong>un seul</strong> de ces 14</blockquote>
+<blockquote>invariants, elle trahit le modèle — quelle que soit sa technologie.</blockquote>
+<hr>
+<h2>QUESTION DE MODÉLISATION OUVERTE (Phase 5)</h2>
+<table><thead><tr><th>#</th><th>Question</th><th>Défaut proposé</th><th>Raison</th><th>Statut</th></tr></thead><tbody><tr><td><strong>M18</strong></td><td>Une <strong>migration</strong> (changement de stockage/technologie) doit-elle <strong>préserver les identifiants</strong> des objets de mémoire (décisions, versions, livrables) ?</td><td><strong>Oui</strong> — identités stables à travers les migrations, pour que l'historique et les liens restent valides</td><td>sans identités stables, la mémoire (③) et la traçabilité se brisent à la première migration</td><td>🆕 à confirmer</td></tr></tbody></table>
+<blockquote>Rappel : M1→M17 sont <strong>tranchées et intégrées</strong>. M18 est une garantie de <strong>pérennité</strong> (survie INV-9).</blockquote>
+<hr>
+<h2>✅ MODÈLE MÉTIER COMPLET — prêt pour validation d'ensemble</h2>
+<p>Les <strong>cinq phases</strong> sont désormais constituées :</p>
+<table><thead><tr><th>Phase</th><th>Objet</th><th>Fichier</th></tr></thead><tbody><tr><td><strong>1</strong></td><td>Inventaire des objets (34 objets / 5 familles)</td><td><code>docs/MODELE_METIER_PHASE1.md</code></td></tr><tr><td><strong>2</strong></td><td>Relations (composition/appartenance/dérivation/association/rôle exclusif) + Univers</td><td><code>docs/MODELE_METIER_PHASE2.md</code></td></tr><tr><td><strong>3</strong></td><td>Cycle de vie + focus Décision (le pourquoi)</td><td><code>docs/MODELE_METIER_PHASE3.md</code></td></tr><tr><td><strong>4</strong></td><td>Actions (squelette OBJET/ÉTAT/ACTION/DÉCISION)</td><td><code>docs/MODELE_METIER_PHASE4.md</code></td></tr><tr><td><strong>5</strong></td><td>Règles fondamentales (7 catégories) + 14 invariants indépendants du médium</td><td><code>docs/MODELE_METIER_PHASE5.md</code></td></tr></tbody></table>
+<p><strong>Décisions de modélisation</strong> : <strong>M1→M17 tranchées</strong> ; <strong>M18</strong> seule ouverte (pérennité des identités).</p>
+<p>Le modèle est <strong>complet, cohérent et indépendant de toute forme</strong>. Il peut maintenant faire l'objet d'une</p>
+<p><strong>validation d'ensemble</strong> par Etoile — après quoi, et seulement après, la question de la <strong>forme</strong> (toute</p>
+<p>représentation) pourra être reprise, en dérivant rigoureusement de ces invariants.</p>
+<p>_Phase 5 — règles + invariants. Dérivé de E127 (6 piliers) et de la phrase centrale. Modèle complet :</p>
+<p>Phases 1→5. Aucune implémentation, aucune représentation. Live intact. Lecture seule._</p></body></html>

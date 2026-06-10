@@ -248,7 +248,7 @@
 | Définir des **règles de cohérence** de série | ✧ | oui — raison proposée |
 | Archiver | · | non |
 
-**29. Décision** — *OBJET (de mémoire)* — *états : `prise` · `annotée` · `supersédée`*.
+**29. Décision** — *OBJET (de mémoire)* — *états : `prise` · `incomplète` (sans raison, M17) · `annotée` · `supersédée`*.
 | Action | Structurante ? | Décision |
 |---|---|---|
 | Consigner (action + raison) | — | **c'est l'acte qui CRÉE la Décision** |
@@ -307,12 +307,13 @@
 
 ## 4. QUESTIONS DE MODÉLISATION OUVERTES (Phase 4)
 
-| # | Question | Défaut proposé | Raison | Statut |
-|---|---|---|---|---|
-| **M16** | Une même action peut-elle produire **plusieurs** Décisions (ex. « valider le livrable » qui fige aussi la version) ? | **Non — une action structurante = une Décision** ; les effets de bord (figer la version) sont des **conséquences**, pas des décisions distinctes | garder l'historique lisible (1 choix = 1 entrée) | 🆕 à confirmer |
-| **M17** | Les actions **structurantes à raison proposée** (✧) doivent-elles quand même apparaître dans l'historique décisionnel si aucune raison n'est donnée ? | **Oui** — l'acte est tracé (le QUOI) même sans raison ; la raison reste enrichissable plus tard (M14) | ne pas perdre la trace d'un choix de devenir | 🆕 à confirmer |
+| # | Question | Décision (validé 10/06) | Statut |
+|---|---|---|---|
+| **M16** | Une action peut-elle produire **plusieurs** Décisions ? | **NON — 1 action structurante = 1 Décision.** Les **conséquences automatiques** ne sont **pas** des décisions (ex. valider un livrable = décision ; la version retenue figée = **conséquence**) | ✅ validé 10/06 |
+| **M17** | Une action structurante **sans raison** est-elle tracée ? | **OUI — tracée (quoi · quand · sur quoi · par qui)** ; la raison s'ajoute plus tard (M14) ; **ET la Décision sans raison reste IDENTIFIABLE COMME INCOMPLÈTE** (incite à documenter le pourquoi quand il est important) | ✅ validé 10/06 |
 
-> Rappel : M1→M15 sont **tranchées et intégrées**. M16–M17 affinent la **frontière action↔décision**.
+> **M1→M17 toutes tranchées.** Frontière action↔décision figée : 1 choix = 1 décision ; conséquences ≠
+> décisions ; une décision sans raison est **tracée mais marquée incomplète**.
 
 ---
 
