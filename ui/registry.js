@@ -15,7 +15,7 @@ const REGISTRY = {
       caption: '<b>Production</b> — démarre une création :',
       rows: [
         [{ text: '📸 PHOTO', go: 'photo.look' }, { text: '🎬 VIDÉO', go: 'video.source' }],
-        [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 HISTORIQUE', cb: 'STUDIO_HIST' }, { text: '👗 LOOKS', cb: 'MENU_LOOKS' }],
+        [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 HISTORIQUE', go: 'studio.historique' }, { text: '👗 LOOKS', go: 'studio.looks' }],
       ],
     }),
   },
@@ -53,7 +53,7 @@ const REGISTRY = {
     render: () => ({
       caption: '🏛 <b>STUDIO</b> — bibliothèque, ressources & gestion',
       rows: [
-        [{ text: '👗 Looks', cb: 'MENU_LOOKS' }, { text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
+        [{ text: '👗 Looks', go: 'studio.looks' }, { text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
         [{ text: '🎯 Références', cb: 'RX_REFS' }, { text: '📂 Modèles', cb: 'SHOWSTYLES' }],
         [{ text: '📝 Prompts', go: 'studio.prompts' }, { text: '👤 Personas', cb: 'PERSONA' }],
         [{ text: '📁 Médias', cb: 'FILES_HOME' }],
@@ -69,7 +69,7 @@ const REGISTRY = {
       caption: '🕘 <b>RÉCENTS</b> — historique & projets',
       rows: [
         [{ text: '📝 Reprendre (brouillons)', cb: 'RX_DRAFTS' }],
-        [{ text: '🕘 Historique', cb: 'STUDIO_HIST' }],
+        [{ text: '🕘 Historique', go: 'studio.historique' }],
         [{ text: '📤 Prêt à poster', cb: 'SHOWREADY' }],
       ],
     }),

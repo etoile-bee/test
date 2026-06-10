@@ -1447,6 +1447,37 @@ function studioPromptsView(){
 uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', title:'📝 Prompts', owner:'STUDIO',
   help:'Bibliothèque de prompts personnalisés : renommer (✏️), supprimer (🗑), réutiliser. On en crée un depuis le workflow Photo (✍️ Prompt › 💾 Enregistrer).',
   render:()=>studioPromptsView() };
+// ─────────────────────────────────────────────────────────────────────────────
+// [v5] BIBLIOTHÈQUE EN BLOC MÉDIA (non destructive) — LOOKS & HISTORIQUE rendus DANS le cockpit
+// (plus de bloc legacy qui casse la continuité). Vue annexe : on consulte/réutilise sans perdre le projet.
+// ─────────────────────────────────────────────────────────────────────────────
+let _slLooksIdx=0;
+function studioLooksView(){ // parcourir la galerie de looks DANS le bloc média ; « Utiliser » = source du projet (non destructif)
+  const p=ensureProj(); const list=looksList();
+  if(!list.length)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+'👗 <b>LOOKS</b> — bibliothèque vide.\n\nCrée un look via 📸 PHOTO.',rows:[[{text:'◀️ Accueil',go:'home'}]]};
+  if(_slLooksIdx>=list.length||_slLooksIdx<0)_slLooksIdx=0;
+  const f=path.join(getLooksDir(),list[_slLooksIdx]);
+  const cap=cockpitHeader(p)+'👗 <b>LOOKS</b> · '+(_slLooksIdx+1)+'/'+list.length+'\n🖼 <i>'+escH(list[_slLooksIdx])+'</i>\n\nVue bibliothèque (consultation). « Utiliser » applique ce look au projet en cours, sans rien perdre.';
+  return {image:f,raw:false,caption:cap,rows:[
+    [{text:'‹',cb:'SL_PREV'},{text:(_slLooksIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'SL_NEXT'}],
+    [{text:'👗 Utiliser ce look',cb:'SL_USE'}],
+    [{text:'◀️ Accueil',go:'home'}],
+  ]};
+}
+function studioHistoriqueView(){ // historique des productions DANS le bloc média (lecture)
+  const p=ensureProj(); let files=[];
+  try{ const real=fs.realpathSync(path.join(BASE,'outputs','generations')); files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(path.join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,12).map(x=>x.f); }catch(e){}
+  const lignes=files.length?files.map((x,i)=>(i+1)+'. '+x.replace(/\.jpg$/,'')).join('\n'):'(vide)';
+  const cap=cockpitHeader(p)+'🕘 <b>HISTORIQUE</b> · '+files.length+' récentes\n'+escH(lignes.slice(0,700))+'\n\n📱 Fichiers : iCloud › podcast-outputs/generations';
+  return {image:wsMedia(p),raw:false,caption:cap,rows:[[{text:'◀️ Accueil',go:'home'}]]};
+}
+uiRouter.REGISTRY['studio.looks']={ id:'studio.looks', parent:'studio', title:'👗 Looks', owner:'STUDIO', media:true,
+  help:'Bibliothèque de looks (consultation, non destructive). Navigue ‹ › ; « Utiliser » applique le look au projet en cours sans perdre le travail.',
+  render:()=>studioLooksView() };
+uiRouter.REGISTRY['studio.historique']={ id:'studio.historique', parent:'studio', title:'🕘 Historique', owner:'STUDIO', media:true,
+  help:'Historique des productions récentes (lecture). Vue annexe : ne casse pas le projet en cours.',
+  render:()=>studioHistoriqueView() };
+try{ MEDIA_MODULES['studio.looks']=1; MEDIA_MODULES['studio.historique']=1; }catch(e){}
 
 // ═════════════════════════════════════════════════════════════════════════════
 // [L0-2b] WORKFLOW VIDÉO migré dans le WORKSPACE MÉDIA (même contrat bloc unique).
@@ -2492,7 +2523,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2565,6 +2596,14 @@ async function handle(upd){
         try{ if(impacted.indexOf('image')>=0){ p.image.urls=[]; p.image.idx=0; p.image.validated=null; }
              if(impacted.indexOf('video')>=0){ p.video.script={text:'',name:'—'}; p.video.media=null; p.video.legende={courte:'',longue:'',tags:''}; } }catch(e){}
         projPending=null; try{p._dirty={};}catch(e){} await toast('♻️ Aval à régénérer'); await routeBlock(ret,'inplace'); return; }
+      return;
+    }
+    // [v5] STUDIO · LOOKS dans le bloc média (consultation/réutilisation non destructive)
+    if(d&&d.indexOf('SL_')===0){
+      const list=looksList();
+      if(d==='SL_PREV'){ if(list.length){_slLooksIdx=(_slLooksIdx-1+list.length)%list.length;} await routeBlock('studio.looks','inplace'); return; }
+      if(d==='SL_NEXT'){ if(list.length){_slLooksIdx=(_slLooksIdx+1)%list.length;} await routeBlock('studio.looks','inplace'); return; }
+      if(d==='SL_USE'){ const f=list[_slLooksIdx]; if(f){ const p=ensureProj(); const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('👗 Look appliqué au projet'); } await routeBlock('studio.looks','inplace'); return; }
       return;
     }
     // [L0-2a-ter] STUDIO · gestion bibliothèque de prompts (texte, EN PLACE)

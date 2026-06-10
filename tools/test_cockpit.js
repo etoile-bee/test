@@ -10,6 +10,11 @@ ck('accueil = PHOTO, VIDÉO, STUDIO, HISTORIQUE, LOOKS', ['PHOTO','VIDÉO','STUD
 ck('PHOTO entre au DÉBUT du pipeline (go photo.look)', homeRows[0][0].go==='photo.look');
 ck('VIDÉO entre au stade vidéo du MÊME pipeline (go video.source)', homeRows[0][1].go==='video.source');
 ck('UN SEUL MOTEUR : photo.image.next === video.source (continuation, pas section)', REGISTRY['photo.image']?REGISTRY['photo.image'].next==='video.source':true);
+// [v5] entrées bibliothèque NE pointent PLUS vers du legacy (cb) mais vers des modules média (go)
+const allHome=[].concat(...homeRows);
+ck('LOOKS -> module média studio.looks (plus de MENU_LOOKS legacy)', allHome.some(b=>b.go==='studio.looks'));
+ck('HISTORIQUE -> module média studio.historique (plus de STUDIO_HIST legacy)', allHome.some(b=>b.go==='studio.historique'));
+ck('Studio › Looks -> studio.looks (média)', [].concat(...REGISTRY.studio.render().rows).some(b=>b.go==='studio.looks'));
 
 // ── C1 : on enveloppe les menus comme le fait telegram_bot.js (média + en-tête) ──
 function wrap(id){ const mod=REGISTRY[id]; const orig=mod.render; mod.media=true;
