@@ -3598,11 +3598,12 @@ process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e &
 
 setInterval(()=>{},1<<30);
 tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer · Bibliothèque · Aide)*/
-  /* — Pilotage — */
-  {command:'go',description:'🏠 Menu principal'},
-  {command:'studio',description:'🎬 Studio (bibliothèque)'},
+  /* — Pilotage (en tête) — */
+  {command:'menu',description:'🏠 Menu principal'},
   {command:'stop',description:'⏹ Tout arrêter'},
-  {command:'restart',description:'🔄 Redémarrer le bot'},
+  {command:'restart',description:'🔄 Redémarrer'},
+  {command:'go',description:'🏠 Menu principal (alias)'},
+  {command:'studio',description:'🎬 Studio (bibliothèque)'},
   /* — Créer — */
   {command:'creer',description:'🚀 Créer une vidéo (Express / Sur-mesure / Auto)'},
   {command:'newlook',description:'🎨 Nouveau look (photos, même visage)'},
