@@ -122,6 +122,25 @@ reste **relisible des mois après**.
 
 ---
 
+## 6·bis. LA PUBLICATION N'EST PAS QU'UNE FIN : c'est un début potentiel
+
+Publier **clôt** un projet, mais **ouvre** souvent autre chose. Une publication peut devenir un **nouveau
+déclencheur** : une **suite**, une **série**, une **variante approfondie**, un **nouveau personnage**, une
+**idée née de la réaction du public**, un autre projet entier.
+
+Le système n'est donc **pas une ligne droite** mais une **boucle créative continue** :
+**Déclencheur → Intention → Évolution → Livrable → Publication → (nouveau Déclencheur)**.
+
+Concrètement, et **sans aucun nouvel objet** : le **déclencheur reste l'origine d'une Intention** (sujet 1) ;
+ici, **la sortie d'un projet alimente l'entrée d'un autre**. Cette relance est **cohérente avec l'Univers**
+(le monde qui persiste), **avec la mémoire** (ce qui a été publié reste et peut inspirer) et **avec la
+capitalisation** (un acquis du projet publié devient une brique réutilisable). *Le détail de cette boucle
+est développé dans la vue globale unifiée.*
+
+> Traçabilité : pilier ④ (capitalisation) + ③ (mémoire) + ① (un nouveau cap naît) · INV-13 (capitalisation
+> tracée) · INV-14 (l'Univers persiste sous les boucles). *Aucun nouvel objet : déclencheur = origine de
+> l'Intention (composante, niveau 3).*
+
 ## 7. PRÉCISION HONNÊTE — le périmètre réel de « publier »
 
 Pour rester fidèle à la réalité : **l'auto-publication effective** vers une plateforme (diffusion
