@@ -178,14 +178,14 @@ exactement l'objet du pilier ③ Mémoire.
 
 ## E. QUESTIONS DE MODÉLISATION OUVERTES (Phase 3)
 
-| # | Question | Défaut proposé | Raison | Statut |
-|---|---|---|---|---|
-| **M13** | La **raison** d'une Décision est-elle **obligatoire** ou proposée ? | **Proposée systématiquement, obligatoire pour les choix structurants** (rejet, abandon de direction, validation de livrable) ; optionnelle pour les choix mineurs | équilibre mémoire (③) et fluidité/confiance (⑤ : ne pas bloquer en silence, mais ne pas perdre le pourquoi des grands choix) | 🆕 à confirmer |
-| **M14** | Peut-on **enrichir** la raison d'une Décision après coup ? | **Oui** (ajout daté), sans réécrire le fait initial (immuable) | la compréhension peut se préciser plus tard sans falsifier l'historique | 🆕 à confirmer |
-| **M15** | Granularité : **qu'est-ce qui est « structurant »** (donc tracé comme Décision) vs un simple ajustement ? | Structurant = ce qui **change une direction ou fixe un devenir** (conserver/rejeter/remplacer/valider/abandonner) ; le réglage fin (ex. retouche d'image) n'est pas une Décision tracée | éviter de noyer la mémoire sous le bruit | 🆕 à confirmer |
+| # | Question | Décision (validé 10/06) | Statut |
+|---|---|---|---|
+| **M13** | La **raison** d'une Décision est-elle obligatoire ? | **PROPOSÉE systématiquement** ; **OBLIGATOIRE pour les décisions structurantes** (rejet d'une variante · abandon d'une direction · remplacement d'un élément majeur · validation d'un livrable · publication) ; **FACULTATIVE** pour les décisions mineures | ✅ validé 10/06 |
+| **M14** | Peut-on enrichir la raison après coup ? | **Décision IMMUABLE dans son fait** ; on peut **AJOUTER une annotation datée** (compléter le contexte), **jamais réécrire l'histoire** | ✅ validé 10/06 |
+| **M15** | Qu'est-ce qui est « structurant » ? | **Structurant = change une direction · remplace une direction · fixe un devenir · valide un état · modifie le sens du projet.** Un réglage local/technique **ne pollue pas** l'historique décisionnel | ✅ validé 10/06 |
 
-> Rappel : M1→M12 sont **tranchées et intégrées**. M13–M15 concernent la **finesse du modèle de Décision**,
-> cœur du pilier Mémoire.
+> **M1→M15 toutes tranchées.** Le modèle Décision est figé : raison obligatoire pour le structurant,
+> immuabilité + annotation datée, granularité « structurant vs réglage local ».
 
 ---
 
