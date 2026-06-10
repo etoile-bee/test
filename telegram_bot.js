@@ -1450,6 +1450,30 @@ uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', titl
 // (plus de bloc legacy qui casse la continuité). Vue annexe : on consulte/réutilise sans perdre le projet.
 // ─────────────────────────────────────────────────────────────────────────────
 let _slLooksIdx=0;
+// ── [CAT.1+GRILLES] RENDU GRILLE 6/écran pour les blocs EXISTANTS studio.looks / studio.historique ──
+// Aucune nouvelle entrée de menu, aucun déplacement de bibliothèque : on enrichit seulement le rendu
+// des deux blocs déjà déployés (consultation non destructive). G_<key>_<PREV|NEXT|index> pilote la grille.
+const GRID_PAGE=6; const _gridPage={}; // {key: page}
+function _genDir(){ try{ return fs.realpathSync(path.join(BASE,'outputs','generations')); }catch(e){ return path.join(BASE,'outputs','generations'); } }
+function _byDate(dir,re){ try{ return fs.readdirSync(dir).filter(f=>re.test(f)).map(f=>{let t=0;try{t=fs.statSync(path.join(dir,f)).mtimeMs;}catch(e){}return {f,p:path.join(dir,f),t};}).sort((a,b)=>b.t-a.t); }catch(e){ return []; } }
+function gridItems(key){
+  if(key==='looks'){ return looksList().map(f=>({label:'👗 Look · '+(dateFromName(f)||'—'), img:path.join(getLooksDir(),f), file:path.join(getLooksDir(),f), kind:'look'})); }
+  if(key==='historique'){ const im=_byDate(_genDir(),/\.jpg$/i).map(x=>({label:'🖼 Image · '+(dateFromName(x.f)||'—'),img:x.p,file:x.p,kind:'photo',t:x.t})); const vi=_byDate(_genDir(),/\.mp4$/i).map(x=>({label:'🎬 Vidéo · '+(dateFromName(x.f)||'—'),img:null,file:x.p,kind:'video',t:x.t})); return im.concat(vi).sort((a,b)=>b.t-a.t); }
+  return [];
+}
+const GRID_TITLES={looks:'👗 LOOKS',historique:'🕘 HISTORIQUE'};
+function studioGridView(key){
+  const p=ensureProj(); const items=gridItems(key); const total=items.length;
+  const pages=Math.max(1,Math.ceil(total/GRID_PAGE)); let pg=_gridPage[key]||0; if(pg>=pages)pg=pages-1; if(pg<0)pg=0; _gridPage[key]=pg;
+  if(!total)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+GRID_TITLES[key]+' — bibliothèque vide.',rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
+  const slice=items.slice(pg*GRID_PAGE,pg*GRID_PAGE+GRID_PAGE);
+  const cap=cockpitHeader(p)+'<b>'+GRID_TITLES[key]+'</b> · '+total+(pages>1?(' · page '+(pg+1)+'/'+pages):'')+'\n\nConsultation (non destructive). Touche une vignette'+(key==='looks'?' pour l\'appliquer au projet.':'.');
+  const rows=[]; for(let i=0;i<slice.length;i+=2){ rows.push(slice.slice(i,i+2).map((it,j)=>({text:it.label,cb:'G_'+key+'_'+(pg*GRID_PAGE+i+j)}))); }
+  if(pages>1)rows.push([{text:'‹ Précédent',cb:'G_'+key+'_PREV'},{text:'Suivant ›',cb:'G_'+key+'_NEXT'}]);
+  rows.push([{text:'◀️ Retour',cb:'WS_RESUME'}]);
+  const firstImg=slice.map(it=>it.img).find(Boolean); // vignette : 1re carte image de la page, sinon média projet
+  return {image:firstImg||wsMedia(p),raw:false,caption:cap,rows};
+}
 function studioLooksView(){ // parcourir la galerie de looks DANS le bloc média ; « Utiliser » = source du projet (non destructif)
   const p=ensureProj(); const list=looksList();
   if(!list.length)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+'👗 <b>LOOKS</b> — bibliothèque vide.\n\nCrée un look via 📸 PHOTO.',rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
@@ -1469,12 +1493,13 @@ function studioHistoriqueView(){ // historique des productions DANS le bloc méd
   const cap=cockpitHeader(p)+'🕘 <b>HISTORIQUE</b> · '+files.length+' récentes\n'+escH(lignes.slice(0,700))+'\n\n📱 Fichiers : iCloud › podcast-outputs/generations';
   return {image:wsMedia(p),raw:false,caption:cap,rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
 }
+// [CAT.1+GRILLES] rendu GRILLE 6/écran (mêmes blocs, même emplacement, même menu) ; studioLooksView/studioHistoriqueView conservées (fallback / SL_*).
 uiRouter.REGISTRY['studio.looks']={ id:'studio.looks', parent:'studio', title:'👗 Looks', owner:'STUDIO', media:true,
-  help:'Bibliothèque de looks (consultation, non destructive). Navigue ‹ › ; « Utiliser » applique le look au projet en cours sans perdre le travail.',
-  render:()=>studioLooksView() };
+  help:'Bibliothèque de looks en grille (6/écran), non destructive : touche une vignette pour l\'appliquer au projet en cours sans perdre le travail.',
+  render:()=>studioGridView('looks') };
 uiRouter.REGISTRY['studio.historique']={ id:'studio.historique', parent:'studio', title:'🕘 Historique', owner:'STUDIO', media:true,
-  help:'Historique des productions récentes (lecture). Vue annexe : ne casse pas le projet en cours.',
-  render:()=>studioHistoriqueView() };
+  help:'Historique des productions récentes en grille (6/écran), lecture. Vue annexe : ne casse pas le projet en cours.',
+  render:()=>studioGridView('historique') };
 try{ MEDIA_MODULES['studio.looks']=1; MEDIA_MODULES['studio.historique']=1; }catch(e){}
 // [v7] Bibliothèques restantes en VUE MÉDIA (lecture, non destructive) — entrer ne casse plus la continuité.
 function studioLibView(title,lines,extraRows){ const p=ensureProj();
@@ -2528,7 +2553,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0||d.indexOf('G_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2609,6 +2634,19 @@ async function handle(upd){
       if(d==='SL_PREV'){ if(list.length){_slLooksIdx=(_slLooksIdx-1+list.length)%list.length;} await routeBlock('studio.looks','inplace'); return; }
       if(d==='SL_NEXT'){ if(list.length){_slLooksIdx=(_slLooksIdx+1)%list.length;} await routeBlock('studio.looks','inplace'); return; }
       if(d==='SL_USE'){ const f=list[_slLooksIdx]; if(f){ const p=ensureProj(); const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('👗 Look appliqué au projet'); } await routeBlock('studio.looks','inplace'); return; }
+      return;
+    }
+    // [CAT.1+GRILLES] GRILLE bibliothèque (studio.looks / studio.historique) : G_<key>_<PREV|NEXT|index>
+    if(d&&d.indexOf('G_')===0){
+      const rest=d.slice(2); const us=rest.lastIndexOf('_'); const key=rest.slice(0,us); const act=rest.slice(us+1);
+      if(key!=='looks'&&key!=='historique')return; // grille restreinte aux 2 blocs existants (zéro CAT.2)
+      if(act==='PREV'){ _gridPage[key]=Math.max(0,(_gridPage[key]||0)-1); await routeBlock('studio.'+key,'inplace'); return; }
+      if(act==='NEXT'){ _gridPage[key]=(_gridPage[key]||0)+1; await routeBlock('studio.'+key,'inplace'); return; }
+      const idx=parseInt(act,10);
+      if(!isNaN(idx)){ const items=gridItems(key); const it=items[idx];
+        if(it){ if(it.kind==='look'){ const p=ensureProj(); p.look.file=it.file; p.look.source='gallery'; try{setWorkPhoto(it.file);}catch(e){} await toast('👗 Look appliqué au projet'); }
+          else { await toast((it.label||'').replace(/<[^>]+>/g,'')); } } /*historique : photo/vidéo = consultation (ouverture détaillée = lot suivant)*/
+        await routeBlock('studio.'+key,'inplace'); return; }
       return;
     }
     // [v8 · point 7] retour bibliothèque -> EXACTEMENT l'étape du projet en cours (ou accueil si aucun projet)
