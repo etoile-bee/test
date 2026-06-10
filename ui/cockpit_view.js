@@ -61,8 +61,12 @@ function viewSource(flow, m) {
       nbRow,
     ];
     if (nb > 1) rows.push([{ text: '▦ Planche contact', cb: 'PLANCHE' }]); // E36 (vue d'ensemble des N images)
-    if (m && m.image_candidates && m.image_candidates.length) // sélection EXPLICITE -> média actif
-      rows.push([{ text: '◀︎', cb: 'CAND_PREV' }, { text: '✅ Choisir cette image', cb: 'CAND_PICK' }, { text: '▶︎', cb: 'CAND_NEXT' }]);
+    if (m && m.image_candidates && m.image_candidates.length) {
+      // E123 — VALIDATION D'IMAGE EXPLICITE : devenir de l'image courante (rien n'est livrable sans action explicite)
+      rows.push([{ text: '◀︎', cb: 'CAND_PREV' }, { text: '🎬 Aperçu candidat', cb: 'NOOP' }, { text: '▶︎', cb: 'CAND_NEXT' }]);
+      rows.push([{ text: '✅ Garder', cb: 'CAND_KEEP' }, { text: '⭐ Livrable', cb: 'CAND_DELIVER' }, { text: '◫ Variante', cb: 'CAND_VAR' }]);
+      rows.push([{ text: '🔄 Régénérer', cb: 'CAND_REGEN' }, { text: '🎨 Éditer', cb: 'CAND_EDIT' }, { text: '🗑 Rejeter', cb: 'CAND_REJECT' }]);
+    }
   } else {
     cap = hdr(m) + '\n<b>SOURCE</b> — média de la vidéo ?';
     rows = [
@@ -105,6 +109,10 @@ function viewFinaliser(flow, m) {
   let cap = hdr(m) + '\n<b>FINALISER</b>';
   cap += '\n💳 ' + (cout.credits || '?') + ' cr ≈ ' + (cout.eur_estime || '?') + ' €';
   const rows = [];
+  // E123 — SÉLECTION DES LIVRABLES (Image/Vidéo cochés par défaut). Décocher Vidéo => image seule.
+  const sel = (m && m.livrables_select) || { image: true, video: true };
+  cap += '\n📦 Livrables : ' + (sel.image !== false ? '☑' : '☐') + ' Image · ' + (sel.video !== false ? '☑' : '☐') + ' Vidéo';
+  rows.push([{ text: (sel.image !== false ? '☑' : '☐') + ' Image', cb: 'LIV_IMG' }, { text: (sel.video !== false ? '☑' : '☐') + ' Vidéo', cb: 'LIV_VID' }]);
   if (!FLOW.qcPasse(m)) {
     // GATE QC obligatoire avant paiement : checklist + 3 actions (C4/E92)
     cap += '\n\n🔍 <b>Contrôle qualité requis</b> (identité · cohérence · réf · look) avant Final HD.';

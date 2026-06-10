@@ -29,7 +29,8 @@ chk('E36 : pas de planche si nb=1', cbs(src1).indexOf('PLANCHE') < 0);
 const src3 = V.view('photo', 'source', { name: 'P', parametres: { nb_images: 3 } });
 chk('E36 : planche contact si nb>1', cbs(src3).indexOf('PLANCHE') >= 0);
 const srcCand = V.view('photo', 'source', { name: 'P', parametres: { nb_images: 3 }, image_candidates: ['a', 'b'] });
-chk('sélection EXPLICITE (Choisir cette image)', cbs(srcCand).indexOf('CAND_PICK') >= 0);
+chk('E123 : validation image explicite (Garder/Livrable/Variante/Rejeter/Régénérer/Éditer)', ['CAND_KEEP', 'CAND_DELIVER', 'CAND_VAR', 'CAND_REJECT', 'CAND_REGEN', 'CAND_EDIT'].every(x => cbs(srcCand).indexOf(x) >= 0));
+chk('E123 : pas de pick auto vers livrable (aucun CAND_PICK)', cbs(srcCand).indexOf('CAND_PICK') < 0);
 
 // ── PARAMÈTRES = liste de lignes (1 picker focalisé / décision) ──
 const par = V.view('photo', 'parametres', mMedia);
@@ -45,6 +46,11 @@ chk('FINALISER sans QC : Valider VERROUILLÉ', cbs(fin).indexOf('V_LOCK') >= 0);
 const finOK = V.view('photo', 'finaliser', { name: 'P', media_actif: 'x', qc: { verdict: 'ok' }, couts: { credits: 12, eur_estime: 0.7 } });
 chk('FINALISER avec QC OK : Lancer Final HD actif', cbs(finOK).indexOf('V') >= 0 && /Final HD/.test(texts(finOK)));
 chk('FINALISER : coût/crédits affichés (E11)', /cr ≈/.test(finOK.caption));
+// E123 — sélection des livrables (Image/Vidéo) en FINALISER
+chk('E123 : cases livrables Image/Vidéo', cbs(fin).indexOf('LIV_IMG') >= 0 && cbs(fin).indexOf('LIV_VID') >= 0);
+chk('E123 : Image+Vidéo cochés par défaut', /☑ Image · ☑ Vidéo/.test(fin.caption));
+const finImgOnly = V.view('photo', 'finaliser', { name: 'P', media_actif: 'x', livrables_select: { image: true, video: false } });
+chk('E123 : Vidéo décochée -> ☐ Vidéo', /☐ Vidéo/.test(finImgOnly.caption));
 
 // ── Barre universelle E108 partout : Retour · Valider · Accueil ──
 chk('barre E108 (BACK/HOME) partout', cbs(par).indexOf('BACK') >= 0 && cbs(par).indexOf('HOME') >= 0);

@@ -63,9 +63,11 @@ function validate(flow, step, manifest) {
     //  - phase PHOTO : image finalisée (production) ; on propose ENSUITE la vidéo (go:video) ou la publication —
     //    pas de passage automatique en prêt-à-poster (un projet avec vidéo finit par la vidéo).
     if (flow === 'video') return { ok: true, action: 'finaliser', phase: 'video', effect: { statut_qualite: 'production', statut_publication: 'pret_a_poster' } };
-    // phase PHOTO : l'IMAGE est finalisée mais le PROJET reste EN COURS (la vidéo suit) -> aucun changement de statut projet ;
-    // le projet demeure « brouillon » (donc reste le projet courant/ré-éditable, modèle A) ; on propose la vidéo.
-    return { ok: true, action: 'finaliser', phase: 'photo', effect: {}, offer: 'video' };
+    // phase PHOTO : selon la SÉLECTION DES LIVRABLES (E123). Vidéo cochée (défaut) -> l'image alimente la vidéo
+    // (projet reste en cours, modèle A). Vidéo décochée -> projet IMAGE SEULE : on finalise (production + prêt-à-poster).
+    const wantVideo = !(manifest && manifest.livrables_select && manifest.livrables_select.video === false);
+    if (wantVideo) return { ok: true, action: 'finaliser', phase: 'photo', effect: {}, offer: 'video' };
+    return { ok: true, action: 'finaliser', phase: 'photo', deliver: 'image', effect: { statut_qualite: 'production', statut_publication: 'pret_a_poster' } };
   }
   return { ok: true, next: nextStep(step) };
 }

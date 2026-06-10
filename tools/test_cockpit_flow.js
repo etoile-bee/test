@@ -31,6 +31,9 @@ let r3b = F.validate('photo', 'finaliser', { media_actif: 'images/x.jpg', qc: { 
 chk('(A) PHOTO finaliser OK -> action finaliser + offre vidéo (projet PAS encore pret_a_poster)', r3b.ok && r3b.action === 'finaliser' && r3b.offer === 'video' && !(r3b.effect && r3b.effect.statut_publication));
 let r3v = F.validate('video', 'finaliser', { media_actif: 'x', qc: { verdict: 'ok' } });
 chk('(A) VIDÉO finaliser OK -> production + PRÊT-À-POSTER (livrable final)', r3v.ok && r3v.effect.statut_publication === 'pret_a_poster' && r3v.effect.statut_qualite === 'production');
+// E123 — photo finaliser IMAGE SEULE (vidéo décochée) -> livrable image + pret_a_poster, pas d'offre vidéo
+let r3img = F.validate('photo', 'finaliser', { media_actif: 'x', qc: { verdict: 'ok' }, livrables_select: { image: true, video: false } });
+chk('E123 : photo finaliser image seule -> deliver image + pret_a_poster (pas d\'offre vidéo)', r3img.ok && r3img.deliver === 'image' && r3img.effect.statut_publication === 'pret_a_poster' && !r3img.offer);
 
 // VIDÉO : parametres exige un script (gate différent mais grammaire identique)
 chk('VIDÉO source débloqué par média', F.canValidate('video', 'source', avecMedia) === true);

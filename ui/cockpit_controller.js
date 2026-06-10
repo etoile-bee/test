@@ -43,6 +43,17 @@ function createController(deps) {
       ],
     };
   }
+  // E123 — applique le devenir explicite d'une image candidate (via le store) + impact aval E115 si nécessaire.
+  function candidateOutcome(outcome) {
+    const rel = (manifest().image_candidates || [])[ui.candIdx];
+    if (!rel) return { render: render() };
+    S.setImageOutcome(base, persona, ui.projectId, rel, outcome, nowv());
+    const changesActive = (outcome === 'garder' || outcome === 'livrable' || outcome === 'rejeter');
+    if (changesActive && FLOW.changeImpactsDownstream(manifest(), 'image')) { ui.pendingSlice = 'image'; ui.step = 'impact'; return { render: impactView('image') }; }
+    const notices = { garder: '✅ Gardée (image active)', livrable: '⭐ Livrable image', variante: '◫ Variante (trace)', rejeter: '🗑 Rejetée (hors livrables)' };
+    return { render: render(), notice: notices[outcome] };
+  }
+
   // Applique une modif AMONT (photo) ; si l'aval vidéo existe -> prompt E115 AVANT de continuer.
   // returnStep = étape où revenir après application (on NE saute PAS via resumeStep pendant la navigation active).
   function applyUpstream(slice, mutate, returnStep) {
@@ -127,11 +138,16 @@ function createController(deps) {
     }
     if (a === 'CAND_PREV') { ui.candIdx = Math.max(0, ui.candIdx - 1); return { render: render() }; }
     if (a === 'CAND_NEXT') { const m = manifest(); const n = (m.image_candidates || []).length; ui.candIdx = Math.min(n - 1, ui.candIdx + 1); return { render: render() }; }
-    if (a === 'CAND_PICK') {
-      // SÉLECTION EXPLICITE -> média validé devient média ACTIF (propagation C.4/E37) ; impact aval E115 si vidéo commencée
-      const rel = (manifest().image_candidates || [])[ui.candIdx];
-      return applyUpstream('image', (m) => { if (rel) { m.media_actif = rel; m.historique_versions = m.historique_versions || []; m.historique_versions.push({ ts: nowv(), etape: 'image', action: 'validé', ref: rel }); } }, 'source');
-    }
+    // E123 — VALIDATION D'IMAGE EXPLICITE : devenir de l'image courante. Rien n'entre en livrable sans action explicite.
+    if (a === 'CAND_KEEP') return candidateOutcome('garder');
+    if (a === 'CAND_DELIVER') return candidateOutcome('livrable');
+    if (a === 'CAND_VAR') return candidateOutcome('variante');
+    if (a === 'CAND_REJECT') return candidateOutcome('rejeter');
+    if (a === 'CAND_REGEN') { const m = manifest(); const cands = generate(ui.flow, m) || []; if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = 'source'; return { render: render(), notice: '🔄 Régénéré' }; }
+    if (a === 'CAND_EDIT') { ui.picker = 'image'; ui.step = 'picker'; return { render: render(), notice: '🎨 Édition image' }; }
+    // E123 — sélection des livrables en FINALISER (Image/Vidéo)
+    if (a === 'LIV_IMG') { const m = manifest(); const cur = !(m.livrables_select && m.livrables_select.image === false); S.setLivrableSelect(base, persona, ui.projectId, 'image', !cur, nowv()); return { render: render() }; }
+    if (a === 'LIV_VID') { const m = manifest(); const cur = !(m.livrables_select && m.livrables_select.video === false); S.setLivrableSelect(base, persona, ui.projectId, 'video', !cur, nowv()); return { render: render() }; }
 
     // Paramètres : ouvrir un picker focalisé (1 décision) — pas de surcharge
     if (a.indexOf('P_') === 0) { ui.picker = a.slice(2).toLowerCase(); ui.step = 'picker'; return { render: render() }; }
@@ -169,6 +185,9 @@ function createController(deps) {
       if (!r.ok) return { render: render(), notice: r.reason };
       if (r.action === 'finaliser') {
         const m = manifest();
+        // E123 — seul un livrable VALIDÉ explicitement entre en livrables/Prêt-à-poster
+        if (r.deliver === 'image') { m.livrables = m.livrables || { image: null, video: null }; m.livrables.image = m.media_actif; }
+        if (r.phase === 'video') { m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = m.livrables.video || (m.video_media || null); }
         if (r.effect.statut_qualite) m.statut_qualite = r.effect.statut_qualite;
         if (r.effect.statut_publication) m.statut_publication = r.effect.statut_publication;
         S.saveManifest(base, persona, ui.projectId, m, nowv());
@@ -177,6 +196,7 @@ function createController(deps) {
           ui.flow = 'video'; ui.step = FLOW.resumeStep('video', manifest());
           return { render: render(), notice: '✅ Image finalisée → vidéo' };
         }
+        if (r.deliver === 'image') return { render: render(), notice: '📦 Image livrée → Prêt-à-poster' };
         return { render: render(), notice: '🚀 Final HD → Prêt-à-poster' };
       }
       ui.step = r.next; return { render: render() };

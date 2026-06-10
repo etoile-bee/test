@@ -44,7 +44,7 @@ function mockPrims() {
 
   // 3. SRC_NEW + CAND_PICK -> média projet résolu en ABSOLU, édité dans le MÊME bloc
   await V.handle('SRC_NEW');
-  await V.handle('CAND_PICK');
+  await V.handle('CAND_KEEP');
   const pid = V.controller.ui.projectId;
   const expectedAbs = path.join(PS.projectDir(base, persona, pid), 'images/cand0.jpg');
   chk('3. média projet résolu en absolu + édité en place', prims.counts.lastMedia === expectedAbs && prims.counts.sendPhoto === 1);

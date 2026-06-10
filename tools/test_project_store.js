@@ -73,6 +73,20 @@ chk('7. currentProject = brouillon en cours (pas l\'archivé)', cur && cur.proje
 // 8. Conservation des fichiers : l'archivé garde son dossier + média
 chk('8. fichiers de l\'archivé conservés', fs.existsSync(path.join(PS.projectDir(base, persona, projectId), 'images/img1.jpg')));
 
+// 9. E123 — devenir d'image explicite + livrables (rien en livrable sans action explicite)
+const p9 = PS.createProject(base, persona, {}, Date.parse('2026-06-10T12:00:00Z')).projectId;
+PS.setImageOutcome(base, persona, p9, 'images/a.jpg', 'rejeter', Date.parse('2026-06-10T12:05:00Z'));
+let m9 = PS.loadManifest(base, persona, p9);
+chk('9. rejeter -> trace rejetées, jamais média actif/livrable', m9.rejetees.indexOf('images/a.jpg') >= 0 && m9.media_actif === null && m9.livrables.image === null);
+PS.setImageOutcome(base, persona, p9, 'images/b.jpg', 'variante', Date.parse('2026-06-10T12:05:00Z'));
+chk('9. variante -> trace, pas livrable', PS.loadManifest(base, persona, p9).variantes.indexOf('images/b.jpg') >= 0 && PS.loadManifest(base, persona, p9).livrables.image === null);
+PS.setImageOutcome(base, persona, p9, 'images/c.jpg', 'garder', Date.parse('2026-06-10T12:05:00Z'));
+chk('9. garder -> média actif (source), pas auto livrable', PS.loadManifest(base, persona, p9).media_actif === 'images/c.jpg' && PS.loadManifest(base, persona, p9).livrables.image === null);
+PS.setImageOutcome(base, persona, p9, 'images/c.jpg', 'livrable', Date.parse('2026-06-10T12:05:00Z'));
+chk('9. livrable -> livrables.image EXPLICITE', PS.loadManifest(base, persona, p9).livrables.image === 'images/c.jpg');
+PS.setLivrableSelect(base, persona, p9, 'video', false, Date.parse('2026-06-10T12:05:00Z'));
+chk('9. setLivrableSelect : Vidéo décochée (image seule)', PS.loadManifest(base, persona, p9).livrables_select.video === false);
+
 // cleanup
 try { fs.rmSync(base, { recursive: true, force: true }); } catch (e) {}
 

@@ -27,9 +27,18 @@ chk('E122 : état UI = pointeurs uniquement', uiPointers());
 // PHASE PHOTO
 C.dispatch('go:photo'); const pid = C.ui.projectId;
 chk('(A) go:photo crée UN projet', !!pid && C.ui.flow === 'photo');
-C.dispatch('NB_2'); C.dispatch('SRC_NEW'); C.dispatch('CAND_PICK');
-chk('média actif persisté (propagation)', S.loadManifest(base, persona, pid).media_actif === 'images/cand0.jpg');
-chk('après CAND_PICK on reste sur SOURCE (pas de saut)', C.ui.step === 'source');
+C.dispatch('NB_2'); C.dispatch('SRC_NEW');
+// E123 — rejeter une image NE la met PAS en média actif ni en livrable
+C.dispatch('CAND_REJECT');
+let mRej = S.loadManifest(base, persona, pid);
+chk('E123 : rejeter -> trace rejetées, PAS média actif, PAS livrable', mRej.rejetees.length === 1 && mRej.media_actif === null && mRej.livrables.image === null);
+// E123 — garder -> image active (média actif = source) sans devenir livrable tant que non promue
+C.dispatch('CAND_KEEP');
+chk('média actif persisté après GARDER (propagation)', S.loadManifest(base, persona, pid).media_actif === 'images/cand0.jpg');
+chk('E123 : garder ne met PAS auto en livrable', S.loadManifest(base, persona, pid).livrables.image === null);
+chk('après CAND_KEEP on reste sur SOURCE (pas de saut)', C.ui.step === 'source');
+C.dispatch('CAND_DELIVER');
+chk('E123 : CAND_DELIVER -> livrable image EXPLICITE', S.loadManifest(base, persona, pid).livrables.image === 'images/cand0.jpg');
 C.dispatch('V'); chk('photo: source->parametres', C.ui.step === 'parametres');
 C.dispatch('V'); chk('photo: parametres->finaliser', C.ui.step === 'finaliser');
 C.dispatch('V'); chk('photo: finaliser bloqué sans QC', C.ui.step === 'finaliser');

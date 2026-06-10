@@ -46,7 +46,12 @@ function defaultManifest(persona, projectId, ts) {
     moteur_ia: {},                   // { image, script, lipsync, versions }  (E93.2)
     qc: null,                        // C4/E92 — { verdict:'ok'|'alerte'|'force', par, le, details:{identite,coherence,reference,look} }
     rapport_qc: [],                  // E93.2 — historique des contrôles qualité
-    livrables: { video_final: null, exports: [] },
+    // E123 — TRACE TECHNIQUE (candidates/variantes/rejetées) ≠ LIVRABLES (validés explicitement)
+    variantes: [],                   // images conservées comme variantes (trace, PAS livrable)
+    rejetees: [],                    // images rejetées (trace, PAS livrable)
+    livrables: { image: null, video: null },        // E123 — sous-ensemble VALIDÉ explicitement (seul ce qui est livrable)
+    livrables_select: { image: true, video: true }, // E123 — FINALISER : Image+Vidéo cochés par défaut
+    exports: [],
     raws: { image: null, lipsync: null, video: null, avant_soustitres: null, avant_zoom: null, avant_montage: null }, // E93.5 raws jamais écrasés
     historique_versions: [],         // E93.3 — [{ ts, etape, action, ref }]
   };
@@ -103,6 +108,32 @@ function setActiveMedia(base, persona, projectId, relPath, etapeLabel, ts) {
   if (!m) return null;
   m.media_actif = relPath;
   addVersion(m, { etape: etapeLabel || 'media', action: 'validé', ref: relPath }, ts);
+  return saveManifest(base, persona, projectId, m, ts);
+}
+
+// ── E123 — VALIDATION D'IMAGE EXPLICITE : devenir de chaque image. RIEN n'entre en livrable sans appel explicite. ──
+//   outcome : 'garder' (→ image active = média actif/source) · 'rejeter' (trace, jamais livrable) ·
+//             'variante' (trace, jamais livrable) · 'livrable' (→ livrables.image + image active).
+function setImageOutcome(base, persona, projectId, rel, outcome, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m || !rel) return null;
+  m.variantes = m.variantes || []; m.rejetees = m.rejetees || []; m.livrables = m.livrables || { image: null, video: null };
+  const pull = (arr) => { const i = arr.indexOf(rel); if (i >= 0) arr.splice(i, 1); };
+  if (outcome === 'garder') { pull(m.rejetees); m.media_actif = rel; addVersion(m, { etape: 'image', action: 'gardée', ref: rel }, ts); }
+  else if (outcome === 'rejeter') { if (m.media_actif === rel) m.media_actif = null; if (m.livrables.image === rel) m.livrables.image = null; pull(m.variantes); if (m.rejetees.indexOf(rel) < 0) m.rejetees.push(rel); addVersion(m, { etape: 'image', action: 'rejetée', ref: rel }, ts); }
+  else if (outcome === 'variante') { pull(m.rejetees); if (m.variantes.indexOf(rel) < 0) m.variantes.push(rel); addVersion(m, { etape: 'image', action: 'variante', ref: rel }, ts); }
+  else if (outcome === 'livrable') { pull(m.rejetees); m.media_actif = rel; m.livrables.image = rel; addVersion(m, { etape: 'image', action: 'livrable', ref: rel }, ts); }
+  return saveManifest(base, persona, projectId, m, ts);
+}
+// E123 — promotion explicite d'un livrable (image|video).
+function setLivrable(base, persona, projectId, kind, rel, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.livrables = m.livrables || { image: null, video: null }; if (kind === 'image' || kind === 'video') m.livrables[kind] = rel;
+  return saveManifest(base, persona, projectId, m, ts);
+}
+// E123 — FINALISER : (dé)cocher un livrable (image|video). Décocher vidéo ⇒ projet image seule.
+function setLivrableSelect(base, persona, projectId, kind, on, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.livrables_select = m.livrables_select || { image: true, video: true }; if (kind === 'image' || kind === 'video') m.livrables_select[kind] = !!on;
   return saveManifest(base, persona, projectId, m, ts);
 }
 
@@ -178,6 +209,7 @@ module.exports = {
   genProjectId, defaultManifest, ensureDirs,
   createProject, loadManifest, saveManifest,
   addVersion, importFile, setActiveMedia, activeMediaAbs,
+  setImageOutcome, setLivrable, setLivrableSelect,
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,

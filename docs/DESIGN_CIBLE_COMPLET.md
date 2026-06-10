@@ -159,6 +159,15 @@ projects/<persona>/<projectId>/
 - **Publié/validé ⇒ le contenu QUITTE Prêt-à-poster** mais **reste INTÉGRALEMENT dans l'Historique**.
 - Invariant : *Prêt-à-poster = transitoire ; Historique = permanent. Aucun contenu n'est jamais perdu.*
 
+### C.13 — LIVRABLES EXPLICITES & VALIDATION D'IMAGE ★ (E123)
+- **FINALISER = sélection des LIVRABLES** (pas un embranchement) : « 📦 Livrables : ☑ Image ☑ Vidéo » (cochés par défaut).
+  - Décocher **Vidéo** ⇒ projet **image seule** → livrable image + Prêt-à-poster.
+  - Garder les deux ⇒ l'image validée devient **automatiquement** la source vidéo (modèle A, même projet).
+- **Validation d'image EXPLICITE** (après génération → aperçu) : devenir de chaque image —
+  **✅ Garder** (→ image active = média actif/source) · **🔄 Régénérer** · **🎨 Éditer** · **🗑 Rejeter** (jamais livrable) · **◫ Variante** (trace, pas livrable) · **⭐ Livrable** (promotion explicite).
+- **RÈGLE CRITIQUE** : une image **non validée** (candidate/variante/rejetée) **n'entre JAMAIS** automatiquement en livrable ni en Prêt-à-poster. Les **livrables = uniquement le validé explicite**.
+- **Manifest** : `variantes`/`rejetees` = trace technique (visibles en Historique) ; `livrables.{image,video}` = validé seulement ; `livrables_select.{image,video}` = sélection FINALISER ; `media_actif` = image gardée.
+
 ### C.12 — ÉDITION (règle absolue) ★ (raffinement 5)
 - **Règle ABSOLUE** : **aucune fonction d'édition** (image, sous-titres, montage, script, légende, référence, prompt, zoom, musique) **n'ouvre une nouvelle fenêtre / un nouveau cockpit / un nouveau parcours.**
 - **Toute modification se fait DANS le projet courant, in-cockpit** (sous-état du bloc unique), puis revient à l'étape exacte. C'est garanti structurellement par l'**identité unique de bloc** (voir GARANTIE TECHNIQUE E.3) — fin de F1.
