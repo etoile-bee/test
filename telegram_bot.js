@@ -1268,25 +1268,22 @@ function persistProjMedia(urls,draftId){
   return out.length?out:(urls||[]);
 }
 // [L0-2a-ter · point 6] EN-TÊTE DE CONTEXTE — toujours visible, identique à chaque étape du workspace.
-function wsHeader(p,stepLabel){ // [v6] libellés métier (plus de noms de fichiers)
-  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'👗 Look : '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
-    +'🎯 Réf : '+escH(refLabel())+' · ✍️ '+escH((p.prompt&&p.prompt.name)||'défaut')+'\n';
-}
-// [fix/root-causes-v1 · C4] EN-TÊTE DE CONTEXTE PERMANENT — affiché sur TOUT écran (menus inclus).
-// réf active · look · décor · prompt · nb images · média actif.
-function cockpitHeader(p){
+// [CAT.1 · P1] EN-TÊTE 1 LIGNE — un seul fil de contexte (projet · étape · réf · look · média · extra).
+// Remplace les en-têtes 3 lignes (trop hauts) : wsHeader/cockpitHeader/wsHeaderV délèguent tous ici.
+function hdr1(p,stepLabel,extra){
   try{
-    let lb={categories:{},envs:{}};try{lb=nlMod().readLookbook();}catch(e){}
-    let src=null;try{src=nlRefFile();}catch(e){}
-    const lf=lookFile(p);
-    const nb=(p&&p.look&&p.look.mode==='eco')?(p.look.count||1):1;
-    // [v6] libellés MÉTIER : plus aucun nom de fichier / id
-    return '📁 <b>'+escH(projName(p))+'</b>\n'
-      +'🎯 '+escH(refLabel())+' · 👗 '+escH(lookLabelOf(p))+' · 🌆 '+escH(decorLabelOf(p))+'\n'
-      +'✍️ '+escH((p&&p.prompt&&p.prompt.name)||'défaut')+' · 📸 '+nb+' · 🖼 '+escH(mediaLabelOf(p))+'\n──────────\n';
-  }catch(e){ return ''; }
+    const bits=['📁 <b>'+escH(projName(p))+'</b>'];
+    if(stepLabel)bits.push(escH(stepLabel));
+    bits.push('🎯 '+escH(refLabel()));
+    bits.push('👗 '+escH(lookLabelOf(p)));
+    bits.push('🖼 '+escH(mediaLabelOf(p)));
+    if(extra)bits.push(extra);
+    return bits.join(' · ')+'\n──────────\n';
+  }catch(e){ return '📁 <b>'+escH(projName(p))+'</b>\n──────────\n'; }
 }
+function wsHeader(p,stepLabel){ return hdr1(p,stepLabel); } // [CAT.1·P1] délègue à l'en-tête 1 ligne
+// [fix/root-causes-v1 · C4] EN-TÊTE DE CONTEXTE PERMANENT — affiché sur TOUT écran (menus inclus). [CAT.1·P1] 1 ligne.
+function cockpitHeader(p){ return hdr1(p); }
 function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette look actif (ou réf active) + contexte
   wizardActive=true; // un wizard photo est en cours -> /menu et chaque navigation auto-sauvent le brouillon
   const p=ensureProj();
@@ -1504,10 +1501,8 @@ function videoMedia(p){ // média actif pour la vidéo : explicite, sinon image 
 }
 function videoMediaLabel(p){ return mediaLabelOf(p); } // [v6] libellé métier (plus de nom de fichier)
 // En-tête de contexte VIDÉO (point 3) : 📁 Projet · 🖼 Média actif · 🎯 Réf · ✍️ Script · étape.
-function wsHeaderV(p,stepLabel){
-  return '📁 <b>'+escH(projName(p))+'</b> · '+escH(stepLabel)+'\n'
-    +'🖼 Média : '+escH(mediaLabelOf(p))+' · 🎯 '+escH(refLabel())+'\n'
-    +'✍️ Script : '+escH((p.video.script&&p.video.script.name)||'—')+'\n──────────\n';
+function wsHeaderV(p,stepLabel){ // [CAT.1·P1] 1 ligne ; le script passe en « extra »
+  return hdr1(p,stepLabel,'✍️ '+escH((p.video&&p.video.script&&p.video.script.name)||'—'));
 }
 function videoCost(p){ try{ const c=estimateCost((p.video&&p.video.duration)||'23s'); return c; }catch(e){ return {parts:1,total:0,cr:null}; } }
 // Bibliothèque de SCRIPTS : scripts/<persona>/*.json (même mécanique que les prompts)
@@ -3138,8 +3133,8 @@ async function handle(upd){
       try{let n=0;for(let i=0;i<newlook.urls.length;i++){const dest=nlSave(i);if(dest){results.items=results.items.filter(x=>x.path!==dest);results.items.push({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · pose '+(i+1),ts:Date.now()});}n++;}while(results.items.length>30)results.items.shift();results.idx=results.items.length-1;resSave();await showResults().catch(()=>{});await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
-    if(d==='RES_PREV'){await toast('⏳ Chargement…');results.idx--;await showResults();return;}
-    if(d==='RES_NEXT'){await toast('⏳ Chargement…');results.idx++;await showResults();return;}
+    if(d==='RES_PREV'){results.idx--;await showResults();return;} /*[CAT.1·#15] plus de toast technique « Chargement… »*/
+    if(d==='RES_NEXT'){results.idx++;await showResults();return;} /*[CAT.1·#15]*/
     if(d==='RES_BACK'){await showResults();return;}
     if(d==='RES_STEPS'){await resSteps();return;}
     if(d==='RES_EDIT'){
@@ -3406,13 +3401,13 @@ async function handle(upd){
     return;
   }
   if(txt==='/start'||txt==='/menu'){await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL (navigate)*/
-  if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
+  if(txt==='/studio'){await routeBlock('studio');return;} /*[CAT.1·F14] Studio dans le cockpit (1 bloc média), plus de bloc legacy*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
   if(txt==='/editer'){await showEditHome();return;} /*[C4] éditer*/
   if(txt==='/photos'){await showFileList('img',0);return;} /*[C4] bibliothèque photos*/
   if(txt==='/videos'){await showFileList('vid',0);return;} /*[C4] bibliothèque vidéos*/
-  if(txt==='/historique'){await showStudio();return;} /*[C4] historique via Studio*/
+  if(txt==='/historique'){await routeBlock('studio.historique');return;} /*[CAT.1·F14] historique dans le cockpit*/
   if(txt==='/reference'){await showRefMenu();return;} /*[C5] changer la référence Imany*/
   if(txt==='/help'){await send(HELP_TXT);return;}
   if(txt==='/go'||txt==='go'){await routeBlock('home');return;} /*[L0-1d-fix] /go = NOUVEAU bloc ACCUEIL (navigate)*/
@@ -3535,7 +3530,7 @@ async function handle(upd){
     runNewLook();
     return;
   }
-  if(txt==='/looks'){galMid=null;gal.idx=0;gal.page=0;galFrom='card';await showGallery();return;}
+  if(txt==='/looks'){await routeBlock('studio.looks');return;} /*[CAT.1·F14] looks dans le cockpit (1 bloc média)*/
   if(txt==='/ideas'){
     const r0=await send('⏳ Recherche d\'idées…');const mid=r0&&r0.result&&r0.result.message_id; /*[c4-5] 1 seul message edite en place*/
     try{
