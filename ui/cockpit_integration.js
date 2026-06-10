@@ -19,7 +19,7 @@ function createCockpitV4(opts) {
   const base = opts.base, persona = opts.persona || 'default';
   const transport = createTransport(opts.prims);
   const block = createCockpitBlock(transport);
-  const controller = createController({ base: base, persona: persona, store: PS, generate: opts.generate, libItems: opts.libItems, now: opts.now });
+  const controller = createController({ base: base, persona: persona, store: PS, generate: opts.generate, generateVideo: opts.generateVideo, lookbook: opts.lookbook, libItems: opts.libItems, now: opts.now });
   const placeholder = opts.placeholder || null;
 
   function abs(rel) {

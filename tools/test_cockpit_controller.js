@@ -17,17 +17,17 @@ function fakeGenerate(flow, m) {
   return rels;
 }
 function addScript(pid) { const m = S.loadManifest(base, persona, pid); m.scripts = [{ name: 'S1', text: 'Bonjour', duree: '23s' }]; S.saveManifest(base, persona, pid, m, now()); }
-const deps = { base, persona, store: S, now, generate: fakeGenerate, libItems: () => [{ label: 'Robe', img: 'r.jpg' }] };
+const deps = { base, persona, store: S, now, generate: fakeGenerate, generateVideo: () => 'videos/final.mp4', lookbook: { pricing: { eur_per_credit: 0.058, ops: { image_eco: 1, video30s: 5 } } }, libItems: () => [{ label: 'Robe', img: 'r.jpg' }] };
 const C = createController(deps);
 
-const POINTER_KEYS = ['projectId', 'flow', 'step', 'candIdx', 'libKey', 'libPage', 'picker', 'pendingSlice'];
+const POINTER_KEYS = ['projectId', 'flow', 'step', 'candIdx', 'libKey', 'libPage', 'picker', 'pendingSlice', 'pendingGen'];
 const uiPointers = () => Object.keys(C.ui).every(k => POINTER_KEYS.indexOf(k) >= 0);
 chk('E122 : état UI = pointeurs uniquement', uiPointers());
 
 // PHASE PHOTO
 C.dispatch('go:photo'); const pid = C.ui.projectId;
 chk('(A) go:photo crée UN projet', !!pid && C.ui.flow === 'photo');
-C.dispatch('NB_2'); C.dispatch('SRC_NEW');
+C.dispatch('NB_2'); C.dispatch('SRC_NEW'); C.dispatch('GEN_CONFIRM');
 // E123 — rejeter une image NE la met PAS en média actif ni en livrable
 C.dispatch('CAND_REJECT');
 let mRej = S.loadManifest(base, persona, pid);
@@ -71,8 +71,12 @@ chk('E115 : PX_REGEN réinitialise l\'aval (script effacé EXPLICITEMENT)', S.lo
 
 // FINALISATION VIDÉO -> PRÊT-À-POSTER (livrable final)
 addScript(pid);
-C.ui.flow = 'video'; C.ui.step = 'finaliser'; C.dispatch('QC_FORCE'); C.dispatch('V');
-chk('(A) vidéo finaliser -> PRÊT-À-POSTER', S.loadManifest(base, persona, pid).statut_publication === 'pret_a_poster' && S.loadManifest(base, persona, pid).statut_qualite === 'production');
+C.ui.flow = 'video'; C.ui.step = 'finaliser'; C.dispatch('QC_FORCE');
+let rconf = C.dispatch('V');
+chk('LOT1 : vidéo finaliser -> CONFIRMATION coût (pas de dépense directe)', C.ui.step === 'confirm' && cbs(rconf.render).indexOf('GEN_CONFIRM') >= 0 && S.loadManifest(base, persona, pid).statut_publication !== 'pret_a_poster');
+C.dispatch('GEN_CONFIRM');
+let mvf = S.loadManifest(base, persona, pid);
+chk('(A) vidéo confirmée -> PRÊT-À-POSTER + livrable vidéo', mvf.statut_publication === 'pret_a_poster' && mvf.statut_qualite === 'production' && mvf.livrables.video === 'videos/final.mp4');
 
 // RESTART : nouveau contrôleur, même store
 const C2 = createController(deps); C2.dispatch('OPEN_' + pid);

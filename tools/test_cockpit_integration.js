@@ -43,7 +43,7 @@ function mockPrims() {
   chk('2. go:photo -> editPhoto (pas de nouveau bloc)', prims.counts.sendPhoto === 1 && prims.counts.editPhoto >= 1);
 
   // 3. SRC_NEW + CAND_PICK -> média projet résolu en ABSOLU, édité dans le MÊME bloc
-  await V.handle('SRC_NEW');
+  await V.handle('SRC_NEW'); await V.handle('GEN_CONFIRM');
   await V.handle('CAND_KEEP');
   const pid = V.controller.ui.projectId;
   const expectedAbs = path.join(PS.projectDir(base, persona, pid), 'images/cand0.jpg');

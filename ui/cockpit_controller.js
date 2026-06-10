@@ -10,16 +10,19 @@
 const FLOW = require('./cockpit_flow');
 const VIEW = require('./cockpit_view');
 const LIB = require('./cockpit_lib');
+const COST = require('./cockpit_cost');
 
 function createController(deps) {
   const base = deps.base, persona = deps.persona || 'default';
   const S = deps.store;                       // = ui/project_store
-  const generate = deps.generate || (() => []); // défaut : pas de génération (branchée au câblage réel)
+  const generate = deps.generate || (() => []);            // backend IMAGE (réel câblé ; mock gratuit en test)
+  const generateVideo = deps.generateVideo || (() => null); // backend VIDÉO (réel câblé ; mock gratuit en test)
+  const lookbook = deps.lookbook || {};                     // pricing pour l'estimation de coût (Lot 8)
   const libItems = deps.libItems || (() => []);
   const nowv = () => (typeof deps.now === 'function' ? deps.now() : deps.now); // horodatage (valeur), injectable pour tests
 
   // === SEUL ÉTAT D'UI : des pointeurs (E122). Aucune donnée métier ici. ===
-  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null, pendingSlice: null };
+  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null, pendingSlice: null, pendingGen: null };
 
   function manifest() { return ui.projectId ? S.loadManifest(base, persona, ui.projectId) : null; }
 
@@ -43,6 +46,17 @@ function createController(deps) {
       ],
     };
   }
+  // LOT 1/8 — CONFIRMATION DE DÉPENSE (E10/E11/E12) : panneau coût AVANT toute génération payante.
+  function confirmView() {
+    const m = manifest() || {};
+    const est = COST.estimate(ui.pendingGen === 'video' ? 'video' : 'image', m.parametres || {}, lookbook);
+    return {
+      media: FLOW.previewMedia(m), raw: true,
+      caption: '💲 <b>Avant de lancer</b>\n' + COST.panel(est) + '\n\n<i>Génération payante — confirmation requise.</i>',
+      rows: [[{ text: '💲 Lancer', cb: 'GEN_CONFIRM' }, { text: '✖️ Annuler', cb: 'GEN_CANCEL' }]],
+    };
+  }
+
   // E123 — applique le devenir explicite d'une image candidate (via le store) + impact aval E115 si nécessaire.
   function candidateOutcome(outcome) {
     const rel = (manifest().image_candidates || [])[ui.candIdx];
@@ -83,6 +97,7 @@ function createController(deps) {
     if (ui.step === 'libdetail') { const it = libItems(ui.libKey)[ui.candIdx] || {}; return LIB.detail(ui.libKey, ui.candIdx, it); }
     if (ui.step === 'picker') return pickerView(ui.picker, manifest());
     if (ui.step === 'impact') return impactView();
+    if (ui.step === 'confirm') return confirmView();
     return renderStep();
   }
 
@@ -129,12 +144,24 @@ function createController(deps) {
       return { render: render() };
     }
 
-    // Génération source (réelle au câblage) -> écrit les candidats DANS le manifest
-    if (a === 'SRC_NEW' || a === 'VSRC_NEW') {
-      const m = manifest(); const cands = generate(ui.flow, m) || [];
+    // LOT 1 — génération image : PROTÉGÉE par confirmation de coût (E10/E11). Ne génère RIEN avant GEN_CONFIRM.
+    if (a === 'SRC_NEW' || a === 'VSRC_NEW') { ui.pendingGen = 'image'; ui.step = 'confirm'; return { render: render() }; }
+    if (a === 'GEN_CANCEL') { const back = ui.pendingGen === 'video' ? 'finaliser' : 'source'; ui.pendingGen = null; ui.step = back; return { render: render(), notice: 'Annulé (aucune dépense)' }; }
+    if (a === 'GEN_CONFIRM') {
+      const m = manifest();
+      if (ui.pendingGen === 'video') {
+        // Génération vidéo réelle (backend câblé ; mock gratuit en test) — autorisée car QC déjà validé + confirmation explicite
+        const vid = generateVideo(m) || null;
+        if (vid) { m.video_media = vid; m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = vid; }
+        m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
+        S.saveManifest(base, persona, ui.projectId, m, nowv());
+        ui.pendingGen = null; ui.step = 'finaliser';
+        return { render: render(), notice: '🚀 Vidéo lancée → Prêt-à-poster' };
+      }
+      const cands = generate(ui.flow, m) || [];
       if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); }
-      else notice = 'Génération branchée au câblage.';
-      return { render: render(), notice };
+      ui.pendingGen = null; ui.step = 'source';
+      return { render: render(), notice: cands.length ? '✅ Généré' : 'Génération branchée au câblage' };
     }
     if (a === 'CAND_PREV') { ui.candIdx = Math.max(0, ui.candIdx - 1); return { render: render() }; }
     if (a === 'CAND_NEXT') { const m = manifest(); const n = (m.image_candidates || []).length; ui.candIdx = Math.min(n - 1, ui.candIdx + 1); return { render: render() }; }
@@ -185,19 +212,23 @@ function createController(deps) {
       if (!r.ok) return { render: render(), notice: r.reason };
       if (r.action === 'finaliser') {
         const m = manifest();
-        // E123 — seul un livrable VALIDÉ explicitement entre en livrables/Prêt-à-poster
-        if (r.deliver === 'image') { m.livrables = m.livrables || { image: null, video: null }; m.livrables.image = m.media_actif; }
-        if (r.phase === 'video') { m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = m.livrables.video || (m.video_media || null); }
-        if (r.effect.statut_qualite) m.statut_qualite = r.effect.statut_qualite;
-        if (r.effect.statut_publication) m.statut_publication = r.effect.statut_publication;
-        S.saveManifest(base, persona, ui.projectId, m, nowv());
         if (r.offer === 'video') {
-          // (A) sans rupture : l'image finalisée alimente NATURELLEMENT la vidéo (même projet, E41/E43)
+          // (A) sans rupture : l'image finalisée alimente NATURELLEMENT la vidéo (même projet, E41/E43). Pas de dépense ici.
           ui.flow = 'video'; ui.step = FLOW.resumeStep('video', manifest());
           return { render: render(), notice: '✅ Image finalisée → vidéo' };
         }
-        if (r.deliver === 'image') return { render: render(), notice: '📦 Image livrée → Prêt-à-poster' };
-        return { render: render(), notice: '🚀 Final HD → Prêt-à-poster' };
+        if (r.deliver === 'image') {
+          // E123 — image seule : l'image est déjà générée/payée ; on la promeut en livrable (aucune nouvelle dépense)
+          m.livrables = m.livrables || { image: null, video: null }; m.livrables.image = m.media_actif;
+          m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
+          S.saveManifest(base, persona, ui.projectId, m, nowv());
+          return { render: render(), notice: '📦 Image livrée → Prêt-à-poster' };
+        }
+        if (r.phase === 'video') {
+          // LOT 1 — la VIDÉO (lipsync payant) passe par la CONFIRMATION DE COÛT avant dépense (QC déjà validé)
+          ui.pendingGen = 'video'; ui.step = 'confirm';
+          return { render: render() };
+        }
       }
       ui.step = r.next; return { render: render() };
     }

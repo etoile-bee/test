@@ -17,7 +17,7 @@ function prims() { const c = { sendPhoto: 0, editPhoto: 0, editCaption: 0 }; let
 
 (async () => {
   const p = prims();
-  const V = createCockpitV4({ prims: p, base, persona, generate: gen, libItems: () => [], placeholder, now });
+  const V = createCockpitV4({ prims: p, base, persona, generate: gen, generateVideo: () => 'videos/f.mp4', lookbook: { pricing: { ops: { image_eco:1, video30s:5 }, eur_per_credit:0.058 } }, libItems: () => [], placeholder, now });
 
   await V.openHome();                              // bloc #1
   await V.handle('go:photo');
@@ -25,7 +25,7 @@ function prims() { const c = { sendPhoto: 0, editPhoto: 0, editCaption: 0 }; let
   chk('parcours: projet unique créé', !!pid);
 
   // PHOTO : générer 2 candidats, en rejeter 1, garder l'autre
-  await V.handle('NB_2'); await V.handle('SRC_NEW');
+  await V.handle('NB_2'); await V.handle('SRC_NEW'); await V.handle('GEN_CONFIRM');
   await V.handle('CAND_REJECT');                   // rejette c0
   await V.handle('CAND_NEXT'); await V.handle('CAND_KEEP'); // garde c1
   let m = PS.loadManifest(base, persona, pid);
@@ -48,7 +48,7 @@ function prims() { const c = { sendPhoto: 0, editPhoto: 0, editCaption: 0 }; let
   let mv = PS.loadManifest(base, persona, pid); mv.scripts = [{ name: 'S', text: 'Coucou', duree: '23s' }]; PS.saveManifest(base, persona, pid, mv, now());
   await V.handle('RESUME');                        // recharge l'étape (script -> finaliser dispo)
   V.controller.ui.step = 'finaliser';
-  await V.handle('QC_FORCE'); await V.handle('V'); // finaliser vidéo
+  await V.handle('QC_FORCE'); await V.handle('V'); await V.handle('GEN_CONFIRM'); // finaliser vidéo
   let mf = PS.loadManifest(base, persona, pid);
   chk('VIDÉO finalisée -> production + PRÊT-À-POSTER', mf.statut_qualite === 'production' && mf.statut_publication === 'pret_a_poster');
   chk('livrable vidéo enregistré', 'video' in mf.livrables);
@@ -62,7 +62,7 @@ function prims() { const c = { sendPhoto: 0, editPhoto: 0, editCaption: 0 }; let
   chk('E121: projet visible dans la vue Prêt-à-poster (filtre)', PS.viewPretAPoster(base, persona).some(x => x.projectId === pid));
 
   // REPRISE après "restart" : nouveau cockpit, tout retrouvé
-  const p2 = prims(); const V2 = createCockpitV4({ prims: p2, base, persona, generate: gen, libItems: () => [], placeholder, now });
+  const p2 = prims(); const V2 = createCockpitV4({ prims: p2, base, persona, generate: gen, generateVideo: () => 'videos/f.mp4', lookbook: { pricing: { ops: { image_eco:1, video30s:5 }, eur_per_credit:0.058 } }, libItems: () => [], placeholder, now });
   await V2.resume();
   chk('REPRISE: après restart, le projet est rouvert (1 bloc)', p2.c.sendPhoto === 1);
 

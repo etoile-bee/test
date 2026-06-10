@@ -40,7 +40,7 @@ function defaultManifest(persona, projectId, ts) {
     prompts: [],                     // E93.1 — [{ role:'image'|'video'|'lipsync', name, text }]
     scripts: [],                     // [{ name, text, duree }]  (E46)
     legendes: { courte: '', longue: '', tags: '' },  // E49/E50
-    parametres: { nb_images: 1, mode: 'eco', format: '9:16' },  // E35/E39/E44
+    parametres: { nb_images: 1, mode: 'eco', format: '9:16', image_fx: {}, crop: null, rendu: {} },  // E35/E39/E44 ; E124 : réglages image/crop/rendu PAR PROJET (jamais globaux)
     media_actif: null,               // chemin RELATIF au dossier (design C.4 — média actif persistant)
     couts: { credits: 0, eur_estime: 0, detail: {} },  // E11/E93.2
     moteur_ia: {},                   // { image, script, lipsync, versions }  (E93.2)
@@ -130,6 +130,17 @@ function setLivrable(base, persona, projectId, kind, rel, ts) {
   m.livrables = m.livrables || { image: null, video: null }; if (kind === 'image' || kind === 'video') m.livrables[kind] = rel;
   return saveManifest(base, persona, projectId, m, ts);
 }
+// E124 — réglages image PAR PROJET (jamais globaux). fx fusionné dans parametres.image_fx du projet ; aucune fuite.
+function setImageFx(base, persona, projectId, fx, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.parametres = m.parametres || {}; m.parametres.image_fx = Object.assign({}, m.parametres.image_fx, fx || {});
+  return saveManifest(base, persona, projectId, m, ts);
+}
+function setCrop(base, persona, projectId, crop, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.parametres = m.parametres || {}; m.parametres.crop = crop || null;
+  return saveManifest(base, persona, projectId, m, ts);
+}
 // E123 — FINALISER : (dé)cocher un livrable (image|video). Décocher vidéo ⇒ projet image seule.
 function setLivrableSelect(base, persona, projectId, kind, on, ts) {
   const m = loadManifest(base, persona, projectId); if (!m) return null;
@@ -209,7 +220,7 @@ module.exports = {
   genProjectId, defaultManifest, ensureDirs,
   createProject, loadManifest, saveManifest,
   addVersion, importFile, setActiveMedia, activeMediaAbs,
-  setImageOutcome, setLivrable, setLivrableSelect,
+  setImageOutcome, setLivrable, setLivrableSelect, setImageFx, setCrop,
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,
