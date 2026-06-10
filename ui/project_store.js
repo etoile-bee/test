@@ -11,7 +11,9 @@ const fs = require('fs');
 const path = require('path');
 
 const SUBDIRS = ['reference', 'images', 'variants', 'videos', 'exports', 'raw', 'intermediaires', 'logs'];
-const STATUTS = ['brouillon', 'en_cours', 'termine', 'pret_a_poster', 'publie', 'archive'];
+// C3 — DEUX axes de statut indépendants :
+const STATUTS_QUALITE = ['brouillon', 'test', 'production'];        // axe validation qualité (E95/E96)
+const STATUTS_PUBLICATION = ['aucun', 'pret_a_poster', 'publie', 'archive']; // axe publication (C.6)
 
 function iso(ts) { return (ts != null ? new Date(ts) : new Date()).toISOString(); }
 function projectsRoot(base) { return path.join(base, 'projects'); }
@@ -29,19 +31,24 @@ function genProjectId(persona, ts) {
 function defaultManifest(persona, projectId, ts) {
   const t = iso(ts);
   return {
-    projectId, persona: persona || 'default', name: null, statut: 'brouillon',
+    projectId, persona: persona || 'default', name: null,
+    statut_qualite: 'brouillon',     // C3 — brouillon | test | production (E95/E96)
+    statut_publication: 'aucun',     // C3 — aucun | pret_a_poster | publie | archive (C.6)
     cree_le: t, modifie_le: t,
-    reference: null,                 // { fichier, label, verrou }
-    look: {},                        // { tenue, decor, source, fichier }
-    prompts: [],                     // [{ role:'image', name, text }]
-    scripts: [],                     // [{ name, text, duree }]
-    legendes: { courte: '', longue: '', tags: '' },
-    parametres: { nb_images: 1, mode: 'eco', format: '9:16' },
-    media_actif: null,               // chemin RELATIF au dossier projet (design C.4)
-    couts: { credits: 0, eur_estime: 0, detail: {} },
-    moteur_ia: {},                   // { image, script, lipsync, versions }
+    reference: null,                 // { fichier, label, verrou }  (E100/E70)
+    look: {},                        // { tenue, decor, source, fichier }  (E15-E27)
+    prompts: [],                     // E93.1 — [{ role:'image'|'video'|'lipsync', name, text }]
+    scripts: [],                     // [{ name, text, duree }]  (E46)
+    legendes: { courte: '', longue: '', tags: '' },  // E49/E50
+    parametres: { nb_images: 1, mode: 'eco', format: '9:16' },  // E35/E39/E44
+    media_actif: null,               // chemin RELATIF au dossier (design C.4 — média actif persistant)
+    couts: { credits: 0, eur_estime: 0, detail: {} },  // E11/E93.2
+    moteur_ia: {},                   // { image, script, lipsync, versions }  (E93.2)
+    qc: null,                        // C4/E92 — { verdict:'ok'|'alerte'|'force', par, le, details:{identite,coherence,reference,look} }
+    rapport_qc: [],                  // E93.2 — historique des contrôles qualité
     livrables: { video_final: null, exports: [] },
-    historique_versions: [],         // [{ ts, etape, action, ref }]
+    raws: { image: null, lipsync: null, video: null, avant_soustitres: null, avant_zoom: null, avant_montage: null }, // E93.5 raws jamais écrasés
+    historique_versions: [],         // E93.3 — [{ ts, etape, action, ref }]
   };
 }
 
@@ -106,16 +113,42 @@ function activeMediaAbs(base, persona, projectId, manifest) {
   return path.join(projectDir(base, persona, projectId), m.media_actif);
 }
 
-function setStatut(base, persona, projectId, statut, ts) {
-  const m = loadManifest(base, persona, projectId);
-  if (!m) return null;
-  m.statut = STATUTS.indexOf(statut) >= 0 ? statut : m.statut;
+// C3 — deux axes indépendants.
+function setStatutQualite(base, persona, projectId, statut, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  if (STATUTS_QUALITE.indexOf(statut) >= 0) m.statut_qualite = statut;
+  return saveManifest(base, persona, projectId, m, ts);
+}
+function setStatutPublication(base, persona, projectId, statut, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  if (STATUTS_PUBLICATION.indexOf(statut) >= 0) m.statut_publication = statut;
   return saveManifest(base, persona, projectId, m, ts);
 }
 
-// « Nouveau » : on ARCHIVE l'actuel (jamais de suppression). Remplace clearActiveDraft destructif.
-function archiveProject(base, persona, projectId, ts) { return setStatut(base, persona, projectId, 'archive', ts); }
+// C4/E92 — enregistre le contrôle qualité (avant paiement) dans le dossier + rapport QC.
+function recordQC(base, persona, projectId, verdict, details, par, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  const entry = { verdict: verdict, par: par || 'Etoile', le: iso(ts), details: details || {} };
+  m.qc = entry;
+  m.rapport_qc = m.rapport_qc || []; m.rapport_qc.push(entry);
+  addVersion(m, { etape: 'qc', action: 'controle:' + verdict, ref: null }, ts);
+  return saveManifest(base, persona, projectId, m, ts);
+}
 
+// E93.5 — enregistre un RAW sans jamais l'écraser (raws obligatoires conservés durablement).
+function setRaw(base, persona, projectId, kind, relPath, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.raws = m.raws || {};
+  if (m.raws[kind]) return m; // jamais d'écrasement d'un raw existant
+  m.raws[kind] = relPath;
+  return saveManifest(base, persona, projectId, m, ts);
+}
+
+// « Nouveau » : ARCHIVE l'actuel (jamais de suppression). Remplace clearActiveDraft destructif. (C.1)
+function archiveProject(base, persona, projectId, ts) { return setStatutPublication(base, persona, projectId, 'archive', ts); }
+
+// ── C2/E121 : SOURCE DE DONNÉES UNIQUE. listProjects = le magasin ; toutes les autres
+// vues (récents / état / prêt-à-poster / historique) sont des FILTRES sur ce même résultat. ──
 function listProjects(base, persona) {
   const dir = personaDir(base, persona);
   let ids = [];
@@ -123,20 +156,29 @@ function listProjects(base, persona) {
   return ids.map(id => {
     const m = loadManifest(base, persona, id);
     if (!m) return null;
-    return { projectId: id, name: m.name || id, statut: m.statut, modifie_le: m.modifie_le, cree_le: m.cree_le, media_actif: m.media_actif };
+    return { projectId: id, name: m.name || id, statut_qualite: m.statut_qualite, statut_publication: m.statut_publication, modifie_le: m.modifie_le, cree_le: m.cree_le, media_actif: m.media_actif };
   }).filter(Boolean).sort((a, b) => String(b.modifie_le).localeCompare(String(a.modifie_le)));
 }
+// L'HISTORIQUE = le magasin complet (mémoire permanente). Les vues ci-dessous sont des FILTRES.
+function viewHistorique(base, persona) { return listProjects(base, persona); }
+function viewRecents(base, persona, n) { return listProjects(base, persona).slice(0, n || 10); }
+function viewBrouillons(base, persona) { return listProjects(base, persona).filter(p => p.statut_qualite === 'brouillon'); }
+function viewProduction(base, persona) { return listProjects(base, persona).filter(p => p.statut_qualite === 'production'); }
+function viewPretAPoster(base, persona) { return listProjects(base, persona).filter(p => p.statut_publication === 'pret_a_poster'); }
+function viewArchives(base, persona) { return listProjects(base, persona).filter(p => p.statut_publication === 'archive'); }
 
-// Le projet « en cours » le plus récent (pour reprise au boot/après restart). (design C.1)
+// Le projet « en cours » le plus récent (reprise au boot/après restart). (design C.1)
 function currentProject(base, persona) {
-  return listProjects(base, persona).find(p => p.statut === 'brouillon' || p.statut === 'en_cours') || null;
+  return listProjects(base, persona).find(p => p.statut_qualite === 'brouillon' && p.statut_publication !== 'archive') || null;
 }
 
 module.exports = {
-  SUBDIRS, STATUTS,
+  SUBDIRS, STATUTS_QUALITE, STATUTS_PUBLICATION,
   projectsRoot, personaDir, projectDir, manifestPath,
   genProjectId, defaultManifest, ensureDirs,
   createProject, loadManifest, saveManifest,
   addVersion, importFile, setActiveMedia, activeMediaAbs,
-  setStatut, archiveProject, listProjects, currentProject,
+  setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
+  listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
+  currentProject,
 };

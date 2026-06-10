@@ -18,6 +18,15 @@ Conséquences de conception (toutes les sections en découlent) :
 
 ---
 
+## ★ ARBITRAGES ETOILE C1–C5 (2026-06-10) — intégrés à la cible
+- **C1** — l'action d'avance = **✅ Valider** (remplace « ➡ Suivant ») ; barre = **⬅ Retour · ✅ Valider · 🏠 Accueil** ; Valider débloque l'étape suivante, **désactivé tant que le choix obligatoire n'est pas fait**, **conservation de l'aval** inchangée ([[E108]]/[[E115]] mis à jour).
+- **C2** — **SOURCE DE DONNÉES UNIQUE** ([[E121]]) : un seul magasin de projets (= l'**Historique**). **RÉCENTS, Prêt-à-poster, et les états (Brouillons/En cours/Terminés/Archivés) sont des VUES FILTRÉES** du même magasin — **jamais** de stockage séparé (sinon désynchro = frontières legacy). Voir C.5/C.7.
+- **C3** — **deux axes de statut** dans le manifest : **statut_qualite** (`brouillon | test | production`, [[E95]]/[[E96]]) **ET** **statut_publication** (`aucun | pret_a_poster | publie | archive`, C.6).
+- **C4** — **GATE QC avant TOUTE génération payante** ([[E92]] renforcé) : identité · cohérence générale · conformité à la référence · conformité au look attendu → 🔄 Régénérer / 🎨 Éditer / ✅ Valider malgré l'alerte ; **verdict enregistré dans le dossier projet + rapport qualité** ([[E93]]). Placé dans **FINALISER** avant Final HD.
+- **C5** — cette livraison = **cockpit MANUEL complet et robuste** ; le **mode Auto** ([[E7]]) viendra **ensuite sur ce socle**. Le design reste **compatible Auto** : le moteur (dossier projet + étapes + gates) est pilotable par programme (un orchestrateur Auto pourra enchaîner SOURCE→PARAMÈTRES→FINALISER sans UI), aucune décision ne verrouille cette extension.
+
+---
+
 ## ★★ VERROUS FINAUX (10) — validés Etoile, intégrés à la cible (2026-06-10)
 
 1. **Livraison = version COMPLÈTE testée de A à Z**, jamais de micro-livraison. → [[E119]]
@@ -98,7 +107,9 @@ projects/<persona>/<projectId>/
   "projectId": "imany_2026-06-10_14-22-03",
   "persona": "imany",
   "name": "<nom lisible>",
-  "statut": "brouillon | en_cours | termine | pret_a_poster | publie | archive",
+  "statut_qualite": "brouillon | test | production",                 // C3 — axe validation qualité (E95/E96)
+  "statut_publication": "aucun | pret_a_poster | publie | archive",  // C3 — axe publication (C.6)
+  "qc": { "verdict": "ok|alerte|force", "par": "Etoile", "le": "...", "details": { "identite": true, "coherence": true, "reference": true, "look": true } }, // C4 — gate avant paiement, enregistré (E92/E93)
   "cree_le": "2026-06-10T14:22:03Z",
   "modifie_le": "2026-06-10T15:01:10Z",
   "reference": { "fichier": "reference/imany_ref.jpg", "label": "Imany", "verrou": true },
