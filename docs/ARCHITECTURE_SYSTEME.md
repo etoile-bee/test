@@ -20,6 +20,12 @@
 ---
 
 ## 0. PRINCIPE D'ARCHITECTURE
+
+> **✅ RÈGLE DE LECTURE GRAVÉE (E130, Etoile 11/06)** — **trois vérités qui ne se mélangent JAMAIS** :
+> **UNIVERS = vérité du MONDE** · **SOCLE = vérité du PROJET** · **CONSCIENCE = lecture DÉRIVÉE du projet**.
+> L'Univers n'écrit pas dans un projet ; le Socle ne calcule pas de lecture ; la Conscience ne détient
+> aucune vérité.
+
 Le système s'organise en **couches de responsabilité**, pas en fonctions juxtaposées :
 - **ce qui EST vrai** est **stocké** (le socle) ;
 - **ce qui se LIT** est **calculé** depuis le vrai (la conscience), **jamais stocké** ;
