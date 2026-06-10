@@ -92,6 +92,8 @@ REMARQUER** (un **fait** + une **question**), **pas de conclure**.
 ---
 
 ## VERDICT
+> **✅ GRAVÉ E129 (Etoile 11/06)** — conséquences verrouillées au canon (`docs/EXIGENCES.md`).
+>
 > **MIROIR = A. Frontière VERROUILLÉE.** Le miroir est **factuel/structurel** : il **affirme des faits**,
 > **reflète les jugements enregistrés** de l'auteur, et **invite** à juger — **jamais** il n'attribue un
 > **sens** (Loi II). **B (évaluateur sémantique) est INTERDIT.**

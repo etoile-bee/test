@@ -121,6 +121,10 @@ fractures, polarités) :
 ---
 
 ## VERDICT
+> **✅ GRAVÉ E129 (Etoile 11/06)** — clarifications verrouillées des Lois I/II inscrites au canon
+> (`docs/EXIGENCES.md`) ; **Socle / Conscience / étanchéité / responsabilité du sens = verrouillés**, non
+> renégociables sauf contradiction démontrable.
+>
 > **🟢 VERT — Aucune contradiction.** Le vocabulaire « tensions émotionnelles / fractures / polarités » est
 > **entièrement compatible** avec un miroir **strictement factuel** : ces concepts **n'existent dans le
 > système** que sous forme de **(a) proxy factuel + invitation** ou **(b) reflet d'un jugement enregistré par
