@@ -62,8 +62,16 @@ function createCockpitV4(opts) {
     if (r.notice && typeof opts.toast === 'function') { try { await opts.toast(r.notice); } catch (e) {} }
     return { notice: r.notice || null };
   }
+  // SAISIE TEXTE (renommer / créer une valeur de zone) — capturée seulement quand le cockpit l'attend.
+  function awaiting() { return controller.ui.await || null; }
+  async function handleText(text) {
+    const r = controller.applyText(text);
+    await paint(r.render, false);
+    if (r.notice && typeof opts.toast === 'function') { try { await opts.toast(r.notice); } catch (e) {} }
+    return { notice: r.notice || null };
+  }
 
-  return { openHome, resume, handle, controller, block, _abs: abs };
+  return { openHome, resume, handle, handleText, awaiting, controller, block, _abs: abs };
 }
 
 module.exports = { createCockpitV4 };

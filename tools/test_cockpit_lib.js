@@ -41,5 +41,16 @@ chk('HISTORIQUE : mémoire complète (mêmes projets que la source)', cbs(L.hist
 chk('PRÊT-À-POSTER : rendu file (titre)', /PRÊT-À-POSTER/i.test(L.pretAPoster([projets[0]]).caption));
 chk('vue projets vide gérée', /vide|·\s*0/.test(L.recents([]).caption) || cbs(L.recents([])).indexOf('NOOP') >= 0);
 
+// ── V4 — NETTOYAGE TOTAL : libellés LISIBLES (zéro ID technique, zéro statut brut) ──
+function texts(c) { return flat(c.rows).map(b => b.text).join(' | '); }
+const rcTxt = texts(L.recents(projets));
+chk('V4 : pas de statut technique brut (enum souligné / combiné) dans la liste', !/pret_a_poster|statut_|production\/|\/aucun/.test(rcTxt));
+chk('V4 : état LISIBLE affiché (finalisé/prêt-à-poster/en cours/brouillon)', /finalisé|prêt-à-poster|en cours|brouillon/.test(rcTxt));
+// projet SANS nom : aucun ID technique ne fuit (libellé générique « Projet »)
+const noName = L.recents([{ projectId: 'imany_2026-06-10_15-52-00', statut_qualite: 'brouillon', statut_publication: 'aucun', cree_le: '2026-06-10T15:52:00Z' }]);
+chk('V4 : aucun ID technique affiché (projet sans nom)', !/imany_2026/.test(texts(noName)));
+chk('V4 : liste vide = message lisible (pas « (vide) »)', !/\(vide\)/.test(texts(L.recents([]))));
+chk('V4 : grille biblio = titre lisible (Références, pas REFS)', /Références/.test(L.grid('refs', items, 0).caption) && !/REFS/.test(L.grid('refs', items, 0).caption));
+
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
 process.exit(ko ? 1 : 0);

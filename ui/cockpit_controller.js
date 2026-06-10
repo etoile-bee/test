@@ -23,7 +23,7 @@ function createController(deps) {
   const nowv = () => (typeof deps.now === 'function' ? deps.now() : deps.now); // horodatage (valeur), injectable pour tests
 
   // === SEUL ÉTAT D'UI : des pointeurs (E122). Aucune donnée métier ici. ===
-  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null, pendingSlice: null, pendingGen: null };
+  const ui = { projectId: null, flow: null, step: 'home', candIdx: 0, libKey: null, libPage: 0, picker: null, pendingSlice: null, pendingGen: null, await: null };
 
   function manifest() { return ui.projectId ? S.loadManifest(base, persona, ui.projectId) : null; }
 
@@ -216,7 +216,7 @@ function createController(deps) {
     // Q4 — versions restaurables : snapshot + restauration (versions validées jamais perdues)
     if (a === 'DASH') { ui.step = 'dashboard'; return { render: render() }; }
     if (a === 'STEP_PARAMS') { ui.step = 'parametres'; return { render: render() }; }
-    if (a === 'RENAME') { return { render: render(), notice: '✏️ Renommer : saisie branchée au câblage' }; }
+    if (a === 'RENAME') { ui.await = 'rename'; return { render: render(), notice: '✏️ Envoie le nouveau nom du projet' }; }
     if (a === 'LIVRABLES') { ui.step = 'livrables'; return { render: render() }; }
     if (a.indexOf('LIVOPEN_') === 0) { ui.candIdx = parseInt(a.slice(8), 10) || 0; ui.step = 'livrable'; return { render: render() }; }
     if (a === 'VERSIONS') { ui.step = 'versions'; return { render: render() }; }
@@ -245,7 +245,7 @@ function createController(deps) {
       const cands = generate(ui.flow, m) || [];
       if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); }
       ui.pendingGen = null; ui.step = 'source';
-      return { render: render(), notice: cands.length ? '✅ Généré' : 'Génération branchée au câblage' };
+      return { render: render(), notice: cands.length ? '✅ Généré' : 'Aucune image générée' };
     }
     if (a === 'CAND_PREV') { ui.candIdx = Math.max(0, ui.candIdx - 1); return { render: render() }; }
     if (a === 'CAND_NEXT') { const m = manifest(); const n = (m.image_candidates || []).length; ui.candIdx = Math.min(n - 1, ui.candIdx + 1); return { render: render() }; }
@@ -296,7 +296,7 @@ function createController(deps) {
       else if (LS && z === 'decor') LS.addDecor(base, zo.value || zo.label || 'decor', { label: zo.label || zo.value });
       return { render: render(), notice: '💾 Enregistré en bibliothèque' };
     }
-    if (a.indexOf('ZCREATE_') === 0) { return { render: render(), notice: '➕ Créer : saisis la valeur (branché au câblage saisie)' }; }
+    if (a.indexOf('ZCREATE_') === 0) { ui.await = 'zone:' + a.slice(8); return { render: render(), notice: '➕ Envoie la valeur à créer' }; }
     // Application d'une valeur de picker : SET_<champ>=<valeur> -> écrit le manifest (amont) + impact E115 éventuel
     if (a.indexOf('SET_') === 0) {
       const body = a.slice(4); const eq = body.indexOf('='); const field = (eq >= 0 ? body.slice(0, eq) : body).toLowerCase(); const val = eq >= 0 ? body.slice(eq + 1) : '';
@@ -369,7 +369,24 @@ function createController(deps) {
     return { render: render(), notice: null };
   }
 
-  return { ui, dispatch, render, _ensureProject: ensureProject };
+  // SAISIE TEXTE (renommer un projet, créer une valeur de zone) — capturée quand ui.await est armé.
+  // V4 : remplace les ex-messages « branché au câblage » par une vraie saisie fonctionnelle.
+  function applyText(text) {
+    text = String(text == null ? '' : text).trim();
+    const w = ui.await; ui.await = null;
+    if (!w || !text) return { render: render() };
+    if (w === 'rename') {
+      const m = manifest(); if (m) { m.name = text; S.saveManifest(base, persona, ui.projectId, m, nowv()); }
+      return { render: render(), notice: '✏️ Projet renommé' };
+    }
+    if (w.indexOf('zone:') === 0) {
+      const z = w.slice(5);
+      if (S.ZONES && S.ZONES.indexOf(z) >= 0) { ui.picker = z; ui.step = 'picker'; return applyZone(z, { value: text, label: text }); }
+    }
+    return { render: render() };
+  }
+
+  return { ui, dispatch, applyText, render, _ensureProject: ensureProject };
 }
 
 module.exports = { createController };

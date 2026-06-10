@@ -3445,6 +3445,8 @@ async function handle(upd){
   const txt=(msg.text||'').trim();
   if(txt)jlog('ETOILE→ '+txt);
   if(!txt)return;
+  // [cockpit-v4] SAISIE TEXTE : si le cockpit attend une valeur (renommer projet, créer une zone), capter le texte (jamais un message technique).
+  if(v4active && !txt.startsWith('/') && cockpitV4().awaiting()){ try{ await cockpitV4().handleText(txt); }catch(e){ jlog('v4 text err '+e.message); } return; }
   // menu principal automatique à la 1ère interaction de la journée
   {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
 

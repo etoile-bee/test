@@ -14,6 +14,16 @@ const GRID_PAGE = 6;
 function short(s, n) { s = String(s == null ? '' : s); return s.length > (n || 22) ? s.slice(0, (n || 22) - 1) + '…' : s; }
 function resumeRow() { return [{ text: '◀ Retour au projet', cb: 'RESUME' }]; }
 
+// V4 — ZÉRO message technique : libellés LISIBLES (jamais d'ID ni de statut brut « production/pret_a_poster »).
+const LIB_NOMS = { looks: 'Looks', refs: 'Références', scripts: 'Scripts', prompts: 'Prompts', medias: 'Médias', archives: 'Projets archivés' };
+function libNom(key) { return LIB_NOMS[key] || (String(key || '').charAt(0).toUpperCase() + String(key || '').slice(1)); }
+// État LISIBLE d'un projet (même grammaire que le bandeau) — jamais de statut technique affiché.
+function etatCourt(p) {
+  const sp = p && p.statut_publication, sq = p && p.statut_qualite;
+  if (sp === 'publie') return '📣 publié'; if (sp === 'pret_a_poster') return '✅ prêt-à-poster'; if (sp === 'archive') return '🗄 archivé';
+  if (sq === 'production') return '✅ finalisé'; if (p && p.media_actif) return '⏳ en cours'; return '📝 brouillon';
+}
+
 // STUDIO — menu des bibliothèques (CRUD complet géré dans chaque biblio : E15-E34, E100-E101).
 function studio() {
   return {
@@ -33,7 +43,7 @@ function grid(key, items, page) {
   const pages = Math.max(1, Math.ceil(items.length / GRID_PAGE));
   let pg = page || 0; if (pg >= pages) pg = pages - 1; if (pg < 0) pg = 0;
   const slice = items.slice(pg * GRID_PAGE, pg * GRID_PAGE + GRID_PAGE);
-  const cap = '<b>' + key.toUpperCase() + '</b> · ' + items.length + (pages > 1 ? (' · p' + (pg + 1) + '/' + pages) : '') + '\n<i>Consultation — touche pour voir.</i>';
+  const cap = '<b>' + libNom(key) + '</b> · ' + items.length + (pages > 1 ? (' · p' + (pg + 1) + '/' + pages) : '') + '\n<i>Consultation — touche pour voir.</i>';
   const rows = [];
   for (let i = 0; i < slice.length; i += 2) {
     rows.push(slice.slice(i, i + 2).map((it, j) => ({ text: short(it.label, 20), cb: 'LV_' + key + '_' + (pg * GRID_PAGE + i + j) })));
@@ -48,7 +58,7 @@ function grid(key, items, page) {
 function detail(key, idx, item) {
   return {
     media: (item && item.img) || null, raw: true,
-    caption: '<b>' + short((item && item.label) || key, 28) + '</b>\n<i>Consultation. « Appliquer » l\'ajoute au projet.</i>',
+    caption: '<b>' + short((item && item.label) || libNom(key), 28) + '</b>\n<i>Consultation. « Appliquer » l\'ajoute au projet.</i>',
     rows: [
       [{ text: '✅ Appliquer au projet', cb: 'LA_' + key + '_' + idx }],   // action EXPLICITE
       [{ text: '◀ Liste', cb: 'LB_' + key }, { text: '◀ Retour au projet', cb: 'RESUME' }],
@@ -59,11 +69,12 @@ function detail(key, idx, item) {
 // VUE PROJETS (RÉCENTS/HISTORIQUE/PRÊT-À-POSTER) — FILTRES du magasin unique (E121). projects = sortie project_store.
 function projectsView(title, projects, openPrefix) {
   projects = projects || [];
+  // V4 — libellé LISIBLE (nom convivial du store, jamais l'ID) + état LISIBLE (jamais le statut brut).
   const rows = projects.slice(0, 12).map(p => [{
-    text: short((p.name || p.projectId), 24) + ' · ' + (p.statut_qualite || '') + (p.statut_publication && p.statut_publication !== 'aucun' ? ('/' + p.statut_publication) : ''),
+    text: short(p.name || 'Projet', 22) + ' · ' + etatCourt(p),
     cb: (openPrefix || 'OPEN') + '_' + p.projectId,
   }]);
-  if (!projects.length) rows.push([{ text: '(vide)', cb: 'NOOP' }]);
+  if (!projects.length) rows.push([{ text: 'Aucun projet pour l\'instant', cb: 'NOOP' }]);
   rows.push([{ text: '🏠 Accueil', cb: 'HOME' }]);
   return { media: null, raw: true, caption: '<b>' + title + '</b> · ' + projects.length, rows: rows };
 }

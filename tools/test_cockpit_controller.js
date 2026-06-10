@@ -20,7 +20,7 @@ function addScript(pid) { const m = S.loadManifest(base, persona, pid); m.script
 const deps = { base, persona, store: S, now, generate: fakeGenerate, generateVideo: () => 'videos/final.mp4', lookbook: { pricing: { eur_per_credit: 0.058, ops: { image_eco: 1, video30s: 5 } } }, libItems: () => [{ label: 'Robe', img: 'r.jpg' }] };
 const C = createController(deps);
 
-const POINTER_KEYS = ['projectId', 'flow', 'step', 'candIdx', 'libKey', 'libPage', 'picker', 'pendingSlice', 'pendingGen'];
+const POINTER_KEYS = ['projectId', 'flow', 'step', 'candIdx', 'libKey', 'libPage', 'picker', 'pendingSlice', 'pendingGen', 'await'];
 const uiPointers = () => Object.keys(C.ui).every(k => POINTER_KEYS.indexOf(k) >= 0);
 chk('E122 : état UI = pointeurs uniquement', uiPointers());
 
@@ -88,6 +88,18 @@ S.archiveProject(base, persona, pid, now());
 const C3 = createController(deps); C3.dispatch('go:photo');
 chk('Nouveau : projet distinct ; ancien archivé conservé', C3.ui.projectId !== pid && S.loadManifest(base, persona, pid).statut_publication === 'archive');
 chk('E122 final : toujours pointeurs only', uiPointers());
+
+// ── V4 — SAISIE TEXTE (renommer projet, créer une zone) : capture fonctionnelle, pas de message technique ──
+const C4 = createController(deps); C4.dispatch('go:photo'); const pid4 = C4.ui.projectId;
+const rRename = C4.dispatch('RENAME');
+chk('V4 : RENAME arme la saisie (await=rename, notice lisible)', C4.ui.await === 'rename' && /nom/i.test(rRename.notice) && !/câblage/.test(rRename.notice));
+C4.applyText('Campagne été');
+chk('V4 : applyText renomme le projet (manifest.name)', S.loadManifest(base, persona, pid4).name === 'Campagne été' && C4.ui.await === null);
+chk('V4 : nom personnalisé visible dans le bandeau', /Campagne été/.test(require('../ui/cockpit_view').hdr(S.loadManifest(base, persona, pid4))));
+const rZ = C4.dispatch('ZCREATE_decor');
+chk('V4 : ZCREATE arme la saisie de zone (notice lisible)', C4.ui.await === 'zone:decor' && !/câblage/.test(rZ.notice));
+C4.applyText('Rooftop Paris');
+chk('V4 : applyText crée la valeur de zone (decor)', (S.loadManifest(base, persona, pid4).zones.decor.value === 'Rooftop Paris') && C4.ui.await === null);
 
 try { fs.rmSync(base, { recursive: true, force: true }); } catch (e) {}
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
