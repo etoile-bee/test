@@ -1476,6 +1476,17 @@ uiRouter.REGISTRY['studio.historique']={ id:'studio.historique', parent:'studio'
   help:'Historique des productions récentes (lecture). Vue annexe : ne casse pas le projet en cours.',
   render:()=>studioHistoriqueView() };
 try{ MEDIA_MODULES['studio.looks']=1; MEDIA_MODULES['studio.historique']=1; }catch(e){}
+// [v7] Bibliothèques restantes en VUE MÉDIA (lecture, non destructive) — entrer ne casse plus la continuité.
+function studioLibView(title,lines,extraRows){ const p=ensureProj();
+  const body=(lines&&lines.length)?lines.slice(0,14).map(s=>'• '+s).join('\n'):'(vide)';
+  return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+title+'\n'+escH(body.slice(0,800)),rows:(extraRows||[]).concat([[{text:'◀️ Accueil',go:'home'}]])};
+}
+function studioReferencesView(){ let r='—';try{r=refLabel();}catch(e){} return studioLibView('🎯 <b>RÉFÉRENCES</b>\nRéférence active : <b>'+escH(r)+'</b>',[ 'La référence se change dans un projet (🎯 dans le workspace).' ]); }
+function studioDecorsView(){ let lb={envs:{}};try{lb=nlMod().readLookbook();}catch(e){} const l=Object.keys(lb.envs||{}).map(k=>(lb.envs[k].label||k)); return studioLibView('🌆 <b>DÉCORS</b> · '+l.length,l); }
+function studioModelesView(){ const l=listStyles().map(f=>f.replace(/\.json$/,'')); return studioLibView('📂 <b>MODÈLES</b> · '+l.length,l); }
+function studioPersonasView(){ let pr={profiles:{}};try{pr=loadPersonas();}catch(e){} const l=Object.keys(pr.profiles||{}).map(k=>pr.profiles[k].name+(k===pr.active?' (actif)':'')); return studioLibView('👤 <b>PERSONAS</b> · '+l.length,l); }
+['references','decors','modeles','personas'].forEach(s=>{ uiRouter.REGISTRY['studio.'+s]={ id:'studio.'+s, parent:'studio', owner:'STUDIO', media:true, title:'🏛 '+s,
+  render:()=>({references:studioReferencesView,decors:studioDecorsView,modeles:studioModelesView,personas:studioPersonasView}[s]()) }; MEDIA_MODULES['studio.'+s]=1; });
 
 // ═════════════════════════════════════════════════════════════════════════════
 // [L0-2b] WORKFLOW VIDÉO migré dans le WORKSPACE MÉDIA (même contrat bloc unique).

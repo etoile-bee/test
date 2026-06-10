@@ -53,9 +53,9 @@ const REGISTRY = {
     render: () => ({
       caption: '🏛 <b>STUDIO</b> — bibliothèque, ressources & gestion',
       rows: [
-        [{ text: '👗 Looks', go: 'studio.looks' }, { text: '🏛 Décors', cb: 'STUDIO_DECORS' }],
-        [{ text: '🎯 Références', cb: 'RX_REFS' }, { text: '📂 Modèles', cb: 'SHOWSTYLES' }],
-        [{ text: '📝 Prompts', go: 'studio.prompts' }, { text: '👤 Personas', cb: 'PERSONA' }],
+        [{ text: '👗 Looks', go: 'studio.looks' }, { text: '🏛 Décors', go: 'studio.decors' }],
+        [{ text: '🎯 Références', go: 'studio.references' }, { text: '📂 Modèles', go: 'studio.modeles' }],
+        [{ text: '📝 Prompts', go: 'studio.prompts' }, { text: '👤 Personas', go: 'studio.personas' }],
         [{ text: '📁 Médias', cb: 'FILES_HOME' }],
       ],
     }),

@@ -14,7 +14,13 @@ ck('UN SEUL MOTEUR : photo.image.next === video.source (continuation, pas sectio
 const allHome=[].concat(...homeRows);
 ck('LOOKS -> module média studio.looks (plus de MENU_LOOKS legacy)', allHome.some(b=>b.go==='studio.looks'));
 ck('HISTORIQUE -> module média studio.historique (plus de STUDIO_HIST legacy)', allHome.some(b=>b.go==='studio.historique'));
-ck('Studio › Looks -> studio.looks (média)', [].concat(...REGISTRY.studio.render().rows).some(b=>b.go==='studio.looks'));
+{ const sb=[].concat(...REGISTRY.studio.render().rows);
+  ck('Studio › Looks -> studio.looks (média)', sb.some(b=>b.go==='studio.looks'));
+  ck('Studio › Références -> studio.references (média)', sb.some(b=>b.go==='studio.references'));
+  ck('Studio › Décors -> studio.decors (média)', sb.some(b=>b.go==='studio.decors'));
+  ck('Studio › Modèles -> studio.modeles (média)', sb.some(b=>b.go==='studio.modeles'));
+  ck('Studio › Personas -> studio.personas (média)', sb.some(b=>b.go==='studio.personas'));
+  ck('Studio : plus aucun bouton legacy cb sauf Médias', sb.filter(b=>b.cb).every(b=>b.cb==='FILES_HOME')); }
 
 // ── C1 : on enveloppe les menus comme le fait telegram_bot.js (média + en-tête) ──
 function wrap(id){ const mod=REGISTRY[id]; const orig=mod.render; mod.media=true;
