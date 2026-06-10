@@ -88,3 +88,28 @@ _Note : T2 (anti-spam, 73 % messages non en place) et T4 (historique = liste tex
 ---
 
 _Doc seulement — en attente du GO d'Etoile pour démarrer par L0 (maquette d'abord)._
+
+---
+
+## GOUVERNANCE DES LIVRAISONS — RÈGLES PERMANENTES (gravées 2026-06-10)
+
+> Mise à jour majeure : **fin des micro-livraisons et des ajustements écran-par-écran.** Détail dans `docs/EXIGENCES.md` → **[[E118]]**, **[[E119]]**. État courant : **live = `7e24dac`** (rollback) ; **cible = `docs/DESIGN_CIBLE_COMPLET.md` v3**, en attente de **gel par Etoile**.
+
+### E119 — Méthode de livraison UNIQUE cohérente (séquence imposée)
+1. **Design cible FINAL validé (figé)** par Etoile →
+2. **Implémentation COMPLÈTE** (pas de partiel) →
+3. **Audit complet** →
+4. **Auto-tests complets** ([[E118]]) →
+5. **LIVRAISON UNIQUE** cohérente →
+6. **PUIS** campagne de tests utilisateurs.
+
+### E118 — Protocole qualité AVANT chaque livraison (12 étapes, rigueur « filtre couleur »)
+audit complet · parcours **PHOTO** complet · parcours **VIDÉO** complet · test **bibliothèques** · test **Historique** · test **Prêt-à-poster** · test **reprise projet** · test **propagation média** · **recherche de régressions** · **rapport** des anomalies · **corrections** · **nouvelle validation**. **Objectif : zéro régression évidente découverte par Etoile après livraison.**
+
+### Gate de livraison (à cocher)
+- ☐ Cible v3 **figée** par Etoile (préalable E119).
+- ☐ Implémentation complète (aucun TODO structurel).
+- ☐ 8 tests fonctionnels E118 au vert (PHOTO · VIDÉO · bibliothèques · Historique · Prêt-à-poster · reprise · propagation média · régressions).
+- ☐ Rapport des 12 étapes joint.
+- ☐ `node --check` OK · suites de régression au vert · smoke `/menu` `/go`.
+- ☐ Livraison unique, **puis** tests utilisateurs.
