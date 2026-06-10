@@ -42,6 +42,7 @@ function defaultManifest(persona, projectId, ts) {
     legendes: { courte: '', longue: '', tags: '' },  // E49/E50
     parametres: { nb_images: 1, mode: 'eco', format: '9:16', image_fx: {}, crop: null, rendu: {} },  // E35/E39/E44 ; E124 : réglages image/crop/rendu PAR PROJET (jamais globaux)
     media_actif: null,               // chemin RELATIF au dossier (design C.4 — média actif persistant)
+    gen_status: 'idle',              // Lot 5 — idle | running | done | aborted (suivi/annulation génération)
     couts: { credits: 0, eur_estime: 0, detail: {} },  // E11/E93.2
     moteur_ia: {},                   // { image, script, lipsync, versions }  (E93.2)
     qc: null,                        // C4/E92 — { verdict:'ok'|'alerte'|'force', par, le, details:{identite,coherence,reference,look} }
@@ -186,6 +187,21 @@ function setRaw(base, persona, projectId, kind, relPath, ts) {
   return saveManifest(base, persona, projectId, m, ts);
 }
 
+// Lot 5 — suivi/annulation : statut de génération (running/done/aborted).
+function setGenStatus(base, persona, projectId, status, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.gen_status = status; return saveManifest(base, persona, projectId, m, ts);
+}
+// Lot 6 (A5) — publier : sort de la file Prêt-à-poster, RESTE dans l'Historique (statut métier, pas d'auto-post).
+function publish(base, persona, projectId, ts) { return setStatutPublication(base, persona, projectId, 'publie', ts); }
+// Lot 7 (A6) — un média est-il PERSISTANT (local au dossier projet) et non dépendant d'une URL temporaire ?
+function isLocalMedia(rel) { return !!rel && !/^https?:\/\//i.test(rel); }
+function projectSurvit(base, persona, projectId) { // le dossier projet survit à l'expiration des URLs temporaires
+  const m = loadManifest(base, persona, projectId); if (!m) return false;
+  const refs = [m.media_actif, m.livrables && m.livrables.image, m.livrables && m.livrables.video].filter(Boolean);
+  return refs.every(isLocalMedia);
+}
+
 // « Nouveau » : ARCHIVE l'actuel (jamais de suppression). Remplace clearActiveDraft destructif. (C.1)
 function archiveProject(base, persona, projectId, ts) { return setStatutPublication(base, persona, projectId, 'archive', ts); }
 
@@ -222,6 +238,7 @@ module.exports = {
   addVersion, importFile, setActiveMedia, activeMediaAbs,
   setImageOutcome, setLivrable, setLivrableSelect, setImageFx, setCrop,
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
+  setGenStatus, publish, isLocalMedia, projectSurvit,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,
 };

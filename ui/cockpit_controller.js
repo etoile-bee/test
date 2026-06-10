@@ -150,13 +150,17 @@ function createController(deps) {
     // LOT 1 — génération image : PROTÉGÉE par confirmation de coût (E10/E11). Ne génère RIEN avant GEN_CONFIRM.
     if (a === 'SRC_NEW' || a === 'VSRC_NEW') { ui.pendingGen = 'image'; ui.step = 'confirm'; return { render: render() }; }
     if (a === 'GEN_CANCEL') { const back = ui.pendingGen === 'video' ? 'finaliser' : 'source'; ui.pendingGen = null; ui.step = back; return { render: render(), notice: 'Annulé (aucune dépense)' }; }
+    // Lot 5 — ANNULATION d'une génération en cours (au câblage : genAbort=true + SIGTERM ; ici : statut + retour)
+    if (a === 'GEN_ABORT') { S.setGenStatus(base, persona, ui.projectId, 'aborted', nowv()); ui.pendingGen = null; ui.step = ui.flow ? FLOW.resumeStep(ui.flow, manifest()) : 'home'; return { render: render(), notice: '⏹ Génération annulée' }; }
+    // Lot 6 (A5) — PUBLIER : sort de Prêt-à-poster, reste dans l'Historique (statut métier ; pas d'auto-post)
+    if (a === 'PUBLISH') { S.publish(base, persona, ui.projectId, nowv()); return { render: render(), notice: '📣 Publié (retiré de la file, conservé en Historique)' }; }
     if (a === 'GEN_CONFIRM') {
       const m = manifest();
       if (ui.pendingGen === 'video') {
         // Génération vidéo réelle (backend câblé ; mock gratuit en test) — autorisée car QC déjà validé + confirmation explicite
         const vid = generateVideo(m) || null;
         if (vid) { m.video_media = vid; m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = vid; }
-        m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
+        m.gen_status = 'done'; m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
         S.saveManifest(base, persona, ui.projectId, m, nowv());
         ui.pendingGen = null; ui.step = 'finaliser';
         return { render: render(), notice: '🚀 Vidéo lancée → Prêt-à-poster' };

@@ -121,6 +121,8 @@ function viewFinaliser(flow, m) {
   } else {
     cap += '\n\n✅ QC ' + (qc.verdict === 'force' ? '(forcé)' : 'OK') + ' — prêt pour Final HD.';
   }
+  // Lot 6 (A5) — quand le livrable est en Prêt-à-poster : bouton Publier (sort de la file, reste en Historique)
+  if (m && m.statut_publication === 'pret_a_poster') { cap += '\n📤 Dans Prêt-à-poster.'; rows.push([{ text: '📣 Publier', cb: 'PUBLISH' }]); }
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows.concat(actionBar(flow, 'finaliser', m)) };
 }
 
