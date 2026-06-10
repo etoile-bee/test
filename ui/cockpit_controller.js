@@ -50,12 +50,21 @@ function createController(deps) {
   // LOT 1/8 — CONFIRMATION DE DÉPENSE (E10/E11/E12) : panneau coût AVANT toute génération payante.
   function confirmView() {
     const m = manifest() || {};
-    const est = COST.estimate(ui.pendingGen === 'video' ? 'video' : 'image', m.parametres || {}, lookbook);
-    return {
-      media: FLOW.previewMedia(m), raw: true,
-      caption: '💲 <b>Avant de lancer</b>\n' + COST.panel(est) + '\n\n<i>Génération payante — confirmation requise.</i>',
-      rows: [[{ text: '💲 Lancer', cb: 'GEN_CONFIRM' }, { text: '✖️ Annuler', cb: 'GEN_CANCEL' }]],
-    };
+    let cap = '💲 <b>Avant de lancer</b>\n';
+    if (ui.pendingGen === 'video') {
+      // Q9 — plans = images RETENUES ; D2 — durée→temps/plan + alerte cohérence script/durée
+      const plans = S.videoPlanCount(m);
+      const sec = parseInt((m.parametres && m.parametres.duree) || '23s', 10) || 23;
+      const script = (m.scripts && m.scripts[0] && m.scripts[0].text) || '';
+      const adapt = COST.adaptMontage(sec, script, plans);
+      const est = COST.estimate('video', Object.assign({}, m.parametres, { nb_plans: plans }), lookbook);
+      cap += COST.panel(est) + '\n🎞 ' + plans + ' plan(s) (images retenues) · ⏱ ' + adapt.sec_per_plan + 's/plan';
+      if (adapt.alerte) cap += '\n' + adapt.alerte + '\n💡 ' + adapt.suggestion;
+    } else {
+      cap += COST.panel(COST.estimate('image', m.parametres || {}, lookbook));
+    }
+    cap += '\n\n<i>Génération payante — confirmation requise.</i>';
+    return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: [[{ text: '💲 Lancer', cb: 'GEN_CONFIRM' }, { text: '✖️ Annuler', cb: 'GEN_CANCEL' }]] };
   }
 
   // E123 — applique le devenir explicite d'une image candidate (via le store) + impact aval E115 si nécessaire.
@@ -63,6 +72,9 @@ function createController(deps) {
     const rel = (manifest().image_candidates || [])[ui.candIdx];
     if (!rel) return { render: render() };
     S.setImageOutcome(base, persona, ui.projectId, rel, outcome, nowv());
+    // Q9 — les images GARDÉES deviennent des PLANS (retenues) ; rejeter retire des plans
+    if (outcome === 'garder' || outcome === 'livrable') S.addRetenue(base, persona, ui.projectId, rel, nowv());
+    if (outcome === 'rejeter') S.removeRetenue(base, persona, ui.projectId, rel, nowv());
     const changesActive = (outcome === 'garder' || outcome === 'livrable' || outcome === 'rejeter');
     if (changesActive && FLOW.changeImpactsDownstream(manifest(), 'image')) { ui.pendingSlice = 'image'; ui.step = 'impact'; return { render: impactView('image') }; }
     const notices = { garder: '✅ Gardée (image active)', livrable: '⭐ Livrable image', variante: '◫ Variante (trace)', rejeter: '🗑 Rejetée (hors livrables)' };
@@ -168,6 +180,7 @@ function createController(deps) {
       const m = manifest();
       if (ui.pendingGen === 'video') {
         // Génération vidéo réelle (backend câblé ; mock gratuit en test) — autorisée car QC déjà validé + confirmation explicite
+        m.video_plans = S.videoPlans(m); // Q9 — la vidéo utilise EXACTEMENT les images retenues (jamais d'autres)
         const vid = generateVideo(m) || null;
         if (vid) { m.video_media = vid; m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = vid; }
         m.gen_status = 'done'; m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';

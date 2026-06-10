@@ -42,6 +42,7 @@ function defaultManifest(persona, projectId, ts) {
     legendes: { courte: '', longue: '', tags: '' },  // E49/E50
     parametres: { nb_images: 1, mode: 'eco', format: '9:16', image_fx: {}, crop: null, rendu: {}, subs_override: null, duree: '23s' },  // E35/E39/E44 ; E124 : réglages PAR PROJET ; D1 : override sous-titres projet (jamais subtitle_style.js)
     media_actif: null,               // chemin RELATIF au dossier (design C.4 — média actif persistant)
+    retenues: [],                    // Q9 — images RETENUES (gardées) qui deviennent les PLANS de la vidéo (jamais d'autres images)
     gen_status: 'idle',              // Lot 5 — idle | running | done | aborted (suivi/annulation génération)
     couts: { credits: 0, eur_estime: 0, detail: {} },  // E11/E93.2
     moteur_ia: {},                   // { image, script, lipsync, versions }  (E93.2)
@@ -189,6 +190,21 @@ function setRaw(base, persona, projectId, kind, relPath, ts) {
   return saveManifest(base, persona, projectId, m, ts);
 }
 
+// Q9 — RETENUES : images gardées qui deviennent les PLANS de la vidéo. On RÉUTILISE ces images, jamais d'autres.
+function addRetenue(base, persona, projectId, rel, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m || !rel) return null;
+  m.retenues = m.retenues || []; if (m.retenues.indexOf(rel) < 0) m.retenues.push(rel);
+  return saveManifest(base, persona, projectId, m, ts);
+}
+function removeRetenue(base, persona, projectId, rel, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.retenues = (m.retenues || []).filter(x => x !== rel);
+  return saveManifest(base, persona, projectId, m, ts);
+}
+// Nb de plans vidéo = nb d'images retenues (sinon 1 si un média actif existe).
+function videoPlanCount(m) { const n = (m && m.retenues && m.retenues.length) || 0; return n > 0 ? n : ((m && m.media_actif) ? 1 : 0); }
+function videoPlans(m) { const r = (m && m.retenues) || []; return r.length ? r.slice() : ((m && m.media_actif) ? [m.media_actif] : []); }
+
 // Q4 — SNAPSHOT restaurable : capture l'état courant (média + params) ; ne supprime jamais les versions existantes.
 function snapshotVersion(base, persona, projectId, label, ts) {
   const m = loadManifest(base, persona, projectId); if (!m) return null;
@@ -306,6 +322,7 @@ module.exports = {
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   setGenStatus, publish, isLocalMedia, projectSurvit,
   snapshotVersion, listVersions, restoreVersion,
+  addRetenue, removeRetenue, videoPlanCount, videoPlans,
   buildDeliverable, deliverableComplete, setSubsOverride,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,

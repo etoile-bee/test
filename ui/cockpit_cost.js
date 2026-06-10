@@ -24,7 +24,8 @@ function estimateImage(params, lb) {
 function estimateVideo(params, lb) {
   const dur = (params && params.duree) || (params && params.duration) || '23s';
   const sec = parseInt(dur, 10) || 23;
-  const plan = planParts(sec);
+  const base = planParts(sec);
+  const plan = { n: (params && params.nb_plans) || base.n, words: base.words }; // Q9 : nb plans = images retenues si fourni
   const chars = plan.words * COST.CHARS_PER_WORD;
   const el = r3((chars / 1000) * COST.EL_EUR_PER_1K_CHARS); // voix
   const opVideo = ops(lb).video30s;
