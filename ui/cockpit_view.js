@@ -16,13 +16,32 @@ const FLOW = require('./cockpit_flow');
 
 function short(s, n) { s = String(s == null ? '' : s); return s.length > (n || 22) ? s.slice(0, (n || 22) - 1) + '…' : s; }
 
-// En-tête 1 ligne (verrou 8) : projet · réf · look · média actif.
+// Nom de projet LISIBLE (V2) : nom donné, sinon « Projet · <date heure> » auto (jamais d'ID technique).
+const MOIS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+function projName(m) {
+  if (m && m.name) return m.name;
+  if (m && m.cree_le) { try { const d = new Date(m.cree_le); return 'Projet · ' + d.getDate() + ' ' + MOIS[d.getMonth()] + ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0'); } catch (e) {} }
+  return 'Projet';
+}
+// État GLOBAL du projet (lisible).
+function etatLabel(m) {
+  const sp = m && m.statut_publication, sq = m && m.statut_qualite;
+  if (sp === 'publie') return '📣 publié'; if (sp === 'pret_a_poster') return '✅ prêt-à-poster'; if (sp === 'archive') return '🗄 archivé';
+  if (sq === 'production') return '✅ finalisé'; if (m && m.media_actif) return '⏳ en cours'; return '📝 brouillon';
+}
+function zoneVal(m, key, fallback) {
+  const z = m && m.zones && m.zones[key];
+  const v = z ? (z.label || z.value) : null; const lock = (z && z.locked) ? '🔒' : '';
+  return (v ? short(v, 12) + lock : (fallback ? short(fallback, 12) : '—'));
+}
+// ★ BANDEAU D'ÉTAT PROJET (tableau de bord) — affiché en tête de CHAQUE écran (la « sensation de piloter un projet »).
 function hdr(m) {
-  const bits = ['📁 ' + short((m && m.name) || 'Projet', 18)];
-  if (m && m.reference && m.reference.label) bits.push('🎯 ' + short(m.reference.label, 14));
-  if (m && m.look && m.look.tenue) bits.push('👗 ' + short(m.look.tenue, 14));
-  bits.push('🖼 ' + (m && m.media_actif ? '✓' : '—'));
-  return bits.join(' · ');
+  m = m || {};
+  const l1 = '📁 <b>' + short(projName(m), 22) + '</b> · ' + etatLabel(m);
+  const l2 = '🎯 ' + zoneVal(m, 'reference', m.reference && m.reference.label) + ' · 👗 ' + zoneVal(m, 'look', m.look && m.look.tenue) + ' · 🌆 ' + zoneVal(m, 'decor', m.look && m.look.decor) + ' · ✍️ ' + zoneVal(m, 'prompt', m.prompts && m.prompts[0] && m.prompts[0].name);
+  const p = m.parametres || {};
+  const l3 = '⚙️ ' + ((p.nb_images) || 1) + 'img·' + (p.duree || '23s') + '·' + (p.format || '9:16') + ' · ◫ ' + ((m.variantes || []).length) + ' var · 📦 ' + ((m.livrables_dossiers || []).length) + ' liv';
+  return l1 + '\n' + l2 + '\n' + l3;
 }
 
 // Barre universelle (E108) : ⬅ Retour · ✅ Valider (gated) · 🏠 Accueil. Valider verrouillé -> cb dédié (toast).
@@ -33,8 +52,32 @@ function actionBar(flow, step, m) {
     : (can ? { text: '✅ Valider', cb: 'V' } : { text: '🔒 Valider', cb: 'V_LOCK' });
   return [
     [{ text: '⬅ Retour', cb: 'BACK' }, valider, { text: '🏠 Accueil', cb: 'HOME' }],
-    [{ text: '🛑 Stop', cb: 'STOP' }, { text: '🔄 Restart', cb: 'RESTART' }, { text: '❓ Aide', cb: 'HELP' }],
+    [{ text: '📊 Projet', cb: 'DASH' }, { text: '❓ Aide', cb: 'HELP' }], // V3 : Stop/Restart = commandes hors barre créative
   ];
+}
+
+// ★ ÉCRAN 📊 PROJET — tableau de bord complet : hiérarchie Projet → zones / candidates / média actif / versions / livrables.
+function viewDashboard(m) {
+  m = m || {};
+  const p = m.parametres || {};
+  const z = (k, fb) => zoneVal(m, k, fb);
+  let cap = '📊 <b>' + short(projName(m), 28) + '</b> · ' + etatLabel(m) + '\n';
+  cap += '\n<b>Zones</b>\n';
+  cap += '🎯 Référence : ' + z('reference', m.reference && m.reference.label) + '\n';
+  cap += '👗 Look : ' + z('look', m.look && m.look.tenue) + '\n';
+  cap += '🌆 Décor : ' + z('decor', m.look && m.look.decor) + '\n';
+  cap += '✍️ Prompt : ' + z('prompt', m.prompts && m.prompts[0] && m.prompts[0].name) + '\n';
+  cap += '⚙️ Paramètres : ' + ((p.nb_images) || 1) + ' img · ' + (p.duree || '23s') + ' · ' + (p.format || '9:16') + '\n';
+  cap += '\n<b>Objets</b>\n';
+  cap += '🖼 Média actif : ' + (m.media_actif ? '✓' : '—') + ' · ◫ Variantes : ' + ((m.variantes || []).length) + '\n';
+  cap += '🕘 Versions : ' + ((m.versions || []).length) + ' · 📦 Livrables : ' + ((m.livrables_dossiers || []).length) + '\n';
+  const rows = [
+    [{ text: '🎯 Réf', cb: 'P_REF' }, { text: '👗 Look', cb: 'P_TENUE' }, { text: '🌆 Décor', cb: 'P_DECOR' }],
+    [{ text: '✍️ Prompt', cb: 'P_PROMPT' }, { text: '⚙️ Paramètres', cb: 'STEP_PARAMS' }],
+    [{ text: '🖼 Étape en cours', cb: 'RESUME' }, { text: '📦 Livrables', cb: 'LIVRABLES' }, { text: '🕘 Versions', cb: 'VERSIONS' }],
+    [{ text: '✏️ Renommer', cb: 'RENAME' }, { text: '🏠 Accueil', cb: 'HOME' }],
+  ];
+  return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows };
 }
 
 // ── ACCUEIL — 4 entrées E104. RÉCENTS = vue filtrée (E121), pas une entité. ──
@@ -237,4 +280,4 @@ function view(flow, step, m) {
   return home();
 }
 
-module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, viewZonePicker, viewZoneHistory, viewLivrables, viewLivrable, actionBar, hdr };
+module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, viewZonePicker, viewZoneHistory, viewLivrables, viewLivrable, viewDashboard, projName, etatLabel, actionBar, hdr };

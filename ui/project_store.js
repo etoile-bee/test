@@ -16,6 +16,9 @@ const STATUTS_QUALITE = ['brouillon', 'test', 'production'];        // axe valid
 const STATUTS_PUBLICATION = ['aucun', 'pret_a_poster', 'publie', 'archive']; // axe publication (C.6)
 
 function iso(ts) { return (ts != null ? new Date(ts) : new Date()).toISOString(); }
+// Libellé LISIBLE par défaut (jamais d'ID technique) : « Projet · 10 juin 15h52 ».
+const _MOIS = ['janv', 'févr', 'mars', 'avr', 'mai', 'juin', 'juil', 'août', 'sept', 'oct', 'nov', 'déc'];
+function friendlyName(creeLe) { try { const d = new Date(creeLe); return 'Projet · ' + d.getDate() + ' ' + _MOIS[d.getMonth()] + ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0'); } catch (e) { return 'Projet'; } }
 function projectsRoot(base) { return path.join(base, 'projects'); }
 function personaDir(base, persona) { return path.join(projectsRoot(base), persona || 'default'); }
 function projectDir(base, persona, projectId) { return path.join(personaDir(base, persona), projectId); }
@@ -326,7 +329,7 @@ function listProjects(base, persona) {
   return ids.map(id => {
     const m = loadManifest(base, persona, id);
     if (!m) return null;
-    return { projectId: id, name: m.name || id, statut_qualite: m.statut_qualite, statut_publication: m.statut_publication, modifie_le: m.modifie_le, cree_le: m.cree_le, media_actif: m.media_actif };
+    return { projectId: id, name: m.name || friendlyName(m.cree_le), statut_qualite: m.statut_qualite, statut_publication: m.statut_publication, modifie_le: m.modifie_le, cree_le: m.cree_le, media_actif: m.media_actif };
   }).filter(Boolean).sort((a, b) => String(b.modifie_le).localeCompare(String(a.modifie_le)));
 }
 // L'HISTORIQUE = le magasin complet (mémoire permanente). Les vues ci-dessous sont des FILTRES.

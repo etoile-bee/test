@@ -62,8 +62,21 @@ chk('E123 : Vidéo décochée -> ☐ Vidéo', /☐ Vidéo/.test(finImgOnly.capti
 // ── Barre universelle E108 partout : Retour · Valider · Accueil ──
 chk('barre E108 (BACK/HOME) partout', cbs(par).indexOf('BACK') >= 0 && cbs(par).indexOf('HOME') >= 0);
 
-// ── textes courts (verrou 8) : en-tête 1 ligne ──
-chk('en-tête 1 ligne (pas de saut interne)', V.hdr(mMedia).indexOf('\n') < 0);
+// ── TABLEAU DE BORD : bandeau d'état (nom·état · zones · params·variantes·livrables) ──
+const mDash = { name: null, cree_le: '2026-06-10T15:52:00Z', media_actif: 'images/a.jpg', parametres: { nb_images: 2, duree: '23s', format: '9:16' }, zones: { reference: { label: 'Imany', locked: true }, look: { label: 'Robe' }, decor: { label: 'Studio' }, prompt: { label: 'P1' } }, variantes: ['v'], livrables_dossiers: [{ id: 'liv1' }] };
+const band = V.hdr(mDash);
+chk('bandeau : nom lisible auto (format date, pas d\'ID technique)', /Projet · \d{1,2} \w+ \d{2}h\d{2}/.test(band) && !/imany_2026/.test(band));
+chk('bandeau : état global affiché', /en cours|brouillon|finalisé|prêt|publié/.test(band));
+chk('bandeau : zones réf(🔒)/look/décor/prompt', /🎯 Imany🔒/.test(band) && /👗 Robe/.test(band) && /🌆 Studio/.test(band) && /✍️ P1/.test(band));
+chk('bandeau : params + variantes + livrables', /⚙️ 2img/.test(band) && /◫ 1 var/.test(band) && /📦 1 liv/.test(band));
+chk('bandeau compact (≤ 3 lignes)', band.split('\n').length <= 3);
+// ── ÉCRAN 📊 PROJET : hiérarchie + actions ──
+const dash = V.viewDashboard(mDash);
+chk('📊 Projet : zones + objets', /Zones/.test(dash.caption) && /Média actif/.test(dash.caption) && /Variantes/.test(dash.caption) && /Livrables/.test(dash.caption));
+chk('📊 Projet : actions (zones/livrables/versions/renommer)', ['P_REF', 'P_DECOR', 'LIVRABLES', 'VERSIONS', 'RENAME'].every(x => cbs(dash).indexOf(x) >= 0));
+// ── barre créative : Stop/Restart RETIRÉS, 📊 Projet présent ──
+chk('barre : Stop/Restart retirés', !/Stop/.test(texts(par)) && !/Restart/.test(texts(par)));
+chk('barre : accès 📊 Projet', cbs(par).indexOf('DASH') >= 0);
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
 process.exit(ko ? 1 : 0);

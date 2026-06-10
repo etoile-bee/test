@@ -3191,8 +3191,8 @@ async function handle(upd){
       try{let n=0;for(let i=0;i<newlook.urls.length;i++){const dest=nlSave(i);if(dest){results.items=results.items.filter(x=>x.path!==dest);results.items.push({type:'photo',path:dest,label:'💾 '+escH(newlook.catLabel)+' · pose '+(i+1),ts:Date.now()});}n++;}while(results.items.length>30)results.items.shift();results.idx=results.items.length-1;resSave();await showResults().catch(()=>{});await nlText('✅ <b>GARDÉES</b> · '+n+' poses · /look pour recréer',nlResultRows());}catch(e){await nlText('❌ Garde : '+escH(e.message),nlResultRows());}
       return;
     }
-    if(d==='RES_PREV'){await toast('⏳ Chargement…');results.idx--;await showResults();return;}
-    if(d==='RES_NEXT'){await toast('⏳ Chargement…');results.idx++;await showResults();return;}
+    if(d==='RES_PREV'){results.idx--;await showResults();return;} /*[cockpit-v4.1] zéro message technique : « Chargement… » supprimé*/
+    if(d==='RES_NEXT'){results.idx++;await showResults();return;}
     if(d==='RES_BACK'){await showResults();return;}
     if(d==='RES_STEPS'){await resSteps();return;}
     if(d==='RES_EDIT'){
