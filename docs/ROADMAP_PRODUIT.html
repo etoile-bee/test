@@ -1,0 +1,28 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>docs/ROADMAP_PRODUIT.md</title><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:1150px;margin:24px auto;padding:0 16px;color:#1c1c28;line-height:1.5}h1{border-bottom:3px solid #3a8}h2{margin-top:1.5em;border-bottom:1px solid #ddd;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;vertical-align:top}th{background:#eef}code{background:#f3f3f7;padding:1px 4px;border-radius:3px;font-size:90%}blockquote{background:#f7f7fd;border-left:4px solid #3a8;padding:8px 14px;margin:12px 0}hr{border:0;border-top:1px solid #ddd;margin:20px 0}li{margin:2px 0}</style></head><body><h1>ROADMAP PRODUIT — par vision (4 piliers)  ·  <b>PROVISOIRE — à figer après la campagne de validation</b></h1>
+<blockquote>Réorganisée par <b>vision produit</b> (validée par Etoile, 2026-06-10). <b>Statut : PROVISOIRE.</b> L'ordre n'est <b>figé qu'après</b> <code>docs/CAMPAGNE_VALIDATION.md</code>.<br><b>Aucune migration / aucun hotfix tant que la campagne n'est pas close et l'ordre figé</b> — y compris B1 et F13 (ils sont en <b>Phase 0</b>, qui ne s'exécute qu'APRÈS validation).<br>Garde-fou <b>E117</b> appliqué : on valide contre l'architecture cible complète + la projection produit (Cockpit, Mémoire métier/Studio, Moteur de production, Mode automatique). Inventaire : <code>docs/FRONTIERES_LEGACY.md</code> · priorisation : <code>docs/PRIORISATION_PRODUIT.md</code>.</blockquote>
+<h2>Principe directeur (inscrit)</h2>
+<p><b>Un cockpit cohérent, stable et testable AVANT le moteur automatique.</b> Ordre guidé, dans l'ordre, par :</p>
+<p>1) <b>cohérence du cockpit</b> (zéro clic qui sort, zéro perte de contexte) →</p>
+<p>2) <b>mémoire métier</b> (source de vérité unique looks/références/historique/médias) →</p>
+<p>3) <b>moteur de production / mode auto</b> (PHOTO→VIDÉO→EXPORT→LIVRABLE) →</p>
+<p>4) <b>dette résiduelle</b>.</p>
+<p><i>Cet ordre DIFFÈRE de l'ordre techniquement le plus simple : <b>F3 est rétrogradé en Phase 3</b>, <b>F2 en Phase 4</b> — parce que la priorité produit est la stabilité ressentie du cockpit avant la fondation moteur.</i></p>
+<h2>Les 4 piliers</h2>
+<ul><li><b>Pilier A — COCKPIT UNIQUE</b> : tout se passe dans un seul bloc, navigation cohérente, contexte permanent.</li><li><b>Pilier B — MÉMOIRE MÉTIER (Studio)</b> : looks, références, décors, personas, médias, historique, modèles = source de vérité unique.</li><li><b>Pilier C — MOTEUR DE PRODUCTION / MODE AUTO</b> : génération réelle PHOTO→VIDÉO→EXPORT→LIVRABLE, reprise, auditabilité.</li><li><b>Pilier D — DETTE</b> : suppression du code mort / doublons / commandes.</li></ul>
+<h2>Phases (ordre validé par Etoile — PROVISOIRE)</h2>
+<table>
+<tr><th>Phase</th><th>Intitulé</th><th>Frontières</th><th>Pilier</th><th>Objectif produit</th></tr>
+<tr><td><b>0</b></td><td>Correctifs immédiats</td><td><b>B1, F13</b></td><td>A</td><td>Supprimer les irritants visibles (image en bloc texte ; messages techniques pleins → toast).</td></tr>
+<tr><td><b>1</b></td><td>Cockpit unique</td><td><b>F1, F12</b></td><td>A</td><td><b>AUCUN clic ne sort du cockpit principal.</b> Tant que non résolu, les tests sont biaisés.</td></tr>
+<tr><td><b>2</b></td><td>Mémoire métier</td><td><b>F4, F5, F10, F15</b></td><td>B</td><td>Source de vérité unique : looks / références / historique / médias entrants.</td></tr>
+<tr><td><b>3</b></td><td>Suppression des chemins alternatifs</td><td><b>F3, F17</b></td><td>A/B</td><td>Éliminer doublons &amp; parcours concurrents (NL_NEW, pop-up réglages).</td></tr>
+<tr><td><b>4</b></td><td>Fondations mode auto</td><td><b>F2, F11</b></td><td>C</td><td>PHOTO→VIDÉO→EXPORT→LIVRABLE branché sur <code>proj</code> ; base du mode automatique.</td></tr>
+<tr><td><b>5</b></td><td>Studio avancé</td><td><b>F6, F7, F8, F9</b></td><td>B</td><td>Modèles, décors, personas, médias (CRUD, multi-persona).</td></tr>
+<tr><td><b>6</b></td><td>Dette résiduelle</td><td><b>F14, F16, F18</b></td><td>D</td><td>Commandes doublons, ancien flux anglais <code>MM_*</code> (suppression), menus annexes.</td></tr>
+</table>
+<h2>Pourquoi cet ordre (rappel produit)</h2>
+<ul><li><b>Phase 0–1 d'abord</b> : l'éditeur (F1) et les retours legacy (F12) sont ce qui casse le plus le contexte ; sans cockpit stable, <b>toute campagne de test est biaisée</b>.</li><li><b>Phase 2 ensuite</b> : le cockpit a besoin d'une <b>mémoire métier fiable</b> (d'où viennent looks/réf/historique) avant d'industrialiser.</li><li><b>Phase 3</b> : une fois le cockpit + la mémoire en place, on <b>coupe les parcours concurrents</b> (F3/F17) sans casser l'usage.</li><li><b>Phase 4</b> : seulement alors on bâtit le <b>moteur/auto</b> (F2/F11) sur une base saine.</li><li><b>Phase 5–6</b> : finitions Studio puis nettoyage de dette.</li></ul>
+<h2>Critères de passage de phase (E116/E117)</h2>
+<p>Chaque phase n'est « faite » que si : grille des 9 questions <b>100% OUI</b> sur les écrans touchés · régressions vertes (16/15/7/7/8 + ws 6/6 + vidéo 7/7 + router 20/20) · campagne de validation re-passée sur le périmètre · restart sûr.</p>
+<hr>
+<p>_Roadmap PROVISOIRE — figée seulement après <code>docs/CAMPAGNE_VALIDATION.md</code>. Aucune exécution avant arbitrage final d'Etoile. — 2026-06-10_</p></body></html>

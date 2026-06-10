@@ -1,0 +1,107 @@
+<!doctype html><html lang=fr><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Validation causes racines</title><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:1150px;margin:24px auto;padding:0 16px;color:#1c1c28;line-height:1.55}h1{border-bottom:3px solid #2c7}h2{margin-top:1.5em;border-bottom:1px solid #ddd;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:13px}th,td{border:1px solid #ccc;padding:5px 7px;text-align:left;vertical-align:top}th{background:#eafaf0}code{background:#f3f3f7;padding:1px 4px;border-radius:3px;font-size:90%}pre{background:#1c1c28;color:#e0e0e0;padding:10px;border-radius:6px;overflow-x:auto;font-size:12px}pre code{background:none;color:inherit}blockquote{background:#f3fbf6;border-left:4px solid #2c7;padding:8px 14px;margin:12px 0}hr{border:0;border-top:1px solid #ddd;margin:20px 0}li{margin:2px 0}</style></head><body><h1>VALIDATION DES CAUSES RACINES — preuve sur banc d'essai isolé (2026-06-10)</h1>
+<blockquote><b>VERROU PRODUIT ABSOLU respecté</b> : le bot en production n'a <b>jamais</b> été modifié ni redémarré avec un changement. La démonstration a été faite dans un <b>git worktree jetable</b> <code>/tmp/proof_b1</code> (branche <code>proof/b1</code>), supprimé après mesure ; <b>prod restée sur <code>claude/remote-control-V3blj @ 4db50c0</code></b>, aucun fichier produit modifié, bot (PID inchangé) intact. <b>C'est une démonstration isolée, pas un déploiement.</b> Roadmap PROVISOIRE, aucune priorisation figée.</blockquote>
+<h2>RÉSUMÉ EXÉCUTIF</h2>
+<ul><li><b>B1 est PROUVÉ</b> : à l'étape IMAGE migrée, <code>photoImageView</code> renvoie <code>img=null</code> quand <code>has&gt;0</code> mais <code>nlLocal()</code> échoue (URL distante expirée à la reprise) → le routeur (<code>out.image</code> falsy) bascule sur <code>ctx.show</code> = <b>texte</b> (ou crée un nouveau bloc si <code>activeRootMid</code> périmé). Démontré AVANT/APRÈS sur le vrai routeur (banc isolé) : AVANT=<code>TEXTE</code>, APRÈS=<code>MÉDIA</code>.</li><li><b>Le correctif « 1 ligne » fonctionne mais NE suffit PAS</b> : il corrige le cas observé, <b>mais B1.1 subsiste</b> — si toutes les sources sont nulles (pas de réf + thumbnail KO), le même repli texte se reproduit. Et le <b>même patron</b> existe dans <b>toutes</b> les vues média. ⇒ <b>B1 est un SYMPTÔME de la méta-cause MC2</b> (le routeur n'a pas de garantie/fallback média), pas un bug isolé.</li><li><b>Non-régression prouvée</b> : suites auto-portées vertes sur la branche (<code>photo_ws 6/6</code>, <code>video_ws 7/7</code>, <code>router 20/20</code>) ; baseline prod intacte (<code>16/15/7/7/8</code>) ; les KO vus dans le worktree sont <b>environnementaux</b> (checkout neuf sans JSON runtime) — prouvé par contrôle SANS le fix (KO identiques).</li><li><b>Les 18 frontières se regroupent autour de 3 méta-causes</b> (MC1/MC2/MC3) avec <b>confiance ÉLEVÉE</b> → traiter les causes architecturales, pas frontière par frontière.</li></ul>
+<hr>
+<h2>1. PREUVE TECHNIQUE COMPLÈTE DE B1</h2>
+<p><b>Code concerné (3 maillons) :</b></p>
+<ol><li><code>ui/router.js:53-54</code> — l'aiguillage média/texte :</li></ol>
+<p>   ```js</p>
+<p>   if (out.image &amp;&amp; ctx.showMedia) await ctx.showMedia(out.image, ...);  // BLOC MÉDIA</p>
+<p>   else await ctx.show(out.caption || mod.title, rows, ...);             // BLOC TEXTE</p>
+<p>   ```</p>
+<ol><li><code>telegram_bot.js:1243</code> — <code>photoImageView()</code> :</li></ol>
+<p>   ```js</p>
+<p>   const img = has ? nlLocal(p.image.idx) : (lookFile(p) || refThumb());</p>
+<p>   ```</p>
+<ol><li><code>telegram_bot.js:248-255</code> — <code>nlLocal(i)</code> :</li></ol>
+<p>   ```js</p>
+<p>   if (newlook.files[i] &amp;&amp; fs.existsSync(...)) return newlook.files[i];   // cache local</p>
+<p>   const u = newlook.urls[i];</p>
+<p>   if (String(u).startsWith('/')) { ...; return u; }                      // chemin local</p>
+<p>   ... curl -sL u ...                                                      // URL distante</p>
+<p>   if (fs.existsSync(tmp) &amp;&amp; size&gt;5000) return tmp;</p>
+<p>   return null;                                                           // ÉCHEC -&gt; null</p>
+<p>   ```</p>
+<p><b>CONDITION précise du repli texte :</b> <code>has = p.image.urls.length &gt; 0</code> <b>ET</b> <code>nlLocal(idx)</code> renvoie <code>null</code>. <code>nlLocal</code> renvoie <code>null</code> quand : pas de fichier en cache (<code>newlook.files</code> vide, p.ex. après /restart ou reprise) <b>ET</b> l'URL est <b>distante</b> (tmpfiles) <b>ET</b> le <code>curl</code> échoue ou rend &lt; 5000 octets (<b>URL expirée</b> — tmpfiles est éphémère, cf. dette E59/E94).</p>
+<p><b>CHEMIN D'EXÉCUTION complet :</b></p>
+<p><code>R_photo.image</code> → <code>routeBlock('photo.image')</code> → <code>uiRouter.route()</code> → <code>photoImageView()</code> → <code>img = has?nlLocal(idx):…</code> = <b>null</b> → <code>route()</code> teste <code>out.image</code> (falsy) → <code>ctx.show()</code> → <code>uiShow(...,'inplace')</code> → <code>tgEditText(activeRootMid)</code> = <b><code>editMessageText</code></b> (ou <code>send</code> si <code>activeRootMid</code> périmé → <b>nouveau bloc</b>).</p>
+<p><b>Valeurs réelles (reproduites au banc, cf. <code>tools/_proof_b1.js</code>) :</b></p>
+<table>
+<tr><th>Variable</th><th>Valeur (cas reprise)</th><th>Conséquence</th></tr>
+<tr><td><code>has</code> (<code>image.urls.length</code>)</td><td><code>1</code> (brouillon repris <code>2026/06/09/21/29</code>)</td><td>branche <code>nlLocal(idx)</code></td></tr>
+<tr><td><code>newlook.files[idx]</code></td><td>absent (cache vide post-restart)</td><td>pas de raccourci</td></tr>
+<tr><td><code>newlook.urls[idx]</code></td><td><code>https://tmpfiles.org/…</code> (distante, <b>expirée</b>)</td><td>curl échoue</td></tr>
+<tr><td><code>nlLocal(idx)</code></td><td><b><code>null</code></b></td><td><code>img=null</code></td></tr>
+<tr><td><code>lookFile(p)</code> / <code>refThumb()</code></td><td>dispo MAIS <b>non utilisés</b> (branche ternaire)</td><td>fallback ignoré</td></tr>
+<tr><td><code>out.image</code></td><td><code>null</code></td><td><code>route()</code> → <code>ctx.show</code> = <b>TEXTE</b></td></tr>
+</table>
+<p><b>Preuve journal (image RÉELLE)</b> : <code>23:03:45 BOT→ editMessageText : 📁 2026/06/09/21/29 · IMAGE 2/2 … 🖼 Aperçu : image 1/1 … ✅ Image 1/1 validée</code> → l'aperçu d'une <b>vraie image validée</b> rendu en <b>texte</b>.</p>
+<p><b>RAISON du repli legacy</b> : l'étape IMAGE devenant inutilisable, l'utilisateur reprend l'ancien chemin (<code>CL_NEW/NL_GO/…</code>) pour produire — observé #5 (cf. <code>RAPPORT_CONSOLIDE_FINAL</code>).</p>
+<h2>2. ANALYSE D'IMPACT</h2>
+<ul><li><b>Frontières qui DISPARAISSENT si B1 corrigé</b> : <b>aucune</b> des F1–F18 (B1 n'est pas une frontière legacy mais un défaut du module cible). B1 corrigé <b>supprime le blocage</b>, pas une frontière.</li><li><b>Frontières qui RESTENT</b> : <b>toutes</b> (F1–F18). B1 ne touche ni l'éditeur (F1), ni le moteur (F2), ni Studio (F4–F10), etc.</li><li><b>Frontières actuellement MASQUÉES par B1</b> (non observables tant que B1 force le repli legacy) :</li></ul>
+<p>  - <b>F2/F3</b> (moteur/wizard) : tant que le workspace IMAGE est cassé, on ne peut pas atteindre <code>PL_GEN</code> → le chemin de génération <b>workspace</b> (<code>PL_GEN_DO→runNewLook</code>) n'a <b>jamais</b> été exercé (seul le legacy l'est). B1 corrigé → ce chemin devient enfin observable (et donc F2 qualifiable depuis la cible).</p>
+<p>  - <b>#5/#6</b> (génération image dans le workspace), <b>#8/#9</b> (retour/reprise IMAGE) : masqués → deviennent testables.</p>
+<h2>3. VALIDATION DES MÉTA-CAUSES</h2>
+<h3>MC1 — Pas d'autorité de rendu unique  ·  confiance <b>ÉLEVÉE</b></h3>
+<ul><li>Frontières : F1, F2, F3, F4, F5, F6, F7, F8, F9, F10, F11, F12, F14, F15, F16, F17, F18.</li><li>Preuves : <code>grep</code> prod = <b>199 <code>send(</code></b>, <b>29 <code>cardMenu(</code></b>, <b>11 <code>cockpitPhoto(</code></b> hors contrat routeur ; live <code>MENU_LOOKS→showGallery</code>, <code>PL_EDIT→sendPhoto</code>, <code>MAIN_MENU→sendMessage</code>.</li><li>Mécanisme de propagation : chaque écran non enveloppé dans un module routeur rend via <code>send/cardMenu/cockpitPhoto</code> → nouveau message/cockpit → bloc unique cassé. <b>Factuel.</b></li></ul>
+<h3>MC2 — Le module cible n'assure pas un rendu média robuste  ·  confiance <b>ÉLEVÉE</b></h3>
+<ul><li>Frontière/instance : <b>B1</b> (+ <b>B1.1</b> démontré, + latent dans toutes les vues média).</li><li>Preuves : démonstration <code>_proof_b1.js</code> (Cas1 TEXTE→MÉDIA ; Cas4 tout-null reste TEXTE) ; <code>route()</code> n'a <b>aucun fallback média</b> quand <code>out.image</code> est falsy.</li><li>Mécanisme : une vue média peut renvoyer <code>image:null</code> → le routeur <b>bascule silencieusement en texte</b> au lieu d'un placeholder média → bloc unique cassé. <b>Factuel.</b></li></ul>
+<h3>MC3 — Deux moteurs d'état concurrents  ·  confiance <b>ÉLEVÉE (existence) / MOYENNE (causalité « force le repli »)</b></h3>
+<ul><li>Frontières : F2, F3 (et alimente le repli legacy).</li><li>Preuves : code = <code>gw/genJob/newlook</code> (legacy) vs <code>proj</code> (cible) coexistent ; journal #5 = production faite en legacy.</li><li>Mécanisme : la cible <code>proj</code> n'a pas (encore) d'issue de génération éprouvée → quand elle casse (B1), l'utilisateur reprend le moteur legacy. <b>Honnêteté</b> : que ce soit <i>systématiquement</i> B1 qui « force » le legacy est étayé par #5 mais repose sur un seul run réel → causalité <b>MOYENNE</b>.</li></ul>
+<h2>4. CARTOGRAPHIE DES DÉPENDANCES F1→F18</h2>
+<table>
+<tr><th>F</th><th>Cause racine</th><th>Dépendances</th><th>Correction associée</th><th>Impact attendu</th><th>Risque régression</th></tr>
+<tr><td>F1 Éditeur</td><td>MC1</td><td>bloque #7 ; utilise cockpit/style.json</td><td>modules <code>video.montage.*</code></td><td>contexte préservé à l'édition</td><td>Élevé (état partagé)</td></tr>
+<tr><td>F2 Moteur vidéo</td><td>MC1+MC3</td><td>dépend <code>proj</code> mappé ; masquée par B1</td><td>brancher <code>VX_GO</code>→moteur sur <code>proj</code></td><td>mode auto/export possibles</td><td>Élevé (payant)</td></tr>
+<tr><td>F3 Wizard <code>nl*</code></td><td>MC1+MC3</td><td>doublonne <code>photo.look/image</code></td><td>rediriger <code>NL_NEW</code>→<code>photo.look</code></td><td>fin du doublon/fuite</td><td>Moyen</td></tr>
+<tr><td>F4 Galerie</td><td>MC1</td><td>nourrit Photo/Vidéo</td><td>module <code>studio.looks</code></td><td>looks en cockpit</td><td>Moyen</td></tr>
+<tr><td>F5 Réf (Studio)</td><td>MC1</td><td>2ᵉ porte de <code>photo.ref</code></td><td><code>RX_REFS</code>→module</td><td>source réf unique</td><td>Faible</td></tr>
+<tr><td>F6 Modèles</td><td>MC1</td><td>lié F1</td><td>module <code>studio.modeles</code></td><td>styles en cockpit</td><td>Moyen</td></tr>
+<tr><td>F7 Décors</td><td>MC1</td><td>doublon <code>PL_ENV</code></td><td>module/renvoi</td><td>cohérence</td><td>Faible</td></tr>
+<tr><td>F8 Personas</td><td>MC1</td><td>conditionne <code>proj.persona</code></td><td>module <code>studio.personas</code></td><td>multi-persona</td><td>Moyen</td></tr>
+<tr><td>F9 Médias</td><td>MC1</td><td>—</td><td>module lecture seule</td><td>consultation en cockpit</td><td>Faible</td></tr>
+<tr><td>F10 Historique</td><td>MC1</td><td>lié F2/genFolders</td><td>module grille+réouverture</td><td>reprise/auditabilité</td><td>Moyen</td></tr>
+<tr><td>F11 Prêt-à-poster</td><td>MC1</td><td>dépend F2</td><td>module <code>recents.poster</code></td><td>livraison en cockpit</td><td>Faible</td></tr>
+<tr><td>F12 Retours</td><td>MC1</td><td>transverse (tous Retour legacy)</td><td><code>MAIN_MENU/HOME_<i></code>→<code>R_</i></code></td><td>fin de l'empilement</td><td>Moyen</td></tr>
+<tr><td>F13 Barre tech</td><td>MC1</td><td>partout</td><td><code>TECH_STOP/STATUS</code>→toast</td><td>irritant retiré</td><td>Faible</td></tr>
+<tr><td>F14 Commandes</td><td>MC1</td><td>doublons</td><td>redirection</td><td>cohérence</td><td>Faible</td></tr>
+<tr><td>F15 Intake photo</td><td>MC1</td><td>—</td><td>intégrer au workspace</td><td>geste naturel</td><td>Faible</td></tr>
+<tr><td>F16 Flux anglais <code>MM_*</code></td><td>MC1</td><td>mort/résiduel</td><td>suppression</td><td>dette</td><td>Faible</td></tr>
+<tr><td>F17 Pop-up <code>LS_*</code></td><td>MC1+MC2</td><td>au choix d'un look</td><td>choix in-bloc</td><td>pas d'interruption</td><td>Faible</td></tr>
+<tr><td>F18 Menus annexes</td><td>MC1</td><td>—</td><td>rattachement</td><td>dette</td><td>Faible</td></tr>
+<tr><td><b>B1</b></td><td><b>MC2</b></td><td>masque F2/F3 ; bloque #5/#6/#8/#9</td><td>fallback média garanti</td><td><b>débloque la cible</b></td><td><b>Faible</b> (démontré)</td></tr>
+</table>
+<h2>5. VALIDATION DU PARCOURS APRÈS B1 (banc d'essai isolé)</h2>
+<p><b>Méthode</b> : worktree <code>/tmp/proof_b1</code>, correctif candidat ligne 1243 = <code>const img=(has&amp;&amp;nlLocal(idx))||lookFile(p)||refThumb();</code>, <code>node --check</code> OK, démonstration <code>tools/_proof_b1.js</code> sur le <b>vrai</b> <code>ui/router.js</code>, puis suppression du worktree.</p>
+<p><b>Résultats <code>_proof_b1.js</code> (6/6) :</b></p>
+<table>
+<tr><th>Cas</th><th>Entrées</th><th>AVANT</th><th>APRÈS</th></tr>
+<tr><td>1 (reprise, URL expirée)</td><td>has=1, nlLocal=null, look=/look</td><td><b>TEXTE</b> (B1)</td><td><b>MÉDIA</b> ✅</td></tr>
+<tr><td>2 (image résout)</td><td>has=1, nlLocal=/real</td><td>MÉDIA</td><td>MÉDIA (identique)</td></tr>
+<tr><td>3 (pas d'image)</td><td>has=0</td><td>MÉDIA (look/réf)</td><td>identique</td></tr>
+<tr><td>4 (<b>B1.1</b>, tout null)</td><td>has=1, tout null</td><td>TEXTE</td><td><b>TEXTE (non couvert)</b></td></tr>
+</table>
+<p><b>Ce que le correctif B1 (seul) garantit</b> : à l'étape IMAGE, <b>plus de repli texte ni de nouveau bloc</b> dès qu'un look OU une réf existe (cas réel courant) → l'image/édition/retour/reprise/nav restent <b>dans le bloc média</b>. <i>Nuance honnête</i> : si l'URL générée a expiré, la vignette montrée sera le <b>look/réf de repli</b>, pas l'image réelle (problème de <b>stockage persistant</b>, E59/E94, distinct de B1).</p>
+<p><b>B1.1 / B1.2 / B1.3 — autres manifestations du MÊME défaut (recherche active) :</b></p>
+<ul><li><b>B1.1</b> (démontré, Cas 4) : <code>has&gt;0</code> + <code>lookFile=null</code> + <code>refThumb=null</code> (aucune réf + thumbnail KO) → toujours TEXTE. Le fix ligne 1243 ne le couvre pas.</li><li><b>B1.2</b> (déduit du code) : <b>toutes</b> les vues média font <code>image: X || refThumb()</code> ; <code>refThumb()→nlCover()</code> peut renvoyer <code>null</code> (pas de réf + <code>ffmpeg</code>/<code>sips</code> échoue) → même repli texte dans <code>photoLookView</code>, <code>photoRefView</code>, <code>videoSourceView</code>, etc. <i>Confiance MOYENNE (non observé en live).</i> </li><li><b>B1.3</b> (déduit) : <code>route()</code> n'offre <b>aucun fallback média</b> → c'est le point unique où la garantie devrait vivre. ⇒ <b>fix robuste = au niveau du routeur</b> (placeholder média si <code>out.image</code> falsy sur un module média) <b>+ un résolveur d'image garanti non-null</b>, plutôt que de patcher chaque vue.</li></ul>
+<p><b>Non-régression :</b></p>
+<ul><li>Suites auto-portées (sans JSON runtime) sur la branche : <code>photo_ws 6/6</code>, <code>video_ws 7/7</code>, <code>photo_l0_2a 20/20</code> — <b>vertes avec le fix</b>.</li><li><code>nodup/stalefix/gallery/nbphotos</code> ont KO/aucune sortie <b>dans le worktree</b> → <b>contrôle SANS le fix = KO identiques</b> ⇒ <b>environnemental</b> (checkout neuf sans <code>lookbook.json</code>/<code>results_bloc.json</code>/<code>state.json</code>), <b>pas causé par B1</b>.</li><li><b>Baseline prod (avec données runtime) : <code>nodup 16 · feedback 15 · gallery 7 · nbphotos 7 · stalefix 8</code> — toutes vertes</b>, prod jamais modifiée.</li></ul>
+<h2>6. ESTIMATION DU GAIN RÉEL (B1 corrigé SEUL)</h2>
+<ul><li><b>Frontières qui disparaissent</b> : <b>0 / 18</b> (B1 n'est pas une frontière).</li><li><b>Frontières qui restent</b> : <b>18 / 18</b>.</li><li><b>Frontières qui deviennent enfin TESTABLES (démasquées)</b> : <b>F2, F3</b> (chemin génération workspace <code>PL_GEN→runNewLook</code> enfin atteignable) — soit <b>2</b>.</li><li><b>Scénarios de validation débloqués (sur 38)</b> : <b>#5, #6</b> (génération image <b>dans le workspace</b> au lieu du legacy), <b>#8, #9</b> (retour/reprise sur IMAGE rendus en média) → <b>4 scénarios</b> passent de FAIL/forced-legacy à testables/PASS. Indirectement, <b>#7</b> (édition après génération) devient atteignable proprement → jusqu'à <b>5</b>.</li><li><b>Reste bloqué</b> : tout F1–F18 (cockpit, Studio, moteur, export) ; <b>B1.1/B1.2</b> (cas tout-null) ; l'<b>image réelle expirée</b> (stockage E59/E94).</li></ul>
+<h3>CONCLUSION EXPLICITE</h3>
+<ul><li><b>B1 est-il cause racine ou symptôme ?</b> → <b>SYMPTÔME</b> de <b>MC2</b> (le routeur/les vues média n'assurent pas un rendu média garanti) — et secondairement de la dette de <b>stockage</b> (URLs distantes expirées, E59/E94). Le « 1 ligne » <b>arrête l'hémorragie</b> sur le cas observé (bloc unique restauré pour #5/#8/#9) <b>mais ne traite pas la classe</b> (B1.1/B1.2). <i>Confiance : ÉLEVÉE.</i></li><li><b>Les frontières sont-elles regroupables ?</b> → <b>OUI</b>, autour de <b>MC1</b> (rendu hors routeur — quasi toutes les F), <b>MC2</b> (rendu média non garanti — B1 &amp; cie), <b>MC3</b> (deux moteurs). ⇒ <b>Traiter les causes architecturales</b> (autorité de rendu unique + résolveur média garanti + moteur piloté par <code>proj</code>) est plus efficace que 18 correctifs séparés. <i>Confiance : ÉLEVÉE.</i></li><li><b>Recommandation de méthode (non figée)</b> : (a) corriger B1 <b>au niveau du routeur + résolveur garanti</b> (couvre B1/B1.1/B1.2 d'un coup, MC2) plutôt qu'une ligne locale ; (b) puis attaquer MC1 par le patron « un module routeur par écran » ; (c) MC3 (moteur sur <code>proj</code>) en Phase 4. <i>Aucune exécution ici.</i></li></ul>
+<table>
+<tr><th>Conclusion</th><th>Confiance</th></tr>
+<tr><td>B1 reproduit + corrigé en isolation (TEXTE→MÉDIA)</td><td><b>ÉLEVÉE</b></td></tr>
+<tr><td>B1 = symptôme de MC2 (pas cause racine ultime)</td><td><b>ÉLEVÉE</b></td></tr>
+<tr><td>B1.1 résiduel (cas tout-null)</td><td><b>ÉLEVÉE</b> (démontré)</td></tr>
+<tr><td>B1.2 latent (autres vues média)</td><td><b>MOYENNE</b> (déduit)</td></tr>
+<tr><td>Regroupement F1–F18 ↦ MC1/MC2/MC3</td><td><b>ÉLEVÉE</b></td></tr>
+<tr><td>MC3 « force » le repli legacy</td><td><b>MOYENNE</b> (1 run réel)</td></tr>
+<tr><td>Gain chiffré (≈4–5 scénarios débloqués, 0 frontière supprimée)</td><td><b>ÉLEVÉE</b></td></tr>
+</table>
+<hr>
+<h2>INTÉGRITÉ DU BANC D'ESSAI (confirmation finale)</h2>
+<ul><li><b>main/prod intacte</b> : branche <code>claude/remote-control-V3blj @ 4db50c0</code>, <b>aucun fichier produit modifié</b> (<code>git status</code> : seuls des backups <code>.pre*</code> préexistants non suivis).</li><li><b>Branche de preuve <code>proof/b1</code> : SUPPRIMÉE, non mergée.</b> Worktree <code>/tmp/proof_b1</code> : <b>retiré.</b></li><li><b>Bot non redémarré avec le changement</b> (PID en cours inchangé par cette analyse).</li><li><b>Aucune dépense, aucune génération.</b></li></ul>
+<p>_Analyse + démonstration isolée — 2026-06-10. Roadmap PROVISOIRE ; arbitrage à Etoile._</p></body></html>

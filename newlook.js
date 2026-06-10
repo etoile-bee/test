@@ -15,6 +15,14 @@ function refsDir(){ /*newlook v4 : priorite au dossier references/imany (LA refe
   try{if(fs.readdirSync(im).some(f=>/\.(jpg|jpeg|png|webp)$/i.test(f)))return im;}catch(e){}
   return path.join(looksDir(),'references');
 }
+function pickRefFile(){ /*[p2] BLINDAGE : priorite ABSOLUE a un fichier nomme imany_reference.* (dans imany/ ou parent), le PLUS RECENT ; sinon la photo la plus recente*/
+  const roots=[path.join(looksDir(),'references','imany'),path.join(looksDir(),'references')];
+  const cands=[];
+  for(const r of roots){try{for(const x of fs.readdirSync(r)){if(/\.(jpg|jpeg|png|webp)$/i.test(x)){const fp=path.join(r,x);let m=0;try{m=fs.statSync(fp).mtimeMs;}catch(e){}cands.push({fp,x,m});}}}catch(e){}}
+  if(!cands.length)return null;
+  const named=cands.filter(c=>/^imany_reference\.(jpe?g|png|webp)$/i.test(c.x)).sort((a,b)=>b.m-a.m); /*nom EXACT (un backup imany_reference_xxx ne capte pas la priorité)*/
+  return (named[0]||cands.sort((a,b)=>b.m-a.m)[0]).fp;
+}
 
 function getClient(){
   const {HiggsfieldClient}=require('@higgsfield/client');
@@ -81,9 +89,9 @@ function buildPrompt(lb,opts){
   const env=lb.envs[opts.env]||lb.envs.bougies;
   /*v6 : mode planche = UNE image contenant 3 poses du MEME look (sinon : un portrait par image)*/
   const pose=opts.mode==='planche'
-    ?'One single image laid out as an editorial podcast contact sheet (mixed grid): several frames of the SAME woman in the SAME outfit, same accessories, same makeup, same hairstyle — MIX wide seated shots at the microphone (podcast ambiance, set visible) AND tighter chest-up close-ups, varied natural poses and head angles. Real podcast studio atmosphere in every frame. No text, no typography, thin frame separations only.'
-    :lb.pose_rules;
-  return defaultPrompt()
+    ?'One single vertical 9:16 image divided into EXACTLY THREE equal horizontal frames stacked top, middle and bottom, like a clean fashion contact sheet. The SAME woman in all three frames — identical outfit, accessories, makeup, hairstyle, studio, decor and lighting — but a DIFFERENT camera angle, pose AND facial expression in each frame (frame 1: facing the camera, chest-up; frame 2: side profile speaking into the microphone; frame 3: three-quarter view). EXACTLY ONE woman per frame, ONE single face per frame. Consistent chest-up framing scale across the three frames (no wide-vs-extreme-closeup mismatch). Thin, even separator lines between the three frames. NO inset, NO picture-in-picture, NO thumbnail, NO second face, NO duplicated small portrait, NO collage, NO irregular grid, NO text, no typography.'
+    :(lb.pose_rules+' EXACTLY ONE person, one single face in frame, NO second person, NO duplicate, NO inset/picture-in-picture/thumbnail/framed portrait-within-portrait, NO split screen, NO collage, no text.'); /*[négatif single-subject éco, validé Etoile]*/
+  return ((opts.basePrompt&&String(opts.basePrompt).trim())?String(opts.basePrompt).trim():defaultPrompt()) /*[L0-2a-ter] prompt utilisateur (slice du brouillon) sinon prompt par défaut newlook_prompt.txt*/
     +'\n\nOutfit: '+(opts.extra?opts.extra:(cat?cat.prompt:'Invent an elegant outfit.'))
     +'\n'+lb.style_rules
     +'\n'+(lb.texture_rules||'')
@@ -96,9 +104,10 @@ function buildPrompt(lb,opts){
 let _refUrl=null;
 async function getRefUrl(client,log){
   if(_refUrl)return _refUrl;
-  const dir=refsDir();
-  const f=fs.readdirSync(dir).filter(x=>/\.(jpg|jpeg|png|webp)$/i.test(x))[0];
-  if(!f)throw new Error('aucune photo dans looks/references/imany/');
+  const refAbs=pickRefFile(); /*[p2] priorite imany_reference.* trie par date*/
+  if(!refAbs)throw new Error('aucune photo dans looks/references/ (ni imany/)');
+  const dir=path.dirname(refAbs);const f=path.basename(refAbs);
+  log('reference : '+f);
   const tmp='/tmp/sdref_'+Date.now()+'.jpg';
   try{require('child_process').execSync('sips -Z 1536 -s format jpeg "'+path.join(dir,f)+'" --out "'+tmp+'" 2>/dev/null || ffmpeg -y -i "'+path.join(dir,f)+'" -vf scale=1536:-2 -q:v 2 "'+tmp+'" 2>/dev/null');}catch(e){}
   const buf=fs.readFileSync(fs.existsSync(tmp)?tmp:path.join(dir,f));
@@ -124,7 +133,7 @@ async function generateLook(opts,log){
   const client=getClient();
   if(!lb.categories[opts.category]&&!opts.extra&&opts.category!=='random')opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
-  const mode=opts.mode||'planche';
+  const mode=opts.mode||'eco'; /*[fix] défaut = ÉCO (un seul sujet) ; la planche (multi-angles) ne se déclenche QUE si explicitement choisie*/
   const refUrl=await getRefUrl(client,log);
   /*v9 FINAL : /v1/text2image/seedream (schema revele par sonde : params.prompt + params.input_images) — meme client v1 que Kling/Soul*/
   log('moteur : seedream (/v1, reference imany)');
@@ -132,7 +141,7 @@ async function generateLook(opts,log){
     prompt:prompt,
     input_images:[{type:'image_url',image_url:refUrl}],
     aspect_ratio:'9:16',
-    batch_size:mode==='hd'?4:1
+    batch_size:mode==='hd'?4:(mode==='planche'?1:Math.max(1,Math.min(6,+opts.count||1))) /*[C] éco : N images séparées (planche=1 multi-angles, hd=4)*/
   };
   let jobSet=null,lastErr=null;
   try{
@@ -204,7 +213,8 @@ async function splitPlanche(url){
   const files=[];
   for(let i=0;i<3;i++){
     const out='/tmp/pose'+Date.now()+'_'+(i+1)+'.jpg';
-    cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=iw:ih/3:0:'+(i===0?'0':'ih*'+i+'/3')+'" -q:v 2 "'+out+'" 2>/dev/null');
+    /*[B 9:16] chaque case recadrée en 9:16 NATIF (colonne centrale de la bande) puis normalisée 720x1280 — fini les bandes paysage*/
+    cp.execSync('ffmpeg -y -i "'+src+'" -vf "crop=ih*3/16:ih/3:(iw-ih*3/16)/2:'+(i===0?'0':'ih*'+i+'/3')+',scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,setsar=1" -q:v 2 "'+out+'" 2>/dev/null');
     if(fs.existsSync(out)&&fs.statSync(out).size>3000)files.push(out);
   }
   if(files.length<3)throw new Error('decoupage incomplet ('+files.length+'/3)');

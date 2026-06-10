@@ -1,5 +1,8 @@
 # Reprendre CETTE session (podcast-bot) et suivre le code en direct
 
+> 🛡 **AVANT TOUT DEV : appliquer E117 (garde-fou architecture amont) + E116 (grille cohérence).**
+> E117 = valider EN AMONT contre l'architecture cible, les audits, les règles E105–E116, les retours réels, le parcours complet PHOTO→…→Export + mode auto + objectif TikTok ; conflit ⇒ signaler la règle avant de coder. E116 = grille des 9 questions, 100% OUI avant « prêt à tester ». Réf. `docs/EXIGENCES.md`.
+
 ## ⚠️ Cette conversation = 2 moitiés (compactée en cours de route)
 La session a démarré (« créer le rendu ffmpeg 100% local »), puis a été compactée et a CONTINUÉ
 dans un nouveau fichier. Pour la reprendre et continuer, c'est la **moitié vivante** qu'il faut.

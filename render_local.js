@@ -308,7 +308,14 @@ async function renderLocal(opts) {
   const music = Object.assign({}, fx.music, opts.music || {});
   const zoomCfg = Object.assign({}, fx.zoom, opts.zoomCfg || {});
   if (opts.zoom != null) zoomCfg.base = +opts.zoom; // surcharge directe (la base vit dans style.json zoom.base)
-  const colorFilter = buildColorFilter(img);
+  // [zoom-still] Une IMAGE fixe (look) NE DOIT PAS être sur-zoomée/recadrée : on garde la composition 9:16 pleine.
+  // Le zoom dynamique (mouvement) ne sert que sur la VRAIE vidéo lipsync. Surchargable via opts.zoomCfg/opts.zoom.
+  const _isImageInput = /\.(jpg|jpeg|png|webp)$/i.test(String(input));
+  if (_isImageInput && opts.zoomCfg == null && opts.zoom == null) { zoomCfg.on = 0; zoomCfg.base = 1.0; }
+  let colorFilter = buildColorFilter(img);
+  // [B image-intacte] Une IMAGE fixe (look/photo) NE reçoit AUCUN grading couleur : elle reste telle quelle (+ sous-titres).
+  // Le grading (dé-jaune V5 / réglages) ne s'applique qu'à la vraie vidéo lipsync (footage Kling). Surchargable via opts.image.
+  if (_isImageInput && opts.image == null) colorFilter = '';
 
   const wt = normTimings(wordTimings);
 

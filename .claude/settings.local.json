@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(exit 1)",
+      "Bash(git branch *)",
+      "Bash(git checkout *)",
+      "Bash(git push *)",
+      "Bash(git fetch *)",
+      "Bash(git merge *)",
+      "Bash(git add *)",
+      "Bash(git commit -m 'test: ping live round-trip depuis la session locale Mac *)",
+      "Bash(command -v jq)",
+      "Bash(ps -o etime= -p 53991)",
+      "Bash(timeout 25 tail -f /Users/fayrouzn/podcast-workflow/bot_journal.log)",
+      "Bash(awk '{print $2, $9, $11, $12}')"
+    ]
+  }
+}
