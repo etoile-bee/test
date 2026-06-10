@@ -106,6 +106,13 @@ function createController(deps) {
     ui.picker = null; if (returnStep) ui.step = returnStep; return { render: render() };
   }
 
+  // Applique une valeur de ZONE (via le store) + impact aval E115 ; reste sur le picker de la zone sinon.
+  function applyZone(zoneKey, patch) {
+    S.setZone(base, persona, ui.projectId, zoneKey, patch, nowv());
+    if (FLOW.changeImpactsDownstream(manifest(), zoneKey)) { ui.pendingSlice = zoneKey; ui.step = 'impact'; return { render: impactView(zoneKey) }; }
+    ui.step = 'picker'; return { render: render(), notice: '✅ ' + zoneKey + ' mis à jour' };
+  }
+
   function renderStep() {
     const m = manifest() || {};
     if (ui.step === 'source' && m.image_candidates && m.image_candidates.length) {
@@ -125,7 +132,8 @@ function createController(deps) {
     if (ui.step === 'pretaposter') return LIB.pretAPoster(S.viewPretAPoster(base, persona));
     if (ui.step === 'lib') return LIB.grid(ui.libKey, libItems(ui.libKey), ui.libPage);
     if (ui.step === 'libdetail') { const it = libItems(ui.libKey)[ui.candIdx] || {}; return LIB.detail(ui.libKey, ui.candIdx, it); }
-    if (ui.step === 'picker') return pickerView(ui.picker, manifest());
+    if (ui.step === 'picker') { return (S.ZONES && S.ZONES.indexOf(ui.picker) >= 0) ? VIEW.viewZonePicker(ui.picker, manifest(), libZoneOptions(ui.picker)) : pickerView(ui.picker, manifest()); }
+    if (ui.step === 'zonehist') return VIEW.viewZoneHistory(ui.picker, manifest());
     if (ui.step === 'impact') return impactView();
     if (ui.step === 'confirm') return confirmView();
     if (ui.step === 'planche') return VIEW.viewPlanche(manifest());
@@ -137,8 +145,18 @@ function createController(deps) {
   }
 
   function pickerView(field, m) {
-    // picker focalisé in-bloc (1 décision) ; les options réelles viendront du câblage (lookbook/biblio).
-    return { media: FLOW.previewMedia(m), raw: true, caption: '✏️ <b>' + field + '</b> — choisis :', rows: [[{ text: '◀ Retour', cb: 'BACK' }]] };
+    if (field === 'nb') return { media: FLOW.previewMedia(m), raw: true, caption: '🔢 <b>Nombre d\'images</b>', rows: [[1, 2, 3, 4, 6].map(n => ({ text: '' + n, cb: 'NB_' + n })), [{ text: '◀ Retour', cb: 'BACK' }]] };
+    return { media: FLOW.previewMedia(m), raw: true, caption: '✏️ <b>' + field + '</b>', rows: [[{ text: '◀ Retour', cb: 'BACK' }]] };
+  }
+  // Options de réutilisation d'une zone depuis la bibliothèque persona (critère 4 : réutiliser).
+  function libZoneOptions(zoneKey) {
+    if (!LS) return [];
+    try {
+      if (zoneKey === 'decor') return LS.listDecors(base).map(d => ({ value: d.key, label: d.label }));
+      if (zoneKey === 'look') return LS.listLooks(base).map(f => ({ value: f, label: f.replace(/\.[a-z]+$/i, '') }));
+      if (zoneKey === 'prompt') return LS.listPrompts(base, persona).map(n => ({ value: n, label: n }));
+    } catch (e) {}
+    return [];
   }
 
   // ── DISPATCH ──
@@ -160,6 +178,7 @@ function createController(deps) {
       if (ui.step === 'impact') { ui.pendingSlice = null; ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render() }; }
       if (ui.step === 'imgedit' || ui.step === 'planche' || ui.step === 'cand_more') { ui.step = 'source'; return { render: render() }; }
       if (ui.step === 'versions' || ui.step === 'presets') { ui.step = 'parametres'; return { render: render() }; }
+      if (ui.step === 'zonehist') { ui.step = 'picker'; return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
       const p = FLOW.prevStep(ui.step);
       if (p) { ui.step = p; return { render: render() }; }
@@ -250,7 +269,23 @@ function createController(deps) {
     if (a === 'LIV_VID') { const m = manifest(); const cur = !(m.livrables_select && m.livrables_select.video === false); S.setLivrableSelect(base, persona, ui.projectId, 'video', !cur, nowv()); return { render: render() }; }
 
     // Paramètres : ouvrir un picker focalisé (1 décision) — pas de surcharge
-    if (a.indexOf('P_') === 0) { ui.picker = a.slice(2).toLowerCase(); ui.step = 'picker'; return { render: render() }; }
+    if (a.indexOf('P_') === 0) {
+      const f = a.slice(2).toLowerCase();
+      const zmap = { ref: 'reference', tenue: 'look', decor: 'decor', prompt: 'prompt' };
+      ui.picker = zmap[f] || f; ui.step = 'picker'; return { render: render() };
+    }
+    // ── ZONES créatives (critères 2/3/4) : verrou · réutilisation · création · enregistrement · historique ──
+    if (a.indexOf('ZLOCK_') === 0) { const z = a.slice(6); const cur = (manifest().zones[z] || {}).locked; S.lockZone(base, persona, ui.projectId, z, !cur, nowv()); return { render: render(), notice: !cur ? '🔒 Zone verrouillée' : '🔓 Déverrouillée' }; }
+    if (a.indexOf('ZPICK_') === 0) { const parts = a.split('_'); const z = parts[1]; const i = parseInt(parts[2], 10) || 0; const opt = libZoneOptions(z)[i]; if (opt) return applyZone(z, { value: opt.value, label: opt.label }); return { render: render() }; }
+    if (a.indexOf('ZHIST_') === 0) { ui.picker = a.slice(6); ui.step = 'zonehist'; return { render: render() }; }
+    if (a.indexOf('ZREST_') === 0) { const parts = a.split('_'); const z = parts[1]; const i = parseInt(parts[2], 10) || 0; const h = ((manifest().zones[z] || {}).history || [])[((manifest().zones[z] || {}).history || []).length - 6 + i] || (manifest().zones[z].history || [])[i]; if (h) return applyZone(z, { value: h.value, label: h.label, prompt: h.prompt, ref_image: h.ref_image }); ui.step = 'picker'; return { render: render() }; }
+    if (a.indexOf('ZSAVE_') === 0) {
+      const z = a.slice(6); const zo = manifest().zones[z] || {};
+      if (LS && z === 'prompt') LS.savePrompt(base, persona, zo.label || 'prompt', zo.prompt || zo.value || '');
+      else if (LS && z === 'decor') LS.addDecor(base, zo.value || zo.label || 'decor', { label: zo.label || zo.value });
+      return { render: render(), notice: '💾 Enregistré en bibliothèque' };
+    }
+    if (a.indexOf('ZCREATE_') === 0) { return { render: render(), notice: '➕ Créer : saisis la valeur (branché au câblage saisie)' }; }
     // Application d'une valeur de picker : SET_<champ>=<valeur> -> écrit le manifest (amont) + impact E115 éventuel
     if (a.indexOf('SET_') === 0) {
       const body = a.slice(4); const eq = body.indexOf('='); const field = (eq >= 0 ? body.slice(0, eq) : body).toLowerCase(); const val = eq >= 0 ? body.slice(eq + 1) : '';

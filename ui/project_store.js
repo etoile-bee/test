@@ -58,6 +58,13 @@ function defaultManifest(persona, projectId, ts) {
     historique_versions: [],         // E93.3 — JOURNAL d'actions [{ ts, etape, action, ref }]
     versions: [],                    // Q4 — SNAPSHOTS RESTAURABLES [{ id, ts, label, media_ref, params_snapshot }]
     livrables_dossiers: [],          // E125 — DOSSIERS LIVRABLES autonomes (tout le nécessaire à la publication)
+    // Couche créative — 4 ZONES indépendantes : chacune {value,label,ref_image,prompt,locked,history} (critères 2/3/4)
+    zones: {
+      reference: { value: null, label: null, ref_image: null, prompt: null, locked: false, history: [] },
+      look:      { value: null, label: null, ref_image: null, prompt: null, locked: false, history: [] },
+      decor:     { value: null, label: null, ref_image: null, prompt: null, locked: false, history: [] },
+      prompt:    { value: null, label: null, ref_image: null, prompt: null, locked: false, history: [] },
+    },
   };
 }
 
@@ -134,6 +141,29 @@ function setLivrable(base, persona, projectId, kind, rel, ts) {
   m.livrables = m.livrables || { image: null, video: null }; if (kind === 'image' || kind === 'video') m.livrables[kind] = rel;
   return saveManifest(base, persona, projectId, m, ts);
 }
+// ── ZONES créatives (critères 2/3/4) : réf/look/décor/prompt indépendantes, chacune avec verrou + historique ──
+const ZONES = ['reference', 'look', 'decor', 'prompt'];
+function ensureZones(m) { m.zones = m.zones || {}; ZONES.forEach(z => { m.zones[z] = m.zones[z] || { value: null, label: null, ref_image: null, prompt: null, locked: false, history: [] }; }); return m; }
+// Modifie une zone (value/label/ref_image/prompt) ; pousse l'ancienne valeur dans SON historique (jamais perdue).
+function setZone(base, persona, projectId, zoneKey, patch, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m || ZONES.indexOf(zoneKey) < 0) return null;
+  ensureZones(m); const z = m.zones[zoneKey];
+  if (patch && 'value' in patch && z.value != null && z.value !== patch.value) { z.history = z.history || []; z.history.push({ value: z.value, label: z.label, ref_image: z.ref_image, prompt: z.prompt, ts: iso(ts) }); }
+  Object.keys(patch || {}).forEach(k => { if (k !== 'history') z[k] = patch[k]; });
+  // miroir vers les champs « plats » utilisés ailleurs (rétro-compat hdr/params)
+  if (zoneKey === 'look') { m.look = m.look || {}; m.look.tenue = z.label || z.value || m.look.tenue; }
+  if (zoneKey === 'decor') { m.look = m.look || {}; m.look.decor = z.label || z.value || m.look.decor; }
+  if (zoneKey === 'reference') { m.reference = Object.assign({}, m.reference, { label: z.label || z.value }); }
+  if (zoneKey === 'prompt') { m.prompts = [{ role: 'image', name: z.label || 'perso', text: z.prompt || z.value || '' }]; }
+  return saveManifest(base, persona, projectId, m, ts);
+}
+function lockZone(base, persona, projectId, zoneKey, on, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m || ZONES.indexOf(zoneKey) < 0) return null;
+  ensureZones(m); m.zones[zoneKey].locked = !!on; return saveManifest(base, persona, projectId, m, ts);
+}
+function zoneHistory(base, persona, projectId, zoneKey) { const m = loadManifest(base, persona, projectId); return (m && m.zones && m.zones[zoneKey] && m.zones[zoneKey].history) || []; }
+function lockedZones(m) { ensureZones(m); return ZONES.filter(z => m.zones[z].locked); }
+
 // E124 — réglages image PAR PROJET (jamais globaux). fx fusionné dans parametres.image_fx du projet ; aucune fuite.
 function setImageFx(base, persona, projectId, fx, ts) {
   const m = loadManifest(base, persona, projectId); if (!m) return null;
@@ -319,6 +349,7 @@ module.exports = {
   createProject, loadManifest, saveManifest,
   addVersion, importFile, setActiveMedia, activeMediaAbs,
   setImageOutcome, setLivrable, setLivrableSelect, setImageFx, setCrop,
+  ZONES, setZone, lockZone, zoneHistory, lockedZones,
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   setGenStatus, publish, isLocalMedia, projectSurvit,
   snapshotVersion, listVersions, restoreVersion,

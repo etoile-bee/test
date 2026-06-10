@@ -134,6 +134,32 @@ function viewFinaliser(flow, m) {
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows.concat(actionBar(flow, 'finaliser', m)) };
 }
 
+// Critères 2/4 — PICKER DE ZONE (réf/look/décor/prompt) : valeur courante · verrou · CRUD · réutilisation · historique.
+const ZONE_META = { reference: { emoji: '🎯', nom: 'Référence' }, look: { emoji: '👗', nom: 'Look' }, decor: { emoji: '🌆', nom: 'Décor' }, prompt: { emoji: '✍️', nom: 'Prompt' } };
+function viewZonePicker(zoneKey, m, options) {
+  const meta = ZONE_META[zoneKey] || { emoji: '•', nom: zoneKey };
+  const z = (m && m.zones && m.zones[zoneKey]) || { value: null, locked: false, history: [] };
+  options = options || [];
+  const cap = hdr(m) + '\n' + meta.emoji + ' <b>' + meta.nom + '</b> : ' + short(z.label || z.value || '—', 24) + (z.locked ? ' 🔒' : '')
+    + '\n<i>Choisis, crée, enregistre ou réutilise. Le verrou conserve cette zone quand tu régénères.</i>';
+  const rows = [];
+  rows.push([{ text: z.locked ? '🔓 Déverrouiller' : '🔒 Verrouiller', cb: 'ZLOCK_' + zoneKey }]);
+  for (let i = 0; i < Math.min(6, options.length); i += 2) {
+    rows.push(options.slice(i, i + 2).map((o, j) => ({ text: '↪ ' + short(o.label || o, 16), cb: 'ZPICK_' + zoneKey + '_' + (i + j) })));
+  }
+  rows.push([{ text: '➕ Créer', cb: 'ZCREATE_' + zoneKey }, { text: '💾 Enregistrer', cb: 'ZSAVE_' + zoneKey }]);
+  if ((z.history || []).length) rows.push([{ text: '🕘 Historique (' + z.history.length + ')', cb: 'ZHIST_' + zoneKey }]);
+  rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+  return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows };
+}
+function viewZoneHistory(zoneKey, m) {
+  const meta = ZONE_META[zoneKey] || { emoji: '•', nom: zoneKey };
+  const z = (m && m.zones && m.zones[zoneKey]) || { history: [] };
+  const rows = (z.history || []).slice(-6).map((h, i) => [{ text: '↩️ ' + short(h.label || h.value, 22), cb: 'ZREST_' + zoneKey + '_' + i }]);
+  rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+  return { media: FLOW.previewMedia(m), raw: true, caption: hdr(m) + '\n🕘 <b>Historique ' + meta.nom + '</b>\n<i>Restaurer une valeur précédente.</i>', rows: rows };
+}
+
 // Critère 1 — « Plus d'options » du candidat : actions secondaires DÉCOUPLÉES, avec impact explicite.
 function viewCandMore(m) {
   return {
@@ -189,4 +215,4 @@ function view(flow, step, m) {
   return home();
 }
 
-module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, actionBar, hdr };
+module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, viewZonePicker, viewZoneHistory, actionBar, hdr };
