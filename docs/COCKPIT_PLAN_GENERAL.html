@@ -1,0 +1,106 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>COCKPIT — PLAN GÉNÉRAL (la structure d'ensemble)</h1>
+<blockquote><strong>Statut : architecture concrète, niveau PLAN GÉNÉRAL (convergence).</strong> Répond <strong>uniquement</strong> aux 10</blockquote>
+<blockquote>questions de structure : <strong>où vit quoi, comment c'est organisé d'ensemble</strong>. <strong>Pas</strong> d'écrans détaillés,</blockquote>
+<blockquote><strong>pas</strong> de catalogue de commandes, <strong>pas</strong> d'implémentation. Dérivé du <strong>modèle consolidé v2</strong>, des **15</blockquote>
+<blockquote>invariants** et de la réalité du cockpit consolidé. Live intact · fichiers verrouillés intacts · aucune</blockquote>
+<blockquote>dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Traçabilité (<code>E127</code>)</strong> : ① Intention · ② Cohérence · ③ Mémoire · ④ Capitalisation · ⑤ Confiance ·</blockquote>
+<blockquote>⑥ Contrôle · INV-1…15.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Deux principes de structure qui gouvernent toutes les réponses :</strong></blockquote>
+<blockquote>- <strong>Un seul espace vivant</strong> qui <strong>se transforme en place</strong> — jamais un empilement d'écrans. <em>(INV-9/10)</em></blockquote>
+<blockquote>- <strong>Le dossier-projet = la source de vérité.</strong> Tout ce qui est montré <strong>en dérive</strong> ; rien dans</blockquote>
+<blockquote>  l'affichage ne « détient » l'état. <em>(INV-10)</em></blockquote>
+<hr>
+<h2>1. L'ESPACE PRINCIPAL dans lequel l'utilisateur vit et pilote</h2>
+<p><strong>Un espace unique : le projet lui-même.</strong> C'est <strong>un seul lieu vivant</strong> qui <strong>se met à jour en place</strong> au</p>
+<p>fil du travail — on ne « passe pas d'un écran à un autre », <strong>le même espace se reconfigure</strong> selon ce qu'on</p>
+<p>fait. Derrière lui, <strong>le dossier-projet</strong> (la source de vérité) contient tout ; l'espace n'en est que la</p>
+<p><strong>présentation vivante</strong>.</p>
+<blockquote>Structure : 1 espace ↔ 1 projet ↔ 1 dossier. <em>(⑤⑥ · INV-9 survie · INV-10 source unique)</em></blockquote>
+<h2>2. Ce qui est VISIBLE EN PERMANENCE</h2>
+<p>Le <strong>socle constant</strong>, toujours présent en tête de l'espace, quel que soit le travail en cours :</p>
+<ul><li><strong>la boussole</strong> — l'intention en bref (message · émotion · public · destination) ;</li><li><strong>le nom et l'état</strong> du projet (en chantier / abouti / publié) ;</li><li><strong>les pièces actives</strong> — personnage employé, look/décor/ambiance en cours, <strong>avec leurs verrous</strong> ;</li><li><strong>le média actif</strong> (la source courante) ;</li><li><strong>les variantes</strong> (leur présence et leur accès) ;</li><li><strong>le livrable en préparation</strong> ;</li><li><strong>le repère de cohérence</strong> (sert-on encore l'intention ?).</li></ul>
+<blockquote>Structure : c'est le <strong>cadre permanent</strong> — il ne disparaît jamais sous une fonction. *(① boussole · ⑤</blockquote>
+<blockquote>lisibilité · ⑥ contrôle · INV-1/3/9)*</blockquote>
+<h2>3. Ce qui apparaît SEULEMENT QUAND C'EST UTILE</h2>
+<p>Le <strong>socle reste</strong> ; <strong>par-dessus</strong>, des éléments <strong>surgissent à la demande puis se retirent</strong>, rendant</p>
+<p>l'espace à son état permanent :</p>
+<ul><li>les <strong>bibliothèques / le capital</strong> (quand on veut réutiliser une brique) ;</li><li>les <strong>éditeurs</strong> (retouche d'image, réglages) ;</li><li>l'<strong>historique détaillé</strong> (décisions + raisons, versions) ;</li><li>la <strong>comparaison de variantes</strong> ;</li><li>la <strong>confirmation de coût</strong> (avant toute dépense) ;</li><li>le <strong>récap / contrôle final</strong> (au moment d'aboutir).</li></ul>
+<blockquote>Structure : <strong>permanent = le pilotage ; à la demande = les outils</strong>. Rien d'éphémère ne s'incruste.</blockquote>
+<blockquote><em>(⑤ contrat/lisibilité · ⑥ · INV-12 effet annoncé)</em></blockquote>
+<h2>4. Où vit l'INTENTION</h2>
+<p><strong>À deux endroits cohérents, une seule vérité :</strong></p>
+<ul><li><strong>dans le dossier-projet</strong>, comme <strong>objet composite</strong> (message·émotion·public·objectif + le <strong>déclencheur</strong></li></ul>
+<p>  d'origine) — c'est <strong>là qu'elle existe vraiment</strong> ;</p>
+<ul><li><strong>en tête de l'espace</strong>, comme <strong>boussole permanente</strong> — c'est sa <strong>présence</strong> constante.</li></ul>
+<p>La boussole affichée <strong>n'est qu'un reflet</strong> de l'intention du dossier (jamais une copie qui dériverait).</p>
+<blockquote>Structure : intention = <strong>composante-racine</strong> du projet, <strong>toujours visible</strong>. <em>(① · INV-1/10)</em></blockquote>
+<h2>5. Où vit la MÉMOIRE</h2>
+<p><strong>Dans le dossier-projet d'abord</strong> : décisions <strong>+ raisons</strong>, versions successives de l'intention, variantes</p>
+<p>essayées, versions du projet, livrables — <strong>tout y est conservé, rien n'est effacé</strong>. <strong>Au-dessus</strong>,</p>
+<p><strong>l'Historique</strong> est une <strong>vue dérivée</strong> : la lecture chronologique transverse de cette mémoire (et de tous</p>
+<p>les projets).</p>
+<blockquote>Structure : <strong>mémoire = dans le dossier (vérité)</strong> ; <strong>Historique = vue</strong> (pas un stock séparé). *(③ ·</blockquote>
+<blockquote>INV-5/8/10)*</blockquote>
+<h2>6. Où vit le CAPITAL (bibliothèques, briques réutilisables)</h2>
+<p><strong>Dans l'UNIVERS</strong>, <strong>à part de la production</strong> d'un projet. Les bibliothèques (looks, décors, ambiances,</p>
+<p>consignes, presets…) sont des <strong>briques-modèles</strong> du monde, <strong>séparées</strong> de ce qui se fabrique dans un</p>
+<p>projet. On les <strong>réutilise par copie</strong> : employer une brique dépose une <strong>instance appliquée</strong> (étanche)</p>
+<p>dans le projet — l'original n'est jamais touché, et le projet n'est jamais modifié rétroactivement.</p>
+<blockquote>Structure : <strong>capital = niveau Univers</strong> ; <strong>production = niveau Projet</strong> ; <strong>pont = la copie</strong>. *(④ ·</blockquote>
+<blockquote>INV-11/13/14)*</blockquote>
+<h2>7. Où vivent les VARIANTES</h2>
+<p><strong>Dans le projet, attachées au média produit</strong> — <strong>jamais</strong> dans une bibliothèque (ce ne sont pas des</p>
+<p>briques réutilisables : ce sont des <strong>états/alternatives</strong> du média de <strong>ce</strong> projet). Leur **présence et</p>
+<p>leur accès<strong> font partie du socle permanent (Q2) ; leur </strong>comparaison** apparaît à la demande (Q3).</p>
+<blockquote>Structure : variante = <strong>interne au projet</strong>, rattachée au <strong>Média produit</strong> (objet à états). *(⑥ ·</blockquote>
+<blockquote>INV-3/8)*</blockquote>
+<h2>8. Comment on passe d'une IMAGE à une VIDÉO sans changer d'outil</h2>
+<p><strong>On ne change pas d'outil : on reste dans le MÊME projet, dans le MÊME espace.</strong> L'image validée (le média</p>
+<p>retenu) <strong>devient la source de la vidéo</strong> — la continuité est <strong>naturelle</strong>, pas une bascule. « Photo » et</p>
+<p>« Vidéo » ne sont <strong>pas deux outils</strong> ni deux projets : ce sont **deux points d'entrée / deux livrables d'un</p>
+<p>seul moteur<strong>, sur </strong>un seul dossier-projet<strong>. L'intention, le personnage, les pièces actives </strong>restent les</p>
+<p>mêmes** ; seule la matière produite s'enrichit.</p>
+<blockquote>Structure : <strong>un moteur, un projet, plusieurs livrables</strong> (image / vidéo / les deux). *(① · INV-14 ·</blockquote>
+<blockquote>modèle A — un seul projet)*</blockquote>
+<h2>9. Comment on retrouve un PROJET TROIS MOIS PLUS TARD</h2>
+<p><strong>Par les Récents</strong> — une <strong>vue filtrée de l'Historique</strong> (pas un stock à part). Grâce à l'<strong>identité stable</strong></p>
+<p>du projet (préservée dans le temps et à travers toute migration), on <strong>rouvre le dossier-projet</strong> et on</p>
+<p><strong>retombe exactement où on en était</strong> : le média actif, les variantes, l'état — <strong>plus</strong> l'<strong>intention</strong> (et</p>
+<p>comment elle a mûri) <strong>et</strong> les <strong>décisions avec leur pourquoi</strong>. Le projet <strong>se réexplique tout seul</strong>.</p>
+<blockquote>Structure : <strong>Récents/Historique = vues</strong> d'un magasin unique ; <strong>reprise = réouverture du dossier</strong>.</blockquote>
+<blockquote><em>(③ · M18 identité stable · INV-9 reprise exacte · INV-5/10)</em></blockquote>
+<h2>10. Le PARCOURS GLOBAL, VU D'EN HAUT</h2>
+<p>Un seul <strong>circuit</strong>, qui <strong>boucle</strong> :</p>
+<pre><code>        ┌──────────────────────── UNIVERS (le monde : capital, règles, personnages) ───────────────────────┐
+        │                                                                                                   │
+        │   ENTRÉE                ESPACE VIVANT DU PROJET                 FINALISATION         PUBLICATION   │
+        │  (Photo / Vidéo  ─▶  [ boussole · état · pièces · média actif ·  ─▶  version retenue  ─▶  publier  │
+        │   = points d'entrée     variantes · cohérence ] (se transforme       → livrable           (seul    │
+        │   d'UN SEUL moteur)      en place : produire/juger/décider/            autonome →          acte     │
+        │                          revenir/mûrir l'intention)                   prêt-à-poster)      définitif)│
+        │                                                                                              │      │
+        └──────────────  RETOUR : Récents / Historique (vues) ◀── la mémoire reste, le capital grandit ◀─────┘
+                                          │
+                                          └─▶ (un publié peut devenir un nouveau déclencheur → la boucle repart)</code></pre>
+<ul><li><strong>Univers</strong> = le sol persistant (capital, règles, personnages) d'où <strong>part</strong> chaque projet et où il</li></ul>
+<p>  <strong>revient enrichi</strong>.</p>
+<ul><li><strong>Entrée</strong> = Photo/Vidéo, <strong>points d'entrée d'un seul moteur</strong> (jamais deux outils).</li><li><strong>Espace vivant</strong> = le cœur (Q1-Q3), où tout se vit en place.</li><li><strong>Finalisation → Publication</strong> = version retenue → livrable autonome → prêt-à-poster → <strong>publier</strong> (seul</li></ul>
+<p>  acte irréversible, annoncé).</p>
+<ul><li><strong>Retour</strong> = Récents/Historique (vues), mémoire conservée, capital grandi ; **un publié peut relancer la</li></ul>
+<p>  boucle**.</p>
+<blockquote>Structure d'ensemble : <strong>Univers → entrée → espace-projet → finalisation → publication → retour → (boucle)</strong>.</blockquote>
+<blockquote><em>(tous piliers · INV-7 acte unique · INV-10 vues · INV-11/13/14 capital &amp; monde · INV-1 cap permanent)</em></blockquote>
+<hr>
+<h2>SYNTHÈSE DE STRUCTURE (où vit quoi, en une vue)</h2>
+<table><thead><tr><th>Élément</th><th>Où il vit</th><th>Permanent / à la demande</th><th>Pilier·INV</th></tr></thead><tbody><tr><td><strong>Intention</strong> (boussole)</td><td>dossier-projet + en tête de l'espace</td><td>permanent</td><td>① · INV-1</td></tr><tr><td><strong>Nom / état / pièces actives + verrous / média actif</strong></td><td>dossier-projet, socle de l'espace</td><td>permanent</td><td>⑤⑥ · INV-3/9</td></tr><tr><td><strong>Variantes</strong></td><td>dans le projet, attachées au média produit</td><td>accès permanent ; comparaison à la demande</td><td>⑥ · INV-3/8</td></tr><tr><td><strong>Livrable</strong></td><td>dans le projet</td><td>présence permanente ; récap à la demande</td><td>⑥③ · INV-9</td></tr><tr><td><strong>Repère de cohérence</strong></td><td>dérivé, en tête</td><td>permanent</td><td>② · INV-2</td></tr><tr><td><strong>Mémoire (décisions+raisons, versions)</strong></td><td>dossier-projet (vérité) ; Historique = vue</td><td>détail à la demande</td><td>③ · INV-5/8/10</td></tr><tr><td><strong>Capital (bibliothèques, briques)</strong></td><td>Univers, à part de la production</td><td>à la demande, réutilisé par copie</td><td>④ · INV-11/13/14</td></tr><tr><td><strong>Éditeurs / confirmation de coût / récap</strong></td><td>par-dessus l'espace</td><td>à la demande</td><td>⑤ · INV-12</td></tr><tr><td><strong>Récents / Historique</strong></td><td>vues filtrées d'un magasin unique</td><td>à la demande</td><td>③ · INV-10</td></tr></tbody></table>
+<hr>
+<h2>CE QUE CE PLAN EST / N'EST PAS</h2>
+<ul><li><strong>C'est</strong> la <strong>structure d'ensemble</strong> : où vivent les choses, ce qui est permanent vs à la demande, le</li></ul>
+<p>  circuit vu d'en haut.</p>
+<ul><li>Ce <strong>n'est pas</strong> : des écrans détaillés, un catalogue de commandes, ni de l'implémentation.</li><li>Il <strong>n'ajoute aucun objet ni couche</strong> (modèle v2 clos) ; il <strong>organise</strong> concrètement ce qui existe déjà.</li></ul>
+<hr>
+<p>_Plan général du cockpit — structure d'ensemble dérivée du modèle consolidé v2 et des 15 invariants (E127).</p>
+<p>Aucune implémentation, aucun écran détaillé, aucun nouvel objet. Live intact. Lecture seule._</p></body></html>
