@@ -48,9 +48,26 @@ projet**.
 
 ## 3. LA CRÉATION DE L'INTENTION COMPOSITE (la boussole)
 
-Le cœur de la naissance : la personne **pose son intention**, en **quatre composantes** —
-**message** (ce qu'elle veut dire), **émotion** (ce qu'elle veut faire ressentir), **public** (à qui),
-**objectif** (où et sous quelle contrainte : plateforme, format, durée).
+### 3.0 — Premier temps : capter le DÉCLENCHEUR (l'étincelle)
+Un projet ne naît presque jamais « à froid » : il naît d'un **déclencheur** — une **idée**, une **phrase**,
+un **sujet**, une **émotion**, un **commentaire**, une **vidéo vue ailleurs**, une **inspiration soudaine**.
+Le **tout premier geste** de la naissance est donc de **capter cette étincelle**, en **capture légère** :
+quelques mots, un sujet, une émotion, ou un lien — **ce qui a donné envie**.
+
+Puis **l'intention se construit autour** : à partir du déclencheur, la personne précise *ce qu'elle veut
+dire* (message), *faire ressentir* (émotion), *à qui* (public), *pour quelle destination* (objectif).
+
+Statut dans le modèle (sans rien rouvrir) : le **déclencheur = l'ORIGINE de l'intention**, capté comme une
+**composante de l'Intention composite (niveau 3)** — **pas un nouvel objet de 1er niveau** (le modèle v2
+reste clos). C'est la composante *« d'où vient cette intention »*.
+
+> Traçabilité : pilier ① (l'intention prend racine) + ③ (le déclencheur est une part du **pourquoi**) ·
+> INV-1. *Le déclencheur n'ajoute aucune couche : il enrichit l'Intention existante.*
+
+### 3.1 — L'intention, en quatre composantes
+La personne **pose son intention**, en **quatre composantes** — **message** (ce qu'elle veut dire),
+**émotion** (ce qu'elle veut faire ressentir), **public** (à qui), **objectif** (où et sous quelle
+contrainte : plateforme, format, durée) — **construites autour du déclencheur**.
 
 **Comment cela se crée concrètement :**
 - **Une capture légère, pas un formulaire lourd.** La personne **nomme** son intention en quelques mots,
@@ -85,6 +102,11 @@ s'interrompt à cet instant précis, **on le retrouve exactement** au prochain r
 
 Ce que la personne **perçoit** : elle n'a pas « un brouillon volatil qui peut s'évaporer » ; elle a **un
 projet réel**, déjà inscrit, dès sa première intention.
+
+**Le déclencheur entre en mémoire avec l'intention.** Dès la naissance, **l'étincelle d'origine est
+conservée** comme part du **pourquoi** du projet. Conséquence concrète : **des mois plus tard**, on
+retrouve non seulement *l'intention* (où on voulait aller) mais aussi *ce qui l'a déclenchée* (l'idée, la
+phrase, l'émotion, le lien qui a tout lancé).
 
 > Traçabilité : pilier ③ (mémoire) + ⑤ (confiance) · M18 (identité stable/préservée) · INV-9 (survie de
 > l'état complet) · INV-10 (le projet est la source de vérité). *Le contenu détaillé de la mémoire — les
@@ -140,8 +162,9 @@ ressources, réutilisables) de **ce qui appartient à ce projet** (les copies ap
 
 1. La personne est **dans un monde** (Univers) → ses acquis utiles sont **copiés** dans le nouveau projet
    *(autonome dès la copie)*. *(④ · INV-11/14)*
-2. Elle **pose son intention** en quelques mots (message·émotion·public·objectif), **esquissable**, qui
-   devient **la boussole présente**. *(① · INV-1)*
+2. Elle **capte le déclencheur** (l'étincelle : idée/phrase/sujet/émotion/lien) — origine de l'intention,
+   **conservé en mémoire** ; puis **l'intention se construit autour** (message·émotion·public·objectif),
+   **esquissable**, et devient **la boussole présente**. *(①③ · INV-1)*
 3. Elle **emploie un Personnage** → ses **instances** (référence/look/voix) sont **copiées**. *(④ · INV-11)*
 4. Le projet reçoit une **identité stable** et **entre aussitôt en mémoire** comme **brouillon**, déjà
    retrouvable. *(③ · M18 · INV-9)*
@@ -157,6 +180,11 @@ ressources, réutilisables) de **ce qui appartient à ce projet** (les copies ap
 - Il **n'introduit aucun nouvel objet ni couche** (le modèle v2 est clos) : il en **manifeste concrètement**
   la seule étape « naissance ».
 - Il **ne fixe aucune technologie** : la séquence décrite tient quelle que soit la forme future (INV-15).
+
+> **Méthode (note d'Etoile)** : le système **ne sera pas fragmenté** en chapitres indépendants. On ne
+> traite que **quelques grandes manifestations** (naissance, évolution, publication…) ; ensuite on
+> **réassemblera** le tout en **une vue globale unifiée et cohérente**. Ce sujet 1 est **une pièce** de ce
+> futur ensemble, pas une fin en soi.
 
 ---
 
