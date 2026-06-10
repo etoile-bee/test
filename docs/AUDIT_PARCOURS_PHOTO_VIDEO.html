@@ -80,3 +80,51 @@ SOURCE → PARAMÈTRES → APERÇU (gratuit) → [AJUSTER] → FINALISER → Pr�
 <blockquote>Items 1,2,7,8 = <b>dépense</b> (à lancer sur accord d'Etoile). Le reste = gratuit/live.</blockquote>
 <hr>
 <p>_Audit livré. Aucune correction tant qu'Etoile n'a pas validé le PARCOURS CIBLE (§6). — 2026-06-10_</p>
+<hr>
+<h1>ENRICHISSEMENT — verdict de fusion + à supprimer/déplacer + cible resserrée (2026-06-10)</h1>
+<blockquote>Critère central d'Etoile : <b>« Cette étape est-elle indispensable, ou fusionnable SANS perte de contrôle utilisateur ? »</b> Objectif assumé = <b>LE MOINS D'ÉCRANS POSSIBLE</b> (6 écrans évidents &gt; 12 parfaits qui ralentissent). Beaucoup d'écrans existent par <b>accumulation historique</b>, pas par nécessité.<br>Verdict par écran : <b>INDISPENSABLE</b> · <b>ABSORBABLE← (écran précédent)</b> · <b>ABSORBABLE→ (écran suivant)</b> · <b>CONTEXTUEL (pas une étape)</b>.</blockquote>
+<h2>PHOTO — verdict de fusion / à supprimer / à déplacer</h2>
+<table>
+<tr><th>Écran</th><th>Objectif</th><th>Verdict fusion</th><th>À SUPPRIMER</th><th>À DÉPLACER</th></tr>
+<tr><td><code>photo.look</code> (Look)</td><td>régler l'apparence</td><td><b>INDISPENSABLE</b> (= Paramètres) mais <b>éclater</b> : la <i>source</i> sort, le reste reste</td><td>jargon, redondances</td><td>sortir la <b>source</b> dans son écran (symétrie VIDÉO)</td></tr>
+<tr><td><code>photo.ref</code> (Référence)</td><td>voir/changer réf</td><td><b>ABSORBABLE←</b> dans Paramètres (ligne « Référence » + picker inline)</td><td>écran dédié</td><td>→ ligne de Paramètres</td></tr>
+<tr><td><code>photo.refgal</code> (Galerie réf)</td><td>choisir une réf</td><td><b>ABSORBABLE←</b> (picker inline)</td><td>écran dédié</td><td>→ picker dans Référence</td></tr>
+<tr><td><code>photo.lookgal</code> (Galerie look)</td><td>choisir un look</td><td><b>ABSORBABLE←</b> (picker inline) ou = écran Source</td><td>écran dédié</td><td>→ Source / picker</td></tr>
+<tr><td><code>photo.prompt</code> (Prompt)</td><td>éditer le prompt</td><td><b>ABSORBABLE←</b> dans Paramètres (ligne « Prompt »)</td><td>écran dédié</td><td>→ ligne de Paramètres</td></tr>
+<tr><td><code>photo.promptlib</code> (Biblio prompt)</td><td>réutiliser un prompt</td><td><b>ABSORBABLE←</b> (sous-action du Prompt) ou Studio</td><td>écran dédié</td><td>→ Studio (bibliothèque)</td></tr>
+<tr><td><code>photo.image</code> (Image)</td><td>aperçu + validation</td><td><b>INDISPENSABLE</b> (= Aperçu/Validation)</td><td>coût en double</td><td>—</td></tr>
+<tr><td><code>photo.propagate</code></td><td>impact d'une modif</td><td><b>CONTEXTUEL</b> (popup à la demande, pas une étape)</td><td>—</td><td>—</td></tr>
+</table>
+<h2>VIDÉO — verdict de fusion / à supprimer / à déplacer</h2>
+<table>
+<tr><th>Écran</th><th>Objectif</th><th>Verdict fusion</th><th>À SUPPRIMER</th><th>À DÉPLACER</th></tr>
+<tr><td><code>video.source</code> (Source)</td><td>choisir le média</td><td><b>INDISPENSABLE</b></td><td>—</td><td>—</td></tr>
+<tr><td><code>video.srcgal</code> (Galerie source)</td><td>choisir un look</td><td><b>ABSORBABLE←</b> (picker inline dans Source)</td><td>écran dédié</td><td>→ picker Source</td></tr>
+<tr><td><code>video.script</code> (Script)</td><td>définir le texte</td><td><b>INDISPENSABLE</b> (= Paramètres vidéo) ; <b>fusionner la DURÉE ici</b></td><td>—</td><td>durée + voix/style → ici</td></tr>
+<tr><td><code>video.scriptlib</code> (Biblio script)</td><td>réutiliser un script</td><td><b>ABSORBABLE←</b> (sous-action) ou Studio</td><td>écran dédié</td><td>→ Studio</td></tr>
+<tr><td><code>video.montage</code> (Montage)</td><td>régler le rendu</td><td><b>ABSORBABLE→</b> dans Aperçu/Finalisation (optionnel, pas obligatoire) ; jargon à retirer ; à enrichir si gardé</td><td>« Archivo Black 52px »</td><td>réglages → Ajuster (inline)</td></tr>
+<tr><td><code>video.legende</code> (Légende)</td><td>texte de publication</td><td><b>ABSORBABLE→</b> dans Finalisation (la légende fait partie du livrable)</td><td>écran dédié</td><td>→ Finalisation / Prêt-à-poster</td></tr>
+<tr><td><code>video.export</code> (Finalisation)</td><td>lancer Final HD</td><td><b>INDISPENSABLE</b> (mais doit devenir un <b>récap complet</b>)</td><td>—</td><td>absorber Légende</td></tr>
+</table>
+<h2>CIBLE RESSERRÉE §6bis — MINIMUM d'écrans, PHOTO ≡ VIDÉO</h2>
+<p><b>L'aperçu média étant TOUJOURS visible (vignette permanente), « Aperçu » n'est PAS un écran — c'est l'état du bloc.</b> D'où une grammaire à <b>3 écrans principaux</b>, identique aux deux entrées :</p>
+<pre><code>
+① SOURCE  →  ② PARAMÈTRES (média visible + tous réglages + Ajuster inline)  →  ③ FINALISER (récap + Lancer Final HD)  →  Prêt-à-poster
+</code></pre>
+<table>
+<tr><th>Temps</th><th>PHOTO</th><th>VIDÉO</th><th>Décision unique</th></tr>
+<tr><td>① SOURCE</td><td>Nouveau / Galerie / Upload</td><td>Image du projet / Galerie / Upload / Nouveau look</td><td>d'où on part</td></tr>
+<tr><td>② PARAMÈTRES (média visible)</td><td>référence · tenue · décor · prompt · nb/planche · format — <b>en lignes, pickers inline</b></td><td>script · durée · voix · style · montage(Ajuster inline)</td><td>régler (+ aperçu permanent)</td></tr>
+<tr><td>③ FINALISER</td><td>récap (réf·look·décor·prompt·nb·format·coût·crédits·mode) → <b>Lancer Final HD</b></td><td>récap (source·réf·script·durée·sous-titres·musique·format·coût·crédits·mode) + <b>légende</b> → <b>Lancer Final HD</b></td><td>lancer la dépense</td></tr>
+</table>
+<ul><li><b>Ré-éditabilité</b> : tout reste modifiable jusqu'à ③ (Conserver/MàJ/Régénérer, libellés contextuels).</li><li><b>Validation image</b> (PHOTO) : se fait dans ② (sélection de l'image gardée), pas un écran séparé.</li><li><b>Ajuster</b> (retouche image / montage vidéo) : sous-action <b>inline</b> de ②, jamais un nouveau bloc (F1).</li></ul>
+<h3>AVANT / APRÈS (resserré)</h3>
+<table>
+<tr><th></th><th>Avant</th><th>Après (cible resserrée)</th></tr>
+<tr><td>PHOTO</td><td>2 principaux + 6 sous-écrans</td><td><b>3 écrans</b> (Source · Paramètres · Finaliser), pickers/réf/prompt <b>inline</b></td></tr>
+<tr><td>VIDÉO</td><td>5 principaux + 2 sous-écrans</td><td><b>3 écrans</b> symétriques (Source · Paramètres[script+durée] · Finaliser[+légende])</td></tr>
+<tr><td>Sous-écrans (ref/prompt/galeries/scriptlib/montage/légende)</td><td>écrans séparés</td><td><b>absorbés</b> (lignes/inline) ou → Studio</td></tr>
+<tr><td>Symétrie</td><td>divergente</td><td><b>identique</b> (l'utilisateur apprend UN seul fonctionnement)</td></tr>
+</table>
+<p><b>On retire comme étapes</b> : Référence, Galerie-réf, Galerie-look, Prompt, Biblio-prompt, Galerie-source, Biblio-script, Montage(obligatoire), Légende(séparée). <b>On garde le contrôle</b> via lignes/pickers inline dans Paramètres + Ajuster inline. <b>Net : ~7-9 écrans → 3.</b></p>
+<p>_Enrichissement audit. Cible resserrée à valider AVANT toute modification structurelle (cat.2)._</p>
