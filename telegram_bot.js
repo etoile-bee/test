@@ -3461,6 +3461,17 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
+  if(txt==='/v4r'||txt==='/v4r new'){ /*[RÉALISATION Lot 0] socle + repos derive (sans media, zero depense, isole) ; n'altere pas le live ni /v4*/
+    try{
+      const R_S=require('./ui/socle'); const R_C=require('./ui/conscience'); const persona=_persona();
+      let cur=(txt==='/v4r new')?null:R_S.currentProject(BASE,persona);
+      if(!cur){ cur=R_S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet de test cree '+cur.projectId); }
+      const facts=R_S.loadFacts(BASE,persona,cur.projectId); /*reprise = relecture du Socle*/
+      const titre=R_C.titre(facts); /*dérivation Conscience, recalculee a chaque fois, jamais stockee*/
+      await send('🌅 <b>Repos</b> <i>(sans média)</i>\n'+titre+'\n\n<i>Lot 0 — socle + repos. Reprise : retape /v4r → reconstruction identique. /v4r new = nouveau projet de test. Zéro dépense.</i>');
+    }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indispo'); }
+    return;
+  }
   if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
