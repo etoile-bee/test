@@ -9,15 +9,13 @@ const REGISTRY = {
   // ── Accueil : 4 entrées directes + pilotage visible (E104) ─────────────────
   home: {
     id: 'home', parent: null, title: '🏠 ACCUEIL', owner: 'Système',
-    help: 'Trois choix : ✨ Générer un nouveau contenu · 📂 Reprendre un projet · 📤 Importer une photo. La bibliothèque (looks, décors, références, historique) est dans 🏛 Studio (accessible plus bas).',
+    help: 'UN SEUL moteur de production, deux entrées : 📸 PHOTO démarre au début (Référence/Look) et s\'enchaîne jusqu\'au Prêt-à-poster ; 🎬 VIDÉO rejoint le MÊME parcours au stade vidéo (choisis juste la source). 🏛 STUDIO = bibliothèque (consulter/organiser, sans casser le projet en cours). 🕘 HISTORIQUE = projets/exports passés. 👗 LOOKS = raccourci vers la bibliothèque de looks.',
     render: () => ({
-      // [C5] Premier niveau = EXACTEMENT 3 choix ; une action attendue claire.
-      caption: '<b>Que veut-on faire ?</b>',
+      // [UN MOTEUR, PLUSIEURS ENTRÉES] PHOTO/VIDÉO = production (même pipeline `proj`) ; STUDIO/HISTORIQUE/LOOKS = bibliothèque/annexe non destructive.
+      caption: '<b>Production</b> — démarre une création :',
       rows: [
-        [{ text: '✨ Générer un nouveau contenu', go: 'photo.look' }],
-        [{ text: '📂 Reprendre un projet', cb: 'RX_DRAFTS' }],
-        [{ text: '📤 Importer une photo', cb: 'HOME_UPLOAD' }],
-        [{ text: '🏛 Studio', go: 'studio' }],
+        [{ text: '📸 PHOTO', go: 'photo.look' }, { text: '🎬 VIDÉO', go: 'video.source' }],
+        [{ text: '🏛 STUDIO', go: 'studio' }, { text: '🕘 HISTORIQUE', cb: 'STUDIO_HIST' }, { text: '👗 LOOKS', cb: 'MENU_LOOKS' }],
       ],
     }),
   },

@@ -1392,8 +1392,8 @@ uiRouter.REGISTRY['photo.look']={ id:'photo.look', parent:'photo', title:'📸 P
 uiRouter.REGISTRY['photo.lookgal']={ id:'photo.lookgal', parent:'photo.look', title:'🖼 Galerie → Look', owner:'PHOTO',
   help:'Choisis un look existant de la galerie comme base. Navigue ‹ › puis ✅.',
   render:()=>photoLookGalView() };
-uiRouter.REGISTRY['photo.image']={ id:'photo.image', parent:'photo.look', title:'📸 PHOTO · Image', owner:'PHOTO', next:'video',
-  gate:()=>{ try{ return ensureProj().image.validated!=null; }catch(e){ return false; } }, // ➡ Suivant (→ Vidéo, L0-2b) actif seulement si une image est validée
+uiRouter.REGISTRY['photo.image']={ id:'photo.image', parent:'photo.look', title:'📸 Image', owner:'PRODUCTION', next:'video.source',
+  gate:()=>{ try{ return ensureProj().image.validated!=null; }catch(e){ return false; } }, // [UN MOTEUR] ➡ Suivant CONTINUE le MÊME pipeline vers la vidéo (pas une section séparée)
   help:'Étape IMAGE : la vignette montre l\'image en cours/sélectionnée. Vérifie le coût, 💲 pour générer (confirmation requise — rien n\'est dépensé sans ton accord). Navigue, valide celle à garder (slice image), puis ➡ Suivant vers la Vidéo.',
   render:()=>photoImageView() };
 uiRouter.REGISTRY['photo.ref']={ id:'photo.ref', parent:'photo.look', title:'🎯 Référence', owner:'PHOTO',

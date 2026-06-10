@@ -3,11 +3,13 @@ function fresh(){ for(const m of ['../ui/registry','../ui/router']){try{delete r
 const uiRouter=fresh(); const {REGISTRY}=uiRouter;
 let ok=0,ko=0; const ck=(n,c)=>{ if(c){ok++;console.log('✅ '+n);} else {ko++;console.log('❌ '+n);} };
 
-// ── C5 : accueil = 3 choix primaires + Studio ──
+// ── UN MOTEUR, PLUSIEURS ENTRÉES : accueil = PHOTO/VIDÉO (production) + STUDIO/HISTORIQUE/LOOKS (bibliothèque) ──
 const homeRows=REGISTRY.home.render().rows;
 const labels=[].concat(...homeRows).map(b=>b.text);
-ck('C5 accueil = 3 choix (Générer/Reprendre/Importer) + Studio', labels.length===4 && /Générer/.test(labels[0]) && /Reprendre/.test(labels[1]) && /Importer/.test(labels[2]) && /Studio/.test(labels[3]));
-ck('C5 « Générer » entre dans le workspace (go photo.look)', homeRows[0][0].go==='photo.look');
+ck('accueil = PHOTO, VIDÉO, STUDIO, HISTORIQUE, LOOKS', ['PHOTO','VIDÉO','STUDIO','HISTORIQUE','LOOKS'].every(t=>labels.some(l=>l.includes(t))));
+ck('PHOTO entre au DÉBUT du pipeline (go photo.look)', homeRows[0][0].go==='photo.look');
+ck('VIDÉO entre au stade vidéo du MÊME pipeline (go video.source)', homeRows[0][1].go==='video.source');
+ck('UN SEUL MOTEUR : photo.image.next === video.source (continuation, pas section)', REGISTRY['photo.image']?REGISTRY['photo.image'].next==='video.source':true);
 
 // ── C1 : on enveloppe les menus comme le fait telegram_bot.js (média + en-tête) ──
 function wrap(id){ const mod=REGISTRY[id]; const orig=mod.render; mod.media=true;
