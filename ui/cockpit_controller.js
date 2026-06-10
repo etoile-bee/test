@@ -141,6 +141,8 @@ function createController(deps) {
     if (ui.step === 'cand_more') { const m = manifest() || {}; const idx = Math.max(0, Math.min(ui.candIdx, (m.image_candidates || []).length - 1)); return VIEW.viewCandMore(Object.assign({}, m, { _candIdx: idx, media_actif: m.media_actif || (m.image_candidates || [])[idx] })); }
     if (ui.step === 'versions') return versionsView();
     if (ui.step === 'presets') return presetsView();
+    if (ui.step === 'livrables') return VIEW.viewLivrables(manifest());
+    if (ui.step === 'livrable') { const m = manifest() || {}; return VIEW.viewLivrable(m, (m.livrables_dossiers || [])[ui.candIdx]); }
     return renderStep();
   }
 
@@ -179,6 +181,8 @@ function createController(deps) {
       if (ui.step === 'imgedit' || ui.step === 'planche' || ui.step === 'cand_more') { ui.step = 'source'; return { render: render() }; }
       if (ui.step === 'versions' || ui.step === 'presets') { ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'zonehist') { ui.step = 'picker'; return { render: render() }; }
+      if (ui.step === 'livrable') { ui.step = 'livrables'; return { render: render() }; }
+      if (ui.step === 'livrables') { ui.step = 'finaliser'; return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
       const p = FLOW.prevStep(ui.step);
       if (p) { ui.step = p; return { render: render() }; }
@@ -208,6 +212,8 @@ function createController(deps) {
     // Lot 6 (A5) — PUBLIER : sort de Prêt-à-poster, reste dans l'Historique (statut métier ; pas d'auto-post)
     if (a === 'PUBLISH') { S.publish(base, persona, ui.projectId, nowv()); return { render: render(), notice: '📣 Publié (retiré de la file, conservé en Historique)' }; }
     // Q4 — versions restaurables : snapshot + restauration (versions validées jamais perdues)
+    if (a === 'LIVRABLES') { ui.step = 'livrables'; return { render: render() }; }
+    if (a.indexOf('LIVOPEN_') === 0) { ui.candIdx = parseInt(a.slice(8), 10) || 0; ui.step = 'livrable'; return { render: render() }; }
     if (a === 'VERSIONS') { ui.step = 'versions'; return { render: render() }; }
     if (a === 'PRESETS') { ui.step = 'presets'; return { render: render() }; }
     if (a === 'VERS_SNAP') { const id = S.snapshotVersion(base, persona, ui.projectId, 'version', nowv()); return { render: render(), notice: '💾 Version ' + id + ' enregistrée' }; }

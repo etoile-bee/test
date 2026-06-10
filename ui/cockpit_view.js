@@ -130,9 +130,31 @@ function viewFinaliser(flow, m) {
     cap += '\n\n✅ QC ' + (qc.verdict === 'force' ? '(forcé)' : 'OK') + ' — prêt pour Final HD.';
   }
   // Lot 6 (A5) — quand le livrable est en Prêt-à-poster : bouton Publier (sort de la file, reste en Historique)
-  if (m && m.statut_publication === 'pret_a_poster') { cap += '\n📤 Dans Prêt-à-poster.'; rows.push([{ text: '📣 Publier', cb: 'PUBLISH' }]); }
+  if (m && m.statut_publication === 'pret_a_poster') { cap += '\n📤 Dans Prêt-à-poster.'; rows.push([{ text: '📣 Publier', cb: 'PUBLISH' }, { text: '📦 Livrables', cb: 'LIVRABLES' }]); }
+  else if (m && (m.livrables_dossiers || []).length) { rows.push([{ text: '📦 Livrables', cb: 'LIVRABLES' }]); }
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows.concat(actionBar(flow, 'finaliser', m)) };
 }
+
+// Critères 5/6 — LIVRABLES : liste lisible (liv1/liv2/liv3) + versions (v1/v2/v3) ; ouverture = récupération instantanée.
+function viewLivrables(m) {
+  const ds = (m && m.livrables_dossiers) || []; const vs = (m && m.versions) || [];
+  const rows = ds.map((d, i) => [{ text: '📦 ' + d.id + ' · ' + short((d.legende_courte || d.script || 'livrable'), 22), cb: 'LIVOPEN_' + i }]);
+  if (!ds.length) rows.push([{ text: '(aucun livrable validé)', cb: 'NOOP' }]);
+  rows.push([{ text: '◀ Retour', cb: 'BACK' }]);
+  return { media: FLOW.previewMedia(m), raw: true, caption: hdr(m) + '\n📦 <b>Livrables</b> · ' + ds.length + ' · 🕘 versions : ' + vs.length + '\n<i>Chaque version validée = un dossier publiable.</i>', rows: rows };
+}
+// Ouverture d'un livrable : tout récupérable ; légendes/hashtags en blocs <code> (tap-pour-copier Telegram).
+function viewLivrable(m, d) {
+  d = d || {};
+  let cap = '📦 <b>' + (d.id || 'Livrable') + '</b>\n';
+  cap += '🎬 ' + (d.video ? '✓ vidéo' : '—') + ' · 🖼 ' + ((d.images && d.images.length) ? '✓ image' : '—') + '\n';
+  cap += '\n📝 <b>Légende courte</b> :\n<code>' + escH(d.legende_courte || '—') + '</code>\n';
+  cap += '\n📄 <b>Légende longue</b> :\n<code>' + escH(d.legende_longue || '—') + '</code>\n';
+  cap += '\n#️⃣ <b>Hashtags</b> :\n<code>' + escH(d.hashtags || '—') + '</code>\n';
+  cap += '\n<i>Touche un bloc pour le copier. Script/params/coûts/RAW dans le dossier.</i>';
+  return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: [[{ text: '◀ Retour', cb: 'BACK' }]] };
+}
+function escH(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 // Critères 2/4 — PICKER DE ZONE (réf/look/décor/prompt) : valeur courante · verrou · CRUD · réutilisation · historique.
 const ZONE_META = { reference: { emoji: '🎯', nom: 'Référence' }, look: { emoji: '👗', nom: 'Look' }, decor: { emoji: '🌆', nom: 'Décor' }, prompt: { emoji: '✍️', nom: 'Prompt' } };
@@ -215,4 +237,4 @@ function view(flow, step, m) {
   return home();
 }
 
-module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, viewZonePicker, viewZoneHistory, actionBar, hdr };
+module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, viewZonePicker, viewZoneHistory, viewLivrables, viewLivrable, actionBar, hdr };

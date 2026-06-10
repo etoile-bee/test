@@ -2557,8 +2557,10 @@ function cockpitV4(){
   };
   let v4lookbook={}; try{ v4lookbook=nlMod().readLookbook()||{}; }catch(e){}
   let v4libstore=null; try{ v4libstore=require('./ui/cockpit_libstore'); }catch(e){}
-  // imageBackend = Seedream RÉEL (gaté GEN_CONFIRM). generateVideo NON branché (image seulement pour ce run).
-  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), imageBackend:v4ImageBackend, lookbook:v4lookbook, libstore:v4libstore, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
+  // PHASE VALIDATION UX (Etoile) : génération = STUB GRATUIT (v4Generate) -> ZÉRO dépense même si « 💲 Lancer » est cliqué.
+  // Le backend RÉEL Seedream (v4ImageBackend) est prêt ; ré-activé (imageBackend:v4ImageBackend) UNIQUEMENT au run réel, sur go d'Etoile.
+  void v4ImageBackend; // prêt pour le run réel
+  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), generate:v4Generate, lookbook:v4lookbook, libstore:v4libstore, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
   return _v4;
 }
 
