@@ -18,6 +18,32 @@ Conséquences de conception (toutes les sections en découlent) :
 
 ---
 
+## ★★ VERROUS FINAUX (10) — validés Etoile, intégrés à la cible (2026-06-10)
+
+1. **Livraison = version COMPLÈTE testée de A à Z**, jamais de micro-livraison. → [[E119]]
+2. **Avant livraison, je cherche MOI-MÊME** anomalies/régressions/incohérences (rigueur « filtre couleur »). → [[E118]]
+3. **Auto-test couvrant OBLIGATOIREMENT** : PHOTO complet · VIDÉO complet · reprise projet · redémarrage · retour arrière · Studio · Looks · Historique · Prêt-à-poster · édition · génération · preview gratuit · Final HD · propagation média · dossier projet · conservation des fichiers.
+4. **Projet final conserve TOUS les fichiers** : image · vidéo finale · RAW si dispo · prompt · script · légende · paramètres · moteur utilisé · coûts · date/heure · versions. → C.2
+5. **Prêt-à-poster** : prêt → entre ; publié/sorti → disparaît de la file **MAIS reste intégralement dans Historique** avec tout son dossier. → C.5/C.6
+6. **Bibliothèques** consultables sans casser le projet actif ; **consulter ne modifie rien** ; **sélectionner = explicite**. → C.7
+7. **Édition avancée OBLIGATOIREMENT in-cockpit** : aucun nouvel écran/fenêtre/bloc (= fin de F1, identité unique de bloc). → C.12 / E.3
+8. **Textes TRÈS COURTS** : cockpit lisible immédiatement — média visible, contexte minimal, action claire. → C.11
+9. **Image en format réel, sans bordures floues** ; recadrage = outil d'édition, jamais affichage auto. → C.10
+10. **CONDITION DE GEL** (ci-dessous) : la cible ne se fige que si elle respecte un seul moteur · plusieurs entrées · un seul projet · un seul bloc · aucun contexte perdu.
+
+### ✅ CONDITION DE GEL — VÉRIFIÉE explicitement
+| Exigence du verrou 10 | Couverte par | Statut |
+|---|---|---|
+| **Un seul moteur** | un pipeline `proj`/dossier unique ; PHOTO et VIDÉO = mêmes étapes SOURCE→PARAMÈTRES→FINALISER (D, grammaire symétrique) | ✅ |
+| **Plusieurs entrées** | PHOTO, VIDÉO (et reprise projet) entrent dans le **même** moteur à des points différents | ✅ |
+| **Un seul projet** | dossier projet autoporteur = **source de vérité unique** (C.2) ; `media_actif` dans le manifest (C.4) | ✅ |
+| **Un seul bloc** | bloc média unique + **identité de bloc unique** (E.1/E.3, fin de F1) ; toute édition = sous-état (C.12) | ✅ |
+| **Aucun contexte perdu** | persistance pilotée par le dossier (C.1/C.4) : survit étape/retour/biblio/menu/restart/reprise ; bibliothèques in-bloc + retour exact (C.7) | ✅ |
+
+**⇒ Condition de gel REMPLIE.** La cible v3+verrous est **figeable** : elle décrit un moteur unique à entrées multiples, un projet unique (dossier), un bloc unique, sans perte de contexte. Sous réserve que l'**implémentation** respecte ces invariants (vérifié par [[E118]] avant livraison).
+
+---
+
 ## A) DIAGNOSTIC DES RÉGRESSIONS (cause racine)
 
 Diff **exact** `7e24dac → 1fb4ca3` = uniquement : en-tête 1 ligne `hdr1`, grilles Looks/Historique, entrée `G_` dans la ceinture, retrait de 2 toasts « Chargement… », 3 redirections slash. **Toutes** les fonctions de persistance + propagation média sont **byte-identiques** (`ensureProj`, `autosaveDraft`, `currentStepModule`, `wsMedia`, `videoMedia`, `lookFile`, `persistProjMedia`, `clearActiveDraft`, `projFromDraft`, `resumeDraft`).
