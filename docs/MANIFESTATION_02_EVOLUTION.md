@@ -36,6 +36,29 @@ prolifération de doublons à gérer.
 
 ---
 
+## 1·bis. LA MATURATION DE L'INTENTION (la boussole est vivante)
+
+L'évolution n'est **pas seulement** une matière qui change d'état : c'est **aussi la maturation de
+l'intention elle-même**. Au départ, l'intention est souvent **incomplète, floue, intuitive** (parfois juste
+le déclencheur + une émotion). **En avançant, la compréhension se précise** : une découverte clarifie le
+message, **une variante révèle quelque chose de non encore formulé**, une direction devient **plus
+pertinente que l'idée initiale**.
+
+La personne fait donc **mûrir sa compréhension de ce que le projet cherche à exprimer** — tout en
+**conservant la trace de son origine** (le déclencheur, voir sujet 1). Concrètement :
+- **L'intention est une boussole vivante**, pas un contrat figé : elle se **raffine** au fil des découvertes.
+- **La faire évoluer est un acte conscient = une décision tracée** (avec sa raison) — *par ex.* « je
+  recentre le message sur la confiance plutôt que la performance, parce que la variante B l'exprimait mieux ».
+- **La mémoire conserve l'évolution de l'intention** : l'**origine/déclencheur** + les **raffinements
+  successifs**. Des mois après, on voit **non seulement l'intention finale, mais comment elle a mûri**.
+
+> Traçabilité : pilier ① (l'intention reste le cap, mais vivant) + ③ (mémoire : l'historique garde les
+> **versions de l'intention**) · INV-1 · INV-5 (les versions antérieures de l'intention ne sont pas
+> réécrites, elles restent). *L'intention reste l'objet composite du modèle v2 — aucun nouvel objet : on
+> trace son évolution.*
+
+---
+
 ## 2. LES DÉCISIONS QUI JALONNENT L'ÉVOLUTION
 
 Avancer, c'est **choisir** — et chaque choix qui **oriente** le projet **laisse une trace expliquée**.
@@ -79,7 +102,10 @@ que quoi que ce soit ne bouge. **Aucune perte d'étape suivante sans son accord 
 ## 4. LA COHÉRENCE EN CONTINU : un miroir, jamais un juge
 
 Pendant toute l'évolution, **une question revient** : « **ce que je produis sert-il encore mon
-intention ?** » (l'intention posée à la naissance reste la boussole).
+intention ?** ». L'évaluation se fait **contre l'intention COURANTE** — celle qui a pu **mûrir**
+consciemment (§1·bis) — et **l'historique garde les versions** antérieures de l'intention. Comparer à
+l'intention courante, ce n'est donc pas trahir l'idée de départ : c'est rester fidèle à ce que le projet
+**cherche vraiment** à exprimer, origine conservée.
 
 Concrètement, le système **lit en continu** l'alignement, **pièce par pièce** — message · image · look ·
 décor · voix · script · montage · rythme · légende · destination. Quand quelque chose s'écarte :
@@ -139,6 +165,9 @@ qui a été tenté, ce qui a été choisi, et pourquoi*.
    **assume** (décision). Le système **ne décide jamais**. *(② · INV-2)*
 6. Elle peut **revenir / restaurer une version / superséder un choix** — l'ancien **reste** lisible. *(⑥ ·
    INV-5/6)*
+6·bis. En chemin, **l'intention elle-même a pu mûrir** (raffinée consciemment = décision tracée) ; son
+   **origine et ses versions** sont conservées ; la cohérence se mesure contre **l'intention courante**.
+   *(①③ · INV-1/5)*
 7. Au passage, **la mémoire s'est construite** : décisions + raisons accumulées. *(③)*
 8. À tout instant, elle **perçoit** : « j'avance sans rien casser, je garde la main, et rien n'est encore
    définitif ». *(⑤⑥)*
