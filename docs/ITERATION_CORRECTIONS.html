@@ -1,0 +1,21 @@
+<!doctype html><meta charset=utf-8><style>body{font-family:-apple-system,sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;font-size:13px;margin:12px 0}th,td{border:1px solid #ccc;padding:5px 7px;vertical-align:top}th{background:#eef}code{background:#f3f3f7;padding:1px 4px;border-radius:3px}pre{background:#1c1c28;color:#eee;padding:10px;border-radius:6px;overflow-x:auto;font-size:12px}blockquote{background:#f7f7fd;border-left:4px solid #2a8;padding:8px 14px}h1{border-bottom:3px solid #2a8}</style><hr>
+<h1>ITÉRATION v6 — punch-list captures live (#1→#6)</h1>
+<blockquote>Branche <code>fix/root-causes-v1</code> (commit <code>5839bc5</code>). Tirée des 3 captures du test live d'Etoile. Bot live <b>non redémarré</b> (édité + commité sur la branche ; re-bascule sur go).</blockquote>
+<table>
+<tr><th>#</th><th>Sujet</th><th>Cause/Frontière</th><th>Correction</th><th>Gain</th><th>Risque</th></tr>
+<tr><td>1</td><td>Message technique « code à jour »</td><td>UX/F13</td><td>restart/boot/status <b>déjà en toast</b> (vérifié) ; capture = ancien prod pendant la bascule</td><td>plus aucun message technique au chat</td><td>nul</td></tr>
+<tr><td>2</td><td>Noms de fichiers/ids affichés</td><td>UX</td><td>en-têtes en <b>libellés métier</b> (Réf=Imany, Look=label tenue, Décor, Média=« Image n/N »)</td><td>l'utilisateur ne voit plus de <code>.jpg</code>/id</td><td>faible</td></tr>
+<tr><td>3</td><td>Brouillon/titre illisibles</td><td>UX</td><td><code>draftLabel()</code> → « 9 juin · 21:29 » ; titres courts (« Look », « Image », « Finalisation »)</td><td>dates lisibles</td><td>faible</td></tr>
+<tr><td>4</td><td>« eco » / cr / €</td><td>UX/produit</td><td><code>modeLabel(eco→Aperçu)</code> ; Image = <b>Aperçu gratuit</b> puis <b>✨ Lancer Final HD</b> (coût à la confirmation) ; idem vidéo</td><td>logique Aperçu→Final HD</td><td>faible (relabel ; voir design ci-dessous)</td></tr>
+<tr><td>5</td><td>Surcharge boutons / troncature</td><td>UX</td><td>barre système = <b>❓ Aide</b> seule (Stop visible seulement en génération via <code>ctx.busy</code>) ; écran Look simplifié ; libellés courts</td><td>une action claire/écran</td><td>moyen (à valider live)</td></tr>
+<tr><td>6</td><td>Entrée VIDÉO sans sources</td><td>MC1</td><td>home <b>VIDÉO → <code>video.source</code></b> (Look projet/Image générée/Galerie/Nouveau look/Upload)</td><td>demande la source directement</td><td>faible</td></tr>
+</table>
+<h2>Design #4 — APERÇU GRATUIT → FINAL HD payant (proposition)</h2>
+<p><b>Objectif</b> : montrer un visuel <b>réellement gratuit</b> avant toute dépense, puis « Lancer Final HD » (payant, confirmation).</p>
+<ul><li><b>Aperçu gratuit (0 crédit)</b> — options techniques proposées :</li></ul>
+<p>  1. <b>Composite local</b> (retenu, le plus simple) : afficher la <b>référence/look courant</b> (déjà en cache local) comme vignette d'aperçu + en-tête des paramètres (tenue/décor/prompt). Aucune API. <i>C'est l'état actuel du bloc média à l'étape Image</i> → on l'<b>étiquette</b> « 👁 Aperçu gratuit ».</p>
+<p>  2. <b>Aperçu basse résolution</b> (ultérieur) : un appel image <b>low-res/rapide</b> si l'API le permet à coût ~nul, sinon s'abstenir.</p>
+<p>  3. <b>Mock stylé</b> (ultérieur) : overlay local (ffmpeg) du look + texte des params pour une vignette représentative.</p>
+<ul><li><b>Final HD (payant)</b> : bouton <b>✨ Lancer Final HD</b> → confirmation in-bloc avec coût → génération Seedream/Kling réelle (inchangée, derrière confirmation, <b>non câblée en test</b>).</li><li><b>État</b> : la <b>terminologie</b> et le <b>parcours Aperçu→Final HD</b> sont en place (relabel + bouton). L'aperçu « composite local » = le visuel actuel (option 1). Les options 2/3 (aperçu généré low-cost) sont <b>conçues, différées</b>.</li></ul>
+<h2>Reste (#7 bibliothèques non destructives)</h2>
+<p>LOOKS/HISTORIQUE déjà en bloc média (v5). Restent legacy : Références (<code>RX_REFS</code>), Modèles (<code>SHOWSTYLES</code>), Décors, Personas, Médias, Prêt-à-poster → à migrer ensuite (n'ouvrir aucun bloc legacy qui rompt la continuité).</p>
