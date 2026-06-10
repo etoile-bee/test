@@ -2564,6 +2564,20 @@ function cockpitV4(){
   return _v4;
 }
 
+// [RÉALISATION Lot 0] helpers /v4r — repos SOBRE (sans média) + création robuste par BOUTON. Isolé du legacy et de /v4.
+function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience') }; }
+function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function r0Block(persona, mode){ /*mode: 'open' (courant ou crée si aucun) | 'new' (force un nouveau)*/
+  const {S,C}=_r0();
+  let cur=(mode==='new')?null:S.currentProject(BASE,persona); let created=false;
+  if(!cur){ cur=S.createProject(BASE,persona,{},Date.now()).facts; created=true; jlog('[v4r] projet de test cree '+cur.projectId); }
+  const facts=S.loadFacts(BASE,persona,cur.projectId); /*reprise = relecture du Socle*/
+  const s=C.situation(facts); /*dérivation Conscience, recalculée, jamais stockée*/
+  const caption=(created?'✨ <b>Nouveau projet créé</b>\n':'')+'📁 <b>'+_r0esc(s.nom)+'</b> · '+s.etat+'\n🧭 '+_r0esc(s.cap)+'\n🗂 '+s.decisions+' décision(s)';
+  const rows=[[{text:'🆕 Nouveau projet',callback_data:'R0_NEW'},{text:'🔄 Reprendre',callback_data:'R0_REPOS'}]];
+  return { caption, rows, projectId: cur.projectId };
+}
+
 async function handle(upd){
   // Callback
   if(upd.callback_query){
@@ -2583,6 +2597,13 @@ async function handle(upd){
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [cockpit-v4] INTERCEPT : si le nouveau cockpit est actif (/v4), il prend la main sur TOUS les callbacks.
+    if(d&&d.indexOf('R0_')===0){ /*[RÉALISATION Lot 0] callbacks isolés (n'altèrent ni le legacy ni /v4) : création robuste par bouton + reprise*/
+      try{ const persona=_persona(); const b=r0Block(persona, d==='R0_NEW'?'new':'open');
+        const okE=await tgEditText(cb.message.message_id, b.caption, b.rows);
+        if(okE===false){ await send(b.caption, b.rows); } }
+      catch(e){ jlog('R0 cb err '+e.message); }
+      cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return;
+    }
     if(v4active){ try{ await cockpitV4().handle(d); }catch(e){ jlog('v4 handle err '+e.message); } cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return; }
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
@@ -3461,15 +3482,15 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
-  if(txt==='/v4r'||txt==='/v4r new'){ /*[RÉALISATION Lot 0] socle + repos derive (sans media, zero depense, isole) ; n'altere pas le live ni /v4*/
+  if(txt.startsWith('/v4r')){ /*[RÉALISATION Lot 0] repos sobre (sans média) ; création robuste par bouton ; AUCUNE retombée silencieuse sur /menu*/
     try{
-      const R_S=require('./ui/socle'); const R_C=require('./ui/conscience'); const persona=_persona();
-      let cur=(txt==='/v4r new')?null:R_S.currentProject(BASE,persona);
-      if(!cur){ cur=R_S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet de test cree '+cur.projectId); }
-      const facts=R_S.loadFacts(BASE,persona,cur.projectId); /*reprise = relecture du Socle*/
-      const titre=R_C.titre(facts); /*dérivation Conscience, recalculee a chaque fois, jamais stockee*/
-      await send('🌅 <b>Repos</b> <i>(sans média)</i>\n'+titre+'\n\n<i>Lot 0 — socle + repos. Reprise : retape /v4r → reconstruction identique. /v4r new = nouveau projet de test. Zéro dépense.</i>');
-    }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indispo'); }
+      const persona=_persona();
+      if(txt==='/v4r'){ const b=r0Block(persona,'open'); await send(b.caption,b.rows); return; }
+      if(txt==='/v4r new'){ const b=r0Block(persona,'new'); await send(b.caption,b.rows); return; }
+      /*toute autre forme « /v4r… » = NON reconnue : on le DIT, on reste dans /v4r, on ne crée rien, on ne bascule pas sur le legacy*/
+      const b=r0Block(persona,'open');
+      await send('⚠️ Commande « '+_r0esc(txt)+' » non reconnue — rien créé. Touche 🆕 ci-dessous pour un nouveau projet, ou tape /v4r.\n\n'+b.caption,b.rows);
+    }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indisponible.'); }
     return;
   }
   if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
