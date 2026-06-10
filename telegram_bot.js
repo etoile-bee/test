@@ -1180,6 +1180,8 @@ function projFromDraft(d){
 }
 function projToNewlook(){ if(!proj)return; newlook.category=proj.look.category; newlook.env=proj.look.env; newlook.mode=proj.look.mode; newlook.count=proj.look.count; newlook.extra=proj.look.extra; } // miroir vers le moteur existant (génération réelle)
 function ensureProj(){ if(proj)return proj; let d=null; try{ if(genState.activeDraftId)d=listDrafts().find(x=>x.draftId===genState.activeDraftId)||null; }catch(e){} proj=d?projFromDraft(d):projDefaults(); projToNewlook(); return proj; }
+// [v8 · point 7] « revenir EXACTEMENT où on était » : module workspace de l'étape courante du projet (bibliothèque = non destructive).
+function currentStepModule(p){ try{ if(!genState.activeDraftId)return 'home'; if(p&&p.step==='video'){ const vs=(p.video&&p.video.step)||'source'; return {source:'video.source',script:'video.script',montage:'video.montage',legende:'video.legende',export:'video.export'}[vs]||'video.source'; } if(p&&p.step==='image')return 'photo.image'; if(p&&p.step==='look')return 'photo.look'; }catch(e){} return 'home'; }
 // [fix/root-causes-v1 · C7] MODÈLE DE DÉPENDANCES ENTRE ÉTAPES (re-éditabilité permanente, piloté par proj).
 // Quelle étape AMONT impacte quelles étapes AVAL. Utilisé pour proposer « Conserver / Mettre à jour / Régénérer »
 // quand on modifie une étape dont l'aval existe déjà (sans jamais perdre le travail).
@@ -1452,14 +1454,14 @@ uiRouter.REGISTRY['studio.prompts']={ id:'studio.prompts', parent:'studio', titl
 let _slLooksIdx=0;
 function studioLooksView(){ // parcourir la galerie de looks DANS le bloc média ; « Utiliser » = source du projet (non destructif)
   const p=ensureProj(); const list=looksList();
-  if(!list.length)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+'👗 <b>LOOKS</b> — bibliothèque vide.\n\nCrée un look via 📸 PHOTO.',rows:[[{text:'◀️ Accueil',go:'home'}]]};
+  if(!list.length)return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+'👗 <b>LOOKS</b> — bibliothèque vide.\n\nCrée un look via 📸 PHOTO.',rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
   if(_slLooksIdx>=list.length||_slLooksIdx<0)_slLooksIdx=0;
   const f=path.join(getLooksDir(),list[_slLooksIdx]);
   const cap=cockpitHeader(p)+'👗 <b>LOOKS</b> · '+(_slLooksIdx+1)+'/'+list.length+'\n🖼 <i>'+escH(list[_slLooksIdx])+'</i>\n\nVue bibliothèque (consultation). « Utiliser » applique ce look au projet en cours, sans rien perdre.';
   return {image:f,raw:false,caption:cap,rows:[
     [{text:'‹',cb:'SL_PREV'},{text:(_slLooksIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'SL_NEXT'}],
     [{text:'👗 Utiliser ce look',cb:'SL_USE'}],
-    [{text:'◀️ Accueil',go:'home'}],
+    [{text:'◀️ Retour',cb:'WS_RESUME'}],
   ]};
 }
 function studioHistoriqueView(){ // historique des productions DANS le bloc média (lecture)
@@ -1467,7 +1469,7 @@ function studioHistoriqueView(){ // historique des productions DANS le bloc méd
   try{ const real=fs.realpathSync(path.join(BASE,'outputs','generations')); files=fs.readdirSync(real).filter(f=>/\.jpg$/i.test(f)).map(f=>({f,t:fs.statSync(path.join(real,f)).mtimeMs})).sort((a,b)=>b.t-a.t).slice(0,12).map(x=>x.f); }catch(e){}
   const lignes=files.length?files.map((x,i)=>(i+1)+'. '+x.replace(/\.jpg$/,'')).join('\n'):'(vide)';
   const cap=cockpitHeader(p)+'🕘 <b>HISTORIQUE</b> · '+files.length+' récentes\n'+escH(lignes.slice(0,700))+'\n\n📱 Fichiers : iCloud › podcast-outputs/generations';
-  return {image:wsMedia(p),raw:false,caption:cap,rows:[[{text:'◀️ Accueil',go:'home'}]]};
+  return {image:wsMedia(p),raw:false,caption:cap,rows:[[{text:'◀️ Retour',cb:'WS_RESUME'}]]};
 }
 uiRouter.REGISTRY['studio.looks']={ id:'studio.looks', parent:'studio', title:'👗 Looks', owner:'STUDIO', media:true,
   help:'Bibliothèque de looks (consultation, non destructive). Navigue ‹ › ; « Utiliser » applique le look au projet en cours sans perdre le travail.',
@@ -1479,7 +1481,7 @@ try{ MEDIA_MODULES['studio.looks']=1; MEDIA_MODULES['studio.historique']=1; }cat
 // [v7] Bibliothèques restantes en VUE MÉDIA (lecture, non destructive) — entrer ne casse plus la continuité.
 function studioLibView(title,lines,extraRows){ const p=ensureProj();
   const body=(lines&&lines.length)?lines.slice(0,14).map(s=>'• '+s).join('\n'):'(vide)';
-  return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+title+'\n'+escH(body.slice(0,800)),rows:(extraRows||[]).concat([[{text:'◀️ Accueil',go:'home'}]])};
+  return {image:wsMedia(p),raw:false,caption:cockpitHeader(p)+title+'\n'+escH(body.slice(0,800)),rows:(extraRows||[]).concat([[{text:'◀️ Retour',cb:'WS_RESUME'}]])};
 }
 function studioReferencesView(){ let r='—';try{r=refLabel();}catch(e){} return studioLibView('🎯 <b>RÉFÉRENCES</b>\nRéférence active : <b>'+escH(r)+'</b>',[ 'La référence se change dans un projet (🎯 dans le workspace).' ]); }
 function studioDecorsView(){ let lb={envs:{}};try{lb=nlMod().readLookbook();}catch(e){} const l=Object.keys(lb.envs||{}).map(k=>(lb.envs[k].label||k)); return studioLibView('🌆 <b>DÉCORS</b> · '+l.length,l); }
@@ -2527,7 +2529,7 @@ async function handle(upd){
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [L0-1d-fix] ROUTEUR MODULAIRE (strangler-fig) : navigation INTRA-bloc = ÉDITION EN PLACE du bloc tapé.
     // On ancre le bloc racine actif sur LE message d'où vient le tap (chaque bloc ACCUEIL s'édite lui-même, même un ancien).
-    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
+    if(d&&(d.indexOf('R_')===0||d.indexOf('RH_')===0||d.indexOf('RX_')===0||d.indexOf('PL_')===0||d.indexOf('PR_')===0||d.indexOf('PP_')===0||d.indexOf('SP_')===0||d.indexOf('VS_')===0||d.indexOf('VP_')===0||d.indexOf('VM_')===0||d.indexOf('VL_')===0||d.indexOf('VX_')===0||d.indexOf('PX_')===0||d.indexOf('SL_')===0||d.indexOf('WS_')===0)){try{if(cb.message&&cb.message.message_id&&cb.message.message_id!==newlook.mediaId)activeRootMid=cb.message.message_id;}catch(e){}} /*[L0-2a-bis/ter,L0-2b] ancre le bloc TEXTE actif ; JAMAIS le workspace média (newlook.mediaId) -> le menu texte reste éditable au retour*/
     if(d&&d.indexOf('R_')===0&&uiRouter.has(d.slice(2))){await routeBlock(d.slice(2),'inplace');return;}
     if(d&&d.indexOf('RH_')===0&&uiRouter.has(d.slice(3))){ const hid=d.slice(3);
       if(MEDIA_MODULES[hid]&&wsOpen){ const mod=uiRouter.REGISTRY[hid]; const help=(mod&&mod.help)||('Écran « '+hid+' ».'); await nlText('❓ <b>AIDE</b> · '+((mod&&mod.title)||hid)+'\n\n'+help,[[{text:'◀️ Retour',callback_data:'R_'+hid}]]); return; } /*[L0-2a-ter] aide d'un écran workspace = caption du bloc média (pas de bloc texte parasite)*/
@@ -2610,6 +2612,8 @@ async function handle(upd){
       if(d==='SL_USE'){ const f=list[_slLooksIdx]; if(f){ const p=ensureProj(); const fp=path.join(getLooksDir(),f); p.look.file=fp; p.look.source='gallery'; try{setWorkPhoto(fp);}catch(e){} await toast('👗 Look appliqué au projet'); } await routeBlock('studio.looks','inplace'); return; }
       return;
     }
+    // [v8 · point 7] retour bibliothèque -> EXACTEMENT l'étape du projet en cours (ou accueil si aucun projet)
+    if(d==='WS_RESUME'){ await routeBlock(currentStepModule(ensureProj()),'inplace'); return; }
     // [L0-2a-ter] STUDIO · gestion bibliothèque de prompts (texte, EN PLACE)
     if(d&&d.indexOf('SP_')===0){
       if(d&&d.indexOf('SP_VIEW_')===0){ const it=getPromptLib(d.slice(8)); await toast(it?(it.name+' : '+it.text.slice(0,180)):'introuvable'); return; }
