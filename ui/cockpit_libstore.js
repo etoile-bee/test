@@ -68,8 +68,17 @@ function listLooks(base) { try { return fs.readdirSync(looksDir(base)).filter(f 
 function trashLook(base, file) { try { const d = looksDir(base); const t = path.join(d, '_trash'); fs.mkdirSync(t, { recursive: true }); fs.renameSync(path.join(d, file), path.join(t, file)); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } }
 function restoreLook(base, file) { try { const d = looksDir(base); fs.renameSync(path.join(d, '_trash', file), path.join(d, file)); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } }
 
+// ── Q5 — PRÉRÉGLAGES réutilisables (niveau PERSONA) : crop / zoom / image_fx nommés.
+//   E124-safe : un préréglage ne s'applique JAMAIS automatiquement ; le contrôleur le COPIE explicitement dans un projet.
+function presetsDir(base, persona) { const d = path.join(base, 'presets', persona || 'default'); try { fs.mkdirSync(d, { recursive: true }); } catch (e) {} return d; }
+function listPresets(base, persona) { try { return fs.readdirSync(presetsDir(base, persona)).filter(f => /\.json$/.test(f)).map(f => f.replace(/\.json$/, '')); } catch (e) { return []; } }
+function savePreset(base, persona, name, data) { try { fs.writeFileSync(path.join(presetsDir(base, persona), name + '.json'), JSON.stringify({ name: name, image_fx: (data && data.image_fx) || {}, crop: (data && data.crop) || null, zoom: (data && data.zoom) || null }, null, 2)); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } }
+function getPreset(base, persona, name) { try { return JSON.parse(fs.readFileSync(path.join(presetsDir(base, persona), name + '.json'), 'utf8')); } catch (e) { return null; } }
+function deletePreset(base, persona, name) { try { fs.unlinkSync(path.join(presetsDir(base, persona), name + '.json')); return { ok: true }; } catch (e) { return { ok: false, error: e.message }; } }
+
 module.exports = {
   PROTECTED_KEYS, readLookbook, safeLookbookWrite,
+  listPresets, savePreset, getPreset, deletePreset,
   listDecors, addDecor, renameDecor, deleteDecor, lockDecor,
   listPrompts, savePrompt, deletePrompt, duplicatePrompt,
   listLooks, trashLook, restoreLook,

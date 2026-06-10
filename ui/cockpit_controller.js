@@ -18,6 +18,7 @@ function createController(deps) {
   const generate = deps.generate || (() => []);            // backend IMAGE (réel câblé ; mock gratuit en test)
   const generateVideo = deps.generateVideo || (() => null); // backend VIDÉO (réel câblé ; mock gratuit en test)
   const lookbook = deps.lookbook || {};                     // pricing pour l'estimation de coût (Lot 8)
+  const LS = deps.libstore || null;                         // cockpit_libstore (CRUD biblios + préréglages)
   const libItems = deps.libItems || (() => []);
   const nowv = () => (typeof deps.now === 'function' ? deps.now() : deps.now); // horodatage (valeur), injectable pour tests
 
@@ -154,6 +155,15 @@ function createController(deps) {
     if (a === 'GEN_ABORT') { S.setGenStatus(base, persona, ui.projectId, 'aborted', nowv()); ui.pendingGen = null; ui.step = ui.flow ? FLOW.resumeStep(ui.flow, manifest()) : 'home'; return { render: render(), notice: '⏹ Génération annulée' }; }
     // Lot 6 (A5) — PUBLIER : sort de Prêt-à-poster, reste dans l'Historique (statut métier ; pas d'auto-post)
     if (a === 'PUBLISH') { S.publish(base, persona, ui.projectId, nowv()); return { render: render(), notice: '📣 Publié (retiré de la file, conservé en Historique)' }; }
+    // Q4 — versions restaurables : snapshot + restauration (versions validées jamais perdues)
+    if (a === 'VERS_SNAP') { const id = S.snapshotVersion(base, persona, ui.projectId, 'version', nowv()); return { render: render(), notice: '💾 Version ' + id + ' enregistrée' }; }
+    if (a.indexOf('VERS_RESTORE_') === 0) { S.restoreVersion(base, persona, ui.projectId, a.slice(13), nowv()); return { render: render(), notice: '↩️ Version restaurée' }; }
+    // Q5 — préréglages persona : enregistrer le réglage courant ; appliquer EXPLICITEMENT (copie -> projet, E124-safe)
+    if (a === 'PRESET_SAVE' && LS) { const m = manifest(); LS.savePreset(base, persona, 'préréglage', { image_fx: m.parametres.image_fx, crop: m.parametres.crop }); return { render: render(), notice: '⭐ Préréglage enregistré' }; }
+    if (a.indexOf('PRESET_APPLY_') === 0 && LS) { const pr = LS.getPreset(base, persona, a.slice(13)); if (pr) { S.setImageFx(base, persona, ui.projectId, pr.image_fx || {}, nowv()); S.setCrop(base, persona, ui.projectId, pr.crop || null, nowv()); } return { render: render(), notice: '⭐ Préréglage appliqué (copié dans ce projet)' }; }
+    // Lot 2 — CRUD décors (A3 : libstore sécurisé, rollback) via le contrôleur
+    if (a.indexOf('DEC_DEL_') === 0 && LS) { const r = LS.deleteDecor(base, a.slice(8)); return { render: render(), notice: r.ok ? '🗑 Décor supprimé' : '⚠️ ' + r.error }; }
+    if (a.indexOf('DEC_LOCK_') === 0 && LS) { LS.lockDecor(base, a.slice(9), true); return { render: render(), notice: '🔒 Décor verrouillé' }; }
     if (a === 'GEN_CONFIRM') {
       const m = manifest();
       if (ui.pendingGen === 'video') {

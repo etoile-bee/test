@@ -54,7 +54,8 @@ function defaultManifest(persona, projectId, ts) {
     livrables_select: { image: true, video: true }, // E123 — FINALISER : Image+Vidéo cochés par défaut
     exports: [],
     raws: { image: null, lipsync: null, video: null, avant_soustitres: null, avant_zoom: null, avant_montage: null }, // E93.5 raws jamais écrasés
-    historique_versions: [],         // E93.3 — [{ ts, etape, action, ref }]
+    historique_versions: [],         // E93.3 — JOURNAL d'actions [{ ts, etape, action, ref }]
+    versions: [],                    // Q4 — SNAPSHOTS RESTAURABLES [{ id, ts, label, media_ref, params_snapshot }]
   };
 }
 
@@ -187,6 +188,34 @@ function setRaw(base, persona, projectId, kind, relPath, ts) {
   return saveManifest(base, persona, projectId, m, ts);
 }
 
+// Q4 — SNAPSHOT restaurable : capture l'état courant (média + params) ; ne supprime jamais les versions existantes.
+function snapshotVersion(base, persona, projectId, label, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.versions = m.versions || [];
+  const id = 'v' + (m.versions.length + 1);
+  m.versions.push({
+    id: id, ts: iso(ts), label: label || id,
+    media_ref: m.media_actif,
+    params_snapshot: JSON.parse(JSON.stringify({ image_fx: (m.parametres && m.parametres.image_fx) || {}, crop: (m.parametres && m.parametres.crop) || null, prompt: m.prompts || [], look: m.look || {} })),
+  });
+  saveManifest(base, persona, projectId, m, ts);
+  return id;
+}
+function listVersions(base, persona, projectId) { const m = loadManifest(base, persona, projectId); return (m && m.versions) || []; }
+// Q4 — RESTAURE une version : réactive média + params du snapshot. Les autres versions restent (jamais perdues).
+function restoreVersion(base, persona, projectId, versionId, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  const v = (m.versions || []).find(x => x.id === versionId); if (!v) return null;
+  m.media_actif = v.media_ref;
+  m.parametres = m.parametres || {};
+  m.parametres.image_fx = JSON.parse(JSON.stringify(v.params_snapshot.image_fx || {}));
+  m.parametres.crop = v.params_snapshot.crop || null;
+  if (v.params_snapshot.prompt) m.prompts = JSON.parse(JSON.stringify(v.params_snapshot.prompt));
+  if (v.params_snapshot.look) m.look = JSON.parse(JSON.stringify(v.params_snapshot.look));
+  addVersion(m, { etape: 'version', action: 'restauré:' + versionId, ref: v.media_ref }, ts);
+  return saveManifest(base, persona, projectId, m, ts);
+}
+
 // Lot 5 — suivi/annulation : statut de génération (running/done/aborted).
 function setGenStatus(base, persona, projectId, status, ts) {
   const m = loadManifest(base, persona, projectId); if (!m) return null;
@@ -239,6 +268,7 @@ module.exports = {
   setImageOutcome, setLivrable, setLivrableSelect, setImageFx, setCrop,
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   setGenStatus, publish, isLocalMedia, projectSurvit,
+  snapshotVersion, listVersions, restoreVersion,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,
 };

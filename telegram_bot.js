@@ -2538,7 +2538,9 @@ function cockpitV4(){
     sendVideo:async(media,caption,rm)=>{ try{ const FormData=require('form-data');const form=new FormData();form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(media),{filename:'v.mp4',contentType:'video/mp4'});if(caption){form.append('caption',cap1024(caption));form.append('parse_mode','HTML');}if(rm)form.append('reply_markup',JSON.stringify(rm));const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});return await r.json(); }catch(e){ return {ok:false}; } },
     editVideo:async(mid,media,caption,rm)=>{const r=await editVideoKb(mid,media,cap1024(caption),rk(rm));return r===false?{ok:false}:{ok:true};},
   };
-  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), generate:v4Generate, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
+  let v4lookbook={}; try{ v4lookbook=nlMod().readLookbook()||{}; }catch(e){}
+  let v4libstore=null; try{ v4libstore=require('./ui/cockpit_libstore'); }catch(e){}
+  _v4=V4.createCockpitV4({ prims, base:BASE, persona:_persona(), generate:v4Generate, lookbook:v4lookbook, libstore:v4libstore, libItems:()=>[], placeholder:v4Placeholder(), toast:(t)=>toast(t) });
   return _v4;
 }
 
