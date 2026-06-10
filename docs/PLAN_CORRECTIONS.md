@@ -112,4 +112,16 @@ audit complet · parcours **PHOTO** complet · parcours **VIDÉO** complet · te
 - ☐ 8 tests fonctionnels E118 au vert (PHOTO · VIDÉO · bibliothèques · Historique · Prêt-à-poster · reprise · propagation média · régressions).
 - ☐ Rapport des 12 étapes joint.
 - ☐ `node --check` OK · suites de régression au vert · smoke `/menu` `/go`.
+- ☐ **Tableau de CONFORMITÉ E120 à 100 %** (voir ci-dessous).
 - ☐ Livraison unique, **puis** tests utilisateurs.
+
+### E120 — CONFORMITÉ AUX EXIGENCES VALIDÉES (section obligatoire de l'auto-audit E118)
+> Avant chaque implémentation/checkpoint/audit/livraison : relire E1→E120 + invariants ; **une exigence validée reste valide jusqu'à décision explicite d'Etoile** ; tout conflit **remonté AVANT** impl.
+
+**Tableau exigé dans le rapport de livraison** (une ligne par exigence E1→E120 + invariants) :
+
+| Exigence | Statut (conforme / non conforme / N/A) | Justification | Preuve de test | Régression (oui/non) |
+|---|---|---|---|---|
+| E1 … E120 + invariants | … | … | … | … |
+
+**Règle** : aucune livraison déclarée prête tant que ce tableau n'est pas **100 % vérifié**. Tout « non conforme » non arbitré par Etoile **bloque** la livraison.

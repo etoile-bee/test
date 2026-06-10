@@ -236,6 +236,7 @@ Avec ces 6 mécanismes : **aucune action n'ouvre un second message**, **aucune n
 ## G) RÈGLES PERMANENTES GRAVÉES (docs/EXIGENCES.md + docs/PLAN_CORRECTIONS.md)
 - **[[E118]] — PROTOCOLE QUALITÉ AVANT CHAQUE LIVRAISON** (rigueur « découverte du filtre couleur ») : 12 étapes documentées (audit · parcours PHOTO · parcours VIDÉO · test bibliothèques · test Historique · test Prêt-à-poster · test reprise projet · test propagation média · recherche de régressions · rapport · corrections · re-validation). **Objectif : zéro régression évidente découverte par Etoile après livraison.**
 - **[[E119]] — MÉTHODE DE LIVRAISON UNIQUE COHÉRENTE** : design cible **FINAL validé** → implémentation **COMPLÈTE** → audit complet → auto-tests complets → **LIVRAISON UNIQUE** → **PUIS** campagne de tests utilisateurs. **Fin des micro-livraisons / ajustements écran-par-écran.**
+- **[[E120]] — CONFORMITÉ AUX EXIGENCES VALIDÉES** : relecture **systématique** de E1→E120 + invariants avant chaque dev/checkpoint/audit/livraison ; une exigence validée **reste valide** jusqu'à décision explicite d'Etoile ; **tableau de conformité exhaustif à 100 %** dans l'auto-audit E118 ; **tout conflit remonté AVANT implémentation**. `EXIGENCES.md` = référence vivante.
 
 ---
 
