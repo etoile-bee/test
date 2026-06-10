@@ -62,11 +62,18 @@ function viewSource(flow, m) {
     ];
     if (nb > 1) rows.push([{ text: '▦ Planche contact', cb: 'PLANCHE' }]); // E36 (vue d'ensemble des N images)
     if (m && m.image_candidates && m.image_candidates.length) {
-      // E123 — VALIDATION D'IMAGE EXPLICITE : devenir de l'image courante (rien n'est livrable sans action explicite)
-      rows.push([{ text: '◀︎', cb: 'CAND_PREV' }, { text: '🎬 Aperçu candidat', cb: 'NOOP' }, { text: '▶︎', cb: 'CAND_NEXT' }]);
-      rows.push([{ text: '✅ Garder', cb: 'CAND_KEEP' }, { text: '⭐ Livrable', cb: 'CAND_DELIVER' }, { text: '◫ Variante', cb: 'CAND_VAR' }]);
-      rows.push([{ text: '🔄 Régénérer', cb: 'CAND_REGEN' }, { text: '🔁 Varier', cb: 'CAND_VARY' }, { text: '🎨 Éditer', cb: 'CAND_EDIT' }]);
-      rows.push([{ text: '🗑 Rejeter', cb: 'CAND_REJECT' }]);
+      // Écran candidat NON AMBIGU (critère 1) : 3 états visibles + 1 action principale + « Plus d'options ».
+      const cands = m.image_candidates; const idx = Math.max(0, Math.min(m._candIdx || 0, cands.length - 1));
+      const cur = cands[idx];
+      const estActif = m.media_actif === cur;
+      const estVariante = (m.variantes || []).indexOf(cur) >= 0;
+      const estLivrable = (m.livrables && m.livrables.image) === cur;
+      cap = hdr(m) + '\n<b>Image ' + (idx + 1) + '/' + cands.length + '</b> · '
+        + (estActif ? '★ MÉDIA ACTIF' : (estLivrable ? '✅ LIVRABLE' : (estVariante ? '◫ variante' : '🆕 candidate')))
+        + '\n<i>Candidate = générée, pas choisie · ★ Média actif = source des étapes · ✅ Livrable = part en Prêt-à-poster. Actions indépendantes.</i>';
+      rows = [[{ text: '◀︎', cb: 'CAND_PREV' }, { text: (idx + 1) + '/' + cands.length, cb: 'NOOP' }, { text: '▶︎', cb: 'CAND_NEXT' }]];
+      rows.push([{ text: (estActif ? '★ Média actif ✓' : '★ Définir comme média actif'), cb: 'CAND_KEEP' }]); // action principale
+      rows.push([{ text: '⋯ Plus d\'options', cb: 'CAND_MORE' }]);
     }
   } else {
     cap = hdr(m) + '\n<b>SOURCE</b> — média de la vidéo ?';
@@ -127,6 +134,22 @@ function viewFinaliser(flow, m) {
   return { media: FLOW.previewMedia(m), raw: true, caption: cap, rows: rows.concat(actionBar(flow, 'finaliser', m)) };
 }
 
+// Critère 1 — « Plus d'options » du candidat : actions secondaires DÉCOUPLÉES, avec impact explicite.
+function viewCandMore(m) {
+  return {
+    media: FLOW.previewMedia(m), raw: true,
+    caption: hdr(m) + '\n⋯ <b>Options de l\'image</b>\n<i>Chaque action est indépendante.</i>',
+    rows: [
+      [{ text: '◫ Conserver comme variante', cb: 'CAND_VAR' }],   // trace, PAS livrable
+      [{ text: '✅ Valider comme livrable', cb: 'CAND_DELIVER' }], // → Prêt-à-poster
+      [{ text: '🔁 Générer une variante', cb: 'CAND_VARY' }],      // img2img, source conservée
+      [{ text: '🔄 Régénérer (remplace)', cb: 'CAND_REGEN' }, { text: '🎨 Éditer', cb: 'CAND_EDIT' }],
+      [{ text: '🗑 Rejeter (hors livrables)', cb: 'CAND_REJECT' }],
+      [{ text: '◀ Retour', cb: 'BACK' }],
+    ],
+  };
+}
+
 // Lot 3 — VUE PLANCHE-CONTACT (aperçu d'ensemble des N images séparées ; sélection explicite, A7).
 // Le composite n'est qu'un APERÇU : chaque image reste un fichier séparé, sélectionnable/réutilisable.
 function viewPlanche(m) {
@@ -166,4 +189,4 @@ function view(flow, step, m) {
   return home();
 }
 
-module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, actionBar, hdr };
+module.exports = { home, view, viewSource, viewParams, viewFinaliser, viewPlanche, viewImgEdit, viewCandMore, actionBar, hdr };

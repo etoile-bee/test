@@ -93,7 +93,8 @@ function createController(deps) {
     if (outcome === 'rejeter') S.removeRetenue(base, persona, ui.projectId, rel, nowv());
     const changesActive = (outcome === 'garder' || outcome === 'livrable' || outcome === 'rejeter');
     if (changesActive && FLOW.changeImpactsDownstream(manifest(), 'image')) { ui.pendingSlice = 'image'; ui.step = 'impact'; return { render: impactView('image') }; }
-    const notices = { garder: '✅ Gardée (image active)', livrable: '⭐ Livrable image', variante: '◫ Variante (trace)', rejeter: '🗑 Rejetée (hors livrables)' };
+    if (ui.step === 'cand_more') ui.step = 'source'; // après une action « Plus d'options », revenir à l'écran candidat
+    const notices = { garder: '★ Défini comme média actif', livrable: '✅ Validé comme livrable → Prêt-à-poster', variante: '◫ Conservé comme variante (pas livrable)', rejeter: '🗑 Rejeté (hors livrables)' };
     return { render: render(), notice: notices[outcome] };
   }
 
@@ -110,7 +111,7 @@ function createController(deps) {
     if (ui.step === 'source' && m.image_candidates && m.image_candidates.length) {
       // affiche le candidat courant (pointeur candIdx) — la LISTE est dans le manifest, pas dans l'UI
       const idx = Math.max(0, Math.min(ui.candIdx, m.image_candidates.length - 1));
-      const view = VIEW.view(ui.flow, 'source', Object.assign({}, m, { media_actif: m.media_actif || m.image_candidates[idx] }));
+      const view = VIEW.view(ui.flow, 'source', Object.assign({}, m, { _candIdx: idx, media_actif: m.media_actif || m.image_candidates[idx] }));
       return view;
     }
     return VIEW.view(ui.flow, ui.step, m);
@@ -129,6 +130,7 @@ function createController(deps) {
     if (ui.step === 'confirm') return confirmView();
     if (ui.step === 'planche') return VIEW.viewPlanche(manifest());
     if (ui.step === 'imgedit') return VIEW.viewImgEdit(manifest());
+    if (ui.step === 'cand_more') { const m = manifest() || {}; const idx = Math.max(0, Math.min(ui.candIdx, (m.image_candidates || []).length - 1)); return VIEW.viewCandMore(Object.assign({}, m, { _candIdx: idx, media_actif: m.media_actif || (m.image_candidates || [])[idx] })); }
     if (ui.step === 'versions') return versionsView();
     if (ui.step === 'presets') return presetsView();
     return renderStep();
@@ -156,7 +158,7 @@ function createController(deps) {
     if (a === 'BACK') {
       if (ui.picker) { ui.picker = null; ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'impact') { ui.pendingSlice = null; ui.step = FLOW.resumeStep(ui.flow, manifest()); return { render: render() }; }
-      if (ui.step === 'imgedit' || ui.step === 'planche') { ui.step = 'source'; return { render: render() }; }
+      if (ui.step === 'imgedit' || ui.step === 'planche' || ui.step === 'cand_more') { ui.step = 'source'; return { render: render() }; }
       if (ui.step === 'versions' || ui.step === 'presets') { ui.step = 'parametres'; return { render: render() }; }
       if (ui.step === 'libdetail') { ui.step = 'lib'; return { render: render() }; }
       const p = FLOW.prevStep(ui.step);
@@ -223,6 +225,7 @@ function createController(deps) {
     if (a === 'CAND_VAR') return candidateOutcome('variante');
     if (a === 'CAND_REJECT') return candidateOutcome('rejeter');
     if (a === 'CAND_REGEN') { const m = manifest(); const cands = generate(ui.flow, m) || []; if (cands.length) { m.image_candidates = cands; ui.candIdx = 0; S.saveManifest(base, persona, ui.projectId, m, nowv()); } ui.step = 'source'; return { render: render(), notice: '🔄 Régénéré' }; }
+    if (a === 'CAND_MORE') { ui.step = 'cand_more'; return { render: render() }; }
     if (a === 'CAND_EDIT') { ui.step = 'imgedit'; return { render: render(), notice: '🎨 Édition image' }; }
     // Q2 — VARIER : nouvelle variante par prompt depuis l'image choisie ; la SOURCE est conservée (variantes), img2img au câblage
     if (a === 'CAND_VARY') {

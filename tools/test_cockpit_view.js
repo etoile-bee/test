@@ -28,9 +28,16 @@ chk('E35 : sélecteur 1/2/3 présent', ['NB_1', 'NB_2', 'NB_3'].every(x => cbs(s
 chk('E36 : pas de planche si nb=1', cbs(src1).indexOf('PLANCHE') < 0);
 const src3 = V.view('photo', 'source', { name: 'P', parametres: { nb_images: 3 } });
 chk('E36 : planche contact si nb>1', cbs(src3).indexOf('PLANCHE') >= 0);
-const srcCand = V.view('photo', 'source', { name: 'P', parametres: { nb_images: 3 }, image_candidates: ['a', 'b'] });
-chk('E123 : validation image explicite (Garder/Livrable/Variante/Rejeter/Régénérer/Éditer)', ['CAND_KEEP', 'CAND_DELIVER', 'CAND_VAR', 'CAND_REJECT', 'CAND_REGEN', 'CAND_EDIT'].every(x => cbs(srcCand).indexOf(x) >= 0));
-chk('E123 : pas de pick auto vers livrable (aucun CAND_PICK)', cbs(srcCand).indexOf('CAND_PICK') < 0);
+const srcCand = V.view('photo', 'source', { name: 'P', parametres: { nb_images: 3 }, image_candidates: ['a', 'b'], _candIdx: 0 });
+// Critère 1 — écran candidat : action principale + « Plus d'options », terminologie claire, 3 états en légende
+chk('crit1 : action principale = ★ Définir comme média actif', cbs(srcCand).indexOf('CAND_KEEP') >= 0 && /Définir comme média actif/.test(texts(srcCand)));
+chk('crit1 : « ⋯ Plus d\'options » (1 action principale/écran)', cbs(srcCand).indexOf('CAND_MORE') >= 0);
+chk('crit1 : 3 états expliqués en légende (candidate/média actif/livrable)', /candidate/i.test(srcCand.caption) && /Média actif/i.test(srcCand.caption) && /Livrable/i.test(srcCand.caption));
+chk('crit1 : pas de pick auto (aucun CAND_PICK)', cbs(srcCand).indexOf('CAND_PICK') < 0);
+// viewCandMore : actions secondaires DÉCOUPLÉES avec terminologie claire
+const more = V.viewCandMore({ name: 'P', image_candidates: ['a'], _candIdx: 0 });
+chk('crit1 : Plus d\'options = Variante/Livrable/Varier/Régénérer/Éditer/Rejeter', ['CAND_VAR', 'CAND_DELIVER', 'CAND_VARY', 'CAND_REGEN', 'CAND_EDIT', 'CAND_REJECT'].every(x => cbs(more).indexOf(x) >= 0));
+chk('crit1 : terminologie claire (Conserver comme variante / Valider comme livrable / Générer une variante)', /Conserver comme variante/.test(texts(more)) && /Valider comme livrable/.test(texts(more)) && /Générer une variante/.test(texts(more)));
 
 // ── PARAMÈTRES = liste de lignes (1 picker focalisé / décision) ──
 const par = V.view('photo', 'parametres', mMedia);
