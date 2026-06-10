@@ -36,6 +36,27 @@ function estimateVideo(params, lb) {
 
 function estimate(kind, params, lb) { return kind === 'video' ? estimateVideo(params, lb) : estimateImage(params, lb); }
 
+// D2 — l'utilisateur choisit la DURÉE FINALE ; le système ADAPTE : nb plans, temps/plan, découpage script.
+//   nbPlansRetenus (images retenues, Q9) sinon dérivé de la durée. Si script INCOHÉRENT -> alerte + proposition (jamais silencieux).
+function adaptMontage(sec, scriptText, nbPlansRetenus) {
+  sec = sec || 23;
+  const words = (scriptText || '').trim() ? scriptText.trim().split(/\s+/).length : 0;
+  const plans = nbPlansRetenus || planParts(sec).n;
+  const sec_per_plan = Math.round((sec / plans) * 10) / 10;
+  const expected = Math.round((sec / 60) * 150); // ~150 mots/min
+  const lo = Math.round(expected * 0.6), hi = Math.round(expected * 1.4);
+  const coherent = words === 0 || (words >= lo && words <= hi);
+  let alerte = null, suggestion = null;
+  if (!coherent) {
+    const suggSec = Math.max(8, Math.round((words / 150) * 60));
+    alerte = '⚠️ Script incohérent avec la durée (' + words + ' mots pour ' + sec + 's)';
+    suggestion = words < lo
+      ? ('Script court → réduire la durée à ~' + suggSec + 's, ou allonger le script')
+      : ('Script long → allonger la durée à ~' + suggSec + 's, ou raccourcir le script');
+  }
+  return { plans: plans, sec_per_plan: sec_per_plan, words: words, expected: expected, coherent: coherent, alerte: alerte, suggestion: suggestion };
+}
+
 // Panneau « Avant de lancer » (E11) — texte court.
 function panel(est, creditsRestants) {
   const bits = [];
@@ -48,4 +69,4 @@ function panel(est, creditsRestants) {
   return bits.join(' · ');
 }
 
-module.exports = { COST, estimate, estimateImage, estimateVideo, planParts, panel, eurPerCredit };
+module.exports = { COST, estimate, estimateImage, estimateVideo, planParts, panel, eurPerCredit, adaptMontage };

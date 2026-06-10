@@ -40,7 +40,7 @@ function defaultManifest(persona, projectId, ts) {
     prompts: [],                     // E93.1 — [{ role:'image'|'video'|'lipsync', name, text }]
     scripts: [],                     // [{ name, text, duree }]  (E46)
     legendes: { courte: '', longue: '', tags: '' },  // E49/E50
-    parametres: { nb_images: 1, mode: 'eco', format: '9:16', image_fx: {}, crop: null, rendu: {} },  // E35/E39/E44 ; E124 : réglages image/crop/rendu PAR PROJET (jamais globaux)
+    parametres: { nb_images: 1, mode: 'eco', format: '9:16', image_fx: {}, crop: null, rendu: {}, subs_override: null, duree: '23s' },  // E35/E39/E44 ; E124 : réglages PAR PROJET ; D1 : override sous-titres projet (jamais subtitle_style.js)
     media_actif: null,               // chemin RELATIF au dossier (design C.4 — média actif persistant)
     gen_status: 'idle',              // Lot 5 — idle | running | done | aborted (suivi/annulation génération)
     couts: { credits: 0, eur_estime: 0, detail: {} },  // E11/E93.2
@@ -56,6 +56,7 @@ function defaultManifest(persona, projectId, ts) {
     raws: { image: null, lipsync: null, video: null, avant_soustitres: null, avant_zoom: null, avant_montage: null }, // E93.5 raws jamais écrasés
     historique_versions: [],         // E93.3 — JOURNAL d'actions [{ ts, etape, action, ref }]
     versions: [],                    // Q4 — SNAPSHOTS RESTAURABLES [{ id, ts, label, media_ref, params_snapshot }]
+    livrables_dossiers: [],          // E125 — DOSSIERS LIVRABLES autonomes (tout le nécessaire à la publication)
   };
 }
 
@@ -221,6 +222,42 @@ function setGenStatus(base, persona, projectId, status, ts) {
   const m = loadManifest(base, persona, projectId); if (!m) return null;
   m.gen_status = status; return saveManifest(base, persona, projectId, m, ts);
 }
+// E125 — assemble un DOSSIER LIVRABLE autonome (tout le nécessaire à la publication) à partir du manifest.
+function buildDeliverable(base, persona, projectId, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.livrables_dossiers = m.livrables_dossiers || [];
+  const did = 'liv' + (m.livrables_dossiers.length + 1);
+  const lg = m.legendes || {};
+  const dossier = {
+    id: did, ts: iso(ts),
+    video: (m.livrables && m.livrables.video) || m.video_media || null,
+    images: [(m.livrables && m.livrables.image) || m.media_actif].filter(Boolean),
+    variantes: m.variantes || [],
+    script: (m.scripts && m.scripts[0] && m.scripts[0].text) || '',
+    legende_courte: lg.courte || '', legende_longue: lg.longue || '', hashtags: lg.tags || '',
+    parametres: m.parametres || {}, infos: { projectId: m.projectId, persona: m.persona, name: m.name, cree_le: m.cree_le },
+    couts: m.couts || {}, moteur_ia: m.moteur_ia || {}, raws: m.raws || {}, exports: m.exports || [],
+  };
+  m.livrables_dossiers.push(dossier);
+  try { const dir = path.join(projectDir(base, persona, projectId), 'exports', did); fs.mkdirSync(dir, { recursive: true }); fs.writeFileSync(path.join(dir, 'deliverable.json'), JSON.stringify(dossier, null, 2)); } catch (e) {}
+  saveManifest(base, persona, projectId, m, ts);
+  return dossier;
+}
+// E125 — complétude d'un dossier livrable (tout présent pour publier).
+function deliverableComplete(d) {
+  if (!d) return false;
+  const keys = ['video', 'images', 'script', 'legende_courte', 'legende_longue', 'hashtags', 'parametres', 'infos', 'exports', 'raws'];
+  if (!keys.every(k => k in d)) return false;
+  return (d.images && d.images.length > 0) || !!d.video; // au moins un média livrable
+}
+
+// D1 — override sous-titres PROJET (jamais subtitle_style.js verrouillé) ; appliqué au rendu via hook sanctionné.
+function setSubsOverride(base, persona, projectId, subs, ts) {
+  const m = loadManifest(base, persona, projectId); if (!m) return null;
+  m.parametres = m.parametres || {}; m.parametres.subs_override = subs || null;
+  return saveManifest(base, persona, projectId, m, ts);
+}
+
 // Lot 6 (A5) — publier : sort de la file Prêt-à-poster, RESTE dans l'Historique (statut métier, pas d'auto-post).
 function publish(base, persona, projectId, ts) { return setStatutPublication(base, persona, projectId, 'publie', ts); }
 // Lot 7 (A6) — un média est-il PERSISTANT (local au dossier projet) et non dépendant d'une URL temporaire ?
@@ -269,6 +306,7 @@ module.exports = {
   setStatutQualite, setStatutPublication, recordQC, setRaw, archiveProject,
   setGenStatus, publish, isLocalMedia, projectSurvit,
   snapshotVersion, listVersions, restoreVersion,
+  buildDeliverable, deliverableComplete, setSubsOverride,
   listProjects, viewHistorique, viewRecents, viewBrouillons, viewProduction, viewPretAPoster, viewArchives,
   currentProject,
 };

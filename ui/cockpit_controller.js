@@ -172,6 +172,7 @@ function createController(deps) {
         if (vid) { m.video_media = vid; m.livrables = m.livrables || { image: null, video: null }; m.livrables.video = vid; }
         m.gen_status = 'done'; m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
         S.saveManifest(base, persona, ui.projectId, m, nowv());
+        if (S.buildDeliverable) S.buildDeliverable(base, persona, ui.projectId, nowv()); // E125 — dossier livrable autonome
         ui.pendingGen = null; ui.step = 'finaliser';
         return { render: render(), notice: '🚀 Vidéo lancée → Prêt-à-poster' };
       }
@@ -250,6 +251,7 @@ function createController(deps) {
           m.livrables = m.livrables || { image: null, video: null }; m.livrables.image = m.media_actif;
           m.statut_qualite = 'production'; m.statut_publication = 'pret_a_poster';
           S.saveManifest(base, persona, ui.projectId, m, nowv());
+          if (S.buildDeliverable) S.buildDeliverable(base, persona, ui.projectId, nowv()); // E125
           return { render: render(), notice: '📦 Image livrée → Prêt-à-poster' };
         }
         if (r.phase === 'video') {
