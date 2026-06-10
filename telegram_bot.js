@@ -7,6 +7,7 @@ const os=require('os');
 
 const TOKEN=process.env.TELEGRAM_TOKEN;
 const CHAT_ID=String(process.env.TELEGRAM_CHAT_ID);
+const REOPEN_FLAG='/tmp/ws_reopen_cockpit'; // [fix/restart-feedback] drapeau : ré-ouvrir le cockpit après un /restart demandé
 const BASE=path.join(os.homedir(),'podcast-workflow');
 const LOOKS=path.join(BASE,'looks');
 const ENV_PATH=path.join(BASE,'.env');
@@ -2835,7 +2836,7 @@ async function handle(upd){
       if(proc||testProc){await ack('⏳ Une création est en cours — patiente.');return;}
       await ack('⏳ Un instant, je reviens…'); /*[C3] redémarrage silencieux (toast, pas de message technique)*/
       try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
-      try{releaseLock();}catch(e){}process.exit(0);return;
+      try{fs.writeFileSync(REOPEN_FLAG,'1');}catch(e){} try{releaseLock();}catch(e){}process.exit(0);return;
     }
     if(d==='TECH_STOP'){
       let stopped=false;
@@ -3435,7 +3436,7 @@ async function handle(upd){
     await ack('⏳ Un instant, je reviens…'); /*[C3] redémarrage silencieux*/
     /*restartcmd v2 : ACK de l'update aupres de Telegram AVANT de mourir — sinon /restart est relivre en boucle*/
     try{await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=${offset}&timeout=0`);}catch(e){}
-    releaseLock();process.exit(0);
+    try{fs.writeFileSync(REOPEN_FLAG,'1');}catch(e){} releaseLock();process.exit(0);
     return;
   }
   if(txt==='/test'){await runLocalTest();return;}
@@ -3629,4 +3630,7 @@ tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer 
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>{ /*[C3] boot SILENCIEUX — aucun message technique dans le chat utilisateur*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
+  /*[fix/restart-feedback] après un /restart demandé par l'utilisateur, RÉAFFICHER le cockpit (accueil) — sans message technique.
+    Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
+  setTimeout(()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){} routeBlock('home','navigate').catch(()=>{}); } }catch(e){} },1500);
 }).catch(e=>{console.error(e.message);process.exit(1);});
