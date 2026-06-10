@@ -50,8 +50,14 @@ async function route(id, ctx, mode) {
   if (!mod) return false;
   const out = mod.render(ctx) || {};
   const rows = contentButtons(out.rows).concat(navRows(mod, ctx));
-  if (out.image && ctx.showMedia) await ctx.showMedia(out.image, out.caption || mod.title, rows, mode || 'inplace', out.raw); // bloc MÉDIA (vignette persistante)
-  else await ctx.show(out.caption || mod.title, rows, mode || 'inplace'); // bloc TEXTE (menu)
+  // [MC2] CEINTURE : un module MÉDIA (mod.media ou out.image) ne DOIT JAMAIS retomber en bloc texte.
+  // Si l'image manque, on utilise un placeholder garanti (ctx.placeholder) -> jamais de nouveau bloc texte (élimine B1/B1.1/B1.2 comme classe).
+  const isMedia = !!(out.image || mod.media);
+  if (isMedia && ctx.showMedia) {
+    const img = out.image || (ctx.placeholder && ctx.placeholder());
+    if (img) { await ctx.showMedia(img, out.caption || mod.title, rows, mode || 'inplace', out.raw); return true; }
+  }
+  await ctx.show(out.caption || mod.title, rows, mode || 'inplace'); // bloc TEXTE (menus uniquement)
   return true;
 }
 

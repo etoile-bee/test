@@ -1129,7 +1129,7 @@ async function uiShow(id,caption,rows,mode){
   const r=await send(caption,rows); const nm=r&&r.result&&r.result.message_id; if(nm)activeRootMid=nm; return nm; // navigate (ou bloc actif disparu) : NOUVEAU bloc racine
 }
 async function system(text,rows){ const r=await send(text,rows||[]); const mid=r&&r.result&&r.result.message_id; if(mid){_ephemeral.push(mid); setTimeout(()=>{delMsg(mid).catch(()=>{});_ephemeral=_ephemeral.filter(x=>x!==mid);},8000);} return mid; } // message technique éphémère
-function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw)}; }
+function uiCtx(id){ return {show:(cap,rows,mode)=>uiShow(id,cap,rows,mode),showMedia:(file,cap,rows,mode,raw)=>uiShowMedia(file,cap,rows,raw),placeholder:()=>wsPlaceholder()}; } // [MC2] placeholder garanti pour la ceinture routeur
 // [L0-2a-bis] WORKSPACE MÉDIA (canvas du projet PHOTO) : bloc photo unique édité EN PLACE (vignette + contexte), distinct du menu texte.
 let wsOpen=false; // un workspace média (newlook.mediaId) est ouvert
 let refGalIdx=0;  // pointeur galerie pour le choix de référence/look
@@ -1188,6 +1188,51 @@ function lookFile(p){ // image du look actif (chemin réel, unique) ou null
   try{ if(workingSource&&fs.existsSync(workingSource))return workingSource; }catch(e){}
   return null;
 }
+// ─────────────────────────────────────────────────────────────────────────────
+// [fix/root-causes-v1 · MC2] RÉSOLVEUR MÉDIA GARANTI — une vue média NE DOIT JAMAIS
+// renvoyer null (sinon le routeur retombe en texte / nouveau bloc = B1/B1.1/B1.2).
+// Ordre : image générée RÉSOLUE LOCALEMENT → look → référence → placeholder sûr.
+// ─────────────────────────────────────────────────────────────────────────────
+let _wsPlaceholder=null;
+function wsPlaceholder(){ // image de repli garantie (jamais null sauf catastrophe disque)
+  try{ const c=nlCover(); if(c&&fs.existsSync(c))return c; }catch(e){}
+  try{ if(_wsPlaceholder&&fs.existsSync(_wsPlaceholder))return _wsPlaceholder;
+    const out='/tmp/ws_placeholder.jpg';
+    require('child_process').execSync('ffmpeg -y -f lavfi -i color=c=0x1c1c28:s=720x900:d=0.1 -frames:v 1 "'+out+'" 2>/dev/null');
+    if(fs.existsSync(out)&&fs.statSync(out).size>300){_wsPlaceholder=out;return out;}
+  }catch(e){}
+  return null;
+}
+function wsLocalImage(p){ // image générée résolue LOCALEMENT uniquement (jamais une URL distante qui échoue)
+  try{ const im=p&&p.image; if(im&&im.urls&&im.urls.length){ const i=(im.validated!=null?im.validated:(im.idx||0));
+    const u=im.urls[i]; if(u&&String(u).startsWith('/')&&fs.existsSync(u))return u; // chemin local durable
+    const f=nlLocal(i); if(f&&fs.existsSync(f))return f; // cache local (téléchargé)
+  } }catch(e){}
+  return null;
+}
+function wsMedia(p,prefer){ // GARANTIT un chemin image non-null pour toute vue média
+  try{ if(prefer&&fs.existsSync(prefer))return prefer; }catch(e){}
+  const li=wsLocalImage(p); if(li)return li;
+  const lf=lookFile(p); if(lf)return lf;
+  try{ const r=refThumb(); if(r&&fs.existsSync(r))return r; }catch(e){}
+  return wsPlaceholder();
+}
+// [fix/root-causes-v1 · #2 PERSISTANCE DURABLE] copie chaque média généré (URL distante OU /tmp) vers un
+// chemin LOCAL DURABLE (outputs/proj_media/<draftId>/) et renvoie les chemins locaux. La reprise/retour
+// ne tombent plus jamais sur une URL temporaire expirée (cause prouvée de B1 à la reprise ; lien E59/E94).
+function persistProjMedia(urls,draftId){
+  const out=[]; const dir=path.join(BASE,'outputs','proj_media',(draftId||'sans_id').replace(/[^a-z0-9_-]/gi,'_'));
+  try{fs.mkdirSync(dir,{recursive:true});}catch(e){}
+  (urls||[]).forEach((u,i)=>{
+    try{
+      if(u&&String(u).startsWith('/')&&fs.existsSync(u)){ const dst=path.join(dir,i+'.jpg'); try{fs.copyFileSync(u,dst);}catch(e){} out.push(fs.existsSync(dst)?dst:u); return; }
+      const dst=path.join(dir,i+'.jpg');
+      try{require('child_process').execSync('curl -sL -o "'+dst+'" "'+u+'"');}catch(e){}
+      if(fs.existsSync(dst)&&fs.statSync(dst).size>5000)out.push(dst); else if(u)out.push(u); // garde l'URL en dernier recours
+    }catch(e){ if(u)out.push(u); }
+  });
+  return out.length?out:(urls||[]);
+}
 // [L0-2a-ter · point 6] EN-TÊTE DE CONTEXTE — toujours visible, identique à chaque étape du workspace.
 function wsHeader(p,stepLabel){
   let src=null;try{src=nlRefFile();}catch(e){}
@@ -1208,7 +1253,7 @@ function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette 
                  : ((lb.categories[p.look.category]&&lb.categories[p.look.category].label)||p.look.category||'(à choisir)'));
   const envLabel = (lb.envs[p.look.env]&&lb.envs[p.look.env].label)||p.look.env;
   const srcLabel = {new:'✨ Nouveau (généré)',gallery:'🖼 Galerie',upload:'📤 Upload'}[p.look.source]||'— (à choisir)';
-  const lf=lookFile(p); const img=lf||refThumb();
+  const lf=lookFile(p); const img=wsMedia(p,lf);
   const cap = wsHeader(p,'LOOK 1/2')
     +'──────────\n'
     +'Source : <b>'+escH(srcLabel)+'</b> · 👗 '+escH(catLabel)+' · 🌆 '+escH(envLabel)+'\n'
@@ -1224,12 +1269,12 @@ function photoLookView(){ // étape LOOK — bloc MÉDIA (workspace) : vignette 
 }
 function photoLookGalView(){ // SOURCE LOOK = galerie, dans le workspace (média, navigation en place)
   const p=ensureProj(); const list=looksList();
-  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeader(p,'LOOK · Galerie')+'──────────\n🖼 <b>Galerie vide</b> — aucun look enregistré.',rows:[]};
+  if(!list.length)return {image:wsMedia(p),raw:false,caption:wsHeader(p,'LOOK · Galerie')+'──────────\n🖼 <b>Galerie vide</b> — aucun look enregistré.',rows:[]};
   if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
   const f=path.join(getLooksDir(),list[refGalIdx]);
   const cap=wsHeader(p,'LOOK · Galerie')+'──────────\n🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ choisis ce look.';
   const rows=[[{text:'‹',cb:'PL_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'PL_GNEXT'}],[{text:'✅ Choisir ce look',cb:'PL_GSET'}]];
-  return {image:f,raw:false,caption:cap,rows};
+  return {image:wsMedia(p,f),raw:false,caption:cap,rows};
 }
 function photoImageCost(){
   let lb={};try{lb=nlMod().readLookbook();}catch(e){}
@@ -1240,7 +1285,7 @@ function photoImageCost(){
 function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image en cours/sélectionnée + récap coût + 💲 (derrière confirmation)
   const p=ensureProj();const c=photoImageCost();
   const has=p.image.urls.length;
-  const img=has?nlLocal(p.image.idx):(lookFile(p)||refThumb());
+  const img=wsMedia(p); /* [MC2] B1/B1.1/B1.2 : résolveur garanti, jamais null */
   let cap=wsHeader(p,'IMAGE 2/2')+'──────────\n'
     +(has?'🖼 <i>Aperçu : image '+(p.image.idx+1)+'/'+has+'</i>\n':'🖼 <i>Aperçu : look/référence (aucune image générée)</i>\n')
     +'🎛 '+escH(p.look.mode)+(p.look.mode==='eco'?(' · 📸'+c.n):'')+' · 🧾 <b>💰 '+c.prix+'</b>\n';
@@ -1263,7 +1308,7 @@ function photoImageView(){ // étape IMAGE — bloc MÉDIA : aperçu de l'image 
   return {image:img,raw:!!has,caption:cap,rows};
 }
 function photoRefView(){ // gestion RÉFÉRENCE dans le workspace — bloc MÉDIA : vignette de la réf active + remplacement
-  const p=ensureProj(); const img=refThumb(); let src=null;try{src=nlRefFile();}catch(e){}
+  const p=ensureProj(); const img=wsMedia(p,refThumb()); let src=null;try{src=nlRefFile();}catch(e){}
   const waiting=(state==='ws_ref_upload_wait');
   const cap=wsHeader(p,'RÉFÉRENCE')+'──────────\n'
     +'🎯 <b>Référence active</b> : <i>'+escH(src?path.basename(src):'(aucune)')+'</i>\n'
@@ -1273,15 +1318,15 @@ function photoRefView(){ // gestion RÉFÉRENCE dans le workspace — bloc MÉDI
 }
 function photoRefGalView(){ // choix de référence depuis la galerie — bloc MÉDIA, navigation en place
   const p=ensureProj(); const list=looksList();
-  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeader(p,'RÉFÉRENCE · Galerie')+'──────────\n🖼 <b>Galerie vide</b>.',rows:[]};
+  if(!list.length)return {image:wsMedia(p),raw:false,caption:wsHeader(p,'RÉFÉRENCE · Galerie')+'──────────\n🖼 <b>Galerie vide</b>.',rows:[]};
   if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
   const f=path.join(getLooksDir(),list[refGalIdx]);
   const cap=wsHeader(p,'RÉFÉRENCE · Galerie')+'──────────\n🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ définis comme référence active.';
   const rows=[[{text:'‹',cb:'PR_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'PR_GNEXT'}],[{text:'✅ Définir comme référence',cb:'PR_GSET'}]];
-  return {image:f,raw:false,caption:cap,rows};
+  return {image:wsMedia(p,f),raw:false,caption:cap,rows};
 }
 function photoPromptView(){ // PROMPT UTILISATEUR dans le workspace — bloc MÉDIA : prompt pré-rempli, visible, modifiable
-  const p=ensureProj(); const img=lookFile(p)||refThumb();
+  const p=ensureProj(); const img=wsMedia(p,lookFile(p));
   const editing=(state==='ws_prompt_edit_wait'); const naming=(state==='ws_prompt_save_wait');
   const txt=(p.prompt&&p.prompt.text)||''; const preview=txt.length>320?(txt.slice(0,320)+'…'):txt;
   const cap=wsHeader(p,'PROMPT')+'──────────\n'
@@ -1294,7 +1339,7 @@ function photoPromptView(){ // PROMPT UTILISATEUR dans le workspace — bloc MÉ
   return {image:img,raw:false,caption:cap,rows};
 }
 function photoPromptLibView(){ // BIBLIOTHÈQUE de prompts, accessible dans le workspace (média) — sélection -> slice
-  const p=ensureProj(); const img=lookFile(p)||refThumb(); const list=listPromptLib();
+  const p=ensureProj(); const img=wsMedia(p,lookFile(p)); const list=listPromptLib();
   let cap=wsHeader(p,'PROMPT · Bibliothèque')+'──────────\n📚 <b>Mes prompts</b> ('+list.length+')\n';
   const rows=[];
   if(!list.length)cap+='\n(aucun prompt enregistré — 💾 Enregistre le prompt courant pour le réutiliser)';
@@ -1386,16 +1431,16 @@ function videoSourceView(){ // POINT D'ENTRÉE VIDÉO — 5 sources ; sait d'où
     [{text:'🖼 Look galerie',go:'video.srcgal'},{text:(p.video.source==='newlook'?'✅ ':'')+'✨ Nouveau look',cb:'VS_NEWLOOK'}],
     [{text:'📤 Uploader une image',cb:'VS_UPLOAD'}],
   ];
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 function videoSrcGalView(){ // source = look existant de la galerie (média, en place)
   const p=ensureProj(); const list=looksList();
-  if(!list.length)return {image:refThumb(),raw:false,caption:wsHeaderV(p,'VIDÉO · Galerie')+'🖼 <b>Galerie vide</b>.',rows:[]};
+  if(!list.length)return {image:wsMedia(p),raw:false,caption:wsHeaderV(p,'VIDÉO · Galerie')+'🖼 <b>Galerie vide</b>.',rows:[]};
   if(refGalIdx>=list.length||refGalIdx<0)refGalIdx=0;
   const f=path.join(getLooksDir(),list[refGalIdx]);
   const cap=wsHeaderV(p,'VIDÉO · Galerie')+'🖼 <b>'+(refGalIdx+1)+'/'+list.length+'</b> · <i>'+escH(list[refGalIdx])+'</i>\n\nNavigue ‹ › puis ✅ utilise ce look.';
   const rows=[[{text:'‹',cb:'VS_GPREV'},{text:(refGalIdx+1)+'/'+list.length,cb:'PL_NOOP'},{text:'›',cb:'VS_GNEXT'}],[{text:'✅ Utiliser ce look',cb:'VS_GSET'}]];
-  return {image:f,raw:false,caption:cap,rows};
+  return {image:wsMedia(p,f),raw:false,caption:cap,rows};
 }
 function videoScriptView(){ // SCRIPT : visible, éditable, sauvegardable (slice + biblio)
   const p=ensureProj(); p.step='video'; p.video.step='script'; const m=videoMedia(p); const txt=(p.video.script&&p.video.script.text)||'';
@@ -1408,7 +1453,7 @@ function videoScriptView(){ // SCRIPT : visible, éditable, sauvegardable (slice
     [{text:'✍️ Éditer',cb:'VP_EDIT'},{text:'🤖 Générer 💲',cb:'VP_GEN'}],
     [{text:'📚 Charger',go:'video.scriptlib'},{text:'💾 Enregistrer',cb:'VP_SAVE'}],
   ];
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 function videoScriptLibView(){
   const p=ensureProj(); const m=videoMedia(p); const list=listScriptLib();
@@ -1416,7 +1461,7 @@ function videoScriptLibView(){
   const rows=[];
   if(!list.length)cap+='\n(aucun script enregistré — 💾 enregistre le script courant)';
   else list.slice(0,8).forEach(x=>{ cap+='\n• '+escH(x.name); rows.push([{text:'📝 '+x.name,cb:'VP_USE_'+x.slug}]); });
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 function videoMontageView(){ // MONTAGE : résumé + bridge éditeur avancé (sous-titres/zoom/musique)
   const p=ensureProj(); p.step='video'; p.video.step='montage'; const m=videoMedia(p); let s={};try{s=readSubs();}catch(e){}
@@ -1426,7 +1471,7 @@ function videoMontageView(){ // MONTAGE : résumé + bridge éditeur avancé (so
     +'🎨 Réglages image/zoom/musique : éditeur avancé.\n'
     +(p.video.montage&&p.video.montage.touched?'✏️ Montage personnalisé.':'Réglages par défaut — ➡ Suivant ou 🎨 Éditer.');
   const rows=[[{text:'🎨 Éditer (avancé)',cb:'VM_EDIT'}]];
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 function videoLegendeView(){ // LÉGENDE : éditable (slice)
   const p=ensureProj(); p.step='video'; p.video.step='legende'; const m=videoMedia(p); const l=p.video.legende||{};
@@ -1435,7 +1480,7 @@ function videoLegendeView(){ // LÉGENDE : éditable (slice)
     +'🏷 <b>Légende</b>\n'
     +(editing?'⏳ <b>Envoie le texte de la légende…</b>':('Courte : <i>'+escH(l.courte||'—')+'</i>\nTags : <i>'+escH(l.tags||'—')+'</i>\n\nÉdite la légende, ou ➡ Suivant vers l\'export.'));
   const rows=[[{text:'✍️ Éditer la légende',cb:'VL_EDIT'}]];
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 function videoExportView(){ // EXPORT : récap coût + confirmation OBLIGATOIRE (génération hors test)
   const p=ensureProj(); p.step='video'; p.video.step='export'; const m=videoMedia(p); const c=videoCost(p);
@@ -1451,7 +1496,7 @@ function videoExportView(){ // EXPORT : récap coût + confirmation OBLIGATOIRE 
     cap+='\nVérifie média + script, puis 💲 pour générer (confirmation requise — rien sans ton accord).';
     rows.push([{text:'💲 Générer la vidéo',cb:'VX_GEN'}]);
   }
-  return {image:m||refThumb(),raw:false,caption:cap,rows};
+  return {image:wsMedia(p,m),raw:false,caption:cap,rows};
 }
 // Enregistrement des modules VIDÉO (workspace média)
 uiRouter.REGISTRY['video.source']={ id:'video.source', parent:'photo.image', title:'🎬 VIDÉO · Source', owner:'VIDÉO', next:'video.script',
@@ -1473,6 +1518,8 @@ uiRouter.REGISTRY['video.legende']={ id:'video.legende', parent:'video.montage',
 uiRouter.REGISTRY['video.export']={ id:'video.export', parent:'video.legende', title:'🚀 Export', owner:'VIDÉO',
   help:'Export final : récap coût + confirmation OBLIGATOIRE avant toute dépense. Rien n\'est généré sans ton accord explicite.',
   render:()=>videoExportView() };
+// [MC2] marque tous les modules workspace comme MÉDIA -> la ceinture routeur leur interdit le repli texte
+try{ Object.keys(MEDIA_MODULES).forEach(k=>{ if(uiRouter.REGISTRY[k]) uiRouter.REGISTRY[k].media=true; }); }catch(e){}
 // Toast (petite bulle, zéro message) — utilise le dernier callback_query
 let lastCbId=null,cbAnswered=false;
 async function toast(text){try{if(lastCbId){cbAnswered=true;await tg('answerCallbackQuery',{callback_query_id:lastCbId,text:text});}}catch(e){}}
@@ -2405,7 +2452,7 @@ async function handle(upd){
       if(d==='PL_GEN_NO'){ p.image.confirming=false; await routeBlock('photo.image','inplace'); return; }
       if(d==='PL_GEN_DO'){ // génération RÉELLE — pont vers le moteur existant (hors test) ; utilise le prompt du slice
         p.image.confirming=false;
-        try{ projToNewlook(); newlook.basePrompt=(p.prompt&&p.prompt.text)||null; newlook.urls=[];newlook.files=[];newlook.idx=0; await runNewLook(); p.image.urls=(newlook.urls||[]).slice(); p.image.idx=newlook.idx||0; p.image.validated=null; p.step='image'; }catch(e){ await toast('❌ '+(e&&e.message||'erreur')); }
+        try{ projToNewlook(); newlook.basePrompt=(p.prompt&&p.prompt.text)||null; newlook.urls=[];newlook.files=[];newlook.idx=0; await runNewLook(); const durable=persistProjMedia(newlook.urls||[],genState.activeDraftId); p.image.urls=durable.slice(); newlook.urls=durable.slice(); newlook.files=[]; p.image.idx=newlook.idx||0; p.image.validated=null; p.step='image'; }catch(e){ await toast('❌ '+(e&&e.message||'erreur')); } /* [#2] stocke des chemins LOCAUX durables dans proj (reprise fiable) */
         await routeBlock('photo.image','inplace'); return;
       }
       if(d==='PL_EDIT'){ /*[T7] éditeur depuis Photo : réutilise le bloc photo (pas de nouveau message)*/ try{ if(p.image.urls.length){const f=nlLocal(p.image.idx);if(f)setWorkPhoto(f);} cockpit.mid=newlook.mediaId||cockpit.mid; }catch(e){} await showEditHome(); return; }
@@ -2471,7 +2518,7 @@ async function handle(upd){
     }
     // Menu principal
     if(d==='MAIN_MENU'&&editReturn){ const r=editReturn; editReturn=null; await routeBlock(r,'inplace'); return; } /*[L0-2b] sortie de l'éditeur ouvert depuis le workspace -> revient dans le bloc workspace (pas de nouveau bloc)*/
-    if(d==='MAIN_MENU'){await showHome();return;} /*[C1] retour = MENU UNIFIÉ (home)*/
+    if(d==='MAIN_MENU'){await routeBlock('home','navigate');return;} /*[F12] retour unifié = ACCUEIL du ROUTEUR (cohérent avec /menu), plus de showHome legacy*/
     if(d==='HOME_CREER'){await showCreer();return;} /*[C3] Créer -> choix du mode*/
     if(d==='CREER_EXPRESS'){await showLookSource('express');return;} /*[flux-look] Express : ÉTAPE LOOK puis script éditable*/
     if(d==='CREER_SURMESURE'){await openCard();return;} /*[C3] Sur-mesure : carte complète (look/sujet/durée/modèle) puis GO — full manuel*/
@@ -2487,11 +2534,8 @@ async function handle(upd){
       if(createUploadPath&&fs.existsSync(createUploadPath)){gw.look=createUploadPath;setWorkPhoto(createUploadPath);setAvatar(createUploadPath);}
       await resumeCreate();return;
     }
-    if(d==='CL_NEW'){ /*[flux-look] génère un NOUVEAU look (surprise) — passe par nlConfig (récap coût + 💲 avant toute dépense). Validation à l'écran résultat (CL_OK).*/
-      const o=nlMod().pickOutfit(null);newlook.category='random';newlook.extra=o.prompt;newlook.catLabel='🎲 Surprise';
-      newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='eco';newlook.count=1;
-      await delMsg(newlook.mediaId);newlook.mediaId=null;
-      await nlConfig();return;
+    if(d==='CL_NEW'){ /*[F3] « nouveau look surprise » REDIRIGÉ vers le workspace (convergence vers le cockpit unique)*/
+      const p=ensureProj(); try{const o=nlMod().pickOutfit(null);p.look.category='random';p.look.extra=o.prompt;}catch(e){} p.look.source='new'; await routeBlock('photo.look','inplace'); return;
     }
     if(d==='CL_OK'){ /*[flux-look] valide le look généré affiché -> look de la vidéo*/
       if(!newlook.urls.length){await toast('⚠️ Génère un look d\'abord');return;}
@@ -2920,10 +2964,8 @@ async function handle(upd){
     if(d==='NL_OTHER'){await nlPayRecap(newlook.mode==='split'?'planche':newlook.mode,'🆕 Autre look (tenue re-tirée)','NL_OTHER_OK','NL_BACKRES');return;}
     if(d==='NL_OTHER_OK'){const o=nlMod().pickOutfit(newlook.category!=='random'?newlook.category:null);newlook.extra=o.prompt;newlook.urls=[];newlook.files=[];newlook.idx=0;if(newlook.mode==='split')newlook.mode='planche';runNewLook();return;}
     if(d==='NL_CONFIG'){nlConfig();return;}
-    if(d==='NL_NEW'){ /*[Studio→Look] « ✨ Nouveau look » = même point d'entrée que /newlook (repart en éco, repose le panneau)*/
-      newlook.extra=null;newlook.urls=[];newlook.files=[];newlook.idx=0;newlook.mode='eco';
-      await delMsg(newlook.mediaId);newlook.mediaId=null;
-      await nlConfig();return;
+    if(d==='NL_NEW'){ /*[F3] « ✨ Nouveau look » REDIRIGÉ vers le workspace (plus de wizard legacy nlConfig) — parcours cœur reste dans le cockpit*/
+      const p=ensureProj(); p.look.source='new'; p.look.extra=null; await routeBlock('photo.look','inplace'); return;
     }
     if(d==='NL_NAV_P'){if(newlook.urls.length>1){newlook.idx=(newlook.idx-1+newlook.urls.length)%newlook.urls.length;nlShowResult();}return;}
     if(d==='NL_NAV_N'){if(newlook.urls.length>1){newlook.idx=(newlook.idx+1)%newlook.urls.length;nlShowResult();}return;}
