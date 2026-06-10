@@ -1,146 +1,158 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>EXTRACTION OPÉRATIONNELLE FINALE — intégrer le basculement production → pilotage</h1>
-<blockquote><strong>Statut : ANALYSE opérationnelle (pré-architecture).</strong> Avant <strong>toute</strong> architecture ou implémentation,</blockquote>
-<blockquote>cette extraction traduit le <strong>changement de paradigme</strong> (production → <strong>pilotage</strong>) en **conséquences</blockquote>
-<blockquote>opérationnelles<strong> : objets, états, calculs, comportements. </strong>Pas encore<strong> d'architecture détaillée, </strong>pas**</blockquote>
-<blockquote>d'écrans, <strong>aucune</strong> implémentation. Ancrée sur <strong><code>docs/CONSCIENCE_DU_PROJET</code></strong> (la fondation) et le</blockquote>
-<blockquote><strong>modèle consolidé v2</strong> (24 objets, taxonomie 4 niveaux, 15 invariants — <strong>non rouvert</strong>). Live intact ·</blockquote>
-<blockquote>fichiers verrouillés intacts · aucune dépense.</blockquote>
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>EXTRACTION OPÉRATIONNELLE — VERSION DÉFINITIVE (document charnière)</h1>
+<blockquote><strong>Statut : CONSOLIDATION OPÉRATIONNELLE — version définitive, verrouillée avant toute architecture.</strong></blockquote>
+<blockquote>Document <strong>charnière</strong> entre le <strong>modèle consolidé v2</strong>, la fondation <strong><code>CONSCIENCE_DU_PROJET</code></strong> et la</blockquote>
+<blockquote>future architecture. <strong>Objectif unique</strong> : vérifier que le basculement <strong>production → pilotage</strong> est</blockquote>
+<blockquote><strong>entièrement traduit</strong> dans le fonctionnement du système. <strong>Ce n'est pas</strong> un document conceptuel/</blockquote>
+<blockquote>philosophique, <strong>ni</strong> une conception de cockpit. **Aucune implémentation · aucune architecture · aucun</blockquote>
+<blockquote>écran · live intact · fichiers verrouillés intacts · zéro dépense.**</blockquote>
 <blockquote></blockquote>
-<blockquote>⚠️ <strong>Avertissement de cadrage</strong> : on <strong>ne part PAS</strong> du <code>SYSTEME_VIVANT</code> initial — il est <strong>antérieur</strong> au</blockquote>
-<blockquote>basculement et reste <strong>centré média/production</strong>. Cette extraction est l'<strong>étalon</strong> qui le corrige (voir</blockquote>
-<blockquote>§final).</blockquote>
+<blockquote><strong>Sources exclusives</strong> : <code>docs/CONSCIENCE_DU_PROJET</code> (fondation) + modèle consolidé v2 (24 objets,</blockquote>
+<blockquote>taxonomie 4 niveaux, 15 invariants). <strong>Aucun nouvel objet.</strong></blockquote>
 <blockquote></blockquote>
-<blockquote><strong>Acquis à intégrer (vérifiés présents, aucun manquant)</strong> : ① cap = centre de gravité, média =</blockquote>
-<blockquote>manifestation temporaire ; ② état naturel = <strong>repos</strong> (cap+situation+mémoire), matière <strong>convoquée</strong> puis</blockquote>
-<blockquote><strong>redescend</strong> ; ③ le système <strong>signale sans décider</strong>, la conscience <strong>décrit sans attribuer le sens</strong> ;</blockquote>
-<blockquote>④ tensions <strong>stratifiées</strong> (cap-âme &gt; cap-cadre &gt; manifestations &gt; production) ; ⑤ tensions constitutives</blockquote>
-<blockquote><strong>déclarées ou émergentes</strong>, une polarité reconnue est <strong>protégée</strong> (le miroir signale son <strong>effondrement</strong>)</blockquote>
-<blockquote>; ⑥ le <strong>cap agi</strong> peut révéler une intention en maturation ; ⑦ projet lisible/pilotable **sans aucun</blockquote>
-<blockquote>média affiché<strong> (résumé = cap + situation + tension principale + prochain geste, </strong>jamais une galerie**) ;</blockquote>
-<blockquote>⑧ distinction nette <strong>PRODUCTION / PILOTAGE / CONSCIENCE / MATIÈRE / LIVRABLE</strong>.</blockquote>
+<blockquote><strong>Acquis validés — tous intégrés (vérifié, aucun manquant)</strong> : cap = centre de gravité · média =</blockquote>
+<blockquote>manifestation temporaire · état naturel = <strong>repos</strong> (cap+situation+mémoire) · matière **convoquée puis</blockquote>
+<blockquote>redescendue<strong> · </strong>signale sans décider<strong> · </strong>décrit sans attribuer le sens<strong> · tensions </strong>stratifiées** ·</blockquote>
+<blockquote>tensions constitutives <strong>déclarées OU émergentes</strong> · <strong>protection contre l'aplatissement</strong> · <strong>cap agi</strong></blockquote>
+<blockquote>révélant une intention en maturation · <strong>lisibilité complète sans média</strong> · <strong>compression</strong> =</blockquote>
+<blockquote>cap+situation+tension principale+prochain geste · **distinction stricte production / pilotage /</blockquote>
+<blockquote>conscience / matière / livrable**.</blockquote>
 <blockquote></blockquote>
-<blockquote><strong>Cinq registres à ne plus confondre</strong> (rappel transversal) :</blockquote>
-<blockquote><strong>PRODUCTION</strong> = l'acte de fabriquer · <strong>MATIÈRE</strong> = le média produit (manifestation) · <strong>LIVRABLE</strong> = le</blockquote>
-<blockquote>paquet validé · <strong>PILOTAGE</strong> = mener les décisions vers le cap · <strong>CONSCIENCE</strong> = le noyau irréductible</blockquote>
-<blockquote>(cap, identité, appartenance, mémoire des décisions, configuration).</blockquote>
+<blockquote>Convention de chapitre : <strong>(a) CONSERVÉ · (b) CHANGE · (c) CONSÉQUENCES</strong> sur les <strong>8 dimensions</strong> —</blockquote>
+<blockquote><em>objets · états · relations · calculs · comportements · décisions · mémoire · cohérence</em>.</blockquote>
 <hr>
-<h2>1. CE QUI CHANGE DANS LES OBJETS</h2>
-<p><strong>Avant (centré média)</strong> : l'objet « tenu » est, de fait, <strong>le média</strong> (le projet ≈ son média actif + ses</p>
-<p>candidates) ; le reste gravite autour.</p>
-<p><strong>Change (centré cap/pilotage)</strong> :</p>
-<ul><li>L'objet <strong>pivot opérationnel</strong> devient le <strong>CAP</strong> — l'<strong>Intention composite</strong> (message·émotion·public·</li></ul>
-<p>  objectif) <strong>+ identité + origine/déclencheur</strong> — porté par le <strong>Projet</strong>. <em>Aucun nouvel objet</em> (v2 clos) :</p>
-<p>  on <strong>réordonne la primauté</strong>, on ne crée rien.</p>
-<ul><li>La <strong>CONSCIENCE</strong> (noyau irréductible) devient une <strong>lecture opérationnelle de 1er plan</strong> : cap +</li></ul>
-<p>  identité + appartenance (Univers) + <strong>mémoire des décisions</strong> + configuration (pièces actives, verrous).</p>
-<p>  C'est une <strong>synthèse dérivée</strong>, jamais un média.</p>
-<ul><li>La <strong>MATIÈRE</strong> (Média produit) est <strong>rétrogradée</strong> au rang de <strong>manifestation</strong> : un objet réel, mais</li></ul>
-<p>  <strong>secondaire</strong> — il <strong>ne définit plus</strong> ce qu'est le projet.</p>
-<ul><li><strong>Conséquence</strong> : le « handle » d'un projet n'est plus <code>média actif</code>, c'est <strong>cap + situation</strong>.</li></ul>
-<blockquote><em>(① · ⑥ · INV-1/10/14)</em></blockquote>
+<h2>CHAPITRE 1 — OBJETS</h2>
+<p><strong>(a) Conservé</strong> : les <strong>24 objets</strong> de v2, leurs identités, l'<strong>Univers</strong> (objet de 1er niveau), le</p>
+<p><strong>Livrable</strong> distinct, la taxonomie 4 niveaux.</p>
+<p><strong>(b) Change</strong> : la <strong>primauté</strong> se déplace vers le <strong>cap</strong> (Intention composite + identité-essence +</p>
+<p>origine/déclencheur) ; la <strong>matière</strong> (Média produit) devient une <strong>manifestation secondaire</strong> ; la</p>
+<p><strong>conscience</strong> (noyau) devient une <strong>lecture de 1er plan dérivée</strong> ; « média actif » reste un <strong>rôle</strong>, pas</p>
+<p>un objet-trône.</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>aucun ajout/retrait ; <strong>réordonnancement de primauté</strong> (cap &gt; matière)</td></tr><tr><td>États</td><td>le <strong>projet</strong> gagne une <strong>posture</strong> (repos/travail) au-dessus des états média</td></tr><tr><td>Relations</td><td>le <strong>cap</strong> devient la <strong>racine de lecture</strong> ; la matière y est rattachée, secondaire</td></tr><tr><td>Calculs</td><td>la <strong>conscience/situation</strong> devient une <strong>dérivation calculée</strong> du noyau</td></tr><tr><td>Comportements</td><td>on « tient » un <strong>cap</strong>, pas un média</td></tr><tr><td>Décisions</td><td>portent <strong>d'abord</strong> sur le cap, <strong>ensuite</strong> sur la matière</td></tr><tr><td>Mémoire</td><td>le <strong>noyau</strong> (cap+identité+décisions+config) = ce qui persiste <strong>sans média</strong></td></tr><tr><td>Cohérence</td><td>l'<strong>étalon</strong> de cohérence = <strong>le cap</strong>, pas la qualité technique du média</td></tr></tbody></table>
 <hr>
-<h2>2. CE QUI CHANGE DANS LES ÉTATS</h2>
-<p><strong>Avant</strong> : l'état d'un projet ≈ son <strong>étape de production</strong> (source → paramètres → finaliser) et l'état de</p>
-<p>son média.</p>
-<p><strong>Change</strong> :</p>
-<ul><li>Introduire une <strong>posture</strong> de projet, opérationnelle et calculée : <strong>REPOS (orientation)</strong> = état **par</li></ul>
-<p>  défaut<strong> ; </strong>TRAVAIL (excursion)<strong> = sous-état </strong>transitoire<strong> convoqué pour produire/décider, </strong>réversible**,</p>
-<p>  qui <strong>ramène au repos enrichi</strong>.</p>
-<ul><li>Les <strong>états du Média produit</strong> (candidate/variante/actif/écartée/retenue) <strong>restent</strong> (v2) mais **vivent</li></ul>
-<p>  “en dessous”<strong> : ils </strong>ne disent plus où en est le projet<strong>. « Quelle étape de pipeline » </strong>n'est plus**</p>
-<p>  l'état de référence.</p>
-<ul><li>Nouveaux <strong>états de conscience calculés</strong> (déterministes), au niveau projet : **calme · maturité ·</li></ul>
-<p>  tension · priorité** (définis au §5).</p>
-<blockquote><em>(⑥ · INV-6/9 ; états média = niveau 2 du modèle, inchangés)</em></blockquote>
+<h2>CHAPITRE 2 — ÉTATS</h2>
+<p><strong>(a) Conservé</strong> : les états du Média produit (candidate/variante/écartée/retenue), du Livrable</p>
+<p>(en construction/validé/prêt-à-poster/archivé), du QC, de la Décision, du Projet (brouillon/en cours/</p>
+<p>finalisé/archivé).</p>
+<p><strong>(b) Change</strong> : ajout d'une <strong>posture calculée</strong> <strong>repos (défaut) / travail (excursion)</strong> ; les états média</p>
+<p><strong>vivent “en dessous”</strong> (ne déterminent plus <em>où en est</em> le projet) ; ajout de <strong>signaux de conscience</strong></p>
+<p>déterministes <strong>calme / maturité / tension / priorité</strong>.</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>« média actif » = <strong>rôle</strong> (niveau 4), jamais un état dominant</td></tr><tr><td>États</td><td>nouvel <strong>axe posture</strong> (repos/travail) + <strong>signaux dérivés</strong> au niveau projet</td></tr><tr><td>Relations</td><td>la posture <strong>dérive du noyau</strong>, <strong>pas</strong> d'une étape de pipeline</td></tr><tr><td>Calculs</td><td><strong>calme/maturité/tension/priorité</strong> = calculs déterministes (mêmes faits → même état)</td></tr><tr><td>Comportements</td><td>l'état <strong>par défaut</strong> est le <strong>repos</strong></td></tr><tr><td>Décisions</td><td>une décision <strong>fait sortir</strong> du repos (travail) puis <strong>y ramène</strong></td></tr><tr><td>Mémoire</td><td>un état média <strong>convoqué</strong> devient un <strong>fait</strong> mémorisé après verdict</td></tr><tr><td>Cohérence</td><td>« tension/priorité » <strong>provient</strong> du miroir stratifié (ch. 4)</td></tr></tbody></table>
 <hr>
-<h2>3. CE QUI CHANGE DANS LES COMPORTEMENTS</h2>
-<p><strong>Avant</strong> : le comportement par défaut <strong>ouvre sur la production</strong> (un média, un pipeline) ; la matière</p>
-<p><strong>trône</strong> en permanence.</p>
-<p><strong>Change</strong> :</p>
-<ul><li>Comportement par défaut = <strong>présenter le projet au repos</strong> : cap + situation + <strong>tension principale</strong> +</li></ul>
-<p>  <strong>prochain geste</strong> — <strong>sans convoquer de matière</strong>.</p>
-<ul><li><strong>Convocation à la demande</strong> : produire/éditer/comparer <strong>fait monter la matière au premier plan</strong>, puis</li></ul>
-<p>  <strong>elle redescend</strong> une fois le verdict pris ; le projet <strong>revient au repos enrichi</strong>.</p>
-<ul><li><strong>Signaler, jamais décider</strong> (Loi I) : <strong>aucune promotion automatique</strong>, <strong>aucune correction d'office</strong> ;</li></ul>
-<p>  le « prochain geste » est une <strong>proposition</strong> (jamais un ordre, ni une exécution).</p>
-<ul><li>L'<strong>impact aval</strong> (garder / mettre à jour / régénérer) et la <strong>réversibilité</strong> restent, **reclassés sous</li></ul>
-<p>  PILOTAGE** (ce ne sont pas des mécaniques de média, ce sont des décisions de cap).</p>
-<blockquote><em>(⑤⑥ · INV-2/6/12)</em></blockquote>
+<h2>CHAPITRE 3 — COMPORTEMENTS</h2>
+<p><strong>(a) Conservé</strong> : réversibilité ; impact aval <strong>garder/mettre à jour/régénérer</strong> ; **confirmation de coût</p>
+<p>avant dépense** ; gates (QC avant production coûteuse).</p>
+<p><strong>(b) Change</strong> : comportement <strong>par défaut = présenter le repos</strong> (cap+situation+tension+geste), **sans</p>
+<p>convoquer de matière<strong> ; </strong>convocation à la demande<strong> ; </strong>signale, ne décide jamais<strong> (Loi I) ; </strong>retour au</p>
+<p>repos enrichi** après chaque excursion.</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>la matière n'est <strong>jamais le substrat</strong> ; elle est convoquée</td></tr><tr><td>États</td><td>toute action <strong>commence en repos</strong> et <strong>y revient</strong></td></tr><tr><td>Relations</td><td>production/pilotage <strong>séparés</strong> : produire est une <strong>excursion</strong>, pas l'épine dorsale</td></tr><tr><td>Calculs</td><td>le <strong>prochain geste</strong> est <strong>proposé</strong> (calculé), jamais exécuté d'office</td></tr><tr><td>Comportements</td><td><strong>aucune</strong> promotion/correction automatique (Loi I)</td></tr><tr><td>Décisions</td><td>l'<strong>impact aval</strong> reste un <strong>choix explicite</strong> (jamais en silence)</td></tr><tr><td>Mémoire</td><td>chaque excursion <strong>dépose</strong> décisions + faits avant de redescendre</td></tr><tr><td>Cohérence</td><td>le <strong>miroir</strong> accompagne en continu, sans bloquer ni trancher</td></tr></tbody></table>
 <hr>
-<h2>4. CE QUI CHANGE DANS LA LOGIQUE DE COHÉRENCE</h2>
-<p><strong>Avant</strong> : un contrôle <strong>plat</strong> et <strong>centré média</strong> (le média est-il techniquement bon ?).</p>
-<p><strong>Change</strong> : un <strong>miroir</strong> structuré, déterministe, <strong>centré cap</strong> :</p>
-<ul><li><strong>Stratification lexicographique</strong> des tensions : **cap-âme (identité &gt; émotion/message) &gt; cap-cadre</li></ul>
-<p>  (stratégique) &gt; manifestations &gt; production<strong>. On surface </strong>d'abord** la strate la plus haute ; on ne</p>
-<p>  compare par <strong>gravité</strong> qu'<strong>à l'intérieur</strong> d'une strate. <strong>Aucune accumulation</strong> de tensions de</p>
-<p>  production ne dépasse une tension de cap (justif : <strong>dépendance/gaspillage</strong> — l'aval dépend de l'amont).</p>
-<ul><li><strong>Fracture vs polarité constitutive</strong> : détecter la <strong>strate ⓪</strong> (le cap divisé contre lui-même).</li><li><strong>Fracture</strong> (impossibilité subie) → <strong>signalée</strong> (devoir contre l'incohérence).</li><li><strong>Polarité constitutive</strong> (revendiquée) → <strong>protégée</strong>, enregistrée comme <strong>invariant propre au projet</strong>.</li><li><strong>Inversion de signalement</strong> : pour une polarité <strong>protégée</strong>, le miroir ne signale plus la polarité —</li></ul>
-<p>  <strong>il signale son EFFONDREMENT</strong> (la perte d'une des deux faces). Deuxième devoir : **contre la</p>
-<p>  simplification prématurée**.</p>
-<ul><li><strong>Opérationnellement</strong> : les tensions sont <strong>calculées et classées</strong> (strate, puis gravité) ; les</li></ul>
-<p>  polarités protégées sont <strong>stockées</strong> et <strong>surveillées</strong> pour effondrement ; <strong>rien n'est corrigé</strong> — tout</p>
-<p>  est <strong>signalé</strong>.</p>
-<blockquote><em>(② · INV-2 ; ⑥ ; ① identité au sommet du cap-âme)</em></blockquote>
+<h2>CHAPITRE 4 — COHÉRENCE</h2>
+<p><strong>(a) Conservé</strong> : la cohérence <strong>signale sans décider</strong> (INV-2) ; un <strong>écart assumé = une décision</strong> ; les</p>
+<p><strong>10 pièces</strong> surveillées ; pas de jugement de goût.</p>
+<p><strong>(b) Change</strong> : <strong>stratification lexicographique</strong> (cap-âme[identité&gt;émotion/message] &gt; cap-cadre &gt;</p>
+<p>manifestations &gt; production) ; <strong>fracture vs polarité constitutive</strong> (strate ⓪) ; **inversion de</p>
+<p>signalement<strong> (une polarité </strong>protégée<strong> → on signale son </strong>effondrement<strong>) ; </strong>protection contre</p>
+<p>l'aplatissement<strong> ; prise en compte du </strong>cap agi** (intention en maturation).</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>la <strong>polarité protégée</strong> = <strong>marqueur (niveau 3)</strong> attaché au cap <em>(à reformuler, cf. §non-contradiction)</em></td></tr><tr><td>États</td><td>par pièce : aligné/à vérifier/non défini/<strong>écart assumé</strong> ; +<strong>effondrement</strong> d'une polarité</td></tr><tr><td>Relations</td><td>une tension de <strong>cap invalide l'aval</strong> dépendant (dépendance/gaspillage)</td></tr><tr><td>Calculs</td><td>classement <strong>strate puis gravité</strong> ; détection fracture/polarité ; écart <strong>déclaré vs agi</strong></td></tr><tr><td>Comportements</td><td>surface <strong>d'abord</strong> la strate la plus haute ; <strong>propose</strong> un carrefour</td></tr><tr><td>Décisions</td><td>corriger <strong>ou</strong> assumer ; <strong>revendiquer</strong> une polarité = décision qui <strong>inverse</strong> le signal</td></tr><tr><td>Mémoire</td><td>écarts assumés et polarités protégées <strong>persistent</strong> comme décisions/marqueurs</td></tr><tr><td>Cohérence</td><td>deux devoirs : <strong>anti-incohérence</strong> ET <strong>anti-simplification prématurée</strong></td></tr></tbody></table>
 <hr>
-<h2>5. CE QUI CHANGE DANS L'ÉTAT DE REPOS</h2>
-<p><strong>Avant</strong> : <strong>il n'existe pas</strong> — le projet « au repos » retombe sur un média/pipeline.</p>
-<p><strong>Change</strong> : le repos devient un <strong>état calculé de 1er plan</strong> = <strong>cap + situation + mémoire</strong>.</p>
-<ul><li><strong>Situation</strong> = <strong>vue dérivée</strong> (synthèse au présent du noyau), jamais stockée comme source séparée.</li><li><strong>Compression en « titre »</strong> : le projet <strong>se lit lui-même</strong> et tend une synthèse compacte, via les **4</li></ul>
-<p>  filtres déterministes** (pertinence au cap · rôle/statut · structurant vs local · pertinence à l'écart</p>
-<p>  présent) → mêmes faits ⇒ même titre.</p>
-<ul><li><strong>Signaux déterministes</strong> au repos :</li><li><strong>calme</strong> = aligné, aucune tension active ;</li><li><strong>maturité</strong> = le <strong>cap agi</strong> révèle une intention en maturation (écart stable déclaré/agi) ;</li><li><strong>tension</strong> = une tension classée est active ;</li><li><strong>priorité</strong> = la tension de <strong>plus haute strate</strong> / le <strong>carrefour</strong> à regarder en premier.</li><li>Ces signaux sont <strong>calculés</strong> (pas saisis), <strong>reproductibles</strong>, et <strong>n'attribuent aucun sens</strong> (Loi II).</li></ul>
-<blockquote><em>(①③ · INV-1/2/5/9 ; Lois I &amp; II)</em></blockquote>
+<h2>CHAPITRE 5 — ÉTAT DE REPOS</h2>
+<p><strong>(a) Conservé</strong> : rien (le repos <strong>n'existait pas</strong>) — mais il <strong>s'appuie</strong> sur des invariants existants :</p>
+<p>dossier = source de vérité (INV-10), survie de l'état (INV-9).</p>
+<p><strong>(b) Change</strong> : le <strong>repos</strong> devient l'<strong>état calculé de 1er plan</strong> = <strong>cap + situation + mémoire</strong> ;</p>
+<p><strong>compression en « titre »</strong> via les <strong>4 filtres déterministes</strong> (pertinence au cap · rôle/statut ·</p>
+<p>structurant vs local · pertinence à l'écart présent) ; <strong>signaux</strong> calme/maturité/tension/priorité.</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>la <strong>situation</strong> = <strong>vue dérivée</strong>, jamais un objet/source nouveau</td></tr><tr><td>États</td><td><strong>repos</strong> = posture par défaut ; signaux calculés</td></tr><tr><td>Relations</td><td>le repos <strong>dérive</strong> du noyau (cap, identité, décisions, config)</td></tr><tr><td>Calculs</td><td><strong>titre</strong> déterministe (4 filtres) ; signaux reproductibles</td></tr><tr><td>Comportements</td><td>au repos, <strong>aucune matière convoquée</strong></td></tr><tr><td>Décisions</td><td>le repos <strong>expose</strong> la tension principale + un <strong>prochain geste proposé</strong></td></tr><tr><td>Mémoire</td><td>la mémoire <strong>nourrit</strong> la situation (le pourquoi reste lisible)</td></tr><tr><td>Cohérence</td><td>le <strong>signal de priorité</strong> = la tension de plus haute strate (carrefour)</td></tr></tbody></table>
 <hr>
-<h2>6. CE QUI CHANGE DANS LA RELATION À LA MATIÈRE</h2>
-<p><strong>Avant</strong> : la matière est <strong>permanente au premier plan</strong> (un média/aperçu qui trône) ; le projet <strong>est</strong></p>
-<p>sa matière.</p>
-<p><strong>Change</strong> : un <strong>cycle de convocation</strong> :</p>
-<p>1. la matière est <strong>convoquée</strong> au premier plan <strong>pour un motif</strong> (produire, juger, comparer) ;</p>
-<p>2. elle est traitée <strong>avec son verdict attaché</strong> (état décidé : retenue/écartée/active… + raison) ;</p>
-<p>3. elle <strong>redescend</strong> comme <strong>fait</strong> (entrée de mémoire), hors du premier plan.</p>
-<ul><li><strong>Asymétrie de permanence</strong> : <strong>cap + situation + mémoire = permanents</strong> ; <strong>matière = transitoire</strong></li></ul>
-<p>  (convoquée puis redescendue).</p>
-<ul><li><strong>Taille ≠ primauté</strong> : un projet <strong>riche en médias</strong> reste <strong>piloté par son cap</strong> ; le volume de matière</li></ul>
-<p>  <strong>n'augmente pas</strong> sa primauté.</p>
-<ul><li><strong>Conséquence</strong> : la matière <strong>n'est jamais le substrat</strong> du projet ; elle <strong>passe</strong> au premier plan, elle</li></ul>
-<p>  n'y <strong>habite</strong> pas.</p>
-<blockquote><em>(⑥ · ① · INV-3/8 ; matière = niveau « manifestation »)</em></blockquote>
+<h2>CHAPITRE 6 — RELATION À LA MATIÈRE</h2>
+<p><strong>(a) Conservé</strong> : le <strong>Média produit</strong> et ses états ; le <strong>RAW</strong> jamais écrasé ; le <strong>Livrable</strong> comme</p>
+<p>paquet ; la production réelle (gatée).</p>
+<p><strong>(b) Change</strong> : <strong>cycle de convocation</strong> — la matière <strong>monte au premier plan pour un motif</strong>, **avec son</p>
+<p>verdict attaché<strong> (état décidé + raison), puis </strong>redescend comme fait<strong> ; </strong>asymétrie de permanence**</p>
+<p>(cap/situation/mémoire permanents, matière transitoire) ; <strong>taille ≠ primauté</strong>.</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>Média produit = <strong>manifestation</strong> ; jamais le substrat</td></tr><tr><td>États</td><td>la matière n'a un premier plan <strong>que pendant</strong> sa convocation</td></tr><tr><td>Relations</td><td>matière <strong>rattachée</strong> au projet, <strong>subordonnée</strong> au cap</td></tr><tr><td>Calculs</td><td>le volume de matière <strong>n'augmente pas</strong> la primauté (≠ pondération)</td></tr><tr><td>Comportements</td><td>produire/comparer = <strong>excursion</strong> bornée, retour au repos</td></tr><tr><td>Décisions</td><td>le <strong>verdict</strong> (retenue/écartée…) est <strong>attaché</strong> au moment de la convocation</td></tr><tr><td>Mémoire</td><td>après verdict, la matière <strong>redescend en fait</strong> durable</td></tr><tr><td>Cohérence</td><td>la matière est <strong>jugée par rapport au cap</strong>, pas pour elle-même</td></tr></tbody></table>
 <hr>
-<h2>7. CE QUI DOIT ÊTRE VISIBLE OU CALCULÉ (opérationnel, sans écran)</h2>
-<ul><li><strong>Le TITRE</strong> du projet = <strong>cap · situation · tension principale · prochain geste</strong> — la <strong>lecture primaire</strong></li></ul>
-<p>  du projet, <strong>calculée</strong>, disponible <strong>sans aucun média</strong>.</p>
-<ul><li><strong>La SITUATION</strong> = <strong>vue dérivée</strong> du noyau (jamais une source ; recalculée à chaque changement).</li><li><strong>La FOCALISATION</strong> = <strong>classement calculé</strong> des tensions (strate puis gravité) → désigne le <strong>carrefour</strong></li></ul>
-<p>  à regarder en premier ; <strong>propose</strong>, n'impose pas.</p>
-<ul><li><strong>L'INVENTAIRE-FAITS</strong> = la liste <strong>factuelle</strong> (décisions+raisons, variantes, versions, livrables)</li></ul>
-<p>  <strong>disponible à la demande</strong>, comme des <strong>faits</strong> — <strong>pas</strong> une galerie, <strong>pas</strong> un étalage de médias.</p>
-<ul><li><strong>Les MARQUEURS RÉSERVÉS</strong> = un <strong>vocabulaire fermé et déterministe</strong> : signaux **calme/maturité/tension/</li></ul>
-<p>  priorité<strong> + marqueurs de </strong>polarité protégée<strong> (et de son </strong>effondrement<strong>). « Réservés » = </strong>sens fixe**,</p>
-<p>  jamais du texte libre chargé d'interprétation.</p>
-<ul><li><strong>Principe de calcul</strong> : tout ceci est <strong>dérivé du dossier-projet</strong> (source de vérité) ; <strong>rien</strong> n'est</li></ul>
-<p>  une source nouvelle, <strong>rien</strong> n'exige un média pour exister.</p>
-<blockquote><em>(① ② ③ · INV-1/2/10 ; Lois I &amp; II : calcule/affiche des faits, ne décide ni n'interprète)</em></blockquote>
+<h2>CHAPITRE 7 — VISIBLE OU CALCULÉ (opérationnel, sans écran)</h2>
+<p><strong>(a) Conservé</strong> : <strong>tout dérive du dossier-projet</strong> (source de vérité, INV-10) ; rien ne « détient » l'état</p>
+<p>en dehors.</p>
+<p><strong>(b) Change</strong> : sont désormais <strong>calculés et disponibles sans aucun média</strong> — le <strong>titre</strong></p>
+<p>(cap·situation·tension·geste) ; la <strong>situation</strong> (vue dérivée) ; la <strong>focalisation</strong> (classement calculé →</p>
+<p>carrefour) ; l'<strong>inventaire-faits</strong> (décisions+raisons, variantes, versions, livrables — <strong>faits</strong>, pas</p>
+<p>galerie) ; les <strong>marqueurs réservés</strong> (vocabulaire <strong>fermé/déterministe</strong> : signaux + polarité protégée/</p>
+<p>effondrement).</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>aucun nouvel objet ; ce sont des <strong>dérivations</strong> (niveau 4)</td></tr><tr><td>États</td><td>les signaux d'état sont <strong>exposés</strong> comme lecture primaire</td></tr><tr><td>Relations</td><td>les vues (titre/situation/inventaire) <strong>dérivent</strong> du dossier</td></tr><tr><td>Calculs</td><td><strong>lisibilité complète sans média</strong> = exigence de calcul (titre toujours productible)</td></tr><tr><td>Comportements</td><td>la lecture primaire <strong>n'exige jamais</strong> de convoquer un média</td></tr><tr><td>Décisions</td><td>le <strong>prochain geste</strong> est exposé comme <strong>proposition</strong></td></tr><tr><td>Mémoire</td><td>l'inventaire-faits <strong>expose</strong> la mémoire à la demande</td></tr><tr><td>Cohérence</td><td>les <strong>marqueurs réservés</strong> portent un <strong>sens fixe</strong> (jamais du texte libre interprétatif — Loi II)</td></tr></tbody></table>
 <hr>
-<h2>8. CE QU'IL FAUT ABSOLUMENT ÉVITER (anti-patterns « retombée média-centrée »)</h2>
-<p>À proscrire — chacun <strong>trahirait</strong> le basculement :</p>
-<ul><li><strong>Le placeholder-substrat</strong> : une matière de remplissage présente « pour qu'il y ait toujours un média ».</li><li><strong>Le substrat bloc-média</strong> : faire du projet, par construction, <strong>un média</strong> auquel on accroche le reste.</li><li><strong>L'aperçu permanent qui trône</strong> : un média en tête de tout, <strong>en continu</strong>, comme cœur du projet.</li><li><strong>La galerie au repos</strong> : présenter, par défaut, <strong>un étalage de médias</strong> au lieu de cap+situation.</li><li><strong>Le pipeline comme épine dorsale</strong> : faire de la séquence de production (source → paramètres → finaliser)</li></ul>
-<p>  <strong>la colonne vertébrale</strong> du projet.</p>
-<ul><li><strong>Le “média actif” en trône</strong> : traiter la source courante comme <strong>le centre</strong> plutôt que comme un <strong>rôle</strong>.</li><li><strong>Le cap réduit à une légende</strong> : reléguer l'intention à une <strong>simple ligne décorative</strong> au-dessus d'un</li></ul>
-<p>  média (au lieu du <strong>centre de gravité</strong> calculé).</p>
-<ul><li><strong>La production ouverte par défaut</strong> : démarrer/rouvrir <strong>sur l'acte de fabriquer</strong> au lieu du <strong>repos</strong>.</li><li><strong>Le coût/QC comme centre</strong> : faire d'un contrôle technique le <strong>sujet</strong> du projet.</li><li><strong>La galerie de variantes permanente</strong> : exposer les variantes en continu au lieu de les <strong>convoquer</strong>.</li></ul>
-<blockquote>Règle de vigilance : <strong>si une chose exige un média pour exister, elle est secondaire</strong> — elle ne peut</blockquote>
-<blockquote><strong>jamais</strong> devenir le substrat du pilotage. <em>(test du §1 de la fondation)</em></blockquote>
+<h2>CHAPITRE 8 — ANTI-PATTERNS</h2>
+<p><strong>(a) Conservé</strong> : la vigilance « une fonction = une place » (E105) et « l'UI ne détient jamais l'état »</p>
+<p>(E122/INV-10) restent valides et <strong>renforcées</strong>.</p>
+<p><strong>(b) Change</strong> : <strong>interdiction explicite</strong> de toute retombée <strong>média-centrée</strong> (liste exhaustive ci-dessous).</p>
+<table><thead><tr><th>Dimension</th><th>Conséquence</th></tr></thead><tbody><tr><td>Objets</td><td>interdit de faire d'un média le <strong>substrat</strong> du projet</td></tr><tr><td>États</td><td>interdit que « l'étape de pipeline » <strong>soit</strong> l'état du projet</td></tr><tr><td>Relations</td><td>interdit que la matière <strong>domine</strong> le cap dans la lecture</td></tr><tr><td>Calculs</td><td>interdit qu'une lecture <strong>exige</strong> un média pour se produire</td></tr><tr><td>Comportements</td><td>interdit d'<strong>ouvrir sur la production</strong> par défaut</td></tr><tr><td>Décisions</td><td>interdit toute <strong>promotion/correction automatique</strong> (Loi I)</td></tr><tr><td>Mémoire</td><td>interdit d'exposer la mémoire comme <strong>galerie</strong> (au lieu de faits)</td></tr><tr><td>Cohérence</td><td>interdit de réduire la cohérence à un <strong>contrôle technique</strong> du média</td></tr></tbody></table>
 <hr>
-<h2>CE QUE CETTE EXTRACTION CORRIGE vs le <code>SYSTEME_VIVANT</code> initial</h2>
-<p>Le <code>SYSTEME_VIVANT</code> (et <code>_UNIFIE</code>) décrit un <strong>flux centré production</strong> (naissance → évolution →</p>
-<p>publication) où <strong>les états du média</strong> font office de <strong>colonne vertébrale</strong> et où la matière est, de fait,</p>
-<p><strong>au premier plan</strong>. Il est <strong>antérieur</strong> au basculement. Cette extraction le <strong>corrige</strong> ainsi :</p>
-<table><thead><tr><th>Point</th><th><code>SYSTEME_VIVANT</code> initial</th><th>Extraction (cap/pilotage)</th></tr></thead><tbody><tr><td><strong>Centre</strong></td><td>la matière / le flux de production</td><td><strong>le cap</strong> (intention+identité+origine)</td></tr><tr><td><strong>État par défaut</strong></td><td>en production (une étape du flux)</td><td><strong>le repos</strong> (cap+situation+mémoire)</td></tr><tr><td><strong>Matière</strong></td><td>au premier plan, continue</td><td><strong>convoquée puis redescendue</strong> (fait)</td></tr><tr><td><strong>Cohérence</strong></td><td>miroir « à plat », centré intention/média</td><td><strong>stratifiée</strong> + <strong>fracture vs polarité</strong> + <strong>inversion</strong></td></tr><tr><td><strong>Tensions</strong></td><td>non hiérarchisées explicitement</td><td><strong>lexicographiques</strong> (cap-âme &gt; … &gt; production)</td></tr><tr><td><strong>Cap agi / maturation</strong></td><td>implicite</td><td><strong>signal calculé</strong> (maturité)</td></tr><tr><td><strong>Lisibilité sans média</strong></td><td>non garantie</td><td><strong>garantie</strong> (titre = cap·situation·tension·geste)</td></tr><tr><td><strong>Souveraineté</strong></td><td>« signale, ne décide » présent</td><td><strong>+ Loi II</strong> (décrit sans attribuer le sens)</td></tr><tr><td><strong>Registres</strong></td><td>PRODUCTION/MATIÈRE/PILOTAGE mêlés</td><td><strong>5 registres distingués</strong></td></tr></tbody></table>
-<blockquote>Le flux unifié <strong>reste vrai</strong> comme <strong>enchaînement</strong> (déclencheur → … → publication → boucle), mais il</blockquote>
-<blockquote><strong>n'est plus le centre</strong> : il devient <strong>ce que le pilotage traverse</strong>, pas <strong>ce qui définit</strong> le projet.</blockquote>
+<h2>TABLEAU DE CONSOLIDATION FINAL (A → B → C)</h2>
+<table><thead><tr><th>A — héritage production/média</th><th>B — correction cap/conscience</th><th>C — conséquence fonctionnelle concrète</th></tr></thead><tbody><tr><td>Le projet ≈ son média</td><td>Le projet = son <strong>cap</strong> (intention+identité+origine)</td><td>le « handle » = <strong>cap+situation</strong>, pas <code>média actif</code></td></tr><tr><td>Ouvrir/rouvrir sur la production</td><td>État <strong>par défaut = repos</strong></td><td>au démarrage/à la reprise : <strong>titre</strong> (cap·situation·tension·geste), <strong>0 média convoqué</strong></td></tr><tr><td>Aperçu média permanent au premier plan</td><td>Matière <strong>convoquée puis redescendue</strong></td><td>la matière monte <strong>pour un motif</strong>, <strong>avec verdict</strong>, puis devient <strong>fait</strong></td></tr><tr><td>Pipeline = colonne vertébrale</td><td>Pipeline = <strong>excursion</strong> de pilotage</td><td>produire ne définit plus l'état ; on <strong>revient au repos enrichi</strong></td></tr><tr><td>« média actif » = centre</td><td>« média actif » = <strong>rôle exclusif</strong> (niveau 4)</td><td>un seul, réassignable, <strong>jamais un trône</strong></td></tr><tr><td>Cohérence = contrôle technique plat</td><td>Cohérence = <strong>miroir stratifié</strong></td><td>classement <strong>strate puis gravité</strong> ; cap invalide l'aval</td></tr><tr><td>Tensions non hiérarchisées</td><td><strong>Stratification lexicographique</strong></td><td>aucune accumulation de tensions de production ne dépasse une tension de cap</td></tr><tr><td>Contradiction = à résoudre</td><td><strong>Fracture vs polarité</strong> + <strong>inversion</strong></td><td>une polarité <strong>revendiquée</strong> est <strong>protégée</strong> ; on signale son <strong>effondrement</strong></td></tr><tr><td>Intention = donnée figée / légende</td><td><strong>Cap vivant</strong> (déclaré <strong>et</strong> agi)</td><td>signal <strong>maturité</strong> quand le cap agi révèle une intention en maturation</td></tr><tr><td>Mémoire = journal d'actions</td><td>Mémoire = <strong>le pourquoi</strong> (décisions+raisons)</td><td>projet <strong>relisible</strong> ; situation <strong>dérivée</strong> de la mémoire</td></tr><tr><td>Outil qui « fait »</td><td>Outil qui <strong>signale/décrit</strong> (Lois I &amp; II)</td><td><strong>aucune</strong> décision ni <strong>attribution de sens</strong> par le système</td></tr><tr><td>Lisible <strong>avec</strong> média</td><td><strong>Lisible sans aucun média</strong></td><td>le <strong>titre</strong> est toujours productible, médias absents</td></tr></tbody></table>
+<hr>
+<h2>ANTI-PATTERNS INTERDITS (liste exhaustive)</h2>
+<p>1. <strong>Placeholder</strong> — une matière de remplissage « pour qu'il y ait toujours un média ».</p>
+<p>2. <strong>Substrat bloc-média</strong> — le projet <strong>construit comme</strong> un média auquel on accroche le reste.</p>
+<p>3. <strong>Aperçu permanent dominant</strong> — un média en tête, <strong>en continu</strong>, comme cœur du projet.</p>
+<p>4. <strong>Galerie au repos</strong> — un étalage de médias par défaut au lieu de cap+situation.</p>
+<p>5. <strong>Pipeline de production comme colonne vertébrale</strong> — la séquence source→paramètres→finaliser comme</p>
+<p>   structure portante.</p>
+<p>6. <strong>Média actif comme centre permanent</strong> — la source courante traitée en centre plutôt qu'en <strong>rôle</strong>.</p>
+<p>7. <strong>Cap réduit à une légende</strong> — l'intention reléguée à une ligne décorative au-dessus d'un média.</p>
+<p>8. <strong>Production ouverte par défaut</strong> — démarrer/rouvrir sur l'acte de fabriquer.</p>
+<p>9. <strong>Coût/QC comme centre</strong> — un contrôle technique érigé en sujet du projet.</p>
+<p>10. <strong>Galerie de variantes permanente</strong> — variantes exposées en continu au lieu d'être <strong>convoquées</strong>.</p>
+<p>11. <strong>Situation/titre stockés comme source</strong> — au lieu d'être <strong>dérivés</strong> du dossier (viole INV-10).</p>
+<p>12. <strong>Signal interprétatif</strong> — un marqueur qui <strong>attribue un sens</strong> au lieu de décrire un fait (viole Loi II).</p>
+<p>13. <strong>Geste imposé</strong> — un « prochain geste » <strong>exécuté</strong> au lieu de <strong>proposé</strong> (viole Loi I).</p>
+<p>14. <strong>Toute autre forme</strong> qui <strong>redonne la primauté au média</strong> sur le cap.</p>
+<hr>
+<h2>VÉRIFICATION DE NON-CONTRADICTION (rien n'est masqué)</h2>
+<blockquote>Statuts : <strong>✅ compatible</strong> · <strong>♻️ à reformuler</strong> (compatible, mais terminologie/rattachement à préciser</blockquote>
+<blockquote>avant architecture) · <strong>⛔ CONTRADICTION</strong> (bloquant).</blockquote>
+<h3>vs les 24 OBJETS</h3>
+<ul><li><strong>✅ compatible.</strong> Aucun objet ajouté/retiré ; le paradigme <strong>réordonne la primauté</strong> (cap &gt; matière) sans</li></ul>
+<p>  contredire un objet. <strong>♻️ à reformuler</strong> : la <strong>présentation</strong> de « média actif » (rôle, jamais trône) et</p>
+<p>  du Média produit (manifestation) — c'est une reformulation de <strong>primauté</strong>, pas une atteinte à l'objet.</p>
+<h3>vs les CYCLES DE VIE</h3>
+<ul><li><strong>✅ compatible.</strong> Les cycles (naître/évoluer/valider/archiver/réutiliser) sont <strong>inchangés</strong>. **♻️ à</li></ul>
+<p>  reformuler<strong> : l'état « par défaut » d'un projet est désormais lu comme </strong>repos** (au-dessus des états de</p>
+<p>  cycle) — couche opérationnelle ajoutée, <strong>sans</strong> modifier les cycles.</p>
+<h3>vs les DÉCISIONS</h3>
+<ul><li><strong>✅ compatible</strong> (et renforcé). Le pilotage <strong>EST</strong> un enchaînement de décisions ; la <strong>stratification</strong></li></ul>
+<p>  ne fait qu'<strong>ordonner</strong> leur traitement. M16/M17 (1 action=1 décision ; sans raison=incomplète) <strong>tiennent</strong>.</p>
+<h3>vs la MÉMOIRE</h3>
+<ul><li><strong>✅ compatible</strong> (et renforcé). La conscience <strong>s'appuie</strong> sur la mémoire (décisions+raisons, versions) ;</li></ul>
+<p>  rien n'est effacé (INV-5/8). La <strong>situation</strong> est une <strong>dérivation</strong> de la mémoire, pas un stock nouveau.</p>
+<h3>vs les 15 INVARIANTS (un par un)</h3>
+<ul><li>INV-1 primauté intention → <strong>✅ renforcé</strong> (le cap devient le centre).</li><li>INV-2 signale sans décider → <strong>✅ renforcé</strong> (Lois I &amp; II explicitées).</li><li>INV-3 objet/état/action/décision → <strong>✅ renforcé</strong> (média actif = rôle ; matière = manifestation).</li><li>INV-4 décision = pourquoi → <strong>✅ compatible</strong>.</li><li>INV-5 immuabilité du passé → <strong>✅ compatible</strong>.</li><li>INV-6 réversibilité jusqu'à publier → <strong>✅ compatible</strong> (travail = excursion réversible).</li><li>INV-7 un seul acte irréversible → <strong>✅ compatible</strong>.</li><li>INV-8 rien ne se perd en silence → <strong>✅ compatible</strong>.</li><li>INV-9 survie de l'état complet → <strong>✅ compatible</strong> *(condition : situation/titre <strong>dérivés</strong> et</li></ul>
+<p>  <strong>recalculables</strong> depuis le dossier — jamais stockés comme source ; cf. anti-pattern 11)*.</p>
+<ul><li>INV-10 source de vérité unique → <strong>✅ renforcé</strong> (situation/titre/inventaire = <strong>vues dérivées</strong>).</li><li>INV-11 étanchéité par copie → <strong>✅ compatible</strong>.</li><li>INV-12 contrat d'effet → <strong>✅ compatible</strong> (effets annoncés ; geste proposé).</li><li>INV-13 capitalisation tracée → <strong>✅ compatible</strong>.</li><li>INV-14 hiérarchie du monde → <strong>✅ compatible</strong> (l'Univers = l'<strong>appartenance</strong> du noyau).</li><li>INV-15 indépendance du médium → <strong>✅ renforcé</strong> (lisibilité complète sans média).</li></ul>
+<h3>vs l'UNIVERS (objet de 1er niveau)</h3>
+<ul><li><strong>✅ compatible</strong> (et renforcé). L'Univers est l'<strong>appartenance</strong> dans le noyau de conscience ; le</li></ul>
+<p>  <strong>cap-cadre</strong> s'appuie sur ses règles/objectif (copiés, M12). Aucune contradiction.</p>
+<h3>♻️ POINTS À REFORMULER AVANT ARCHITECTURE (non bloquants, mais à clarifier)</h3>
+<p>1. <strong>Terminologie « identité »</strong> : l'<strong>identité-essence</strong> (composante du cap-âme) ≠ l'<strong>identifiant stable</strong></p>
+<p>   du projet (M18) ≠ l'<strong>identité du Personnage</strong>. Trois sens à <strong>nommer distinctement</strong>.</p>
+<p>2. <strong>Intention composite vs strates</strong> : les composantes de l'Intention (message/émotion/public/objectif)</p>
+<p>   sont <strong>réparties</strong> entre cap-âme (émotion/message) et cap-cadre (public/objectif) **pour le classement</p>
+<p>   des tensions<strong> — l'</strong>objet Intention reste un<strong> ; c'est une </strong>lecture stratifiée** de ses parts, à</p>
+<p>   formuler clairement.</p>
+<p>3. <strong>Polarité protégée</strong> : où la <strong>rattacher</strong> ? Défaut proposé — **marqueur de niveau 3 attaché à</p>
+<p>   l'Intention/au cap<strong> (comme le déclencheur), </strong>sans nouvel objet** (cohérent M24). <em>À confirmer.</em></p>
+<p>4. <strong>Signaux &amp; marqueurs réservés</strong> : fixer le <strong>vocabulaire fermé</strong> (calme/maturité/tension/priorité +</p>
+<p>   polarité/effondrement) comme <strong>dérivations niveau 4</strong>, déterministes.</p>
+<h3>RÉSULTAT GLOBAL</h3>
+<blockquote><strong>Aucune CONTRADICTION bloquante.</strong> Le paradigme cap/conscience est <strong>compatible</strong> avec l'intégralité du</blockquote>
+<blockquote>modèle v2 et des 15 invariants — qu'il <strong>renforce</strong> en plusieurs points (INV-1/2/3/10/15). Restent **4</blockquote>
+<blockquote>reformulations<strong> (terminologie/rattachement, ci-dessus) à clarifier </strong>avant<strong> d'architecturer — </strong>aucune**</blockquote>
+<blockquote>ne remet en cause le modèle ; ce sont des <strong>précisions de nommage et de niveau</strong>.</blockquote>
 <hr>
 <h2>SUITE (à la main d'Etoile)</h2>
-<p>C'est <strong>seulement après validation de cette extraction</strong> que sera formalisée la <strong>nouvelle architecture</strong></p>
-<p>(structure d'ensemble révisée), puis, plus tard, l'implémentation — toujours sous E118/E119, derrière</p>
-<p><code>/v4</code>, zéro dépense. <strong>Rien n'est entamé sans ce feu vert.</strong></p>
-<p>_Extraction opérationnelle finale — dérivée de <code>CONSCIENCE_DU_PROJET</code> et du modèle consolidé v2. Aucune</p>
-<p>architecture détaillée, aucun écran, aucune implémentation, aucun nouvel objet. Live intact. Lecture seule._</p></body></html>
+<p>Cette extraction étant <strong>verrouillée</strong>, l'étape suivante — <strong>seulement sur ton feu vert</strong> — sera la</p>
+<p><strong>nouvelle architecture</strong> (structure d'ensemble révisée, sans écrans), <strong>après</strong> avoir tranché les 4</p>
+<p>reformulations ci-dessus. Puis, bien plus tard et sur décision, l'implémentation (E118/E119, derrière</p>
+<p><code>/v4</code>, zéro dépense). <strong>Rien n'est entamé sans ce feu vert.</strong></p>
+<p>_Extraction opérationnelle — version définitive (document charnière). Dérivée exclusivement de</p>
+<p><code>CONSCIENCE_DU_PROJET</code> et du modèle consolidé v2. Aucune architecture, aucun écran, aucune implémentation,</p>
+<p>aucun nouvel objet. Live intact. Lecture seule._</p></body></html>
