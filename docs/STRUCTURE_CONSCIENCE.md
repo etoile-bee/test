@@ -22,9 +22,14 @@ La Conscience **ne contient aucun durable** : c'est l'**ensemble des dérivation
 demande** depuis les faits du Socle, en **appliquant** des **règles canoniques** qui vivent **au niveau
 système** (pas dans les données du projet).
 
-- **Dérivations produites (13)** : **situation · titre · signaux (calme · maturité · tension · priorité) ·
+- **Dérivations produites (14)** : **situation · titre · signaux (calme · maturité · tension · priorité) ·
   focalisation · hiérarchie des tensions · miroir · historique-comme-vue · inventaire-comme-vue · prochain
-  geste · coût estimé**.
+  geste · coût estimé · impact aval**.
+  - **Impact aval** *(ajouté — AUD-G1, clarification d'attribution, 11/06)* : **détection des dépendances
+    amont→aval** (quels éléments aval dépendent d'une pièce amont modifiée) — **dérivation recalculable**
+    depuis les **faits du Socle** (graphe de dépendances), **non stockée** (INV-9). Le comportement « impact
+    aval » est **déjà validé** ([[E115]]) ; on ne fait que **préciser qui le CALCULE** : la **Conscience**.
+    Le **Pilotage la consomme** (présente garder/MAJ/régénérer, exécute le choix) — il **ne la calcule plus**.
 - **Règles canoniques appliquées (niveau système, déjà nommées)** : **M15** (structurant) · **4 filtres** de
   compression · **stratification lexicographique** (cap-âme > cap-cadre > manifestations > production) ·
   **grille des 10 pièces** · **tarification** (coût). *(E128 : règles uniques, jamais redéfinies localement.)*
@@ -77,6 +82,7 @@ système** (pas dans les données du projet).
 | historique-vue | mémoire | faits Socle |
 | inventaire-vue | matière/variantes/versions/livrables/décisions | faits Socle |
 | coût estimé | paramètres + tarification | faits Socle + règle |
+| **impact aval** *(AUD-G1)* | graphe de dépendances amont→aval (faits du Socle) | faits Socle ; **consommé** par le Pilotage |
 
 > **Tous = recalculables.** Aucune dérivation n'apporte de **donnée source** ; chacune n'apporte qu'un
 > **calcul**. *(⚠️ la définition exacte de « tension » et de « maturité » fait l'objet du point d'arrêt §8.)*

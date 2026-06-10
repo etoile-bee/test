@@ -1,0 +1,56 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title></title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>CONTRE-VÉRIFICATION CIBLÉE — AUD-G1 (impact aval reclassé)</h1>
+<blockquote><strong>Statut : AUDIT ADVERSARIAL ciblé.</strong> Vérifie que la correction <strong>AUD-G1</strong> (détection de l'impact aval =</blockquote>
+<blockquote><strong>dérivation de la Conscience</strong>, <strong>consommée</strong> par le Pilotage) <strong>résout</strong> le point **sans en créer</blockquote>
+<blockquote>d'autre<strong>. </strong>Aucune implémentation.** Live intact · zéro dépense.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Correction actée</strong> *(clarification d'attribution — comportement « impact aval » déjà validé [[E115]],</blockquote>
+<blockquote>aucun nouvel objet/invariant/règle)* :</blockquote>
+<blockquote>- <strong>Conscience</strong> : « impact aval » <strong>ajouté</strong> à ses dérivations (recalculable, non stockée — INV-9/E130) ;</blockquote>
+<blockquote>- <strong>Pilotage</strong> : <strong>détection retirée</strong> → il ne fait plus que **consommer + présenter (garder/MAJ/</blockquote>
+<blockquote>  régénérer) + exécuter** le choix de l'auteur.</blockquote>
+<blockquote>Inscrit dans <code>STRUCTURE_CONSCIENCE</code> (§1 + table des calculs) et <code>STRUCTURE_PILOTAGE</code> (§1, §3, Z3).</blockquote>
+<hr>
+<h2>1. AUD-G1 DISPARAÎT-IL ?</h2>
+<ul><li><strong>Le Pilotage ne détecte plus de dépendances ?</strong> → <strong>🟢 OUI.</strong> §1/§3/Z3 de <code>STRUCTURE_PILOTAGE</code></li></ul>
+<p>  réécrits : « <strong>consomme</strong> … <strong>ne la calcule plus</strong> » ; Z3(c) interdit explicitement au Pilotage de</p>
+<p>  <strong>détecter lui-même</strong> les dépendances.</p>
+<ul><li><strong>La Conscience la dérive ?</strong> → <strong>🟢 OUI.</strong> <code>STRUCTURE_CONSCIENCE</code> §1 liste « impact aval » (14ᵉ</li></ul>
+<p>  dérivation) + ligne dédiée dans la table des calculs (recalculable depuis le graphe de dépendances du</p>
+<p>  Socle).</p>
+<ul><li><strong>Le Pilotage la consomme ?</strong> → <strong>🟢 OUI.</strong> §3 « Lit … + <strong>impact aval</strong> (AUD-G1) » ; §1 « consommer,</li></ul>
+<p>  présenter, exécuter ».</p>
+<blockquote><strong>AUD-G1 est résolu</strong> : la <strong>détection</strong> (lecture) est à la <strong>Conscience</strong> ; la <strong>présentation/exécution</strong></blockquote>
+<blockquote>(action) est au <strong>Pilotage</strong>.</blockquote>
+<hr>
+<h2>2. AUCUNE NOUVELLE AMBIGUÏTÉ DU FAIT DU RECLASSEMENT ?</h2>
+<ul><li><strong>La Conscience devient-elle une seconde source ?</strong> → <strong>🟢 NON.</strong> L'impact aval est une **dérivation</li></ul>
+<p>  recalculable<strong> depuis les </strong>faits du Socle<strong> (graphe de dépendances), </strong>non stockée** ; la Conscience ne</p>
+<p>  détient toujours <strong>aucun durable</strong> (INV-10).</p>
+<ul><li><strong>INV-9 tenu ?</strong> → <strong>🟢 OUI.</strong> L'impact aval se <strong>recalcule</strong> intégralement depuis le Socle ; le supprimer</li></ul>
+<p>  et le régénérer redonne le même résultat (cohérent <code>TEST_RECONSTRUCTION_SOCLE</code>).</p>
+<ul><li><strong>INV-10 tenu ?</strong> → <strong>🟢 OUI.</strong> Aucune source nouvelle ; la dépendance est <strong>lue</strong>, pas <strong>détenue</strong>.</li><li><strong>Le Pilotage reste-t-il pur exécutant/relayeur ?</strong> → <strong>🟢 OUI.</strong> Il <strong>consomme</strong> une lecture de plus</li></ul>
+<p>  (l'impact aval), <strong>présente</strong>, <strong>exécute</strong> — il ne <strong>calcule</strong> toujours <strong>aucune</strong> lecture (E128-2).</p>
+<ul><li><strong>Doublon de calcul ?</strong> → <strong>🟢 NON.</strong> L'impact aval est calculé <strong>une seule fois</strong>, par la <strong>Conscience</strong></li></ul>
+<p>  (un calcul = un espace) ; le Pilotage ne le recalcule pas.</p>
+<ul><li><strong>Dépendance circulaire Conscience↔Pilotage ?</strong> → <strong>🟢 NON.</strong> La Conscience <strong>ne dépend que du Socle</strong></li></ul>
+<p>  (elle ne lit pas le Pilotage). Le Pilotage <strong>consomme</strong> la sortie de la Conscience puis **écrit au</p>
+<p>  Socle<strong> ; la Conscience </strong>recalcule<strong> ensuite depuis le Socle. C'est une </strong>séquence temporelle**</p>
+<p>  (lecture → choix → écriture → recalcul), <strong>pas</strong> une dépendance circulaire de définition.</p>
+<hr>
+<h2>3. RE-PASSAGE DES 9 AXES DE L'AUDIT GLOBAL</h2>
+<table><thead><tr><th>#</th><th>Axe</th><th>Résultat après AUD-G1</th></tr></thead><tbody><tr><td>1</td><td>Responsabilités dupliquées</td><td><strong>🟢</strong> — détection (Conscience) ≠ présentation/exécution (Pilotage), disjointes</td></tr><tr><td>2</td><td>Responsabilités orphelines</td><td><strong>🟢</strong> — l'impact aval a désormais <strong>un propriétaire clair</strong> (Conscience pour le calcul) ; <strong>AUD-G1 (l'orpheline/ambiguë) est résorbée</strong></td></tr><tr><td>3</td><td>Calculs dupliqués</td><td><strong>🟢</strong> — impact aval calculé <strong>une seule fois</strong> (Conscience) ; coût estimé≠réel ; M15 unique ; geste = mapping</td></tr><tr><td>4</td><td>Données durables hors Socle/Univers</td><td><strong>🟢</strong> — aucune (impact aval = dérivation non stockée)</td></tr><tr><td>5</td><td>Lois I/II</td><td><strong>🟢</strong> — détection = <strong>factuelle</strong> (graphe de dépendances, aucun sens) ; le Pilotage ne décide pas (choix = auteur)</td></tr><tr><td>6</td><td>INV-9 / INV-10</td><td><strong>🟢</strong> — impact aval recalculable, non stocké ; source unique préservée</td></tr><tr><td>7</td><td>Dépendances circulaires</td><td><strong>🟢</strong> — aucune (Conscience ne dépend que du Socle ; feedback temporel, pas cyclique)</td></tr><tr><td>8</td><td>Captations discrètes de pouvoir</td><td><strong>🟢</strong> — la captation (Pilotage calculant une lecture) est <strong>supprimée</strong> ; aucune nouvelle</td></tr><tr><td>9</td><td>Anti-patterns production/média</td><td><strong>🟢</strong> — inchangé (rien de média réintroduit)</td></tr></tbody></table>
+<hr>
+<h2>4. VERDICT</h2>
+<blockquote><strong>🟢 VERT — aucun point résiduel.</strong> La correction <strong>AUD-G1</strong> est <strong>inscrite</strong> dans les deux docs ; le point</blockquote>
+<blockquote><strong>disparaît</strong> (détection = Conscience, consommation/présentation/exécution = Pilotage) ; **aucune nouvelle</blockquote>
+<blockquote>ambiguïté<strong> n'apparaît ; les </strong>9 axes<strong> repassent </strong>tous au vert<strong>. </strong>Aucun ORANGE, aucun ROUGE.**</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Conséquence</strong> : l'architecture des <strong>5 espaces</strong> est désormais <strong>entièrement verte</strong> — cohérente,</blockquote>
+<blockquote>étanche, sans contradiction, sans captation, sans doublon, sans dépendance circulaire. **La fondation peut</blockquote>
+<blockquote>être close** (à la décision d'Etoile).</blockquote>
+<blockquote></blockquote>
+<blockquote>*(Rappel — hors périmètre de cette contre-vérification : la <strong>calibration des signaux</strong> A/B reste un</blockquote>
+<blockquote><strong>point ouvert</strong> explicitement signalé, <strong>non gravé</strong> ; il n'affecte pas l'étanchéité des espaces.)*</blockquote>
+<hr>
+<p>_Contre-vérification ciblée AUD-G1 — dérivée du canon verrouillé. Aucune implémentation, aucun nouvel objet/</p>
+<p>invariant/règle. Live intact. Lecture seule._</p></body></html>

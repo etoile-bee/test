@@ -23,8 +23,10 @@
 - **Qualifier l'action** de l'auteur (structurant vs local) via **M15 canonique** (E128-1, jamais redéfini).
 - **Persister la décision exprimée par l'auteur** : écrire au Socle la **Décision** (action + objet visé +
   **raison verbatim de l'auteur**) et le **changement d'état/verdict** correspondant.
-- **Présenter et exécuter l'impact aval CHOISI** : exposer les 3 options (garder / mettre à jour /
-  régénérer) et appliquer **le choix de l'auteur** — jamais en silence.
+- **Consommer, présenter et exécuter l'impact aval** *(AUD-G1, 11/06)* : la **détection** des dépendances
+  amont→aval est une **dérivation de la Conscience** — le Pilotage la **CONSOMME** (il **ne la calcule
+  plus**), **présente** les 3 options (garder / mettre à jour / régénérer) et **exécute le choix de
+  l'auteur** — jamais en silence.
 - **Relayer le carrefour calculé par la Conscience** (focalisation) — sans le recalculer.
 - **Proposer le prochain geste** : **mapping strict** de la focalisation (E128-2) — proposé, jamais imposé.
 - **Router entre espaces** : convoquer l'Atelier (commande + contrat), demander une lecture à la Conscience,
@@ -39,8 +41,8 @@
 ---
 
 ## 3. CE QU'IL LIT / ÉCRIT / CALCULE
-- **Lit** : **la lecture produite par la Conscience** (situation/titre/focalisation/carrefour/signaux) +
-  **les faits du Socle** (pour agir en connaissance et router).
+- **Lit** : **la lecture produite par la Conscience** (situation/titre/focalisation/carrefour/signaux +
+  **impact aval**, AUD-G1) + **les faits du Socle** (pour agir en connaissance et router).
 - **Écrit** (au Socle, **seul espace à le faire pour décisions/états**) : **Décisions + raisons**,
   **changements d'état / verdicts** (devenir d'un média), **marqueurs de polarité protégée** (sur ordre de
   l'auteur), **copies d'amorce** (Univers→Socle), **promotions** (Socle→Univers).
@@ -124,12 +126,13 @@ Le Pilotage **ne peut JAMAIS** :
 - **(c) Interdit d'inventer** : **fabriquer une raison**. Sans raison → décision **« incomplète »** (M17),
   jamais une raison reconstituée par le Pilotage.
 
-### Z3 — IMPACT AVAL
-- **(a) Déterministe** : la **détection** des dépendances aval (faits du Socle) + la **présentation** des 3
-  options (garder / mettre à jour / régénérer).
+### Z3 — IMPACT AVAL *(corrigé AUD-G1)*
+- **(a) Déterministe** : la **présentation** des 3 options (garder / mettre à jour / régénérer) à partir de
+  l'**impact aval CALCULÉ PAR LA CONSCIENCE** (dérivation). Le Pilotage **consomme** cette détection, il
+  **ne la calcule plus**.
 - **(b) De l'auteur** : le **CHOIX** parmi les 3.
-- **(c) Interdit d'inventer** : **auto-appliquer** un choix **en silence** (INV-6/12) ; **décider** à la
-  place de l'auteur.
+- **(c) Interdit d'inventer** : **détecter lui-même** les dépendances (c'est la Conscience) ; **auto-appliquer**
+  un choix **en silence** (INV-6/12) ; **décider** à la place de l'auteur.
 
 ### Z4 — PROPOSITION DE CARREFOUR
 - **(a) Déterministe** : le **relais** du carrefour **tel que calculé par la Conscience** (focalisation).
