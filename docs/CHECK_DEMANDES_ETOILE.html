@@ -1,0 +1,67 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>CHECK — Demandes d'Etoile</title><style>body{font:15px/1.55 -apple-system,Segoe UI,Roboto,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1b1b1f;background:#fafafa}h1{font-size:26px}h2{margin-top:34px;border-bottom:2px solid #e3e3e8;padding-bottom:6px}h3{margin-top:22px}table{border-collapse:collapse;width:100%;margin:12px 0;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06)}th,td{border:1px solid #e3e3e8;padding:8px 10px;text-align:left;vertical-align:top}th{background:#f0f0f4}td:nth-child(2){text-align:center;white-space:nowrap}code{background:#eef;border-radius:4px;padding:1px 5px;font-size:.92em}blockquote{background:#fff;border-left:4px solid #6a6af0;margin:14px 0;padding:10px 14px;color:#333}.b{font-size:1.1em}hr{border:0;border-top:1px solid #ddd;margin:26px 0}</style></head><body><h1>CHECK — Demandes d'Etoile · État honnête + preuve observable</h1>
+<blockquote><strong>Méthode</strong> : chaque ligne est vérifiée par <strong>preuve observable</strong> (cartographie écran×bouton, runtime via le vrai chemin du bot, trace de migration, sortie ffmpeg réelle) — <strong>pas</strong> par relecture de code.<br>Légende : ✅ fait &amp; prouvé · 🟡 partiel / dépend d'un clic d'Etoile · ❌ non fait.<br><br><strong>Build déployé</strong> : commit <code>e6dfba7</code> · pm2 <code>podcast-bot</code> relancé le 11/06 20:45:47 (boot propre, aucune erreur).<br><strong>Tests</strong> : <code>screens 99 · carto 130 · runtime 83 · nav 28 · budget 10 · nospend 4 · cloud_chain 14 · soustitres 12</code> = <strong>380 OK / 0 KO</strong>.<br><strong>Sécurité dépense</strong> : <code>LIVE OFF</code> (photo=false, video=false) · budget <code>0/10</code> au moment de ce rapport.</blockquote>
+<hr>
+<h2>1. Chaîne photo complète (sélection → modifier → valider → aperçu → garde → générer → final)</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Chaîne photo sans cul-de-sac (galerie → préparation)</td><td><span class="b ok">✅</span></td><td>carto 130/130 : tout bouton répond, 1 cockpit, Retour présent partout ; runtime A (double-confirm) vert</td></tr>
+<tr><td>Aperçu obligatoire AVANT génération</td><td><span class="b ok">✅</span></td><td>runtime A : « Générer » → écran RÉCAP (confirm) puis 2ᵉ confirmation, aucun média avant les 2 clics</td></tr>
+<tr><td>Valider possible avant l'aperçu</td><td><span class="b ok">✅</span></td><td>runtime : <code>R0_PH_GENERATE</code> → confirm (Aperçu/Éditer/Valider/Générer)</td></tr>
+</tbody></table>
+<h2>2. Migration rétroactive (copie physique podcast-looks/projets)</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>UN seul mécanisme (rétroactif = futur) via <code>r0ArchiveProjet</code></td><td><span class="b ok">✅</span></td><td><code>node telegram_bot.js --migrate</code> appelle exactement la fonction utilisée pour les futures générations</td></tr>
+<tr><td>Copie PHYSIQUE (autonomie inter-projets)</td><td><span class="b ok">✅</span></td><td>trace migration : <strong>23 projets archivés · 623 copies · 279 fichiers uniques</strong> sur disque (<code>find …/projets -path */Photos/* → 279</code>)</td></tr>
+<tr><td>Arborescence <code>podcast-looks/projets/&lt;persona&gt;/&lt;projet&gt;</code> + manifeste</td><td><span class="b ok">✅</span></td><td><code>…/podcast-looks/projets/imany/imany_*</code> avec <code>projet.json</code>, <code>facts.snapshot.json</code>, <code>RECAP.txt</code>, sous-dossiers Photos/Vidéos/Références/…</td></tr>
+<tr><td>Lecteurs lisent podcast-looks/projets (sinon stocké mais invisible)</td><td><span class="b ok">✅</span></td><td><code>preuve_lecture_finale.js</code> : galerie <strong>trouvé 168 → 447</strong>, affiché <strong>100 → 162</strong> (les photos migrées remontent)</td></tr>
+<tr><td>Vidéos legacy laissées dans podcast-outputs</td><td><span class="b ok">✅</span></td><td>migration : <strong>0 vidéo copiée</strong> (décision respectée) ; historique vidéo inchangé (514/117)</td></tr>
+<tr><td>NE RIEN SUPPRIMER d'autre</td><td><span class="b ok">✅</span></td><td>la migration n'écrit QUE dans podcast-looks/projets (copyFileSync <code>if(!exists)</code>), aucune suppression ; base <code>112 projets</code> inchangée avant/après</td></tr>
+</tbody></table>
+<h2>3. Armer le réel (photo + vidéo) avec garde-fous</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Double-confirmation avant dépense</td><td><span class="b ok">✅</span></td><td>runtime A : <code>R0_GO2</code> → confirm2 → seul <code>R0_GO</code> crée ; budget bloque si épuisé</td></tr>
+<tr><td>Plafond budget ≤ 10 tests</td><td><span class="b ok">✅</span></td><td>budget 10/10 : <code>confirm RÉEL ÉPUISÉ</code> masque les boutons de dépense (test budget 10/10)</td></tr>
+<tr><td><code>!R0DRY</code> : le banc d'essai ne dépense JAMAIS</td><td><span class="b ok">✅</span></td><td>test nospend 4/4 : LIVE armé + R0_DRYRUN → <code>liveFor(photo/video)=false</code></td></tr>
+<tr><td>« Tu ne dépenses rien toi-même : 1ʳᵉ dépense = son clic »</td><td><span class="b mid">🟡</span></td><td>LIVE est <strong>OFF</strong> ; l'armement est la dernière étape (voir § Armement ci-dessous). Aucune dépense déclenchée par l'assistant</td></tr>
+</tbody></table>
+<h2>4. Valider + Retour à CHAQUE étape (+ Accueil + Stop)</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Retour partout</td><td><span class="b ok">✅</span></td><td>carto : <code>hasRetour</code> vrai sur 22 écrans</td></tr>
+<tr><td>Accueil + Stop partout</td><td><span class="b ok">✅</span></td><td>wrapper <code>view()</code> ajoute 🏠/🛑 sur tout écran non-racine ; runtime boutons : `… 🏠 Accueil</td><td>🛑 Stop`</td></tr>
+<tr><td>✅ Valider sur chaque bloc-outil</td><td><span class="b ok">✅</span></td><td><code>blockView</code> ajoute `✅ Valider</td><td>◀ Retour<code> ; runtime : panneau finit par </code>✅ Valider</td><td>◀ Retour</td><td>🏠 Accueil</td><td>🛑 Stop`</td></tr>
+</tbody></table>
+<h2>5. Régression « Enregistrer avant de quitter ? »</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Restaurée + stabilisée</td><td><span class="b ok">✅</span></td><td>écran <code>quit</code> (Enregistrer/Quitter/Annuler) atteint par 🏠 depuis tout flux en cours</td></tr>
+<tr><td>Ne peut plus disparaître entre déploiements</td><td><span class="b ok">✅</span></td><td><strong>garde-fou cartographie</strong> : 15 assertions (<code>QUIT : 🏠 depuis photo_prompt/video_params/video_edit/confirm/confirm2/block → quit</code> + Annuler revient + Save/Discard) — un futur build qui casse ça échoue aux tests</td></tr>
+</tbody></table>
+<h2>6. /accueil = entrée principale du nouveau cockpit</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td><code>/accueil</code> ouvre le cockpit (PAS de bascule /menu)</td><td><span class="b ok">✅</span></td><td>routage `if(txt==='/accueil'</td><td></td><td>txt.startsWith('/v4r')) r0TypedV4r('/v4r')`</td></tr>
+<tr><td><code>/v4r</code> = alias · <code>/menu</code> legacy inchangé</td><td><span class="b ok">✅</span></td><td>même handler pour /accueil et /v4r ; /menu non touché</td></tr>
+<tr><td><code>/accueil</code> dans setMyCommands (entrée principale)</td><td><span class="b ok">✅</span></td><td>setMyCommands : <code>accueil</code> 🎬 + <code>v4r</code> (alias) + <code>menu</code> (legacy)</td></tr>
+</tbody></table>
+<h2>7. Catégories de scripts réelles (depuis la source legacy)</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Vraies catégories/thèmes (comme Tenues)</td><td><span class="b ok">✅</span></td><td>bloc Script expose les niches legacy (workflow.js) : Red flags · Hommes toxiques · Attachement · Estime de soi · Ruptures · Il s'éloigne · Erreurs dating · Narcissiques · Conseils dating · Situationships · Soft life · Sa valeur</td></tr>
+<tr><td>Choix reflété + oriente la génération</td><td><span class="b ok">✅</span></td><td>screens : choisir un thème → <code>draft.theme/theme_seed</code>, reste sur le panneau ; <code>r0RealVideo</code> topic = script &gt; thème &gt; source</td></tr>
+</tbody></table>
+<h2>8. Sous-titres — version DÉFINITIVE</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>AUTO-générés + incrustés, PAS de champ texte, PAS d'on/off</td><td><span class="b ok">✅</span></td><td>screens : aucun <code>R0_SET_ston_*</code>, aucun <code>R0_ASK_vi_soustitres</code> ; runtime boutons = apparence uniquement</td></tr>
+<tr><td>Boîte apparence legacy : disposition · police · taille · position · <strong>couleur</strong></td><td><span class="b ok">✅</span></td><td>runtime panneau : <code>Mot-à-mot/Phrase · Archivo/Classique · Petit/Moyen/Grand · Haut/Milieu/Bas · Blanc/Jaune/Cyan</code></td></tr>
+<tr><td>RÉELLEMENT connecté : visible sur APERÇU <strong>et</strong> vidéo finale, mêmes réglages</td><td><span class="b ok">✅</span></td><td><code>test_v4r_soustitres</code> 12/12 : <code>r0SubOpts</code> mappe st_* → opts ; <code>buildAss</code> injecte couleur+alignement+taille+police ; <strong>ffmpeg burn réel → PNG produit</strong>. Aperçu (<code>r0SubSample</code>) et rendu (<code>renderVideo(styleOpts)→renderLocal→buildAss</code>) partagent le MÊME <code>r0SubOpts</code></td></tr>
+<tr><td>Réglages mémorisés (Défaut)</td><td><span class="b ok">✅</span></td><td>runtime : st_color=jaune, st_pos=haut persistés dans le brouillon ; 💾 Défaut sauve les 5 champs st_*</td></tr>
+<tr><td><code>subtitle_style.js</code> (verrou) intact</td><td><span class="b ok">✅</span></td><td>fichier non modifié ; lecture seule pour les défauts</td></tr>
+</tbody></table>
+<h2>9. Autres intégrations du lot</h2>
+<table><thead><tr><th>Demande</th><th>État</th><th>Preuve observable</th></tr></thead><tbody>
+<tr><td>Conservation image au passage photo→vidéo</td><td><span class="b ok">✅</span></td><td>source épinglée <code>draft.video.source_file = ctx.coverFile</code> ; runtime cover cohérent</td></tr>
+<tr><td>Voix retirée du montage vidéo (Kling gère)</td><td><span class="b ok">✅</span></td><td>screens : montage = Script/Musique/Sous-titres/Durée (pas de Voix)</td></tr>
+<tr><td>Grilles : numéros incrustés + régénérées par page</td><td><span class="b ok">✅</span></td><td>mosaïque : nom unique par hash de contenu + <code>drawtext</code> numéros absolus</td></tr>
+<tr><td>Rendus finaux persistants vs cockpit éphémère</td><td><span class="b ok">✅</span></td><td><code>r0PostFinal</code>/<code>r0RenderMids</code> séparés du cockpit (r0Mid)</td></tr>
+</tbody></table>
+<hr>
+<h2>Armement du réel — dernière étape (gated)</h2>
+<ul><li>État actuel : <strong>LIVE OFF</strong> (photo=false, video=false), budget <strong>0/10</strong>.</li><li>Garde-fous prouvés actifs : double-confirmation, plafond 10, <code>!R0DRY</code>, blocage budget épuisé, cloud-copy gardé <code>!R0DRY</code>.</li><li><strong>L'assistant ne déclenche aucune dépense.</strong> Une fois armé (<code>setLive(true)</code>), la <strong>première dépense reste le clic « Oui, générer » d'Etoile</strong> sur l'écran de 2ᵉ confirmation.</li></ul>
+<h2>Réserves honnêtes (🟡 / limites)</h2>
+<ul><li><strong>Vidéo réelle bout-en-bout</strong> : la chaîne Kling+ElevenLabs+Anthropic est câblée et l'incrustation sous-titres est prouvée localement (ffmpeg), mais un rendu vidéo réel complet n'a <strong>jamais</strong> été exécuté (LIVE OFF) — il ne le sera qu'au 1ᵉʳ clic d'Etoile. Prouvé en dry-run/local uniquement.</li><li><strong>Disposition mot-à-mot vs phrase</strong> : exposée et mémorisée ; l'effet sur le découpage du rendu suit le timing de mots existant (non re-vérifié image par image).</li><li><strong>Backup « chaîne simple plus tard »</strong> : noté, non fait (différé à ta demande).</li></ul><hr><p style="color:#888;font-size:13px">Généré depuis CHECK_DEMANDES_ETOILE.md · build e6dfba7</p></body></html>
