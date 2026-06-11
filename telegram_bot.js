@@ -2555,6 +2555,10 @@ let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcRet
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
+// [VERROU GÉNÉRATION — Etoile] flag FICHIER posé au DÉBUT de toute génération réelle, levé à la FIN. Tant qu'il existe -> AUCUN deploy/restart autorisé.
+//   (la procédure de déploiement vérifie ce fichier ; au boot, un flag orphelin = génération tuée par un redémarrage -> message d'incident, jamais de retour silencieux.)
+const R0_GENLOCK=path.join(BASE,'.v4r_generating');
+function r0GenLock(on,kind){ try{ if(on){ fs.writeFileSync(R0_GENLOCK, JSON.stringify({kind:kind||'?', at:Date.now(), pid:process.pid})); } else { try{ fs.unlinkSync(R0_GENLOCK); }catch(e){} } }catch(e){} }
 // [RENDUS PERSISTANTS] mids des RENDUS FINAUX (photo/vidéo générée) postés comme messages DÉDIÉS : ils RESTENT dans le fil,
 //   JAMAIS supprimés ni édités. Distincts du COCKPIT (r0Mid, éphémère/édité en place). /v4r·restart·changement de projet ne les touchent pas.
 let r0RenderMids=[];
@@ -3121,16 +3125,18 @@ async function r0Dispatch(persona, d, editMid){
   const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo') && !R0DRY);
   if(realPhoto){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
-    r0Busy=true;
+    r0Busy=true; r0GenLock(true,'photo'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
     try{
       await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // reste sur l'écran courant
       const out=await r0RealPhoto(persona, id); // appelle generateLook (avec timeout), dépose la photo RÉELLE, enregistre le test
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
-      const koBanner='⚠️ <b>Génération non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour puis réessaie.';
+      // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
+      const koBanner='⚠️ <b>Génération photo NON aboutie</b>'+(out.err?('\n<i>Cause : '+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour pour réessayer, ou /accueil.';
       if(out.ok){ const mi=C.lastImage(r0Cur(persona)); if(mi&&mi.file) await r0PostFinal('photo', mi.file, r0FinalCap(persona,'photo',false,'test n°'+out.tests+'/'+out.max)); } // [RENDU PERSISTANT] keepsake séparé
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
-    } finally { r0Busy=false; }
+    } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération photo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
+    finally { r0Busy=false; r0GenLock(false); }
     return;
   }
   // ── GÉNÉRATION VIDÉO RÉELLE (script Anthropic + voix ElevenLabs + lipsync Kling) : SEULEMENT sur GO + LIVE + vidéo + 3 clés présentes. ──
@@ -3138,7 +3144,7 @@ async function r0Dispatch(persona, d, editMid){
   const realVideo = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='video' && ENG.liveFor('video') && !R0DRY);
   if(realVideo){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
-    r0Busy=true;
+    r0Busy=true; r0GenLock(true,'video'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
     try{
       await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(ne reclique pas)</i>');
       // [AVANCEMENT UN SEUL BLOC — Etoile/Legacy] chaque étape MET À JOUR le MÊME bloc (editMid), pas de flood de messages.
@@ -3146,10 +3152,12 @@ async function r0Dispatch(persona, d, editMid){
       const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
-      const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
+      // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
+      const koBanner='⚠️ <b>Vidéo NON aboutie</b>'+(out.err?('\n<i>Cause : '+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour pour réessayer, ou /accueil.';
       if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } } // [CLOUD podcast-looks/<projet>]+[RENDU PERSISTANT]
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
-    } finally { r0Busy=false; }
+    } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération vidéo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
+    finally { r0Busy=false; r0GenLock(false); }
     return;
   }
   if(d==='R0_GO' && r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente'); }catch(e){} return; } // verrou aussi hors photo
@@ -4577,6 +4585,13 @@ if(R0DRY){
   console.log('Bot running...');poll();
   /*[Etoile] REDÉMARRAGE : message éphémère « connecté » à chaque démarrage -> elle SAIT que le bot est revenu (sans REOPEN_FLAG = deploy/crash silencieux avant).*/
   if(!fs.existsSync(REOPEN_FLAG)){ setTimeout(()=>{ send('✅ <b>Connecté</b> — tape /accueil pour reprendre.').catch(()=>{}); },800); }
+  /*[VERROU GÉNÉRATION] flag orphelin au boot = une génération a été TUÉE par un redémarrage -> MESSAGE D'INCIDENT COMPLET (jamais de retour silencieux).*/
+  try{ if(fs.existsSync(R0_GENLOCK)){ let info={}; try{ info=JSON.parse(fs.readFileSync(R0_GENLOCK,'utf8')); }catch(e){}
+    const kind=info.kind==='video'?'vidéo':'photo'; const when=info.at?new Date(info.at).toISOString().slice(11,16):'?';
+    try{ fs.unlinkSync(R0_GENLOCK); }catch(e){}
+    setTimeout(()=>{ send('⚠️ <b>Génération '+kind+' interrompue</b> par un redémarrage (démarrée ~'+when+' UTC).\nAucune création déposée pour cette tentative. Une petite dépense moteur a pu être engagée. Rien d\'autre n\'est perdu — reprends via <b>/accueil</b>.').catch(()=>{}); },1400);
+    try{ jlog('[VERROU] flag génération orphelin au boot ('+kind+', '+when+') -> incident signalé + flag nettoyé'); }catch(e){}
+  } }catch(e){}
   /*[fix/restart-feedback] après un /restart demandé par l'utilisateur, RÉAFFICHER le cockpit (accueil) — sans message technique.
     Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
   setTimeout(async ()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){}
