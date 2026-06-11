@@ -122,11 +122,12 @@ function videoView(facts) {
     + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source dispo — conserver ?</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
   // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
   const hasSource = hasI || hasV;
+  // Chaque callback n'apparaît qu'UNE fois. hasSource : Conserver / Changer(=choisir une autre). Sinon : Choisir / Importer.
   const rows = (hasSource
-    ? [[{ text: '✅ Conserver', cb: 'R0_VI_KEEPLOOK' }, { text: '✏️ Changer', cb: 'R0_VI_GENPHOTO' }]]
-    : []).concat([
-      [{ text: '📥 Importer', cb: 'R0_VI_IMPORT' }, { text: '🖼 Choisir', cb: 'R0_VI_PICK' }],
-      [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }],
+    ? [[{ text: '✅ Conserver', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }],
+       [{ text: '📥 Importer', cb: 'R0_VI_IMPORT' }, { text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]
+    : [[{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }],
+       [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]).concat([
       [{ text: '🎬 Créer vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
       [{ text: '🕘 Historique', cb: 'R0_VI_HIST' }, HOME],
     ]);

@@ -2798,7 +2798,8 @@ async function handle(upd){
         const persona=_persona();
         r0Mid=cb.message.message_id; r0Type=(cb.message&&cb.message.video)?'video':((cb.message&&cb.message.photo)?'photo':'text'); /*sync sur le bloc tapé*/
         await r0Dispatch(persona, d, cb.message.message_id);
-      }catch(e){ jlog('R0 cb err '+e.message); }
+      }catch(e){ jlog('R0 cb err '+e.message); /*FILET : un tap ne reste JAMAIS mort -> on re-rend l'écran courant avec un avis*/
+        try{ await r0Render(_persona(), cb.message.message_id, '⚠️ Action non aboutie — réessaie.'); }catch(_){} }
       cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return;
     }
     if(v4active){ try{ await cockpitV4().handle(d); }catch(e){ jlog('v4 handle err '+e.message); } cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return; }

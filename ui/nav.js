@@ -306,7 +306,8 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
         else S.setDraft(base, persona, id, m.kind, { [m.field]: txt }, ts); }
       break; }
     case 'duplicate': S.duplicateProject(base, persona, id, ts); break;
-    case 'openrecent': { const p = ((ctx && ctx.recents && ctx.recents.projets) || [])[op.index]; if (p) S.saveFacts(base, persona, S.loadFacts(base, persona, p.projectId), ts); break; }
+    case 'openrecent': { const p = ((ctx && ctx.recents && ctx.recents.projets) || [])[op.index];
+      if (p && p.projectId) { const pf = S.loadFacts(base, persona, p.projectId); if (pf) S.saveFacts(base, persona, pf, ts); } break; } // garde-fou : projet introuvable -> ne crashe pas
     case 'decision': S.recordDecision(base, persona, id, op.action, op.raison, 'Etoile', ts); break;
   }
   if (op.then) return applyOp(op.then, S, base, persona, id, S.loadFacts(base, persona, id), ctx, ts);
