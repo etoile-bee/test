@@ -3712,11 +3712,13 @@ async function handle(upd){
         if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} r0Mid=null; r0Type=null; r0MediaPath=null; }
         await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); return;
       }
-      if(txt==='/v4r'){ /*reprend où on en était (contexte restauré) ; édite le bloc courant en place s'il existe*/
+      if(txt==='/v4r'){ /*reprend le contexte (état restauré) MAIS poste TOUJOURS un bloc FRAIS visible en bas (anti « rien ne bouge »)*/
         if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
-        await r0Render(persona, r0Mid||null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); return;
+        if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null; r0Type=null; r0MediaPath=null; /*bloc neuf -> toujours visible*/
+        await r0Render(persona, null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); return;
       }
-      r0Screen='home'; await r0Render(persona, r0Mid||null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.');
+      r0Screen='home'; if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null; r0Type=null; r0MediaPath=null;
+      await r0Render(persona, null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.');
     }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indisponible.'); }
     return;
   }
