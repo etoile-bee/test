@@ -2962,15 +2962,22 @@ function r0KickMosaic(files, mid, scr, caption, rows, startNum){
 }
 // [RENDUS PERSISTANTS] Poste un RENDU FINAL (photo/vidéo) comme MESSAGE DÉDIÉ qui RESTE dans le chat (jamais r0Mid, jamais supprimé/édité).
 //   C'est le « keepsake » : la grammaire post-puis-supprime / édit-en-place du COCKPIT ne s'y applique JAMAIS. Sans boutons (intouchable).
+// [ÉCRAN FINAL FIGÉ — Etoile] 5 boutons rangés, AUCUN destructif (le bloc reste, toujours) :
+//   💾 Enregistrer (choix) · ➕ Nouvelle vidéo · ➕ Nouvelle photo · 📤 Poster · 🗂 Mes fichiers (assets copiables).
+const R0_FINAL_KB=[
+  [{text:'💾 Enregistrer',cb:'R0_FIN_SAVE'}],
+  [{text:'➕ Nouvelle vidéo',cb:'R0_VIDEO'},{text:'➕ Nouvelle photo',cb:'R0_PHOTO'}],
+  [{text:'📤 Poster',cb:'R0_PUB'},{text:'🗂 Mes fichiers',cb:'R0_RES'}],
+];
 async function r0PostFinal(kind, file, caption){
   try{
     if(!file) return null;
-    let mid=null;
-    if(kind==='video'){ mid=await sendVideoKb(file, cap1024(caption), null); if(!mid){ const d=await sendPhotoKb(file, cap1024(caption), null); mid=r0MidOf(d); } }
-    else { const d=await sendPhotoKb(file, cap1024(caption), null); mid=r0MidOf(d); }
-    if(mid){ r0RenderMids.push(mid); jlog('[v4r] rendu persistant posté mid='+mid+' ('+kind+') — conservé dans le fil'); }
+    let mid=null; const kb=r0Kb(R0_FINAL_KB);
+    if(kind==='video'){ mid=await sendVideoKb(file, cap1024(caption), kb); if(!mid){ const d=await sendPhotoKb(file, cap1024(caption), kb); mid=r0MidOf(d); } }
+    else { const d=await sendPhotoKb(file, cap1024(caption), kb); mid=r0MidOf(d); }
+    if(mid){ r0RenderMids.push(mid); jlog('[v4r] bloc final figé posté mid='+mid+' ('+kind+') — 5 boutons, jamais supprimé'); }
     return mid;
-  }catch(e){ try{ jlog('[v4r] post rendu persistant err '+e.message); }catch(_){} return null; }
+  }catch(e){ try{ jlog('[v4r] post bloc final err '+e.message); }catch(_){} return null; }
 }
 // Légende d'un rendu persistant : nom du projet + nature + (réel/simulation). Reste affichée à vie dans le fil.
 function r0FinalCap(persona, kind, sim, extra){
@@ -3070,6 +3077,10 @@ async function r0Dispatch(persona, d, editMid){
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
+  // [ÉCRAN FINAL] 💾 Enregistrer (CHOIX) : écrit l'archive organisée de la version dans podcast-looks/projets (image/vidéo/script/légendes/sous-titres/prompt). Récupérable.
+  if(d==='R0_FIN_SAVE'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; let r=null; try{ r=r0ArchiveProjet(persona, id); }catch(e){}
+    try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
+    return; }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
@@ -3301,11 +3312,18 @@ async function handle(upd){
     // [cockpit-v4] INTERCEPT : si le nouveau cockpit est actif (/v4), il prend la main sur TOUS les callbacks.
     if(d&&d.indexOf('R0_')===0){ /*[RÉALISATION — référence produit] navigation par ÉCRANS, UN bloc vivant, génération SIMULÉE (zéro dépense), publication GATÉE. Isolé du legacy et de /v4.*/
       try{
-        const persona=_persona();
-        r0Mid=cb.message.message_id; r0Type=(cb.message&&cb.message.video)?'video':((cb.message&&cb.message.photo)?'photo':'text'); /*sync sur le bloc tapé*/
-        await r0Dispatch(persona, d, cb.message.message_id);
-      }catch(e){ jlog('R0 cb err '+e.message); /*FILET : un tap ne reste JAMAIS mort -> on re-rend l'écran courant avec un avis*/
-        try{ await r0Render(_persona(), cb.message.message_id, '⚠️ Action non aboutie — réessaie.'); }catch(_){} }
+        const persona=_persona(); const tappedMid=cb.message.message_id;
+        // [ÉCRAN FINAL FIGÉ — Etoile] un tap sur un BLOC RÉSULTAT persistant NE DOIT JAMAIS l'éditer (il reste, toujours).
+        //   -> on agit sur le COCKPIT (bloc vivant séparé) : on l'édite s'il vit, sinon on en repose un neuf. Le bloc final est préservé.
+        if(r0RenderMids.indexOf(tappedMid)>=0){ r0Type='text';
+          await r0Dispatch(persona, d, (r0Mid && r0Mid!==tappedMid)?r0Mid:null);
+        } else {
+          r0Mid=tappedMid; r0Type=(cb.message&&cb.message.video)?'video':((cb.message&&cb.message.photo)?'photo':'text'); /*sync sur le bloc tapé*/
+          await r0Dispatch(persona, d, tappedMid);
+        }
+      }catch(e){ jlog('R0 cb err '+e.message); /*FILET : un tap ne reste JAMAIS mort -> on re-rend l'écran courant + RAPPORT D'INCIDENT exploitable (jamais de blocage silencieux)*/
+        try{ await r0Render(_persona(), cb.message.message_id, '⚠️ <b>Incident sur cette action</b> — <i>'+_r0esc(e.message||'erreur')+'</i>\nRien n\'est perdu. Réessaie, ou tape <b>/accueil</b> pour repartir proprement.'); }
+        catch(_){ try{ await send('⚠️ <b>Incident</b> — tape <b>/accueil</b> pour reprendre (rien n\'est perdu).'); }catch(__){} } }
       cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return;
     }
     if(v4active){ try{ await cockpitV4().handle(d); }catch(e){ jlog('v4 handle err '+e.message); } cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return; }
@@ -4463,8 +4481,17 @@ function releaseLock(){ try{ if(fs.existsSync(LOCK_FILE) && parseInt(fs.readFile
 process.on('exit', releaseLock);
 process.on('SIGINT', ()=>{ releaseLock(); process.exit(0); });
 process.on('SIGTERM', ()=>{ releaseLock(); process.exit(0); });
-process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && e.stack ? e.stack : e); });
-process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
+// [RAPPORTS D'INCIDENT — Etoile] filet GLOBAL : toute exception non gérée -> message exploitable à Etoile (jamais de blocage silencieux).
+//   On NE quitte PAS le process (le bot reste vivant) ; on donne une porte de sortie (/accueil).
+let _lastIncident=0;
+function _incident(tag,e){ try{ console.error(tag+':', e&&e.stack?e.stack:e);
+  const now=Date.now(); if(now-_lastIncident<8000) return; _lastIncident=now; // anti-spam
+  if(typeof R0DRY!=='undefined'&&R0DRY) return;
+  const msg='⚠️ <b>Incident technique</b> — <i>'+_r0esc((e&&e.message)||tag)+'</i>\nLe bot reste actif. Tape <b>/accueil</b> pour reprendre (rien n\'est perdu).';
+  try{ fetch('https://api.telegram.org/bot'+TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({chat_id:CHAT_ID,text:msg,parse_mode:'HTML'})}).catch(()=>{}); }catch(_){}
+}catch(_){} }
+process.on('uncaughtException', (e)=>{ _incident('uncaughtException',e); });
+process.on('unhandledRejection', (e)=>{ _incident('unhandledRejection',e); });
 
 setInterval(()=>{},1<<30);
 tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne garder que les points d'entrée MÉTIER.*/
@@ -4519,6 +4546,8 @@ if(R0DRY){
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>{ /*[C3] boot SILENCIEUX — aucun message technique dans le chat utilisateur*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
+  /*[Etoile] REDÉMARRAGE : message éphémère « connecté » à chaque démarrage -> elle SAIT que le bot est revenu (sans REOPEN_FLAG = deploy/crash silencieux avant).*/
+  if(!fs.existsSync(REOPEN_FLAG)){ setTimeout(()=>{ send('✅ <b>Connecté</b> — tape /accueil pour reprendre.').catch(()=>{}); },800); }
   /*[fix/restart-feedback] après un /restart demandé par l'utilisateur, RÉAFFICHER le cockpit (accueil) — sans message technique.
     Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
   setTimeout(async ()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){}
