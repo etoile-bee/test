@@ -2743,38 +2743,41 @@ async function r0DemoVideo(){
   return null;
 }
 function r0Kb(rows){ return (rows||[]).map(r=>r.map(b=>({text:b.text, callback_data:b.cb}))); } /*{cb} -> {callback_data}*/
-// [P1.1] IMAGES RÉELLES DISPONIBLES : fichiers image qui existent VRAIMENT (projet + global), récents d'abord, dédupliqués.
-//   Lecture seule de l'existant (aucun nouvel objet). Sert la galerie/historique pour montrer les VRAIES images.
+// [VISIBILITÉ — Etoile] walk RÉCURSIF d'un dossier : collecte par EXTENSION, sans filtre de taille (les placeholders iCloud
+//   reportent leur taille logique), en sautant la corbeille. Dédup par basename. Garde-fou profondeur + nb de fichiers.
+function r0Walk(root, re, add, depth){ depth=depth==null?6:depth; if(depth<0) return;
+  let ents; try{ ents=fs.readdirSync(root,{withFileTypes:true}); }catch(e){ return; }
+  for(const e of ents){ const name=e.name; if(name==='.corbeille'||name==='_trash'||name==='_corbeille'||name==='references'||name.charAt(0)==='.') continue;
+    const fp=path.join(root,name);
+    try{ if(e.isDirectory()){ r0Walk(fp, re, add, depth-1); } else if(re.test(name)){ add(fp); } }catch(_){}
+  }
+}
+// [P1.1] IMAGES RÉELLES — agrège PHYSIQUEMENT tout le patrimoine : podcast-looks (tout l'arbre) + podcast-outputs + projects_r.
+//   Récent d'abord, dédup par basename. Lecture seule. (Corrige : avant on ratait podcast-outputs et les sous-dossiers de looks.)
 function r0RealImages(persona, max){
-  max=max||9; const {C}=_r0(); const out=[]; const seen={};
-  const add=(p)=>{ try{ if(p&&fs.existsSync(p)&&fs.statSync(p).size>1000){ const k=path.basename(p); if(!seen[k]){ seen[k]=1; out.push({p:p,m:fs.statSync(p).mtimeMs}); } } }catch(e){} };
-  // 1) projet courant : médias avec fichier réel
-  try{ const cur=r0Cur(persona,false); if(cur){ (C.visibles(cur)||[]).forEach(md=>{ if(md.type!=='video'&&md.file) add(md.file); }); } }catch(e){}
-  // 2) global : photos réelles générées (v4r), générations legacy, looks générés
-  try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(/^photo_.*\.(jpg|jpeg|png)$/i.test(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
-  try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(g,x)); }catch(e){}
-  // [migration] podcast-looks racine : TOUTES les images (incl. patrimoine IMG_*), plus seulement gen_*
-  let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); }
-  try{ for(const x of fs.readdirSync(ld)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ld,x)); }catch(e){}
-  // [migration] archives par projet : podcast-looks/projets/<persona>/*/Photos/*
-  try{ const pr=path.join(ld,'projets',persona); for(const d of fs.readdirSync(pr)){ const ph=path.join(pr,d,'Photos'); try{ for(const x of fs.readdirSync(ph)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ph,x)); }catch(e){} } }catch(e){}
+  max=max||9; const {C}=_r0(); const out=[]; const seen={}; const RE=/\.(jpg|jpeg|png|webp)$/i;
+  const add=(p)=>{ try{ if(!p) return; const st=fs.statSync(p); if(st.size<=0) return; const k=path.basename(p)+"|"+st.size; if(seen[k]) return; seen[k]=1; out.push({p:p,m:st.mtimeMs}); }catch(e){} };
+  // 1) projet courant d'abord (médias déposés)
+  try{ const cur=r0Cur(persona,false); if(cur){ (C.visibles(cur)||[]).forEach(md=>{ if(md.type!=='video'&&md.file&&fs.existsSync(md.file)) add(md.file); }); } }catch(e){}
+  // 2) tout le patrimoine physique
+  let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); }       // podcast-looks (iCloud)
+  let od; try{ od=fs.realpathSync(path.join(BASE,'outputs')); }catch(e){ od=path.join(BASE,'outputs'); }   // podcast-outputs (iCloud)
+  r0Walk(ld, RE, add);
+  r0Walk(od, RE, add);
+  r0Walk(path.join(BASE,'projects_r',persona), RE, add);
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
-// [VIDÉOS — lecture de l'EXISTANT] agrège les VRAIES vidéos de TOUS les emplacements, le plus récent d'abord. Lecture seule.
-//   Corrige le « 0 vidéo » : avant, rien ne scannait les .mp4 (ni outputs racine iCloud, ni projects_r, ni generations).
+// [VIDÉOS — lecture de l'EXISTANT] agrège PHYSIQUEMENT toutes les vidéos : podcast-outputs + podcast-looks + projects_r. Récent d'abord.
+//   On garde les raws (footage lipsync réutilisable) — « ne perds pas de fichiers » (Etoile). Dédup par basename.
 function r0RealVideos(persona, max){
-  max=max||9; const out=[]; const seen={};
-  const add=(p)=>{ try{ if(p&&fs.existsSync(p)&&fs.statSync(p).size>5000){ const k=path.basename(p); if(!seen[k]){ seen[k]=1; out.push({p:p,m:fs.statSync(p).mtimeMs}); } } }catch(e){} };
-  const isV=x=>/\.(mp4|mov|m4v|webm)$/i.test(x) && !/_raw_|_raw\./i.test(x); // on exclut les raws bruts intermédiaires
-  // 1) vidéos finales legacy (outputs/ racine = iCloud) — les 199
-  try{ const o=path.join(BASE,'outputs'); for(const x of fs.readdirSync(o)) if(isV(x)) add(path.join(o,x)); }catch(e){}
-  // 2) générations (outputs/generations + sous-dossiers de génération)
-  try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)){ const fp=path.join(g,x); try{ if(fs.statSync(fp).isDirectory()){ for(const y of fs.readdirSync(fp)) if(isV(y)) add(path.join(fp,y)); } else if(isV(x)) add(fp); }catch(e){} } }catch(e){}
-  // 3) vidéos v4r dans les projets
-  try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(isV(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
-  // 4) [migration] archives par projet : podcast-looks/projets/<persona>/*/Vidéos/*
-  try{ let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); } const pr=path.join(ld,'projets',persona); for(const d of fs.readdirSync(pr)){ const vd=path.join(pr,d,'Vidéos'); try{ for(const x of fs.readdirSync(vd)) if(isV(x)) add(path.join(vd,x)); }catch(e){} } }catch(e){}
+  max=max||9; const out=[]; const seen={}; const RE=/\.(mp4|mov|m4v|webm)$/i;
+  const add=(p)=>{ try{ if(!p) return; const st=fs.statSync(p); if(st.size<=0) return; const k=path.basename(p)+"|"+st.size; if(seen[k]) return; seen[k]=1; out.push({p:p,m:st.mtimeMs}); }catch(e){} };
+  let od; try{ od=fs.realpathSync(path.join(BASE,'outputs')); }catch(e){ od=path.join(BASE,'outputs'); }   // podcast-outputs (iCloud) — finals + raws
+  let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); }       // podcast-looks/projets/*/Vidéos
+  r0Walk(od, RE, add);
+  r0Walk(ld, RE, add);
+  r0Walk(path.join(BASE,'projects_r',persona), RE, add);
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
@@ -4390,6 +4393,20 @@ if(process.argv.includes('--migrate')){ (function(){
     console.log('=== TOTAL : '+tot.projets+' projet(s) archivé(s) · '+tot.photos+' photo(s) · '+tot.videos+' vidéo(s) copiée(s) ===');
     process.exit(0);
   }catch(e){ console.error('MIGRATION ERR: '+(e&&e.stack||e)); process.exit(1); }
+})(); }
+
+// ── [VISIBILITÉ] gate CLI : `node telegram_bot.js --count` — compte RÉEL des galeries (preuve sur la vraie base), sans lock ni polling. ──
+if(process.argv.includes('--count')){ (function(){
+  try{ const persona=(process.argv[process.argv.indexOf('--count')+1]||'imany').replace(/[^a-z0-9_]/gi,'').toLowerCase()||'imany';
+    const imgs=r0RealImages(persona,99999); const vids=r0RealVideos(persona,99999);
+    console.log('=== COMPTE GALERIE (base réelle) ===');
+    console.log('persona :', persona, '| BASE :', BASE);
+    console.log('IMAGES agrégées :', imgs.length);
+    console.log('VIDÉOS agrégées :', vids.length);
+    console.log('— échantillon images (5 plus récentes) :'); imgs.slice(0,5).forEach(p=>console.log('   '+p.split('/').slice(-2).join('/')));
+    console.log('— échantillon vidéos (5 plus récentes) :'); vids.slice(0,5).forEach(p=>console.log('   '+p.split('/').slice(-2).join('/')));
+    process.exit(0);
+  }catch(e){ console.error('COUNT ERR: '+(e&&e.stack||e)); process.exit(1); }
 })(); }
 
 // ── Single-instance lock + capture d'erreurs ────────────────────────────────

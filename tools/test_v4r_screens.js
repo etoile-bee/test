@@ -30,7 +30,7 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
-chk('Photo/Prompt : cœur Prompt/Tenue/Décor/Référence + 🛠 Montage + Faire une vidéo ; Avatar/refs/format hors prépa', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_reference', 'R0_PH_MONTAGE', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_avatar') && !has(php, 'R0_PHB_refs') && !has(php, 'R0_PHB_params'));
+chk('Photo/Prompt : cœur Prompt/Tenue/Décor/Référence + Faire une vidéo ; Montage RETIRÉ (concept vidéo) ; Avatar/refs/format hors prépa', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_reference', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PH_MONTAGE') && !has(php, 'R0_PHB_avatar') && !has(php, 'R0_PHB_refs') && !has(php, 'R0_PHB_params'));
 chk('Photo/Prompt : Aperçu (production via aperçu) + Retour, PAS d\'Accueil en flux', ['R0_PHOTO', 'R0_PH_PREVIEW'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──

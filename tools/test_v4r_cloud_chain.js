@@ -16,18 +16,19 @@ chk('r0CloudCopy range PAR PROJET (projId)', /projId/.test(cc));
 chk('r0CloudCopy appelé sur la PHOTO réelle', /r0CloudCopy\(localPath,\s*id\)/.test(SRC));
 chk('r0CloudCopy appelé sur la VIDÉO réelle', /r0CloudCopy\(mv\.file,\s*id\)/.test(SRC));
 
-// 3) La galerie IMAGES agrège bien les 4 sources (projet + projects_r + generations + looks).
+// 3) La galerie IMAGES agrège PHYSIQUEMENT tout le patrimoine via walk récursif (looks + outputs + projects_r).
 const ri = body('r0RealImages');
-chk('galerie images lit projects_r/*/photo_*', /projects_r/.test(ri) && /photo_/.test(ri));
-chk('galerie images lit outputs/generations', /generations/.test(ri));
-chk('galerie images lit looks/gen_*', /gen_/.test(ri) && /looks/.test(ri));
+chk('galerie images walk podcast-looks', /r0Walk\(ld/.test(ri));
+chk('galerie images walk podcast-outputs', /r0Walk\(od/.test(ri));
+chk('galerie images walk projects_r', /projects_r/.test(ri));
+chk('galerie images : pas de filtre de taille restrictif (placeholders iCloud OK)', /st\.size<=0/.test(ri) && !/size>1000/.test(ri));
 
-// 4) L'historique VIDÉO agrège outputs (racine iCloud) + generations + projects_r.
+// 4) L'historique VIDÉO agrège outputs (podcast-outputs) + looks + projects_r, RAWS conservés (ne perds pas de fichiers).
 const rv = body('r0RealVideos');
-chk('historique vidéo lit outputs/ (racine iCloud)', /'outputs'/.test(rv));
-chk('historique vidéo lit outputs/generations', /generations/.test(rv));
-chk('historique vidéo lit projects_r', /projects_r/.test(rv));
-chk('historique vidéo exclut les raws intermédiaires', /_raw_/.test(rv));
+chk('historique vidéo walk podcast-outputs', /r0Walk\(od/.test(rv));
+chk('historique vidéo walk podcast-looks', /r0Walk\(ld/.test(rv));
+chk('historique vidéo walk projects_r', /projects_r/.test(rv));
+chk('historique vidéo CONSERVE les raws (ne perd pas de fichiers)', !/_raw_/.test(rv));
 
 // 5) Anti-récidive dépense : la copie cloud ne tourne jamais en banc d'essai.
 chk('r0CloudCopy gardé !R0DRY (jamais en test)', /R0DRY/.test(cc));

@@ -105,9 +105,8 @@ function photoPromptView(facts, ctx) {
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
   }
-  // [R4] « Aperçu » = SEULE entrée de production (ouvre le récap → Valider → Générer maintenant). [R1] plus de double « Générer ».
+  // [Etoile] PHOTO = Prompt · Tenue · Décor (+ Référence) seulement. « Montage » est un concept VIDÉO -> RETIRÉ du parcours photo.
   const rows = blockRows.concat([
-    [{ text: '🛠 Montage', cb: 'R0_PH_MONTAGE' }],                                              // tous les outils d'édition image regroupés
     [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }],                                                // PRODUCTION via aperçu obligatoire
     [{ text: '🎬 Faire une vidéo', cb: 'R0_PH_TOVIDEO' }],                                       // [R2] pont vidéo : MÊME photo en source (jamais remplacée)
     [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
