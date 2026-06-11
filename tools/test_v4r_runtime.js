@@ -268,10 +268,42 @@ async function main() {
   chk('P3 : écran profond propose 🏠 Accueil + 🛑 Stop', b.includes('R0_HOME') && b.includes('R0_STOP'));
   await bot.tap('R0_STOP'); chk('P3 : Stop -> retour ACCUEIL propre, 1 cockpit', bot.state().screen === 'home' && bot.state().cockpit === 1);
 
-  // ════ P6 ENREGISTRER MODÈLE : depuis l'aperçu, mémorise la config comme modèle réutilisable ════
+  // ════ P6/D5 ENREGISTRER MODÈLE = PROJET RÉUTILISABLE (arbitrage Etoile) : depuis la Validation, duplique le projet (réouvrable, original intact) ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); await bot.tap('R0_LOADP_0'); await bot.tap('R0_GEN_CANCEL'); await bot.tap('R0_PH_PREVIEW'); await bot.tap('R0_GEN_VALID');
   chk('P6/D3 : la VALIDATION propose 💾 Modèle', bot.buttons().includes('R0_SAVEMODEL'));
-  await bot.tap('R0_SAVEMODEL'); chk('P6 : enregistre la config (photo.prompt en défaut)', !!bot.defaults()['photo.prompt']);
+  const projBefore = bot.projects();
+  await bot.tap('R0_SAVEMODEL'); chk('P6/D5 : « Modèle » crée un PROJET réutilisable (réouvrable, original intact)', bot.projects() === projBefore + 1);
+
+  // ════ [G1] GALERIE (sélection) ≠ HISTORIQUE (lecture) — plus de doublon strict (D4) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_PH_GAL'); const gSel = bot.buttons();
+  chk('G1 : GALERIE = grille de SÉLECTION (✅ Choisir + items R0_GITEM_)', gSel.includes('R0_GCHOOSE') && gSel.some(b => /^R0_GITEM_/.test(b)));
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_PH_HIST'); const gHist = bot.buttons();
+  chk('G1 : HISTORIQUE = LECTURE (PAS de ✅ Choisir, items R0_GVIEW_)', !gHist.includes('R0_GCHOOSE') && gHist.some(b => /^R0_GVIEW_/.test(b)));
+  chk('G1 : Galerie et Historique ne sont PLUS identiques (rôles distincts)', JSON.stringify(gSel) !== JSON.stringify(gHist));
+  await bot.tap('R0_GVIEW_0'); chk('G1 : « revoir » (R0_GVIEW_) répond, reste sur l\'historique, 1 cockpit', bot.state().screen === 'gallery' && bot.state().cockpit === 1);
+
+  // ════ [G2] RESSOURCES/Fichiers : ◀ Retour revient à l'ORIGINE (Récents/Studio/Résultat), pas un défaut fixe ════
+  bot.reset(); await bot.open(); await bot.tap('R0_RECENTS'); await bot.tap('R0_RES');
+  chk('G2 : Fichiers ouvert depuis RÉCENTS -> ◀ Retour = Récents', bot.state().screen === 'resources' && bot.resReturn() === 'R0_RECENTS');
+  bot.reset(); await bot.open(); await bot.tap('R0_STUDIO'); await bot.tap('R0_RES');
+  chk('G2 : Fichiers ouvert depuis STUDIO -> ◀ Retour = Studio', bot.resReturn() === 'R0_STUDIO');
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); await bot.tap('R0_RES');
+  chk('G2 : Fichiers ouvert depuis PHOTO·Résultat -> ◀ Retour = Photo', bot.resReturn() === 'R0_PHOTO');
+
+  // ════ [G3] photo_montage NETTOYÉ : l'écran orphelin n'existe plus ; R0_PH_MONTAGE renvoie à la préparation (pas de cul-de-sac) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
+  chk('G3 : Photo·Préparer n\'expose PAS de bouton Montage (retiré)', !bot.buttons().includes('R0_PH_MONTAGE'));
+  await bot.tap('R0_PH_MONTAGE'); chk('G3 : un R0_PH_MONTAGE résiduel renvoie à photo_prompt (écran orphelin supprimé), 1 cockpit', bot.state().screen === 'photo_prompt' && bot.state().cockpit === 1);
+
+  // ════ [G5/D7] HASHTAGS fusionnés à la COPIE de la légende (champ #️⃣ Hashtags conservé séparément dans Fichiers) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // une vidéo -> publication dispo
+  bot.setPub({ legende_courte: 'Légende test', legende_longue: 'Longue légende test', hashtags: '#a #b #c' });
+  chk('G5 : la COPIE de la légende courte INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legc')) && /Légende test/.test(bot.fullText('legc')));
+  chk('G5 : la COPIE de la légende longue INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legl')));
+  chk('G5 : le champ #️⃣ Hashtags reste SÉPARÉ (récupérable seul)', bot.fullText('tags').trim() === '#a #b #c');
 
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);

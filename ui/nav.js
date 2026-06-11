@@ -210,7 +210,6 @@ function resolveSet(blk, token, ctx) {
 const NAVREQ = {
   photo_prompt: { cls: 'gen', prod: 'R0_PH_PREVIEW', back: 'R0_PHOTO' },
   video_params: { cls: 'gen', prod: 'R0_VI_PREVIEW', back: 'R0_VI_BACK' },
-  photo_montage: { cls: 'edit', back: 'R0_PH_GEN' },
   video_edit: { cls: 'gen', prod: 'R0_VI_PREVIEW', back: 'R0_VI_CREATE' }, // Montage : 👁 Aperçu (clip sous-titré) ; Validation/Générer en aval (D3)
   block: { cls: 'edit' }, // blockView pose ◀ Retour (+ 👁 Aperçu sous-titres) ; le wrapper pose le ✅ Valider unique (R0_BLOCK_OK)
 };
@@ -266,7 +265,6 @@ function _view(state, facts, ctx) {
     case 'quit': return SC.quitView(facts);
     case 'photo_source': return SC.photoSourceView(facts);
     case 'video_source': return SC.videoSourceView(facts);
-    case 'photo_montage': return SC.photoMontageView(facts, ctx);
     case 'resources': return SC.resourcesView(facts, ctx);
     case 'pret': return SC.pretView(facts, ctx);
     case 'publies': return SC.publiesView(facts, ctx);
@@ -356,12 +354,13 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
-    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // [D4 arbitrage] GALERIE = défaut GLOBAL (tout le patrimoine, plainte récurrente réglée) + filtre 📁 Ce projet ; Fichiers·Projet reste projet-only
-    case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // historique -> PRÉPARER aussi
+    // [G1] RÔLES DISTINCTS (plus de doublon strict) : GALERIE = grille de SÉLECTION pour le flux (✅ Choisir -> photo_prompt) ; HISTORIQUE = journal chronologique en LECTURE (revoir le passé, pas de Choisir).
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.galleryRole = 'select'; st.srcReturn = 'photo_prompt'; return go('gallery');   // [D4] GALERIE = défaut GLOBAL + filtre 📁 Ce projet, rôle SÉLECTION
+    case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.galleryRole = 'history'; st.srcReturn = null; return go('gallery');   // [G1] HISTORIQUE = LECTURE seule (revoir), aucune sélection vers le flux
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
-    case 'R0_PH_MONTAGE': return go('photo_montage');   // [R5] 🛠 Montage photo (outils regroupés)
+    case 'R0_PH_MONTAGE': return go('photo_prompt');   // [G3] Montage RETIRÉ de Photo (concept vidéo) : l'écran orphelin n'existe plus, on renvoie vers la préparation
     case 'R0_BLOCK_OK': { // [A1] ✅ Valider d'un bloc (cb UNIQUE) -> revient au parent (brouillon déjà sauvegardé), sans dupliquer le cb du Retour
       const blk = st.block || {};
       if (blk.key === 'soustitres' && ctx && ctx.subReturn) return reduce(ctx.subReturn, Object.assign(st, { block: null }), facts, ctx); // sous-titres ouverts depuis l'aperçu -> y revient (re-rend le clip)
@@ -384,7 +383,7 @@ function reduce(action, st0, facts, ctx) {
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
-    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'video_params'; return go('gallery'); // [D4 arbitrage] source vidéo : défaut GLOBAL + filtre 📁 Ce projet
+    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.galleryRole = 'select'; st.srcReturn = 'video_params'; return go('gallery'); // [D4 arbitrage] source vidéo : défaut GLOBAL + filtre 📁 Ce projet, rôle SÉLECTION
     case 'R0_GALSCOPE': { const ns = !((ctx && ctx.galleryAll)); st.galleryAll = ns; return { st: Object.assign(st, { screen: 'gallery' }), toast: ns ? '🌍 Tout le patrimoine' : '📁 Ce projet seulement' }; } // bascule projet/global (lit le scope courant via ctx)
     case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
@@ -392,7 +391,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_VI_KEEPLOOK': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; // [ANO-SOURCE-EDIT-REVERT] « Garder » ÉPINGLE la photo courante comme source projet (sinon source vide -> dérive)
       return Object.assign(go('video_params', '✅ <b>Look conservé</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf } } }); }
     case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf }, onlyIfImageAndNoSource: true } }); }
-    case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
+    case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.galleryRole = 'history'; st.srcReturn = null; return go('gallery'); // [G1] HISTORIQUE vidéo = LECTURE seule (revoir)
     // [R4] APERÇU VIDÉO = vrai écran récap (confirm). Production toujours via aperçu.
     case 'R0_VI_PREVIEW': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');
     case 'R0_VI_VALID': return { st: st, toast: '✅ Paramètres vidéo validés' };

@@ -2551,7 +2551,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false, r0ResFrom=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false, r0ResFrom=null, r0GalRole='select'; /*[RÉALISATION] génération en attente (coût) + filtres galerie + rôle galerie (select|history, G1) + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
@@ -2657,6 +2657,8 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
   if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
+// [G5 / D7] fusion légende+hashtags pour la COPIE (un geste = texte prêt à coller). Champ hashtags conservé séparément ailleurs.
+function r0FuseTags(leg, tags){ return [leg, tags].map(x=>String(x==null?'':x).trim()).filter(Boolean).join('\n\n'); }
 // [FIX réel] COUVERTURE du projet = la DERNIÈRE image visible dont le FICHIER EXISTE vraiment (on remonte la liste).
 //   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
 // [ANO-SOURCE-EDIT-REVERT] garde-fou ABSOLU : la couverture/source NE DOIT JAMAIS être la référence persona (cuir, sous references/).
@@ -2869,7 +2871,7 @@ function r0Ctx(persona){
     sections:secs,
     section:(r0Section?secs.find(s=>s.key===r0Section):null),
     recents:INV.recents(BASE,persona),
-    galleryKind:r0GalKind, galleryAll:r0GalAll,
+    galleryKind:r0GalKind, galleryAll:r0GalAll, galleryRole:r0GalRole,
   };
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
@@ -3056,7 +3058,8 @@ async function r0Dispatch(persona, d, editMid){
     const dp=S.getDraft(f3,'photo')||{}, dv=S.getDraft(f3,'video')||{}, pub=(f3&&f3.publication)||{};
     // [HUB] sous-titres = AUTO-générés ; on restitue le RÉGLAGE D'APPARENCE (la matière texte vient du script à l'incrustation).
     const subTxt='Sous-titres : auto-générés depuis le script, incrustés au rendu.\nApparence — affichage: '+(dv.st_display||'mot')+' · police: '+(dv.st_font||'archivo')+' · taille: '+(dv.st_size||'M')+' · position: '+(dv.st_pos||'bas')+' · couleur: '+(dv.st_color||'blanc');
-    const txt={ prompt:dp.prompt, script:dv.script, legc:pub.legende_courte, legl:pub.legende_longue, tags:pub.hashtags, soustitres:subTxt }[field] || '';
+    // [G5 / D7] à la COPIE, la LÉGENDE intègre les hashtags (prête à coller d'un geste) ; le champ #️⃣ Hashtags reste séparé/récupérable dans Fichiers.
+    const txt={ prompt:dp.prompt, script:dv.script, legc:r0FuseTags(pub.legende_courte,pub.hashtags), legl:r0FuseTags(pub.legende_longue,pub.hashtags), tags:pub.hashtags, soustitres:subTxt }[field] || '';
     const label={ prompt:'📝 Prompt complet', script:'🎬 Script complet', legc:'✏️ Légende courte', legl:'📄 Légende longue', tags:'#️⃣ Hashtags', soustitres:'🔤 Sous-titres' }[field]||'Texte';
     if(!String(txt).trim()){ try{ await toast('Rien à envoyer (vide)'); }catch(e){} return; }
     const full=String(txt); try{ await toast('📄 Envoyé ci-dessous'); }catch(e){}
@@ -3083,11 +3086,11 @@ async function r0Dispatch(persona, d, editMid){
     else { try{ await toast('Modèle indisponible'); }catch(e){} }
     await r0Render(persona, editMid); return; }
   // [P6] ENREGISTRER MODÈLE : mémorise TOUTE la config courante (photo: prompt/look/decor/format ; vidéo: script/voix/musique/soustitres/duree) comme défauts réutilisables.
-  if(d==='R0_SAVEMODEL'){ const {DEF}=_r0(); const f3=r0Cur(persona,true);
-    const kind=(r0Pending&&r0Pending.mediaKind==='video')?'video':'photo'; const dr=S.getDraft(f3,kind)||{};
-    const fields=kind==='video'?['script','voix','musique','duree','st_font','st_size','st_pos','st_display','st_color']:['prompt','look','decor','format','reference'];
-    let n=0; fields.forEach(ff=>{ if(dr[ff]!=null&&dr[ff]!=='') { DEF.setField(BASE,persona,kind,ff,dr[ff]); n++; } });
-    try{ await toast(n?('💾 Modèle enregistré ('+n+' réglages réutilisables)'):'Rien à enregistrer'); }catch(e){}
+  // [G4 / D5 — arbitrage Etoile] « 💾 Modèle » = PROJET COMPLET RÉUTILISABLE (pas des préréglages). On DUPLIQUE le projet courant
+  //   -> un vrai projet réouvrable apparaît dans 📂 Récents, l'ORIGINAL reste intact. (Les défauts/préréglages restent sur « 💾 Défaut », #18.)
+  if(d==='R0_SAVEMODEL'){ const f3=r0Cur(persona,true); const id=f3&&f3.projectId; let dup=null;
+    try{ dup=S.duplicateProject(BASE,persona,id,Date.now()); }catch(e){}
+    try{ await toast(dup?'💾 Modèle créé — projet réutilisable (rouvrable dans 📂 Récents, original intact)':'Modèle impossible'); }catch(e){}
     await r0Render(persona, editMid); return; }
   // [#18] ENREGISTRER PAR DÉFAUT la valeur courante de l'outil — réutilisée aux prochaines générations/nouveaux projets.
   if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen;
@@ -3110,12 +3113,17 @@ async function r0Dispatch(persona, d, editMid){
     if(file){ const dest=r0Corbeille(file); try{ await toast(dest?'🗑 Mis à la corbeille (récupérable dans .corbeille)':'Retrait impossible'); }catch(e){} }
     else { try{ await toast('Élément introuvable'); }catch(e){} }
     await r0Render(persona, editMid); return; }
+  // [G1] HISTORIQUE — revoir (LECTURE) : renvoie l'asset choisi tel quel, AUCUNE sélection dans le flux (pas de picksrc). Journal consultable.
+  if(d.indexOf('R0_GVIEW_')===0){ const i=+d.slice(9); const ctx2=r0Ctx(persona); const file=(ctx2.galleryFiles||[])[i];
+    if(file&&fs.existsSync(file)){ try{ if(r0GalKind==='video') await sendVideoKb(file,'🕘 <i>Historique — revoir</i>',null); else await sendPhotoKb(file,'🕘 <i>Historique — revoir</i>',null); }catch(e){} }
+    else { try{ await toast('Fichier indisponible'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   // [ÉCRAN FINAL] 💾 Enregistrer (CHOIX) : écrit l'archive organisée de la version dans podcast-looks/projets (image/vidéo/script/légendes/sous-titres/prompt). Récupérable.
   if(d==='R0_FIN_SAVE'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; let r=null; try{ r=r0ArchiveProjet(persona, id); }catch(e){}
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
     return; }
-  // [RETOUR CONTEXTUEL — résources/Fichiers] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat), pas un défaut fixe.
-  if(d==='R0_RES'){ r0ResFrom = (r0Screen==='studio'?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':null)))); }
+  // [RETOUR CONTEXTUEL — résources/Fichiers] [G2] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat/Publication), pas un défaut fixe. Couvre studio_section, pret, publies.
+  if(d==='R0_RES'){ r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
@@ -3182,8 +3190,8 @@ async function r0Dispatch(persona, d, editMid){
     }catch(e){ try{ jlog('[v4r] rendu sim persistant err '+e.message); }catch(_){} }
   }
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
-  if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
-  if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; r0GalDel=false; } /*réinit hors galerie (scope + mode retrait)*/
+  if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll; if(res.st.galleryRole!=null) r0GalRole=res.st.galleryRole; /*[G1] rôle galerie (select|history)*/
+  if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; r0GalDel=false; r0GalRole='select'; } /*réinit hors galerie (scope + mode retrait + rôle)*/
   if(r0Screen!=='resources'){ r0ResFrom=null; } /*[RETOUR CONTEXTUEL] oublie l'origine une fois Fichiers quitté*/
   if(res.await) r0Await=res.await;
   if(res.toast){ try{ await toast(res.toast); }catch(e){} }
@@ -4581,7 +4589,7 @@ tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne
 if(R0DRY){
   module.exports = {
     R0DRY,
-    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0RenderMids=[]; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[];
+    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0RenderMids=[]; r0GalKind='image'; r0GalAll=false; r0GalRole='select'; r0QuitFrom=null; r0SrcReturn=null; r0ResFrom=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[];
       try{ fs.rmSync(path.join(BASE,'projects_r'),{recursive:true,force:true}); }catch(e){} // [DATA-INTÉGRITÉ] sandbox repart VIERGE à chaque test (jamais de cumul, jamais la vraie base)
       try{ fs.unlinkSync(path.join(BASE,'v4r_budget.json')); }catch(e){} try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
     open:async()=>{ await r0TypedV4r('/v4r'); },                  // simule un /v4r
@@ -4614,6 +4622,10 @@ if(R0DRY){
     cover:()=>{ try{ return r0CoverFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // image AFFICHÉE (couverture réelle) — preuve conservation source
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
+    projects:()=>{ try{ return _r0().S.listProjects(BASE,_persona()).length; }catch(e){ return 0; } },                         // [G4] nb de projets (preuve « Modèle = projet réutilisable »)
+    resReturn:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona()); const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx); const all=[].concat.apply([], (vw.rows||[])); const b=all.find(x=>/Retour/.test(x&&x.text||'')); return b&&b.cb||null; }catch(e){ return null; } }, // [G2] cb du ◀ Retour courant (preuve retour contextuel)
+    setPub:(patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setPublication(BASE,_persona(),f.projectId,patch,Date.now()); }catch(e){} }, // [G5] seed légendes/hashtags
+    fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
