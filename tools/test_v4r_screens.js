@@ -148,7 +148,7 @@ chk('point4 : confirm texte compact (Texte IA + coût, payant gaté)', /Texte/.t
 chk('point9 : Récents en grille (≥1 ligne de projets) + actions + home', (() => { const v = SC.recentsView(f0, { recents: { projets: [f0, fimg], brouillons: [], archives: [], legacy: 0 } }); return has(v, 'R0_RE_OPEN_0') && has(v, 'R0_RE_OPEN_1') && has(v, 'R0_HOME'); })());
 
 // ── RACCORDEMENT SOURCE/IMPORT -> FLUX (point 1) : choisir en galerie pose la source + retour auto ──
-chk('raccord : R0_VI_PICK -> galerie (choix réel), pas d\'impasse', NAV.reduce('R0_VI_PICK', { screen: 'video_params' }, fimg, ctx).st.screen === 'gallery');
+chk('raccord : R0_VI_PICK -> choix source (Choisir/Importer photo/vidéo) ; R0_VI_GAL -> galerie', NAV.reduce('R0_VI_PICK', { screen: 'video_params' }, fimg, ctx).st.screen === 'video_source' && NAV.reduce('R0_VI_GAL', { screen: 'video_source' }, fimg, ctx).st.screen === 'gallery');
 chk('raccord : choix galerie (R0_GITEM) -> op picksrc + RETOUR AUTO au flux', (() => { const r = NAV.reduce('R0_GITEM_0', { screen: 'gallery', srcReturn: 'video_params' }, fimg, ctx); return r.op && r.op.type === 'picksrc' && r.st.screen === 'video_params'; })());
 chk('raccord : galerie depuis Photo -> retour revue photo (photo_result)', NAV.reduce('R0_GITEM_0', { screen: 'gallery', srcReturn: 'photo_result' }, fimg, ctx).st.screen === 'photo_result');
 chk('raccord : bloc « Image source » = Choisir/Importer (sélection réelle, pas saisie)', (() => { const sp = NAV.blockSpec({ screen: 'video', key: 'source' }, fimg, ctx); return sp.options.some(o => o.cb === 'R0_VI_PICK') && sp.options.some(o => o.cb === 'R0_VI_IMPORT'); })());

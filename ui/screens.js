@@ -335,10 +335,14 @@ function confirmView(facts, ctx) {
   // [R4] Boutons DANS L'ORDRE EXIGÉ : ◀ Retour · ✏️ Éditer · ✅ Valider · ✨ Générer maintenant.
   //   (GARDE-FOU) « Générer maintenant » N'EFFECTUE PAS la dépense : il ouvre la 2ᵉ confirmation (R0_GO2). Seul « Oui, générer » dépense.
   const gen = '✨ Générer maintenant';
-  const rows = blocked
+  // [texte entier] si prompt/script présent : bouton pour recevoir le TEXTE COMPLET en message séparé (hors limite média 1024).
+  const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? [{ text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }]
+    : (cf.mediaKind === 'video' && pr.scriptFull) ? [{ text: '📄 Script complet', cb: 'R0_FULLTEXT_script' }] : null;
+  const rows = (blocked
     ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]]
     : [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }],
-       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]];
+       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]]);
+  if (fullBtn) rows.splice(1, 0, fullBtn);
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -375,6 +379,18 @@ function galleryView(facts, ctx) {
   const rows = gridRows(items, (m, i) => ({ text: '🖼 ' + (i + 1), cb: 'R0_GITEM_' + i }), 3)
     .concat([[{ text: '◀ Retour', cb: back }, HOME]]);
   return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
+}
+
+// ── VIDÉO / REMPLACER LA SOURCE : Choisir (galerie) · Importer photo · Importer vidéo ──
+function videoSourceView(facts) {
+  const cap = '<b>🔄 Remplacer la source</b>\n<i>D\'où vient la nouvelle source ?</i>';
+  return {
+    kind: C.mediaKind(facts), caption: cap, rows: [
+      [{ text: '🖼 Choisir (galerie)', cb: 'R0_VI_GAL' }],
+      [{ text: '📥 Importer photo', cb: 'R0_VI_IMPORT' }, { text: '🎬 Importer vidéo', cb: 'R0_VI_IMPORTVID' }],
+      [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],
+    ],
+  };
 }
 
 // ── RESSOURCES / FICHIERS DU PROJET (hub de récupération de TOUS les assets) ──────────────────
@@ -451,6 +467,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, photoMontageView, resourcesView, gridRows,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, gridRows,
   PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

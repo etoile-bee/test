@@ -158,6 +158,17 @@ async function main() {
   await bot.tap('R0_VE'); await bot.tap('R0_VIB_voix'); await bot.tap('R0_SET_vivoix_0'); // on modifie un AUTRE champ
   chk('R2 : après édition d\'un autre champ, la source vidéo n\'a PAS changé (pas de remplacement silencieux)', bot.draft('video').source_id === srcId);
 
+  // ════ VIDÉO « Remplacer » : Choisir (galerie) · Importer photo · Importer vidéo ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); await bot.tap('R0_VIDEO');
+  await bot.tap('R0_VI_PICK'); chk('Remplacer : ouvre le choix de source', bot.state().screen === 'video_source');
+  chk('Remplacer : propose Choisir galerie + Importer photo + Importer vidéo', ['R0_VI_GAL', 'R0_VI_IMPORT', 'R0_VI_IMPORTVID'].every(c => bot.buttons().includes(c)));
+
+  // ════ TEXTE ENTIER : l'aperçu propose « 📄 Texte complet » quand un prompt long existe ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); await bot.tap('R0_LOADP_0'); // charge un prompt
+  await bot.tap('R0_GEN_CANCEL'); // (au cas où) revenir prépa
+  await bot.tap('R0_PH_PREVIEW');
+  chk('texte entier : l\'aperçu propose 📄 Texte complet', bot.buttons().includes('R0_FULLTEXT_prompt'));
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

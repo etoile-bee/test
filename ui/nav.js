@@ -203,6 +203,7 @@ function view(state, facts, ctx) {
     case 'video_edit': return SC.videoEditView(facts);
     case 'quit': return SC.quitView(facts);
     case 'photo_source': return SC.photoSourceView(facts);
+    case 'video_source': return SC.videoSourceView(facts);
     case 'photo_montage': return SC.photoMontageView(facts, ctx);
     case 'resources': return SC.resourcesView(facts, ctx);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
@@ -295,7 +296,9 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: mi.file || null } } }); }
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
-    case 'R0_VI_PICK': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
+    case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
+    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
+    case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer

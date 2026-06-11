@@ -35,6 +35,7 @@ const REACH = {
   block:          async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_look'); },
   resources:      async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_RES'); },
   photo_montage:  async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_MONTAGE'); },
+  video_source:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_PICK'); },
 };
 // [R3] « Retour partout » : un écran non-racine DOIT avoir un bouton Retour/Annuler (Accueil ≠ Retour pour Etoile).
 function hasRetour(labels) { return labels.some(t => /◀|Retour|Annuler/.test(t)); }

@@ -1,0 +1,56 @@
+<!doctype html><meta charset=utf-8><title>Gouvernance données /v4r</title><style>body{font-family:-apple-system,sans-serif;max-width:980px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc}</style>
+<h1>Gouvernance des données /v4r — 11/06/2026</h1>
+
+<blockquote>Contexte : mes tests (banc d'essai avec <code>BASE = dossier réel</code>) ont injecté <b>5446 candidats <code>simule:true</code></b> dans les vrais <code>facts.json</code>. Le strip a <b>déjà été exécuté</b> (tour précédent) avec sauvegarde <code>.prepurge</code> par projet. Ce document régularise : backup complet, inventaire, preuve, plan, isolation.</blockquote>
+
+<h2>⚠️ Statut</h2>
+<li><b>Backup complet horodaté</b> : <code>backups/projects_r_2026-06-11-16-45-48/</code> (24 Mo · 112 <code>facts.json</code> + 28 <code>.prepurge</code> = état AVANT strip).</li>
+<li><b>Strip déjà effectué</b> : 5446 <code>simule:true</code> retirés ; <b>0 incohérence</b> (entrées réelles byte‑identiques avant/après, mêmes id + fichier).</li>
+<li><b>Aucune donnée réelle supprimée</b> (prouvé ci‑dessous).</li>
+
+<h2>Les 7 réponses</h2>
+
+<p><b>1. Repars‑tu d'une base SOURCE des anciennes versions ?</b></p>
+<p>NON — pas de base « ancienne version » séparée comme référence. La vérité = <code>projects_r/</code> actuel (projets) + catalogues partagés : <code>outputs/generations/</code>, <code>looks/</code>, <code>library.json</code>, <code>outfits_catalog.json</code>, <code>lookbook.json</code>, <code>subtitle_style.js</code>.</p>
+
+<p><b>2. Sauvegarde complète avant les injections ?</b></p>
+<p>Il n'existait PAS de snapshot pré‑injection (les injections se sont faites incrémentalement au fil des tests). <b>Compensation</b> : (a) backup complet fait maintenant (<code>backups/projects_r_2026-06-11-16-45-48</code>) ; (b) <code>.prepurge</code> par projet = état juste avant strip (avec tous les sim) ; (c) preuve que les injections n'ont <b>jamais modifié</b> les entrées réelles — elles n'ont fait qu'<b>ajouter</b> des entrées <code>simule:true</code> (diff = 0 incohérence).</p>
+
+<p><b>3. Comment distinguer vrai vs test/sim ?</b></p>
+<p>Critère unique et sûr : <code>media.simule === true</code> = sim (créé par génération simulée). Tout le reste = réel. <b>Preuve que le critère ne capture aucun réel</b> : après strip, les <b>618 entrées conservées ont TOUTES un fichier existant sur disque</b> (0 sans fichier) ; et le diff <code>.prepurge</code> vs actuel montre que les 618 réelles sont identiques (id + chemin fichier inchangés).</p>
+
+<p><b>4. Plan de nettoyage exact (déjà exécuté) :</b></p>
+<p>Pour chaque <code>facts.json</code> : <code>medias = medias.filter(m =&gt; !m.simule)</code> ; écrire <code>facts.json.prepurge</code> (état complet avant) puis ré‑écrire <code>facts.json</code>. Rien d'autre touché (drafts, publication, projectId, fichiers disque : inchangés).</p>
+
+<p><b>5. Garantie zéro perte de données réelles :</b></p>
+<p>backup complet + critère restrictif (<code>simule:true</code> uniquement) + vérification post : 618 réels conservés, tous avec fichier, byte‑identiques → <b>0 média/script/légende/référence réel supprimé</b>.</p>
+
+<p><b>6. INVENTAIRE chiffré (hors sim, vrais comptes) :</b></p>
+<table><thead><tr><th>Élément</th><th>Compte réel</th></tr></thead><tbody>
+<tr><td>Projets</td><td>112 (dont <b>23 avec média réel</b>)</td></tr>
+<tr><td>Photos (fichier présent)</td><td><b>618</b> (0 sans fichier)</td></tr>
+<tr><td>Vidéos</td><td><b>0</b></td></tr>
+<tr><td>Projets avec script</td><td>2</td></tr>
+<tr><td>Projets avec légendes</td><td>0</td></tr>
+<tr><td>Projets avec référence</td><td>0</td></tr>
+<tr><td>Entrées sim retirées</td><td>5446</td></tr>
+</tbody></table>
+
+<p><b>7. Fonctionnalités reposant sur code/données LEGACY :</b></p>
+<li><code>newlook.js</code> → génération PHOTO réelle (Seedream).</li>
+<li><code>workflow.js</code> (WF) → génération VIDÉO réelle (script Anthropic + voix ElevenLabs + lipsync Kling) + <code>render_local.js</code> (sous‑titres).</li>
+<li><code>library.json</code> (73 scripts) → modèles scripts pré‑enregistrés.</li>
+<li><code>outfits_catalog.json</code> (234 tenues / 6 catégories) → Tenue.</li>
+<li><code>lookbook.json</code> → décors + estimation coût.</li>
+<li><code>subtitle_style.js</code> → style sous‑titres (lecture seule, verrou).</li>
+<li><code>looks/</code> + <code>outputs/generations/</code> → agrégat Galerie + image de démo locale.</li>
+<li><code>prompts/&lt;persona&gt;/</code> → prompts par défaut.</li>
+
+<h2>Isolation des tests (local + cloud)</h2>
+<li><b>Sandbox dédiée</b> : sous <code>R0_DRYRUN</code>, <code>BASE = $V4R_SANDBOX</code> (défaut <code>~/podcast-workflow/.v4r_sandbox</code>) — <b>jamais</b> les vrais <code>projects_r</code>. Catalogues réels partagés en lecture via symlink (pas de copie, pas d'écriture).</li>
+<li><b>Local + cloud</b> : pointer <code>V4R_SANDBOX</code> vers un dossier synchronisé Drive donne local <b>et</b> cloud sans changer le code. *(Le dossier de test reste séparé de la prod ; aucun mélange.)*</li>
+<li><b>Garantie</b> : la suite complète tourne sur la sandbox ; la vraie base reste <b>inchangée</b> (vérifié : comptes réels identiques après sweep). Garde‑fou permanent : <code>engines.live()</code> force OFF sous <code>R0_DRYRUN</code> (aucune dépense possible en test).</li>
+
+<h2>Restauration</h2>
+<p>Pour revenir à l'état AVANT strip d'un projet : <code>cp facts.json.prepurge facts.json</code>. Pour tout restaurer : copier depuis <code>backups/projects_r_2026-06-11-16-45-48/</code>.</p>
+

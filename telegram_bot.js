@@ -10,7 +10,8 @@ const CHAT_ID=String(process.env.TELEGRAM_CHAT_ID);
 const REOPEN_FLAG='/tmp/ws_reopen_cockpit'; // [fix/restart-feedback] drapeau : ré-ouvrir le cockpit après un /restart demandé
 // [DATA-INTÉGRITÉ] Le banc d'essai (R0_DRYRUN) écrit dans une base SANDBOX isolée — JAMAIS dans les vrais projects_r.
 //   Cause racine corrigée : « la base n'est pas la même en test qu'en réel » + plus aucune pollution des données réelles.
-const BASE=process.env.R0_DRYRUN?path.join(os.homedir(),'podcast-workflow','.v4r_sandbox'):path.join(os.homedir(),'podcast-workflow');
+// Sandbox de test : dossier DÉDIÉ, isolé de la prod. V4R_SANDBOX permet de le pointer vers un dossier Drive (local + cloud).
+const BASE=process.env.R0_DRYRUN?(process.env.V4R_SANDBOX||path.join(os.homedir(),'podcast-workflow','.v4r_sandbox')):path.join(os.homedir(),'podcast-workflow');
 // [DATA-INTÉGRITÉ] sandbox de test : on ISOLE l'écriture des projets (projects_r) mais on PARTAGE EN LECTURE les catalogues
 //   réels (looks/outputs/prompts) via symlink -> les tests voient les mêmes ressources qu'en réel, sans polluer les vrais projets.
 if(process.env.R0_DRYRUN){ try{ fs.mkdirSync(BASE,{recursive:true}); const REAL=path.join(os.homedir(),'podcast-workflow');
@@ -2852,6 +2853,15 @@ async function r0Dispatch(persona, d, editMid){
     await r0Render(persona, editMid, '⛔ <b>Budget de test épuisé ('+b.max+'/'+b.max+')</b> — réautorisation d\'Etoile nécessaire.');
     return;
   }
+  // [texte entier] Envoie le TEXTE COMPLET (prompt/script/légendes) en message(s) SÉPARÉ(S) — copiable/éditable, hors limite média 1024.
+  if(d.indexOf('R0_FULLTEXT_')===0){ const field=d.slice(12); const f3=r0Cur(persona,true);
+    const dp=S.getDraft(f3,'photo')||{}, dv=S.getDraft(f3,'video')||{}, pub=(f3&&f3.publication)||{};
+    const txt={ prompt:dp.prompt, script:dv.script, legc:pub.legende_courte, legl:pub.legende_longue, tags:pub.hashtags }[field] || '';
+    const label={ prompt:'📝 Prompt complet', script:'🎬 Script complet', legc:'✏️ Légende courte', legl:'📄 Légende longue', tags:'#️⃣ Hashtags' }[field]||'Texte';
+    if(!String(txt).trim()){ try{ await toast('Rien à envoyer (vide)'); }catch(e){} return; }
+    const full=String(txt); try{ await toast('📄 Texte envoyé ci-dessous'); }catch(e){}
+    for(let p=0;p<full.length;p+=3900){ const part=full.slice(p,p+3900); await send('<b>'+_r0esc(label)+'</b>\n'+_r0esc(part)).catch(()=>{}); } // découpe si > limite Telegram
+    return; }
   // [#17] CHARGER UN MODÈLE pré-enregistré (script/prompt) dans le brouillon — besoin du disque -> hors reducer pur. Aperçu = re-render.
   if(d.indexOf('R0_LOADP_')===0 && r0Block){ const idx=+d.slice(9); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
     let text=null; try{ if(field==='script'){ const sc=(_r0Library().scripts||[]).slice(-12).reverse(); text=sc[idx]&&sc[idx].script; }
@@ -3771,6 +3781,20 @@ async function handle(upd){
       r0Block=null; r0Pending=null;
       await r0Render(persona, r0Mid, '📥 <b>Image importée</b>');
     }catch(e){ jlog('v4r import err '+e.message); r0Await=null; try{ await r0Render(_persona(), r0Mid, '⚠️ Import échoué — réessaie.'); }catch(_){} }
+    return;
+  }
+  // [Remplacer source vidéo] IMPORT d'une VIDÉO comme source -> candidat vidéo réel du projet (zéro dépense).
+  if(r0Await && r0Await.upload==='sourcevid' && (msg.video || msg.document)){
+    try{ const persona=_persona(); const cur=r0Cur(persona,true); const id=cur.projectId; r0Await=null; const {S}=_r0();
+      const fileId=(msg.video&&msg.video.file_id)||(msg.document&&msg.document.file_id);
+      const r=await tg('getFile',{file_id:fileId}); const url=`https://api.telegram.org/file/bot${TOKEN}/${r.result.file_path}`;
+      const dir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(dir,{recursive:true}); }catch(e){}
+      const fp=path.join(dir,'import_'+Date.now()+'.mp4'); fs.writeFileSync(fp, await (await fetch(url)).buffer());
+      const m=S.addCandidate(BASE,persona,id,Date.now(),'video',{file:fp, simule:false, source:'import vidéo'});
+      S.setDraft(BASE,persona,id,'video',{source:'vidéo importée', source_id:(m&&m.mediaId)||null, source_file:fp},Date.now());
+      r0Screen='video_params'; r0Block=null; r0Pending=null;
+      await r0Render(persona, r0Mid, '🎬 <b>Vidéo importée comme source</b>');
+    }catch(e){ jlog('v4r import vid err '+e.message); r0Await=null; try{ await r0Render(_persona(), r0Mid, '⚠️ Import vidéo échoué — réessaie.'); }catch(_){} }
     return;
   }
   // Photo upload
