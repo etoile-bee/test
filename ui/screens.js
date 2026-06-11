@@ -410,11 +410,13 @@ function galleryView(facts, ctx) {
     + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>rien ici — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
-  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page (sélection correcte).
-  const rows = gridRows(items, (m, i) => ({ text: ic + (pg.base + i + 1), cb: 'R0_GITEM_' + i }), 3);
+  const del = !!(ctx && ctx.galDel);
+  if (del) cap = '<b>🗑 ' + titre + ' — RETRAIT</b> · ' + total + '\n<i>Touche un numéro pour le mettre à la 🗑 corbeille (récupérable, AUCUNE suppression réelle).</i>';
+  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page. En mode RETRAIT : R0_GDEL_ (soft-delete) au lieu de sélection.
+  const rows = gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: (del ? 'R0_GDEL_' : 'R0_GITEM_') + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
-  // [VISIBILITÉ] bascule scope : tout le patrimoine <-> ce projet seulement (la galerie remonte TOUT par défaut)
-  rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }]);
+  // [VISIBILITÉ] bascule scope + [CORBEILLE] bascule retrait soft-delete (récupérable)
+  rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }, { text: del ? '✖️ Quitter retrait' : '🗑 Retirer', cb: 'R0_GALDEL' }]);
   rows.push([{ text: '◀ Retour', cb: back }, HOME]);
   // image -> aperçu mosaïque (photo) ; vidéo -> liste texte (pas de planche d'images possible)
   return { kind: (items.length && kindWanted !== 'video') ? 'photo' : 'text', caption: cap, rows: rows };

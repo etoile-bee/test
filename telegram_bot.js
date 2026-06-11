@@ -2551,7 +2551,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
@@ -2670,6 +2670,13 @@ function r0SourceFile(f){ try{ const {S}=_r0(); const dv=S.getDraft(f,'video')||
 function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();
   S.setDraft(BASE,persona,id,'photo',{source_file:file},ts); S.setDraft(BASE,persona,id,'video',{source_file:file},ts);
 }catch(e){} }
+// [CORBEILLE — Etoile] SOFT-DELETE STRICT : JAMAIS de suppression réelle. On DÉPLACE le fichier vers <dossier>/.corbeille/ (récupérable).
+//   r0Walk ignore .corbeille -> le fichier disparaît des galeries mais reste sur le disque (iCloud Fichiers). Restaurable.
+function r0Corbeille(file){ try{ if(!file||!fs.existsSync(file)) return null; const dir=path.dirname(file); const tr=path.join(dir,'.corbeille'); fs.mkdirSync(tr,{recursive:true});
+  let dest=path.join(tr, path.basename(file)); if(fs.existsSync(dest)) dest=path.join(tr, Date.now()+'_'+path.basename(file));
+  fs.renameSync(file,dest); jlog('[corbeille] '+file+' -> '+dest+' (récupérable, AUCUNE suppression)'); return dest; }catch(e){ try{ jlog('[corbeille] err '+e.message); }catch(_){} return null; } }
+// Restaure un fichier de .corbeille vers son dossier parent.
+function r0Restore(file){ try{ if(!file||!fs.existsSync(file)) return null; const parent=path.dirname(path.dirname(file)); const dest=path.join(parent, path.basename(file).replace(/^\d{13}_/,'')); fs.renameSync(file,dest); return dest; }catch(e){ return null; } }
 // [HUB ASSETS] envoie un FICHIER en document (audio/voix…), garde-fou dry-run (sandbox ne poste rien de réel).
 async function r0SendDoc(fp, caption){ try{
   if(typeof R0DRY!=='undefined'&&R0DRY){ return _dryTg('sendDocument',{caption:caption}); }
@@ -2868,7 +2875,7 @@ function r0Ctx(persona){
       list=r0GalAll? r0RealImages(persona,9999) : projI; }
     const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
     ctx.galleryFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE);
-    ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet';
+    ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; ctx.galDel=r0GalDel;
     ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
   // [PAGINATION] Récents/Archives : page courante pour la grille de projets.
   if(r0Screen==='recents'){ const tot=((ctx.recents&&ctx.recents.projets)||[]).length; const pages=Math.max(1,Math.ceil(tot/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0; ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
@@ -3078,6 +3085,13 @@ async function r0Dispatch(persona, d, editMid){
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
+  // [CORBEILLE] bascule mode retrait dans la galerie (récupérable).
+  if(d==='R0_GALDEL'){ r0GalDel=!r0GalDel; await r0Render(persona, editMid); return; }
+  // [CORBEILLE] SOFT-DELETE : déplace la photo choisie vers .corbeille (JAMAIS de suppression réelle). Récupérable.
+  if(d.indexOf('R0_GDEL_')===0){ const i=+d.slice(8); const ctx2=r0Ctx(persona); const file=(ctx2.galleryFiles||[])[i];
+    if(file){ const dest=r0Corbeille(file); try{ await toast(dest?'🗑 Mis à la corbeille (récupérable dans .corbeille)':'Retrait impossible'); }catch(e){} }
+    else { try{ await toast('Élément introuvable'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   // [ÉCRAN FINAL] 💾 Enregistrer (CHOIX) : écrit l'archive organisée de la version dans podcast-looks/projets (image/vidéo/script/légendes/sous-titres/prompt). Récupérable.
   if(d==='R0_FIN_SAVE'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; let r=null; try{ r=r0ArchiveProjet(persona, id); }catch(e){}
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
@@ -3121,8 +3135,10 @@ async function r0Dispatch(persona, d, editMid){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
     r0Busy=true;
     try{
-      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(script + voix + lipsync Kling, ~3 à 10 min — ne reclique pas)</i>');
-      const out=await r0RealVideo(persona, id); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
+      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(ne reclique pas)</i>');
+      // [AVANCEMENT UN SEUL BLOC — Etoile/Legacy] chaque étape MET À JOUR le MÊME bloc (editMid), pas de flood de messages.
+      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b>\n'+msg).catch(()=>{}); };
+      const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
@@ -3142,7 +3158,7 @@ async function r0Dispatch(persona, d, editMid){
   }
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
-  if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; } /*réinit hors galerie*/
+  if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; r0GalDel=false; } /*réinit hors galerie (scope + mode retrait)*/
   if(res.await) r0Await=res.await;
   if(res.toast){ try{ await toast(res.toast); }catch(e){} }
   await r0Render(persona, editMid, res.banner);
@@ -3241,7 +3257,7 @@ async function r0SubClip(persona){
   }catch(e){ try{ jlog('[v4r] subclip err '+e.message); }catch(_){} }
   return null;
 }
-async function r0RealVideo(persona, id){
+async function r0RealVideo(persona, id, onStep){
   const {S,C,BUD}=_r0(); const ts=Date.now();
   const facts=r0Cur(persona); const draft=S.getDraft(facts,'video')||{};
   // [SOURCE UNIQUE] la vidéo utilise EXACTEMENT la même image source que partout ailleurs (r0SourceFile : source épinglée -> cover).
@@ -3258,15 +3274,22 @@ async function r0RealVideo(persona, id){
     process.env.HIGGS_AVATAR_URL=srcPath;                                          // la source v4r devient l'avatar (prepareImage gère un chemin local)
     const tsStr=new Date(ts).toISOString().slice(0,16).replace(/[:T]/g,'-');
     const outDir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(outDir,{recursive:true}); }catch(e){}
+    const STEP=(typeof onStep==='function')?onStep:(()=>{});
     const run=(async()=>{
+      STEP('🖼 Étape 1/5 — Préparation de l\'image…');
       const imageUrl=await WF.prepareImage();                                      // upload avatar (depuis la photo locale)
       const clips=[]; const prevScripts=[];
       for(let i=1;i<=parts;i++){
+        const pp=parts>1?(' (partie '+i+'/'+parts+')'):'';
+        STEP('📝 Étape 2/5 — Écriture du script'+pp+'…');
         const c=await WF.generateScript(i===1?topic:WF.partPrompt(topic,i,parts,prevScripts), words); // script Anthropic
         prevScripts.push(c.script);
+        STEP('🎙 Étape 3/5 — Génération de la voix'+pp+'…');
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
+        STEP('🎬 Étape 4/5 — Lipsync (Kling)'+pp+'… <i>2 à 5 min</i>');
         const lip=await WF.generateLipsync(imageUrl, audio.audioUrl, i);           // lipsync Kling
         const rawi=await WF.saveLipsyncRaw(lip, i, tsStr, outDir);
+        STEP('✨ Étape 5/5 — Montage + sous-titres'+pp+'…');
         const vid=await WF.renderVideo(lip, audio.wordTimings, c.keywords, audio.duration, i, c.reactions, rawi, r0SubOpts(draft)); // sous-titres LOCAL (gratuit) — apparence PAR vidéo (draft.st_*)
         const p=await WF.saveOpen(vid, c, tsStr, i, outDir);
         clips.push(p);
