@@ -150,7 +150,10 @@ function setStatut(base, persona, id, statut, ts) {
 // Duplique un dossier (copie d'amorce) — nouvel id, mêmes faits, repart en brouillon.
 function duplicateProject(base, persona, srcId, ts) {
   const src = loadFacts(base, persona, srcId); if (!src) return null;
-  const id = genId(persona, ts);
+  let id = genId(persona, ts);
+  // [G4] genId a une résolution à la SECONDE : dupliquer dans la même seconde (ou re-dupliquer) écraserait le projet.
+  //   On garantit un id UNIQUE (suffixe incrémental) -> un VRAI nouveau projet réutilisable, l'original reste intact.
+  if (id === srcId || loadFacts(base, persona, id)) { let k = 2; while (loadFacts(base, persona, id + '-' + k)) k++; id = id + '-' + k; }
   const f = JSON.parse(JSON.stringify(src));
   f.projectId = id; f.cree_le = iso(ts); f.statut = 'brouillon'; f.publication = Object.assign({}, f.publication, { publie_le: null });
   saveFacts(base, persona, f, ts);

@@ -92,10 +92,7 @@ const PH_BLOCKS = [
   { key: 'prompt', icon: '📝', label: 'Prompt' }, { key: 'look', icon: '👗', label: 'Tenue' },
   { key: 'decor', icon: '🏛', label: 'Décor' }, { key: 'reference', icon: '🖼', label: 'Référence' },
 ];
-// Outils regroupés sous 🛠 Montage (photo) — plus aucun outil dispersé sur la préparation.
-const PH_MONTAGE = [
-  { key: 'refs', icon: '📎', label: 'Réf. visuelles' }, { key: 'params', icon: '🔲', label: 'Format' },
-];
+// [G3] PH_MONTAGE + photoMontageView SUPPRIMÉS : Montage retiré du parcours Photo (concept vidéo), écran orphelin nettoyé.
 function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
@@ -112,18 +109,6 @@ function photoPromptView(facts, ctx) {
     [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
   ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
-}
-// ── PHOTO / 🛠 MONTAGE (boîte à outils de la photo, regroupée) ──
-function photoMontageView(facts, ctx) {
-  const d = (facts && facts.draft && facts.draft.photo) || {};
-  const cap = '<b>🛠 PHOTO · Montage</b>\n📎 Réf. visuelles : ' + val(d.refs) + '   🔲 Format : ' + val(d.format, '9:16')
-    + '\n🎨 Édition image : ' + val(d.image_fx ? 'réglée' : null) + '\n<i>Outils de la photo — gratuit (local).</i>';
-  const rows = [
-    PH_MONTAGE.map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })),
-    [{ text: '🎨 Édition image', cb: 'R0_PHB_edition' }],
-    [{ text: '◀ Retour', cb: 'R0_PH_GEN' }],
-  ];
-  return { kind: C.hasImage(facts) ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
 // ── ÉCRAN 2.2 — PHOTO / RÉSULTAT = HUB DES ASSETS ─────────────────────────────
@@ -402,25 +387,30 @@ function confirm2View(facts, ctx) {
 // ── GALERIE / HISTORIQUE (grille) : parcourir les médias du projet sans cul-de-sac ──
 function galleryView(facts, ctx) {
   const kindWanted = (ctx && ctx.galleryKind) || 'image';
+  // [G1] RÔLE : 'history' = journal chronologique en LECTURE (revoir, pas de ✅ Choisir) ; sinon 'select' = grille de SÉLECTION pour le flux.
+  const isHist = (ctx && ctx.galleryRole) === 'history';
   // [GALERIE] l'inventaire fournit la liste EXACTE (projet OU global) pour images ET vidéos. Le compteur = cette liste.
   const items = (ctx && ctx.galleryFiles) ? ctx.galleryFiles
     : ((ctx && ctx.galleryAll ? C.medias(facts) : C.visibles(facts)).filter(m => (kindWanted === 'video' ? m.type === 'video' : m.type !== 'video')));
   const scope = (ctx && ctx.galleryScope === 'global') ? ' globale' : ' du projet';
-  const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + scope;
+  const titre = isHist ? ('🕘 Historique' + (kindWanted === 'video' ? ' vidéos' : ' photos')) : ((kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + scope);
   const total = (ctx && ctx.galleryTotal != null) ? ctx.galleryTotal : items.length;
   const ic = kindWanted === 'video' ? '🎬 ' : '🖼 ';
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   let cap = '<b>' + titre + '</b> · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)')
     + ' · page ' + (pg.idx + 1) + '/' + pg.pages
-    + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>rien ici — génère ou importe</i>');
+    + (items.length ? (isHist ? '\n<i>journal en lecture — touche un numéro pour le revoir</i>' : '\n<i>touche un numéro pour l\'utiliser</i>') : '\n<i>rien ici — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
   const del = !!(ctx && ctx.galDel);
   if (del) cap = '<b>🗑 ' + titre + ' — RETRAIT</b> · ' + total + '\n<i>Touche un numéro pour le mettre à la 🗑 corbeille (récupérable, AUCUNE suppression réelle).</i>';
-  // [LAYOUT GRILLE — Etoile] DISPOSITION : flèches EN HAUT (juste sous la photo), avec « Choisir » au MILIEU ; les NUMÉROS viennent EN DESSOUS.
+  // [LAYOUT GRILLE — Etoile] DISPOSITION : flèches EN HAUT (juste sous la photo), avec « Choisir » au MILIEU (sélection) ; les NUMÉROS viennent EN DESSOUS.
   const rows = [];
-  rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: '✅ Choisir', cb: 'R0_GCHOOSE' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]); // navigation page en haut
-  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page. En mode RETRAIT : R0_GDEL_ (soft-delete) au lieu de sélection.
-  gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: (del ? 'R0_GDEL_' : 'R0_GITEM_') + i }), 3).forEach(r => rows.push(r));
+  // [G1] HISTORIQUE (lecture) : pagination SANS ✅ Choisir ; SÉLECTION : ✅ Choisir au milieu.
+  rows.push(isHist ? [{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]
+    : [{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: '✅ Choisir', cb: 'R0_GCHOOSE' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page. RETRAIT : R0_GDEL_ (soft-delete) ; HISTORIQUE : R0_GVIEW_ (revoir, lecture) ; SÉLECTION : R0_GITEM_ (utiliser dans le flux).
+  const itemCb = del ? 'R0_GDEL_' : (isHist ? 'R0_GVIEW_' : 'R0_GITEM_');
+  gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: itemCb + i }), 3).forEach(r => rows.push(r));
   // [VISIBILITÉ] bascule scope + [CORBEILLE] bascule retrait soft-delete (récupérable)
   rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }, { text: del ? '✖️ Quitter retrait' : '🗑 Retirer', cb: 'R0_GALDEL' }]);
   rows.push([{ text: '◀ Retour', cb: back }, HOME]);
@@ -463,7 +453,7 @@ function resourcesView(facts, ctx) {
     [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
     [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '✏️ Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '📄 Lég. longue', cb: 'R0_FULLTEXT_legl' }, { text: '#️⃣ Hashtags', cb: 'R0_FULLTEXT_tags' }],
-    [{ text: '🖼 Galerie photos', cb: 'R0_PH_HIST' }, { text: '🎬 Vidéos', cb: 'R0_VI_HIST' }],
+    [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
     [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
     [{ text: '◀ Retour', cb: (ctx && ctx.resReturn) || (C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO') }, HOME], // [RETOUR CONTEXTUEL] revient à l'origine (Studio/Récents/Résultat)
   ];
@@ -533,6 +523,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, publiesView, gridRows,
-  PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
+  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, resourcesView, pretView, publiesView, gridRows,
+  PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

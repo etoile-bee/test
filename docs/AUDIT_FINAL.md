@@ -51,7 +51,7 @@
 **Règles globales (wrapper `nav.view` + reducer) :**
 - 🏠 **Accueil** (`R0_HOME`) : sur écran de flux EN COURS (`photo_prompt, video_params, video_edit, block, confirm, confirm2`) → **écran `quit`** (« Enregistrer avant de quitter ? ») ; sinon → `home`.
 - 🛑 **Stop** (`R0_STOP`) : → `home`, **efface** `pending`/`block`/`quitFrom` (interrompt l'action en cours) ; **conserve** le projet + ses médias + brouillons sauvegardés.
-- 💾 **Auto-save** : `r0SaveNav` écrit `v4r_nav.json` (screen/section/block/pending/projet) à **chaque** rendu → restauré au boot (fix A, offline).
+- 💾 **Auto-save** : `r0SaveNav` écrit `v4r_nav.json` (screen/section/block/pending/projet) à **chaque** rendu → restauré au boot (fix A, **DÉPLOYÉ** — voir Zone 3).
 
 | Écran | ◀ Retour → | Cohérent ? |
 |---|---|---|
@@ -87,11 +87,11 @@ Tests harness (réels, 0 THROW) :
 | re-Photo→Vidéo : script+thème+source intacts | ✅ |
 | /v4r conserve le projet (médias) | ✅ |
 | /restart conserve image + script + thème | ✅ |
-| Redémarrage bot (deploy/crash) | 🟡 **offline** : fix A (boot recharge `v4r_nav.json` + ▶️ Reprendre) prêt mais **non déployé** → aujourd'hui en live, un restart hors `/restart` revient à l'accueil |
+| Redémarrage bot (deploy/crash) | ✅ **DÉPLOYÉ** : au boot (`telegram_bot.js:4623` PERSISTANCE DE CONTEXTE) le bot recharge `v4r_nav.json` + propose ▶️ Reprendre (`R0_RESUME:3101`, bouton boot `:4629`) → restaure écran/projet/pending. *(correction note stale : c'était marqué « offline non déployé » à tort — vérifié présent dans `cfc869c`.)* |
 | Changement de référence (R0_REF_REPLACE) | ⚠️ non testé ici (upload requis) |
 | Régén légende (R0_GENTXT_pub_*) | ✅ écrit le champ, conserve le reste (SIM) |
 
-**Verdict Zone 3** : ✅ conservation solide sur le parcours ; 🟡 le cas « redémarrage involontaire » n'est corrigé qu'en offline (A).
+**Verdict Zone 3** : ✅ conservation solide sur le parcours ; ✅ le cas « redémarrage involontaire » est **corrigé ET DÉPLOYÉ** (fix A présent dans `cfc869c` : boot recharge `v4r_nav.json` + ▶️ Reprendre).
 
 ---
 
@@ -127,13 +127,14 @@ Tests harness (réels, 0 THROW) :
 
 ---
 
-## SYNTHÈSE — écarts à traiter (déploiement groupé)
-1. ❌ **Doublon Galerie ≡ Historique** (effet de bord visibilité globale) — décider fusion ou scope projet par défaut.
-2. 🟡 **Retour contextuel `resources`** (revient toujours vers video_result/photo).
-3. 🟡 **`photo_montage` orphelin** (nettoyer).
-4. ❌→🟢 **Restart involontaire perd le contexte** — fix A prêt (offline).
-5. ❌ **« Modèle » ambigu** — clarifier (préréglages vs projet réouvrable) avant réactivation.
-6. 🟢 **Offline prêts** : A, B, B+, C, ANO-SOURCE-PLACEHOLDER, aperçu sous-titré robuste, verrou.
-7. ⏸ **D** (disposition) — attente choix Etoile.
+## SYNTHÈSE — écarts (lot GAPS G1–G5, offline)
+1. ✅ **G1 — Doublon Galerie ≡ Historique** : rôles distincts (Galerie=sélection ✅ Choisir / Historique=lecture R0_GVIEW_). Voir `ANOMALIES.md#ANO-G1-GAL-HIST`.
+2. ✅ **G2 — Retour contextuel `resources`** : Retour revient à l'origine (Récents/Studio/Résultat/Publication). `ANO-G2-RES-RETURN`.
+3. ✅ **G3 — `photo_montage` orphelin** : écran supprimé, cb résiduel renvoyé à photo_prompt. `ANO-G3-MONTAGE-ORPHELIN`.
+4. ✅ **Restart involontaire** : fix A **DÉPLOYÉ** (présent dans `cfc869c`) — note stale corrigée.
+5. ✅ **G4 — « Modèle » = projet réutilisable** (D5) : `R0_SAVEMODEL`→`duplicateProject` (+ correctif unicité genId). `ANO-G4-MODELE-D5`.
+6. ✅ **G5 — hashtags fusionnés à la copie** (D7) : `r0FuseTags`, champ hashtags conservé séparé. `ANO-G5-HASHTAGS-D7`.
+7. 🟢 **Offline prêts (antérieurs)** : A, B, B+, C, ANO-SOURCE-PLACEHOLDER, aperçu sous-titré robuste, verrou.
+8. ⏸ **D** (disposition) — déjà tranché/déployé (D2/D3/D4) ; reliquats G4/G5 ci-dessus traités.
 
-> Tout ⚠️/🟡 listé est honnête. Rien de déployé. Re-vérification Dispatch attendue avant présentation à Etoile.
+> Sweep après lot G : **431/0**, audit 0. Rien de déployé (offline). Re-vérification Etoile attendue (sweep+audit+markup) avant certification. Reste hors lot : ⚠️ terrain (génération réelle photo/vidéo, reboot réel, dépense d'une gén tuée).

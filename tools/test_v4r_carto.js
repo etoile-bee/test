@@ -35,7 +35,6 @@ const REACH = {
   video_edit:     async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VE'); },
   block:          async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_look'); },
   resources:      async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_RES'); },
-  photo_montage:  async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_MONTAGE'); },
   video_source:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_PICK'); },
   pret:           async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_READY'); },
   publies:        async () => { await bot.tap('R0_STUDIO'); await bot.tap('R0_PUBLISHED'); },

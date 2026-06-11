@@ -5,6 +5,54 @@
 
 ---
 
+## LOT GAPS G1–G5 (offline, non déployé) — fermeture des écarts d'audit Etoile
+
+### ANO-G1-GAL-HIST — Galerie ≡ Historique (doublon strict, viole D4)
+- **Écran** : Photo → 🖼 Galerie (`R0_PH_GAL`) vs 🕘 Historique (`R0_PH_HIST`)
+- **Gravité** : 🔴 (deux entrées strictement identiques)
+- **Constaté** : `R0_PH_GAL` et `R0_PH_HIST` produisaient le MÊME écran (galleryKind=image, galleryAll=true, srcReturn=photo_prompt, go('gallery')).
+- **Cause** : aucun RÔLE distinct ; les deux pointaient sur la même vue de sélection.
+- **Correctif** : rôle `galleryRole` (`select`|`history`). GALERIE = grille de SÉLECTION (✅ Choisir + `R0_GITEM_`) ; HISTORIQUE = journal en LECTURE (PAS de ✅ Choisir, items `R0_GVIEW_` = revoir l'asset, aucun retour au flux). Idem vidéo (`R0_VI_GAL`/`R0_VI_HIST`). `nav.js` + `screens.js:galleryView` + `R0_GVIEW_` (telegram_bot).
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE (markup)** : GALERIE labels `["◀ Précédent","✅ Choisir","Suivant ▶","🖼 1"…]` cb `[…,"R0_GITEM_0"]` ; HISTORIQUE labels `["◀ Précédent","Suivant ▶","🖼 1"…]` (PAS de ✅ Choisir) cb `[…,"R0_GVIEW_0","R0_GVIEW_1"]`. Assertions runtime G1 ×4 ✅.
+
+### ANO-G2-RES-RETURN — Fichiers : retour non contextuel
+- **Écran** : 🗂 Ressources/Fichiers (`resources`)
+- **Gravité** : 🟡
+- **Constaté** : `◀ Retour` repartait vers `video_result`/`photo` même si on arrivait via Studio/Récents.
+- **Cause** : capture d'origine incomplète (`studio_section`/`publication`/`pret`/`publies` non couverts ; `studio` seul).
+- **Correctif** : `R0_RES` mémorise l'origine élargie (`/^studio/`, recents, video_result, photo_result, publication, pret, publies) → `ctx.resReturn`. `telegram_bot.js`.
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE (markup)** : origine RÉCENTS → Retour cb `R0_RECENTS` ; STUDIO → `R0_STUDIO` ; PHOTO·Résultat → `R0_PHOTO`. Assertions runtime G2 ×3 ✅.
+
+### ANO-G3-MONTAGE-ORPHELIN — écran `photo_montage` atteignable par cb direct
+- **Écran** : `photo_montage` (Montage retiré de Photo mais cb `R0_PH_MONTAGE` encore vivant)
+- **Gravité** : 🟡
+- **Correctif** : écran SUPPRIMÉ (vue `photoMontageView` + const `PH_MONTAGE` + route + NAVREQ retirés) ; `R0_PH_MONTAGE` résiduel renvoie à `photo_prompt` (pas de cul-de-sac) ; retiré de la carto. `nav.js` + `screens.js` + `tools/test_v4r_carto.js`.
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE** : Photo·Préparer cb = `[R0_PHB_prompt,R0_PHB_look,R0_PHB_decor,R0_PHB_reference,R0_PH_PREVIEW,R0_PH_TOVIDEO,R0_PHOTO,R0_HOME,R0_STOP]` (aucun Montage) ; `R0_PH_MONTAGE` résiduel → screen `photo_prompt`. Carto 146/0 (plus de route orpheline). Assertions runtime G3 ×2 ✅.
+
+### ANO-G4-MODELE-D5 — « Modèle » = préréglages au lieu d'un projet réouvrable
+- **Écran** : Validation → 💾 Modèle (`R0_SAVEMODEL`)
+- **Gravité** : 🟡 (ambiguïté tranchée par Etoile : Modèle = PROJET complet réutilisable)
+- **Correctif** : `R0_SAVEMODEL` câblé sur `S.duplicateProject` → crée un VRAI projet réouvrable (📂 Récents), original intact. (« 💾 Défaut » reste les préréglages, #18, inchangé.) **Bug racine corrigé en passant** : `genId` à résolution SECONDE → dupliquer dans la même seconde écrasait ; `duplicateProject` garantit désormais un id UNIQUE (suffixe). `telegram_bot.js` + `ui/socle.js`.
+- **Statut** : ✅ CORRIGÉE (offline) — comportement central D5 livré. (Une bibliothèque de modèles/templates parcourable resterait une amélioration future, non requise par l'arbitrage.)
+- **PREUVE RÉELLE** : projets avant=1 → après `R0_SAVEMODEL`=2 (original intact). Assertion runtime P6/D5 ✅.
+
+### ANO-G5-HASHTAGS-D7 — hashtags non fusionnés à la copie de la légende
+- **Écran** : Fichiers → ✏️ Lég. courte/longue (`R0_FULLTEXT_legc`/`legl`)
+- **Gravité** : 🟡
+- **Correctif** : à la COPIE, la légende intègre les hashtags (`r0FuseTags`, un geste = texte prêt à coller) ; le champ #️⃣ Hashtags (`R0_FULLTEXT_tags`) reste SÉPARÉ/récupérable. `telegram_bot.js`.
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE** : copie lég. courte = `"Ma légende\n\n#coach #dating #mindset"` ; champ hashtags seul = `"#coach #dating #mindset"`. Assertions runtime G5 ×3 ✅.
+
+### Note doc — AUDIT_FINAL Zone 3 (correction de note STALE)
+- L'audit indiquait « fix A (reprise contexte au boot) offline non déployé » — **FAUX** : présent dans `cfc869c` (`telegram_bot.js:4623` PERSISTANCE DE CONTEXTE + ▶️ Reprendre `R0_RESUME:3101`, bouton boot `:4629`). Note corrigée (lignes 54/90/94/134).
+
+> **Sweep après lot G** : `431 OK / 0 KO` (screens 106 · carto 146 · runtime 95 · nav_scenario 28 · scenario 15 · budget 10 · nospend 4 · cloud_chain 15 · soustitres 12) · audit_cockpit `ANOMALIES STRUCTURELLES 0`.
+
+---
+
 ## ANO-FAUX-VERT-RUNTIME — runtime « 83/0 » chez l'assistant mais « 73/10 » chez l'opérateur (MÊME commit cfc869c)
 - **Écran** : suite `tools/test_v4r_runtime.js` (banc R0_DRYRUN), pas un écran produit.
 - **Gravité** : 🔴 BLOQUANTE (faux vert = certification impossible)
