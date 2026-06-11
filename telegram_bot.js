@@ -3190,8 +3190,16 @@ async function r0RealPhoto(persona, id){
   const {S,BUD}=_r0(); const ts=Date.now();
   const {PO}=_r0(); const cur0=r0Cur(persona); const draft=S.getDraft(cur0,'photo')||{};
   const mapped=PO.buildPhotoOpts(draft, _r0Lookbook(), _r0Outfits());      // PROMPT/LOOK/DÉCOR du projet -> opts moteur
-  // [SOURCE UNIQUE] la génération RECRÉE à partir de la photo source ÉPINGLÉE du projet (sélection/cover), pas la référence persona par défaut.
-  const srcRef=r0SourceFile(cur0); if(srcRef&&fs.existsSync(srcRef)) mapped.opts.refOverride=srcRef;
+  // [SOURCE UNIQUE] la génération RECRÉE à partir de la photo source ÉPINGLÉE (sélection/cover).
+  // [ANO-SOURCE-PLACEHOLDER] si la source est un placeholder iCloud dataless, on la MATÉRIALISE d'abord ; sinon on ANNULE proprement
+  //   (jamais de génération sur fichier vide, JAMAIS de bascule silencieuse sur la référence persona = bug manteau cuir).
+  const srcRef=r0SourceFile(cur0);
+  if(srcRef && fs.existsSync(srcRef)){
+    const local=await r0EnsureLocal(srcRef);
+    if(local){ mapped.opts.refOverride=srcRef; }
+    else { jlog('[v4r réel] PHOTO annulée : source iCloud non matérialisée '+path.basename(srcRef));
+      return {ok:false, err:'Photo source pas encore téléchargée depuis iCloud — réessaie dans quelques secondes. Génération annulée (aucune dépense, aucune bascule d\'image).'}; }
+  }
   jlog('[v4r réel] '+PO.trace(draft, _r0Lookbook(), _r0Outfits())+' | refOverride='+(mapped.opts.refOverride?path.basename(mapped.opts.refOverride):'(référence persona)'));
   let localPath=null, err=null;
   try{
@@ -3305,6 +3313,8 @@ async function r0RealVideo(persona, id, onStep){
   let finalP=null, err=null;
   try{
     if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');
+    // [ANO-SOURCE-PLACEHOLDER] matérialise la source iCloud (dataless) avant de la passer à Kling ; jamais d'avatar vide / bascule silencieuse.
+    const _local=await r0EnsureLocal(srcPath); if(!_local) throw new Error('photo source pas encore téléchargée depuis iCloud — réessaie dans quelques secondes (aucune dépense)');
     process.env.HIGGS_AVATAR_URL=srcPath;                                          // la source v4r devient l'avatar (prepareImage gère un chemin local)
     const tsStr=new Date(ts).toISOString().slice(0,16).replace(/[:T]/g,'-');
     const outDir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(outDir,{recursive:true}); }catch(e){}

@@ -35,6 +35,16 @@
 
 ## LOT OFFLINE (préparé, testé harness, NON déployé — attente feu vert pour déploiement groupé)
 
+### ANO-SOURCE-PLACEHOLDER — source de génération réelle non matérialisée (trou trouvé par Dispatch)
+- **Gravité** : 🔴 BLOQUANTE — 🟢 PRÊTE (offline)
+- **Constaté** : `r0RealPhoto` faisait `refOverride = r0SourceFile()` SANS `r0EnsureLocal`. Si la source est un placeholder iCloud dataless (0 octet), le moteur reçoit un fichier vide → échec OU `getRefUrl` retombe sur la référence persona = **bug manteau cuir** pour toute source placeholder. Idem `r0RealVideo` (avatar source).
+- **Cause** : `r0EnsureLocal` était câblé dans l'aperçu (r0SubClip/r0SubSample) mais PAS dans la génération réelle.
+- **Correctif** : `r0RealPhoto` → `await r0EnsureLocal(srcRef)` avant `refOverride` ; si échec → **annule proprement** (`{ok:false, err:...}` message clair, aucune dépense, **aucune bascule silencieuse** sur la référence persona). `r0RealVideo` → `await r0EnsureLocal(srcPath)` avant Kling ; si échec → throw message clair (capté → koBanner).
+- **Statut** : 🟢 PRÊTE (offline) — preuve LIVE à la prochaine génération réelle d'Etoile (son clic, pas le mien).
+- **Artefact** : matérialisation prouvée (placeholder `IMG_2047.PNG` 0 blocs → download → 37144 blocs) ; mêmes 140/471 dataless mesurés.
+
+
+
 ### A — Persistance de contexte à travers un restart
 - **Gravité** : 🔴 BLOQUANTE — 🟢 PRÊTE (offline)
 - **Constaté** : un restart (deploy/crash) renvoyait à un accueil vide (perte d'écran/projet/script). Ex. : restart pendant TEXTE·Aperçu → contexte perdu.
