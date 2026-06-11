@@ -95,5 +95,34 @@ Légende impact : 🟦 disposition/UI seulement · 🟩 fond améliorant (prouv�
 ## CE QUI NE BOUGE PAS (intouchable, garanti)
 `socle.js` (facts) · `r0RealImages`/`r0RealVideos`/`r0Walk` (lecteurs **239/239**) · symlinks cloud + `r0CloudCopy`/`r0ArchiveProjet` · `subtitle_style.js` (verrou) · `WF.*` (moteurs) · garde-fous coût/budget/crédits/verrou-restart/incident.
 
+---
+
+## TABLEAU 2 — COMPORTEMENTS MÉTIER À PRÉSERVER (convergence)
+> Statut : ✅ conservé · 🔧 modifié (justifié) · ➕ ajouté · ❌ supprimé. Règle : aucun ❌ par effet de bord. Générations réelles = ⚠️ analyse code, à confirmer au test terrain (pas de faux ✅).
+
+| Comportement | Statut | Justification | Preuve / fonction |
+|---|---|---|---|
+| **Génération PHOTO réelle** | ✅ chemin conservé + 🔧 amélioré · ⚠️ terrain | chemin `r0RealPhoto→generateLook` INCHANGÉ ; ajouts = `refOverride` (recrée depuis SA photo) + `r0EnsureLocal` (source iCloud matérialisée, plus de fichier vide) | `r0RealPhoto` ; gate `liveFor('photo')&&!R0DRY` intacte ; à confirmer au 1ᵉʳ clic réel d'Etoile |
+| **Génération VIDÉO réelle** | ✅ chemin conservé + 🔧 amélioré · ⚠️ terrain | pipeline `prepareImage→generateScript→generateAudio→generateLipsync→renderVideo` INCHANGÉ ; ajouts = `styleOpts` sous-titres + `r0EnsureLocal` source + avancement 1 bloc | `r0RealVideo` ; budget/verrou intacts ; à confirmer au test terrain |
+| **Récupération des fichiers** | ✅ conservé | hub Fichiers inchangé (assets par bouton) | `resourcesView`, `R0_GET*`, `R0_FULLTEXT_` |
+| **Remontée galerie** | ✅ lecteur conservé · 🔧 scope défaut | lecteur identique (239 img) ; D4 = Galerie scope projet par défaut (toggle 🌍) | `r0RealImages` (inchangé) ; `R0_PH_GAL galleryAll=false` |
+| **Remontée historique** | ✅ conservé | journal global inchangé (239 img / 239 vid) | `r0RealImages`/`r0RealVideos` ; `R0_PH_HIST/R0_VI_HIST` global |
+| **Stockage cloud** | ✅ conservé | aucune écriture cloud modifiée | `r0CloudCopy`, `r0ArchiveProjet`, symlinks |
+| **Publication** | ✅ conservé | flux Publier→Studio>Publiés intact | `R0_PUB`/`R0_PUB_DO`→`publies`, `setPublication` |
+| **Pagination** | ✅ conservé | 6/page partout (grilles), flèches Préc/Suiv | `R0_PAGE=6`, `gridRows` |
+| **Résultats persistants** | ✅ conservé + 🔧 renforcé | bloc final figé non-perdable ; protection « tap n'édite pas le bloc » | `r0PostFinal`, `r0RenderMids` ; preuve renders=1 conservé |
+| **Ouverture ancien projet** | ✅ conservé | Récents→ouvrir projet | `R0_RE_OPEN_`, `op openrecent`, `listProjects` |
+| **Reprise d'un projet** | ✅ conservé + ➕ Reprendre | reprise au boot ajoutée (A) sans retirer l'existant | `r0PickCurrent`/`r0RestoreNav` + `R0_RESUME` |
+| **Bascule Photo→Vidéo** | ✅ conservé + ➕ bidirectionnel | source conservée (hash) ; ajout retour Vidéo→Photo (📸 Outils photo) | `R0_PH_TOVIDEO`, `R0_PH_GEN` depuis vidéo ; `r0SourceFile` |
+| **Retour arrière** | ✅ conservé + 🔧 contextuel | Retour partout (wrapper) ; `resources` revient à l'origine (corrige un 🟡) | wrapper `nav.view`, `r0ResFrom` |
+| **Régénération** | ✅ conservé + 🔧 in-screen | régén script reste sur le bloc, même thème (corrige « écran disparaît ») ; régén photo conservée | `R0_REGEN_SCRIPT`, `R0_PH_REGEN` |
+| **Conservation du contexte** | ✅ conservé + ➕ reboot | persisté à chaque rendu ; ajout reload au boot (A) | `r0SaveNav`/`v4r_nav.json` ; preuve /menu·/v4r·/restart intacts |
+
+**Aucun comportement en ❌.** Les seuls 🔧 sont justifiés (corrigent un bug ou ajoutent sans retirer). Les générations réelles restent ⚠️ (preuve = test terrain d'Etoile, pas de faux ✅).
+
+## CRITÈRE DE FEU VERT (récap)
+- ✅ données préservées (socle/facts intacts) · ✅ lecteurs préservés (239/239) · ✅ médias préservés (dépôt/cloud intacts) · ✅ comportements métier préservés (tableau 2, aucun ❌) · ✅ écarts V2 identifiés (D1–D7 + 3 🟥) · ✅ modifications tracées (ANOMALIES.md, REFERENCE_V2.md).
+- ⚠️ à valider en EXPÉRIENCE réelle bout-en-bout : générations photo/vidéo réelles (au réarmement étape 11).
+
 ## CONCLUSION
-Le lot V2 = **disposition/libellés/flux + correctifs de fond améliorants**. **Aucune couche donnée/lecteur/cloud/persistance n'est réécrite.** Les 3 points 🟥 (D2 découpe, D3 split, D4 scope) attendent ton arbitrage avant d'être figés. Sur ton go, déploiement atomique unique, puis re-preuve `--count 239/239` + tableau de conformité.
+Le lot V2 = **disposition/libellés/flux + correctifs de fond améliorants**. **Aucune couche donnée/lecteur/cloud/persistance n'est réécrite ; aucun comportement métier supprimé.** Les 3 points 🟥 (D2 découpe, D3 split, D4 scope) attendent ton arbitrage. Sur ton go : déploiement atomique unique → re-preuve `--count 239/239` + tableau de conformité + (étape 11) réarmement pour test terrain des générations réelles.
