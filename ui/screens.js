@@ -373,6 +373,8 @@ function confirmView(facts, ctx) {
        [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }],
        [{ text: '💾 Modèle', cb: 'R0_SAVEMODEL' }]]);  // [P6] mémorise la config courante comme modèle réutilisable
   if (fullBtn) rows.splice(1, 0, fullBtn);
+  // [APERÇU VIDÉO] éditer l'APPARENCE des sous-titres DANS l'aperçu (revient à l'aperçu, qui se re-rend avec le nouveau style).
+  if (cf.mediaKind === 'video' && !blocked) rows.splice(1, 0, [{ text: '🔤 Sous-titres', cb: 'R0_STEDIT' }]);
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 

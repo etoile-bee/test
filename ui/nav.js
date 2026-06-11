@@ -74,8 +74,8 @@ function blockSpec(block, facts, ctx) {
     const size = d.st_size || sty.size || 'M', pos = d.st_pos || sty.pos || 'bas', col = d.st_color || sty.color || 'blanc';
     const cap = 'auto · ' + disp + ' · ' + font + ' · ' + size + ' · ' + pos + ' · ' + col;
     return {
-      title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VE' },
-      validateCb: 'R0_VE', validateLabel: '✅ Valider',
+      title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: (ctx && ctx.subReturn) || 'R0_VE' },
+      validateCb: (ctx && ctx.subReturn) || 'R0_VE', validateLabel: '✅ Valider', // [APERÇU] revient à l'aperçu si ouvert depuis là (re-rend le clip)
       previewCb: 'R0_STPREV', // 👁 Aperçu : incruste un échantillon du script dans CE style (même moteur que le rendu)
       hint: 'Incrustés automatiquement. Tu règles l\'apparence ; l\'aperçu et la vidéo finale utilisent ces réglages.',
       options: [

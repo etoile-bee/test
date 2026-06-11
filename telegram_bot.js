@@ -2551,7 +2551,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
@@ -2890,6 +2890,7 @@ function r0Ctx(persona){
     ctx.looks=_r0LookCats();      // [#26] TENUE : toutes les catégories du catalogue (soiree/business/casual/cosy/ete/fete), pas juste la 1ʳᵉ
     ctx.scriptCats=_r0ScriptCats(); // [SCRIPTS] thèmes RÉELS legacy (red flags, hommes toxiques, attachement…) — comme les Tenues
     ctx.subStyle=_r0SubStyle();   // [#27] valeurs PAR DÉFAUT des sous-titres (lecture seule du legacy, verrou intact)
+    ctx.subReturn=r0SubReturn;    // [APERÇU] si le panneau sous-titres a été ouvert depuis l'aperçu vidéo -> Valider/Retour y reviennent
   }
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
@@ -2916,7 +2917,13 @@ async function r0Render(persona, editMid, banner){
   if(vw.await) r0Await=vw.await; // certaines sous-vues arment une saisie
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
   let kind=vw.kind||'text', media=null;
-  if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
+  // [APERÇU VIDÉO RÉEL] sur l'aperçu vidéo (confirm + pending vidéo), on peint un VRAI CLIP échantillon avec sous-titres incrustés
+  //   dans le style courant -> elle VOIT la forme (hauteur/taille/police/couleur) AVANT de générer, et peut l'ajuster (🔤 Sous-titres).
+  if(r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video'){
+    const clip=await r0SubClip(persona); if(clip){ media=clip; kind='video'; }
+    else { media=r0SourceFile(f); kind=media?'photo':'text'; } // dégradé : still source si ffmpeg indispo
+  }
+  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){
     // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
     //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).
@@ -3010,6 +3017,8 @@ async function r0Dispatch(persona, d, editMid){
   const {ENG,BUD,C}=_r0();
   // [PAGINATION] toute action HORS pagination remet la page à 0 (on rouvre une grille au début) ; les flèches changent la page.
   if(!/^R0_(GNEXT|GPREV|RENEXT|REPREV)$/.test(d)) r0Page=0;
+  // [APERÇU sous-titres] entrée NORMALE par le Montage -> le panneau revient au Montage (pas à l'aperçu) ; on efface le marqueur d'aperçu.
+  if(d==='R0_VE_SUBS') r0SubReturn=null;
   if(/^R0_(GNEXT|RENEXT)$/.test(d)){ r0Page++; await r0Render(persona, editMid); return; }       // Suivant ▶
   if(/^R0_(GPREV|REPREV)$/.test(d)){ r0Page=Math.max(0,r0Page-1); await r0Render(persona, editMid); return; } // ◀ Précédent
   // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
@@ -3061,6 +3070,8 @@ async function r0Dispatch(persona, d, editMid){
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
+  // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
+  if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
   if(d==='R0_STPREV'){ const png=await r0SubSample(persona);
     if(png){ try{ await sendPhotoKb(png, '👁 <i>Aperçu sous-titres — apparence appliquée (police · taille · position · couleur). Le rendu final utilisera EXACTEMENT ces réglages.</i>', null); }catch(e){} }
@@ -3192,6 +3203,31 @@ async function r0SubSample(persona){
     try{ await _execFileP('ffmpeg',['-y','-i',img,'-vf','scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1,ass='+assPath,'-frames:v','1','-q:v','2',out],{timeout:30000}); }catch(e){ return null; }
     return fs.existsSync(out)?out:null;
   }catch(e){ return null; }
+}
+// [APERÇU VIDÉO RÉEL — Etoile/Legacy] court clip ÉCHANTILLON depuis la photo source (zoom lent) avec sous-titres INCRUSTÉS
+//   dans LE style courant (mêmes r0SubOpts que le rendu final). Le texte est un échantillon ; ce qui compte = voir la FORME.
+//   Cache par (source + réglages) -> on ne régénère pas un clip identique. Local, gratuit, async (ne bloque pas la boucle).
+let _r0SubClipCache={};
+async function r0SubClip(persona){
+  try{ const {S}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
+    const img=r0SourceFile(f); if(!img||!fs.existsSync(img)) return null;
+    const o=r0SubOpts(dv);
+    let phrase=(dv.script&&String(dv.script).trim())||'Aperçu de tes sous-titres incrustés ici';
+    phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,7).join(' ');
+    let key=img+'|'+JSON.stringify(o)+'|'+phrase; let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+    const out=path.join(BASE,'assets_r','subclip_'+h.toString(36)+'.mp4');
+    if(_r0SubClipCache[h] && fs.existsSync(out)) return out;
+    if(R0DRY) return out; // dry : pas de ffmpeg
+    try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
+    const rl=freshRL(); const assPath='/tmp/subclip_'+h.toString(36)+'.ass';
+    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color}));
+    try{ if(fs.statSync(img).size<30000) require('child_process').execSync('brctl download "'+img+'" 2>/dev/null'); }catch(e){}
+    await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','4',
+      '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0012,1.12)\':d=100:s=720x1280:fps=25,ass='+assPath+',format=yuv420p',
+      '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{timeout:60000});
+    if(fs.existsSync(out)){ _r0SubClipCache[h]=1; return out; }
+  }catch(e){ try{ jlog('[v4r] subclip err '+e.message); }catch(_){} }
+  return null;
 }
 async function r0RealVideo(persona, id){
   const {S,C,BUD}=_r0(); const ts=Date.now();
