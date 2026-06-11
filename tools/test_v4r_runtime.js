@@ -199,6 +199,18 @@ async function main() {
   chk('PRÊT À POSTER : bouton présent sur VIDÉO·Résultat', bot.buttons().includes('R0_READY'));
   await bot.tap('R0_READY'); chk('PRÊT À POSTER : ouvre l\'écran pret, 1 cockpit', bot.state().screen === 'pret' && bot.state().cockpit === 1);
 
+  // ════ RÉGRESSION /v4r : depuis un écran PROFOND, /v4r revient à l'ACCUEIL du projet courant (couverture), projet jamais « disparu » ════
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // projet courant a une photo (cover)
+  const projRenders = bot.state().renders;
+  await bot.tap('R0_VIDEO'); // on s'enfonce (video_params/video)
+  const deep = bot.state().screen; chk('/v4r-fix : on est sur un écran profond avant', deep !== 'home');
+  await bot.open(); // /v4r
+  const s = bot.state();
+  chk('/v4r-fix : /v4r revient à l\'ACCUEIL (pas l\'écran profond restauré)', s.screen === 'home');
+  chk('/v4r-fix : projet courant TOUJOURS là (média conservé), 1 cockpit', s.curImg >= 1 && s.cockpit === 1);
+  chk('/v4r-fix : rendus précédents TOUJOURS dans le fil (jamais supprimés)', s.renders >= projRenders);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

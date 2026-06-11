@@ -2635,6 +2635,11 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
   if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
+// [FIX réel] COUVERTURE du projet = la DERNIÈRE image visible dont le FICHIER EXISTE vraiment (on remonte la liste).
+//   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
+function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).filter(m=>m&&m.type!=='video');
+  for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&fs.existsSync(fp)) return fp; } }catch(e){}
+  return r0DemoPhoto(); }
 // [CLOUD] Reconnexion au mécanisme iCloud EXISTANT : dossier historique = « podcast-looks » (= la cible du symlink `looks/`).
 //   Chaque PROJET a son sous-dossier podcast-looks/<projet>/ avec tous ses fichiers (photo/vidéo/…) -> resync auto iCloud + app Fichiers.
 //   AUCUN nouveau connecteur. Pas en dry-run (sandbox ne touche jamais le vrai iCloud).
@@ -2705,8 +2710,12 @@ async function r0Mosaic(files){
     files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1[v'+i+'];'; labels.push('[v'+i+']'); });
     const layout=files.map((f,i)=>((i%cols)*cell)+'_'+(Math.floor(i/cols)*cell)).join('|');
     fc+=labels.join('')+'xstack=inputs='+n+':layout='+layout+':fill=black[out]';
-    const out=path.join(BASE,'assets_r','_mosaic.jpg');
+    // [FIX grille] nom de planche UNIQUE par CONTENU (hash des fichiers) -> chaque page a SA planche, pas de cache Telegram périmé
+    //   (avant : _mosaic.jpg fixe -> page 2 réaffichait la planche de page 1).
+    let key=0; for(const f of files){ const b=path.basename(f); for(let i=0;i<b.length;i++) key=(key*31 + b.charCodeAt(i))>>>0; }
+    const out=path.join(BASE,'assets_r','_mosaic_'+key.toString(36)+'.jpg');
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
+    if(fs.existsSync(out)) return out; // déjà construite pour ce contenu
     args.push('-filter_complex',fc,'-map','[out]','-frames:v','1',out);
     await _execFileP('ffmpeg',args,{timeout:30000}); // [B4] ASYNC : ne bloque pas la boucle
     if(fs.existsSync(out)) return out;
@@ -2812,7 +2821,7 @@ async function r0Render(persona, editMid, banner){
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
-  if(kind==='photo'){ const m=C.lastImage(f); media=(m&&m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto(); if(!media) kind='text'; } // photo RÉELLE si dispo, sinon démo
+  if(kind==='photo'){ media=r0CoverFile(f); if(!media) kind='text'; } // [FIX réel] dernière image AVEC fichier existant ; démo seulement si AUCUN fichier réel
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
@@ -2825,7 +2834,7 @@ async function r0Render(persona, editMid, banner){
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
         files=all.filter(m=>m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
     }
-    else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
+    else { const r=ctx.recents||{projets:[]}; const base=(ctx.page&&ctx.page.base)||0; files=(r.projets||[]).slice(base,base+9).map(p=>r0CoverFile(p)); } // page courante + couverture réelle par projet
     files=files.filter(Boolean);
     if(files.length){ kind='photo'; media=files[0]; _galFiles=files; } // aperçu immédiat = 1ère image (la planche arrive en fond)
   }
@@ -2871,9 +2880,12 @@ async function r0TypedV4r(txt){
     try{ const nid=np&&np.facts&&np.facts.projectId; if(nid){ ['photo','video'].forEach(k=>{ const dd=DEF.applyTo(BASE,persona,k,{}); if(Object.keys(dd).length) S.setDraft(BASE,persona,nid,k,dd,Date.now()); }); } }catch(e){}
     r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null; r0Mid=null; r0Type=null; r0MediaPath=null;
     await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
-  if(txt==='/v4r'){ r0PickCurrent(persona); /*[B] reprend le projet AVEC médias (pas un vide)*/ if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
+  if(txt==='/v4r'){ r0PickCurrent(persona); /*[B] reprend le projet courant (le plus récent)*/
+    // [FIX réel] /v4r REPREND LE PROJET COURANT et montre SON ACCUEIL (couverture) — JAMAIS un écran profond (ex. video_params)
+    //   restauré depuis v4r_nav. Sinon Etoile « ne voit plus son projet » alors qu'il est là.
+    r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null;
     r0Mid=null; r0Type=null; r0MediaPath=null; /*poste un bloc neuf ; l'ancien n'est supprimé qu'APRÈS (jamais de trou)*/
-    await r0Render(persona,null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
+    await r0Render(persona,null,null); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
   r0Screen='home'; r0Mid=null; r0Type=null; r0MediaPath=null;
   await r0Render(persona,null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} }
 }
