@@ -2589,18 +2589,19 @@ async function r0PaintPhoto(photo, caption, rows, editMid){
   if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null;
   const d=await sendPhotoKb(photo, cap1024(caption), kb); r0Mid=(d&&d.result&&d.result.message_id)||null; r0Type='photo';
 }
-// Rendre une VUE (repos/cap/emo/obj/mem/ask_*) dans le bloc unique. banner = bandeau optionnel (repos).
+// Rendre une VUE (repos/cap/mem/ask_*) dans le bloc unique. banner = bandeau optionnel.
+//   Le KIND est décidé ICI (jamais dans les vues) : photo DÈS qu'une image existe (image en haut),
+//   sinon texte sobre — JAMAIS de placeholder (verrou repos-sans-média). Vues pures = { caption, rows }.
 async function r0Render(persona, view, editMid, banner){
   const {V}=_r0(); const f=r0Cur(persona,true); let vw;
   if(view==='cap') vw=V.capView(f);
-  else if(view==='emo') vw=V.emoView(f);
-  else if(view==='obj') vw=V.objView(f);
   else if(view==='mem') vw=V.memView(f);
   else if(view==='ask_msg') vw=V.askView('message');
   else if(view==='ask_pub') vw=V.askView('public');
-  else { const hasPhoto=((f.medias||[]).length>0)&&!!r0DemoPhoto(); vw=V.reposView(f, hasPhoto); }
+  else vw=V.reposView(f);
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
-  if(vw.kind==='photo') await r0PaintPhoto(r0DemoPhoto(), caption, vw.rows, editMid);
+  const hasPhoto=((f.medias||[]).length>0)&&!!r0DemoPhoto();
+  if(hasPhoto) await r0PaintPhoto(r0DemoPhoto(), caption, vw.rows, editMid);
   else await r0PaintText(caption, vw.rows, editMid);
 }
 
@@ -2630,10 +2631,10 @@ async function handle(upd){
         const editMid=cb.message.message_id;
         if(d==='R0_NEW'){ S.createProject(BASE,persona,{},Date.now()); jlog('[v4r] nouveau'); await r0Render(persona,'repos',editMid,'✨ <b>Nouveau projet</b>'); }
         else if(d==='R0_CAP') await r0Render(persona,'cap',editMid);
-        else if(d==='R0_CAPE') await r0Render(persona,'emo',editMid);
-        else if(d==='R0_CAPO') await r0Render(persona,'obj',editMid);
+        else if(d==='R0_REPOS') await r0Render(persona,'repos',editMid);
         else if(d==='R0_MEM') await r0Render(persona,'mem',editMid);
         else if(d==='R0_IMG'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now()); jlog('[v4r] image simulée (0 dépense)'); await r0Render(persona,'repos',editMid,'🖼 <b>Image convoquée</b> <i>(simulée — zéro dépense)</i>'); }
+        else if(d==='R0_REGEN'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now()); jlog('[v4r] image regénérée (0 dépense)'); await r0Render(persona,'repos',editMid,'🔄 <b>Image regénérée</b> <i>(simulée — zéro dépense)</i>'); }
         else if(d.indexOf('R0_EMO_')===0){ const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{emotion:d.slice(7)},Date.now()); await r0Render(persona,'cap',editMid); }
         else if(d.indexOf('R0_OBJ_')===0){ const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{objectif:d.slice(7)},Date.now()); await r0Render(persona,'cap',editMid); }
         else if(d==='R0_MSG'){ r0Await={mode:'message'}; await r0Render(persona,'ask_msg',editMid); }

@@ -41,8 +41,8 @@ function prochainGeste(facts) {
   const i = (facts && facts.intention) || {};
   if (!i.message) return { label: '✍️ Poser ton cap', cb: 'R0_CAP' };
   const medias = (facts && facts.medias) || [];
-  if (!medias.length) return { label: '🖼 Convoquer une première image', cb: 'R0_IMG' };
-  return { label: '🔎 Revoir ta matière', cb: 'R0_MEM' };
+  if (!medias.length) return { label: '🖼 Convoquer une image', cb: 'R0_IMG' };
+  return { label: '🔄 Regénérer l\'image', cb: 'R0_REGEN' };
 }
 
 // TITRE = compression minimale (Lot 0) : cap + état + mémoire. Déterministe.

@@ -43,7 +43,7 @@ chk('geste : cap vide -> proposer « Poser ton cap »', C.prochainGeste(vide).cb
 const avecCap = S.defaultFacts('imany', 'imany_z', now); avecCap.intention.message = 'x';
 chk('geste : cap posé, aucune image -> « Convoquer une première image »', C.prochainGeste(avecCap).cb === 'R0_IMG');
 const avecImg = JSON.parse(JSON.stringify(avecCap)); avecImg.medias = [{ id: 'm1', etat: 'candidate', simule: true }];
-chk('geste : image présente -> « Revoir ta matière »', C.prochainGeste(avecImg).cb === 'R0_MEM');
+chk('geste : image présente -> « Regénérer l\'image »', C.prochainGeste(avecImg).cb === 'R0_REGEN');
 chk('geste : déterministe (même faits -> même geste)', C.prochainGeste(avecCap).cb === C.prochainGeste(avecCap).cb);
 chk('situation : compte les images (fait)', C.situation(avecImg).medias === 1);
 
