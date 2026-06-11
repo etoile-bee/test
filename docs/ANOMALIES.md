@@ -66,10 +66,24 @@ Après le fix systémique [[ANO-CTX-BLOCK-DEMO-GENERAL]], les 9 panneaux d'édit
 - **Couche** : réception upload (`telegram_bot.js:4153+`)
 - **Gravité** : 🟡 (par design probable — à confirmer Etoile)
 - **Constaté** : import **photo** (→`looks/`) · **vidéo** (→`projects_r/<id>/`) · **référence** (→draft) existent et fonctionnent (rattachés+remontés+persistants, prouvé) ; **audio** n'a AUCUN chemin d'import (l'audio est GÉNÉRÉ par ElevenLabs/Kling, pas téléversé). Aussi : photo stockée dans le patrimoine global `looks/` vs vidéo dans le dossier projet (incohérence d'emplacement, sans perte).
-- **Statut** : 🟡 À ARBITRER (Etoile : faut-il un import audio ? faut-il uniformiser l'emplacement photo→dossier projet ?). Aucun correctif appliqué (pas de bug, choix produit).
+- **Décision Etoile** : import audio = OUI mais NON-BLOQUANT (« si simple → inclus ; sinon 🟡 planifié »). Uniformiser l'emplacement = OUI.
+- **FAIT — uniformisation emplacement import** : l'import **photo** va désormais dans le **DOSSIER PROJET** (`projects_r/<id>/import_*.jpg`), comme l'import **vidéo** (déjà projet). Reste visible en galerie globale (`r0RealImages` walk `projects_r`) + rattaché propre + source épinglée. `telegram_bot.js` import handler.
+- **🟡 PLANIFIÉ — import audio** : volontairement NON inclus dans ce lot. Raison honnête : un import audio **propre** doit être **réellement utilisé** par la génération (lipsync Kling avec piste audio fournie au lieu de la voix ElevenLabs) = intégration **pipeline réel + test terrain LIVE (dépense)**. Le faire « stockage seul » = demi-fonction (audio importé visible mais vidéo générée garde la voix ElevenLabs → trompeur). Estimation : stockage+UI **S** (offline) ; usage pipeline **M-L + ⚠️ terrain**. À chiffrer/lancer après le test terrain d'Etoile.
+- **Statut** : ✅ uniformisation FAITE · 🟡 import audio PLANIFIÉ (non-bloquant, comme autorisé).
 - **PREUVE RENFORCÉE (avant/après dispatch)** : `gen_audit_import_pub.js` → `docs/AUDIT_B_IMPORT_PUB.md` : #6 photo (looks/ · rattachée projet · Fichiers · Historique · **réutilisable comme source vidéo**), vidéo (dossier projet · source épinglée), réf (draft) ✅ ; #8 publication **avant/après** : `etat candidate→garde→publie`, **chemin fichier IDENTIQUE** (aucun move ; `setMediaEtat` ne fait aucune op fichier), même entrée média conservée, écran Publié distinct ✅. 13/13.
 
-## ANO-ARCH-VERSIONING — #3 historique des modifications de champ (DOCUMENTATION pour arbitrage Etoile, NON implémenté)
+## ANO-ARCH-VERSIONING — #3 historique des modifications de champ — ✅ IMPLÉMENTÉ (décision Etoile : OUI)
+- **Décision Etoile** : OUI, intégrer maintenant. « Régénérer/éditer ne doit JAMAIS écraser définitivement une bonne version. »
+- **Implémenté** : ring buffer borné (**5 dernières**) PAR CHAMP, empilé AVANT tout écrasement, dans les 2 points d'écriture :
+  - `socle.setDraft` → `photo.prompt`, `video.script`, snapshot `video.st` (ensemble sous-titres) ;
+  - `socle.setPublication` → `pub.legende_courte`, `pub.legende_longue`, `pub.hashtags`.
+  - `socle.restoreVersion(key,index)` ré-applique + consomme ; `versionsOf`.
+- **UI** : sur chaque bloc d'édition concerné — `⏪ Version précédente` (`R0_PREVVER`, restaure la dernière) + `🕘 Historique versions` (`R0_VERHIST` → écran `versions`, restaure une version précise `R0_VERSEL_*`). Respecte les règles figées (Retour/Accueil/Stop via wrapper) ; affiché SEULEMENT si des versions existent.
+- **Persistant** : stocké dans `facts.json` (`f.versions`) → survit `/v4r`·`/restart`.
+- **Statut** : ✅ CORRIGÉE (offline) — passé de 🟡 à ✅.
+- **PREUVE RÉELLE** : assertions runtime `VERSION ×7` : 2 éditions → ancienne valeur conservée ; valeur courante = plus récente ; bloc expose ⏪+🕘 ; **⏪ ramène l'ancien script** ; 🕘 ouvre l'écran versions (restaure) ; Retour → bloc ; **historique PERSISTE après /restart**. `tools/test_v4r_runtime.js`.
+
+## ANO-ARCH-VERSIONING-OLD — (doc d'origine, conservée pour trace)
 - **Couche** : `socle.setDraft` / `applyOp` `gentext`
 - **Gravité** : 🟡 (aucune perte de PROJET ni de MÉDIA — voir ci-dessous)
 - **COMPORTEMENT ACTUEL PRÉCIS (constaté + tracé code)** :

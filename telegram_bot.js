@@ -2551,7 +2551,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false, r0ResFrom=null, r0GalRole='select'; /*[RÉALISATION] génération en attente (coût) + filtres galerie + rôle galerie (select|history, G1) + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false, r0ResFrom=null, r0GalRole='select', r0VerKeys=null, r0VerReturn=null; /*[ANO-ARCH-VERSIONING] clés du champ en cours d'historique + bloc de retour*/ /*[RÉALISATION] génération en attente (coût) + filtres galerie + rôle galerie (select|history, G1) + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
@@ -2881,7 +2881,7 @@ function r0Ctx(persona){
     sections:secs,
     section:(r0Section?secs.find(s=>s.key===r0Section):null),
     recents:INV.recents(BASE,persona),
-    galleryKind:r0GalKind, galleryAll:r0GalAll, galleryRole:r0GalRole,
+    galleryKind:r0GalKind, galleryAll:r0GalAll, galleryRole:r0GalRole, verKeys:r0VerKeys, // [ANO-ARCH-VERSIONING] clés exposées à l'écran versions
   };
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
@@ -3139,6 +3139,18 @@ async function r0Dispatch(persona, d, editMid){
     if(file&&fs.existsSync(file)){ try{ if(r0GalKind==='video') await sendVideoKb(file,'🕘 <i>Historique — revoir</i>',null); else await sendPhotoKb(file,'🕘 <i>Historique — revoir</i>',null); }catch(e){} }
     else { try{ await toast('Fichier indisponible'); }catch(e){} }
     await r0Render(persona, editMid); return; }
+  // [ANO-ARCH-VERSIONING] ⏪ Version précédente : restaure la dernière version du champ du bloc courant (jamais de perte — la version est ré-appliquée).
+  if(d==='R0_PREVVER' && r0Block){ const f3=r0Cur(persona,true); const keys=NAV.verKeysFor(r0Block);
+    const key=keys.find(k=>((f3.versions&&f3.versions[k])||[]).length>0);
+    if(key){ const v=S.restoreVersion(BASE,persona,f3.projectId,key,null,Date.now()); await r0Render(persona, editMid, v!=null?'⏪ <b>Version précédente restaurée</b>':'Rien à restaurer'); }
+    else { try{ await toast('Aucune version antérieure'); }catch(e){} await r0Render(persona, editMid); }
+    return; }
+  // [ANO-ARCH-VERSIONING] 🕘 Historique versions : ouvre l'écran de parcours/restauration ; Retour revient au bloc.
+  if(d==='R0_VERHIST' && r0Block){ r0VerKeys=NAV.verKeysFor(r0Block); r0VerReturn=r0Block; r0Screen='versions'; await r0Render(persona, editMid); return; }
+  if(d==='R0_VERBACK'){ if(r0VerReturn){ r0Screen='block'; r0Block=r0VerReturn; } else { r0Screen='home'; } await r0Render(persona, editMid); return; }
+  if(d.indexOf('R0_VERSEL_')===0){ const m=d.slice(10).split('_'); const ki=+m[0], vi=+m[1]; const f3=r0Cur(persona,true);
+    const key=(r0VerKeys||[])[ki]; let v=null; if(key) v=S.restoreVersion(BASE,persona,f3.projectId,key,vi,Date.now());
+    if(r0VerReturn){ r0Screen='block'; r0Block=r0VerReturn; } await r0Render(persona, editMid, v!=null?'⏪ <b>Version restaurée</b>':'Restauration impossible'); return; }
   // [ÉCRAN FINAL] 💾 Enregistrer (CHOIX) : écrit l'archive organisée de la version dans podcast-looks/projets (image/vidéo/script/légendes/sous-titres/prompt). Récupérable.
   if(d==='R0_FIN_SAVE'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; let r=null; try{ r=r0ArchiveProjet(persona, id); }catch(e){}
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
@@ -4158,8 +4170,12 @@ async function handle(upd){
         S.setDraft(BASE,persona,id,'photo',{reference:fp},Date.now()); r0Block={screen:'photo',key:'reference'}; r0Screen='block';
         await r0Render(persona, r0Mid, '🖼 <b>Référence mise à jour</b>'); return;
       }
+      // [ANO-IMPORT-AUDIO/uniformisation] l'import PHOTO va dans le DOSSIER PROJET (comme l'import vidéo), pas dans looks/ global.
+      //   Reste visible en galerie globale (r0RealImages walk projects_r) ET rattaché proprement au projet.
+      try{ const pdir=path.join(BASE,'projects_r',persona,id); fs.mkdirSync(pdir,{recursive:true});
+        const dest=path.join(pdir,'import_'+Date.now()+'.jpg'); fs.renameSync(fp,dest); fp=dest; }catch(e){ jlog('[v4r] import photo move err '+e.message); }
       S.addCandidate(BASE,persona,id,Date.now(),'image',{file:fp, simule:false, source:'import', prompt:'(importée)'});
-      if(mode==='source'){ S.setDraft(BASE,persona,id,'video',{source:'photo importée'},Date.now()); r0Screen='video_params'; }
+      if(mode==='source'){ S.setDraft(BASE,persona,id,'video',{source:'photo importée',source_file:fp},Date.now()); r0Screen='video_params'; }
       else { r0Screen='photo_result'; }
       r0Block=null; r0Pending=null;
       await r0Render(persona, r0Mid, '📥 <b>Image importée</b>');
@@ -4653,6 +4669,7 @@ if(R0DRY){
     resReturn:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona()); const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx); const all=[].concat.apply([], (vw.rows||[])); const b=all.find(x=>/Retour/.test(x&&x.text||'')); return b&&b.cb||null; }catch(e){ return null; } }, // [G2] cb du ◀ Retour courant (preuve retour contextuel)
     setPub:(patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setPublication(BASE,_persona(),f.projectId,patch,Date.now()); }catch(e){} }, // [G5] seed légendes/hashtags
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
+    versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/

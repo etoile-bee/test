@@ -122,15 +122,53 @@ function setMediaEtat(base, persona, id, mediaId, etat, ts) {
 // Publication : ATTRIBUTS du dossier (légendes/hashtags/plateforme). N'exécute RIEN (publier = ailleurs, gaté).
 function setPublication(base, persona, id, patch, ts) {
   const f = loadFacts(base, persona, id); if (!f) return null;
-  f.publication = Object.assign({ legende_courte: null, legende_longue: null, hashtags: null, plateforme: null, publie_le: null }, f.publication, patch || {});
+  const cur = f.publication || {};
+  // [VERSIONING] empile l'ancienne légende/hashtags AVANT écrasement.
+  for (const field in (patch || {})) { if (VER_PUB.indexOf(field) >= 0 && cur[field] != null && cur[field] !== patch[field]) _pushVersion(f, 'pub.' + field, cur[field]); }
+  f.publication = Object.assign({ legende_courte: null, legende_longue: null, hashtags: null, plateforme: null, publie_le: null }, cur, patch || {});
   return saveFacts(base, persona, f, ts);
 }
 // BROUILLON de préparation (paramètres d'un écran riche AVANT génération) : ATTRIBUT du dossier.
 //   kind = 'photo' | 'video'. Tampon de travail durable (reconstruit l'écran à l'identique). Pas un nouvel objet.
+// [ANO-ARCH-VERSIONING] HISTORIQUE PAR CHAMP (ring buffer borné) : AVANT tout écrasement (régén/édition),
+//   on empile l'ancienne valeur. Aucune bonne version n'est jamais perdue définitivement. Persistant (facts.json).
+const VER_CAP = 5;
+const VER_DRAFT = { 'photo.prompt': 1, 'video.script': 1 };           // champs TEXTE simples versionnés (draft)
+const VER_ST = ['st_display', 'st_font', 'st_size', 'st_pos', 'st_color']; // sous-titres : snapshot de l'ENSEMBLE
+const VER_PUB = ['legende_courte', 'legende_longue', 'hashtags'];      // légendes versionnées (publication)
+function _pushVersion(f, key, val) {
+  if (val == null || val === '') return;
+  f.versions = f.versions || {};
+  const arr = f.versions[key] = f.versions[key] || [];
+  if (arr.length && arr[arr.length - 1] === val) return;               // pas de doublon consécutif
+  arr.push(val); while (arr.length > VER_CAP) arr.shift();             // cap = 5 dernières
+}
+function versionsOf(f, key) { return (f && f.versions && f.versions[key]) ? f.versions[key].slice() : []; }
+// Restaure une version (index ; défaut = la plus récente) -> ré-applique dans draft/publication et la CONSOMME. Renvoie la valeur restaurée.
+function restoreVersion(base, persona, id, key, index, ts) {
+  const f = loadFacts(base, persona, id); if (!f || !f.versions || !f.versions[key] || !f.versions[key].length) return null;
+  const arr = f.versions[key]; const idx = (index == null || index < 0 || index >= arr.length) ? arr.length - 1 : index;
+  const val = arr[idx]; arr.splice(idx, 1);                            // consommée
+  if (key === 'video.st') { try { const snap = JSON.parse(val); f.draft = f.draft || {}; f.draft.video = Object.assign({}, f.draft.video, snap); } catch (e) {} }
+  else { const dot = key.indexOf('.'); const scope = key.slice(0, dot), field = key.slice(dot + 1);
+    if (scope === 'pub') { f.publication = Object.assign({}, f.publication, { [field]: val }); }
+    else { f.draft = f.draft || {}; f.draft[scope] = Object.assign({}, f.draft[scope], { [field]: val }); } }
+  saveFacts(base, persona, f, ts); return val;
+}
+
 function setDraft(base, persona, id, kind, patch, ts) {
   const f = loadFacts(base, persona, id); if (!f) return null;
   f.draft = f.draft || {};
-  f.draft[kind] = Object.assign({}, f.draft[kind], patch || {});
+  const cur = f.draft[kind] || {};
+  // [VERSIONING] empile les anciennes valeurs des champs TEXTE versionnés AVANT écrasement.
+  for (const field in (patch || {})) { const k = kind + '.' + field;
+    if (VER_DRAFT[k] && cur[field] != null && cur[field] !== patch[field]) _pushVersion(f, k, cur[field]); }
+  // [VERSIONING sous-titres] toute modif d'un réglage st_* -> snapshot de l'ENSEMBLE st_* AVANT changement.
+  if (kind === 'video' && VER_ST.some(k => k in (patch || {}))) {
+    const snap = JSON.stringify(VER_ST.reduce((o, k) => { o[k] = cur[k] != null ? cur[k] : null; return o; }, {}));
+    _pushVersion(f, 'video.st', snap);
+  }
+  f.draft[kind] = Object.assign({}, cur, patch || {});
   return saveFacts(base, persona, f, ts);
 }
 function getDraft(facts, kind) { return (facts && facts.draft && facts.draft[kind]) || {}; }
@@ -171,4 +209,5 @@ module.exports = {
   createProject, loadFacts, saveFacts, listProjects, currentProject, friendlyName,
   setIntention, recordDecision, addCandidate, patchMedia, setMediaEtat,
   setPublication, setStatut, setDraft, getDraft, clearDraft, duplicateProject,
+  restoreVersion, versionsOf,
 };

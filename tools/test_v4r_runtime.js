@@ -305,6 +305,33 @@ async function main() {
   chk('G5 : la COPIE de la légende longue INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legl')));
   chk('G5 : le champ #️⃣ Hashtags reste SÉPARÉ (récupérable seul)', bot.fullText('tags').trim() === '#a #b #c');
 
+  // ════ [ANO-ARCH-VERSIONING] historique par champ : éditer écrase NON définitivement -> ⏪ restaure ; 🕘 parcourt ; persiste /restart ════
+  {
+    const S2 = require('../ui/socle');
+    bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); await bot.tap('R0_VIDEO');
+    const idv = S2.currentProject(process.env.V4R_SANDBOX, 'imany').projectId;
+    // 2 éditions successives du script (vrai write-path setDraft = celui qu'appellent régén ET saisie)
+    S2.setDraft(process.env.V4R_SANDBOX, 'imany', idv, 'video', { script: 'Script A' }, 1718000000000);
+    S2.setDraft(process.env.V4R_SANDBOX, 'imany', idv, 'video', { script: 'Script B' }, 1718000001000);
+    chk('VERSION : après 2 éditions, l\'ancienne valeur est dans l\'historique (Script A conservé)', bot.versions('video.script').indexOf('Script A') >= 0);
+    chk('VERSION : la valeur courante est la plus récente (Script B)', (bot.draft('video').script) === 'Script B');
+    // ouvrir le bloc script -> ⏪/🕘 présents
+    await bot.tap('R0_VE'); await bot.tap('R0_VIB_script');
+    chk('VERSION : le bloc Script expose ⏪ Version précédente + 🕘 Historique', bot.buttons().includes('R0_PREVVER') && bot.buttons().includes('R0_VERHIST'));
+    // ⏪ restaure l'ancienne version (Script A)
+    await bot.tap('R0_PREVVER');
+    chk('VERSION : ⏪ restaure la version précédente (script revient à Script A)', (bot.draft('video').script) === 'Script A');
+    // 🕘 Historique : écran versions, restaurer une version précise
+    S2.setDraft(process.env.V4R_SANDBOX, 'imany', idv, 'video', { script: 'Script C' }, 1718000002000); // crée une nouvelle version (Script A archivé)
+    await bot.tap('R0_VE'); await bot.tap('R0_VIB_script'); await bot.tap('R0_VERHIST');
+    chk('VERSION : 🕘 ouvre l\'écran historique des versions', bot.state().screen === 'versions' && bot.buttons().some(b => /^R0_VERSEL_/.test(b)));
+    await bot.tap('R0_VERBACK'); chk('VERSION : ◀ Retour de l\'historique revient au bloc Script', bot.state().screen === 'block' && bot.state().block === 'script');
+    // persistance /restart : l'historique survit
+    const beforeRestart = bot.versions('video.script').length;
+    await bot.restart();
+    chk('VERSION : l\'historique des versions PERSISTE après /restart', bot.versions('video.script').length === beforeRestart && beforeRestart > 0);
+  }
+
   // ════ [ANO-CTX-LIBELLE-STOP] #13 cohérence libellés : « Stop » même casse partout (jamais « STOP ») ════
   bot.reset(); await bot.open();
   chk('LIBELLÉ : Accueil expose « 🛑 Stop » (casse unifiée, pas « STOP »)', bot.labels().includes('🛑 Stop') && !bot.labels().includes('🛑 STOP'));

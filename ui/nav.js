@@ -270,9 +270,22 @@ function _view(state, facts, ctx) {
     case 'resources': return SC.resourcesView(facts, ctx);
     case 'pret': return SC.pretView(facts, ctx);
     case 'publies': return SC.publiesView(facts, ctx);
-    case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
+    case 'block': { const spec = blockSpec(state.block, facts, ctx); // [ANO-ARCH-VERSIONING] injecte l'historique du champ
+      const vk = verKeysFor(state.block); spec.verKeys = vk;
+      spec.hasVer = vk.some(k => ((facts && facts.versions && facts.versions[k]) || []).length > 0);
+      return SC.blockView(spec); }
+    case 'versions': return SC.versionsView(facts, ctx); // [ANO-ARCH-VERSIONING] 🕘 Historique versions (parcourir/restaurer)
     default: return SC.homeView(facts);
   }
+}
+// [ANO-ARCH-VERSIONING] champs versionnés exposés par chaque bloc d'édition (clés `scope.champ` / snapshot `video.st`).
+function verKeysFor(block) {
+  if (!block) return [];
+  if (block.key === 'prompt') return ['photo.prompt'];
+  if (block.key === 'script') return ['video.script'];
+  if (block.key === 'soustitres') return ['video.st'];
+  if (block.key === 'legende') return ['pub.legende_courte', 'pub.legende_longue', 'pub.hashtags'];
+  return [];
 }
 
 function parentOf(blk) { return blk === 'pubplat' ? 'publication' : (blk.indexOf('st') === 0 ? 'video_params' : (blk.indexOf('ph') === 0 ? 'photo_prompt' : 'video_params')); }
@@ -475,4 +488,4 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
   return S.loadFacts(base, persona, id);
 }
 
-module.exports = { NEXT, SETMAP, ASKMAP, NAVREQ, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk, fieldAlias };
+module.exports = { NEXT, SETMAP, ASKMAP, NAVREQ, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk, fieldAlias, verKeysFor };

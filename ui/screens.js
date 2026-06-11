@@ -504,10 +504,37 @@ function blockView(spec) {
   else { for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3)); }
   if (spec.askCb) rows.push([{ text: '✍️ Saisir', cb: spec.askCb }]);
   if (spec.previewCb) rows.push([{ text: '👁 Aperçu', cb: spec.previewCb }]); // [SOUS-TITRES] incruste un échantillon dans le style courant
+  // [ANO-ARCH-VERSIONING] ⏪ Version précédente (restaure la dernière) + 🕘 Historique versions (parcourir/restaurer). Affiché SEULEMENT si des versions existent.
+  if (spec.hasVer) rows.push([{ text: '⏪ Version précédente', cb: 'R0_PREVVER' }, { text: '🕘 Historique versions', cb: 'R0_VERHIST' }]);
   // [A1 — Etoile] SOURCE UNIQUE : le bloc pose SEULEMENT ◀ Retour ; le ✅ Valider universel est posé par le WRAPPER (cb distinct R0_BLOCK_OK) -> 0 doublon.
   const backBtn = spec.back || { text: '◀ Retour', cb: 'R0_HOME' };
   rows.push([backBtn]);
   return { kind: spec.parentKind || 'text', caption: cap, rows: rows, await: spec.await || null };
+}
+
+// [ANO-ARCH-VERSIONING] ÉCRAN HISTORIQUE VERSIONS : pour chaque champ versionné, liste les versions (plus récente d'abord), restaurables.
+const _VER_LABEL = { 'photo.prompt': '📝 Prompt', 'video.script': '🎬 Script', 'video.st': '🔤 Sous-titres', 'pub.legende_courte': '✏️ Lég. courte', 'pub.legende_longue': '📄 Lég. longue', 'pub.hashtags': '#️⃣ Hashtags' };
+function versionsView(facts, ctx) {
+  const keys = (ctx && ctx.verKeys) || [];
+  const versions = (facts && facts.versions) || {};
+  let cap = '<b>🕘 Historique des versions</b>\n<i>Touche une version pour la restaurer (les médias et la version courante ne sont jamais perdus).</i>';
+  const rows = [];
+  let any = false;
+  keys.forEach((k, ki) => {
+    const arr = (versions[k] || []);
+    if (!arr.length) return; any = true;
+    cap += '\n\n<b>' + (_VER_LABEL[k] || k) + '</b> · ' + arr.length + ' version(s)';
+    // plus récente d'abord (index réel décroissant)
+    for (let vi = arr.length - 1; vi >= 0; vi--) {
+      const raw = k === 'video.st' ? '(réglages)' : String(arr[vi]).replace(/\s+/g, ' ').trim();
+      const prev = raw.length > 40 ? raw.slice(0, 40) + '…' : raw;
+      cap += '\n  ' + (arr.length - vi) + '. ' + esc(prev);
+      rows.push([{ text: '⏪ ' + (_VER_LABEL[k] || k) + ' #' + (arr.length - vi), cb: 'R0_VERSEL_' + ki + '_' + vi }]);
+    }
+  });
+  if (!any) cap = '<b>🕘 Historique des versions</b>\n<i>Aucune version antérieure pour l\'instant.</i>';
+  rows.push([{ text: '◀ Retour', cb: 'R0_VERBACK' }]);
+  return { kind: 'text', caption: cap, rows: rows };
 }
 
 // Presets fixes (aucune dépendance externe) pour les blocs à choix fermé.
@@ -526,6 +553,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, resourcesView, pretView, publiesView, gridRows,
+  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, resourcesView, pretView, publiesView, versionsView, gridRows,
   PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };
