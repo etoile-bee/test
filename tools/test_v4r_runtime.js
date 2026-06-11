@@ -25,26 +25,26 @@ async function main() {
 
   // ════ B4 (transversal) : CHAQUE tap répond TOUJOURS + 1 SEUL bloc à tout instant ════
   bot.reset(); await bot.open();
-  chk('ouverture /v4r : exactement 1 bloc visible', bot.state().alive === 1);
+  chk('ouverture /v4r : exactement 1 bloc visible', bot.state().cockpit === 1);
   const seq = ['R0_PHOTO', 'R0_PH_GEN', 'R0_PHB_look', 'R0_VI_KEEPLOOK', 'R0_PH_USE', 'R0_VIDEO', 'R0_VI_VALID', 'R0_VI_PREVIEW', 'R0_VE_SUBS', 'R0_HOME', 'R0_RECENTS', 'R0_STUDIO', 'R0_PHOTO', 'R0_PH_GAL'];
   let alwaysOne = true, alwaysAnswered = true;
-  for (const d of seq) { const a0 = bot.state().answered; await bot.tap(d); const s = bot.state(); if (s.alive !== 1) alwaysOne = false; if (s.answered <= a0) alwaysAnswered = false; }
+  for (const d of seq) { const a0 = bot.state().answered; await bot.tap(d); const s = bot.state(); if (s.cockpit !== 1) alwaysOne = false; if (s.answered <= a0) alwaysAnswered = false; }
   chk('B4 : chaque tap RÉPOND (answerCallbackQuery à chaque fois)', alwaysAnswered);
-  chk('B1/B3 : 1 SEUL bloc visible à tout instant (aucune disparition, aucun empilement)', alwaysOne && bot.state().alive === 1);
+  chk('B1/B3 : 1 SEUL bloc visible à tout instant (aucune disparition, aucun empilement)', alwaysOne && bot.state().cockpit === 1);
 
   // ════ B1 : Accueil → Vidéo → Valider → on peut CONTINUER / SORTIR (pas de flux mort) ════
   bot.reset(); await bot.open();
   await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // une photo existe (source)
   await bot.tap('R0_VIDEO'); const sV = bot.state();
-  chk('B1 : Vidéo (source dispo) -> menu video_params, 1 bloc', sV.screen === 'video_params' && sV.alive === 1);
+  chk('B1 : Vidéo (source dispo) -> menu video_params, 1 bloc', sV.screen === 'video_params' && sV.cockpit === 1);
   await bot.tap('R0_VI_VALID'); const sVal = bot.state();
-  chk('B1 : après Valider, on reste sur le menu (pas d\'écran mort), 1 bloc + réponse', sVal.screen === 'video_params' && sVal.alive === 1);
+  chk('B1 : après Valider, on reste sur le menu (pas d\'écran mort), 1 bloc + réponse', sVal.screen === 'video_params' && sVal.cockpit === 1);
   await bot.tap('R0_HOME'); const sQ = bot.state();        // Accueil depuis un flux -> « Enregistrer avant de quitter ? »
-  chk('B1 : ACCUEIL depuis le menu vidéo -> écran « quitter ? » (changement réel, pas mort)', sQ.screen === 'quit' && sQ.alive === 1);
+  chk('B1 : ACCUEIL depuis le menu vidéo -> écran « quitter ? » (changement réel, pas mort)', sQ.screen === 'quit' && sQ.cockpit === 1);
   await bot.tap('R0_QUIT_DISCARD'); const sH = bot.state();  // sortie effective
-  chk('B1 : « Quitter » -> Accueil (sortie réelle possible)', sH.screen === 'home' && sH.alive === 1);
+  chk('B1 : « Quitter » -> Accueil (sortie réelle possible)', sH.screen === 'home' && sH.cockpit === 1);
   await bot.tap('R0_QUIT_CANCEL'); // (depuis home : sans effet, mais doit répondre)
-  chk('B1 : aucune impasse — on peut toujours continuer', bot.state().alive === 1);
+  chk('B1 : aucune impasse — on peut toujours continuer', bot.state().cockpit === 1);
 
   // ════ B2 : « Retour » produit un changement réel (pas de boucle, pas « not modified » figé) ════
   bot.reset(); await bot.open();
@@ -62,10 +62,10 @@ async function main() {
   // ════ B3 : /v4r ne fait JAMAIS disparaître le bloc (même avec un résultat affiché) ════
   bot.reset(); await bot.open();
   await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // bloc RÉSULTAT photo
-  chk('B3 : résultat photo affiché, 1 bloc', bot.state().alive === 1);
+  chk('B3 : résultat photo affiché, 1 bloc', bot.state().cockpit === 1);
   await bot.open(); // /v4r de nouveau
-  chk('B3 : après /v4r, le bloc EXISTE toujours (jamais 0 bloc)', bot.state().alive === 1);
-  await bot.typed('/v4r new'); chk('B3 : /v4r new -> 1 bloc (pas de disparition)', bot.state().alive === 1);
+  chk('B3 : après /v4r, le bloc EXISTE toujours (jamais 0 bloc)', bot.state().cockpit === 1);
+  await bot.typed('/v4r new'); chk('B3 : /v4r new -> 1 bloc (pas de disparition)', bot.state().cockpit === 1);
 
   // ════ B (projet courant) : au retour /v4r on retombe sur le projet AVEC médias (couverture), pas un vide ════
   bot.reset(); await bot.open();
@@ -78,6 +78,20 @@ async function main() {
   chk('B : /v4r reprise -> projet courant AVEC médias (pas le vide)', sB.curImg >= 1);
   chk('B : Accueil affiche la COUVERTURE (bloc photo, pas texte)', sB.screen === 'home' && sB.type === 'photo');
 
+  // ════ RENDUS PERSISTANTS : le cockpit est éphémère (1 bloc édité), les RENDUS restent dans le fil (jamais supprimés) ════
+  bot.reset(); await bot.open();
+  chk('RP : ouverture -> 1 cockpit, 0 rendu', bot.state().cockpit === 1 && bot.state().renders === 0);
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // 1 photo générée (simulée)
+  const rp1 = bot.state();
+  chk('RP : après génération photo -> 1 cockpit + 1 rendu persistant (message dédié)', rp1.cockpit === 1 && rp1.renders === 1);
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // 1 vidéo générée (simulée)
+  chk('RP : après génération vidéo -> 1 cockpit + 2 rendus persistants', bot.state().cockpit === 1 && bot.state().renders === 2);
+  const rpBefore = bot.state().renders;
+  await bot.open();        // /v4r reprise -> NE DOIT PAS supprimer les rendus déjà postés
+  chk('RP : /v4r reprise -> rendus CONSERVÉS (rien supprimé), cockpit toujours 1', bot.state().renders === rpBefore && bot.state().cockpit === 1);
+  await bot.typed('/v4r new'); // nouveau projet -> les rendus de l'ancien RESTENT dans le fil
+  chk('RP : /v4r new (changement de projet) -> anciens rendus TOUJOURS dans le fil', bot.state().renders === rpBefore && bot.state().cockpit === 1);
+
   // ════ K : VIDÉO branchée derrière la MÊME double-confirmation (ici SIMULÉE — LIVE OFF, zéro dépense, aucun appel Kling) ════
   const ENG = require('../ui/engines');
   chk('K : LIVE OFF -> liveFor(video)=false ET liveFor(photo)=false (rien n\'est armé)', ENG.liveFor('video') === false && ENG.liveFor('photo') === false);
@@ -89,6 +103,17 @@ async function main() {
   await bot.tap('R0_GO2'); chk('K : récap vidéo -> 2ᵉ CONFIRMATION (confirm2), toujours 0 vidéo créée', bot.state().screen === 'confirm2' && bot.state().curVid === vidBefore);
   await bot.tap('R0_GO2_CANCEL'); chk('K : Annuler -> retour récap, aucune vidéo créée', bot.state().screen === 'confirm' && bot.state().curVid === vidBefore);
   await bot.tap('R0_GO2'); await bot.tap('R0_GO'); chk('K : seul « Oui » crée la vidéo (simulée ici) après 2 confirmations', bot.state().curVid === vidBefore + 1);
+
+  // ════ #17 MODÈLES PRÉ-ENREGISTRÉS (script/prompt remontent + chargeables) & #18 ENREGISTRER PAR DÉFAUT ════
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); // bloc PROMPT photo
+  chk('#17 : bloc prompt propose des MODÈLES pré-enregistrés (📁) + 💾 Défaut', bot.buttons().some(b => /^R0_LOADP_/.test(b)) && bot.buttons().includes('R0_DEFSAVE'));
+  await bot.tap('R0_LOADP_0'); // charge un prompt pré-enregistré
+  chk('#17 : charger un modèle remplit le brouillon (aperçu éditable)', !!(bot.draft('photo').prompt && bot.draft('photo').prompt.length > 0));
+  await bot.tap('R0_DEFSAVE'); // enregistre ce prompt comme défaut
+  chk('#18 : « Défaut » mémorise la valeur courante (photo.prompt)', !!bot.defaults()['photo.prompt']);
+  await bot.typed('/v4r new'); // nouveau projet -> doit pré-remplir depuis le défaut
+  chk('#18 : nouveau projet pré-rempli depuis le défaut (réutilisé sans rien écraser)', bot.draft('photo').prompt === bot.defaults()['photo.prompt']);
 
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);

@@ -77,6 +77,7 @@ function blockSpec(block, facts, ctx) {
         { text: (d.st_pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
         { text: (d.st_size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
         { text: (d.st_size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
+        { text: '💾 Défaut', cb: 'R0_DEFSAVE' }, // [#18] mémorise les réglages sous-titres courants
       ],
     };
   }
@@ -101,10 +102,18 @@ function blockSpec(block, facts, ctx) {
     const opts = (block.key === 'source')
       ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
       : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
-    return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : 'Écris, ou ✨ génère puis édite.') };
+    // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable.
+    // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
+    if (block.key === 'prompt' || block.key === 'script') {
+      const list = ((ctx && ctx.presets && (block.key === 'script' ? ctx.presets.scripts : ctx.presets.prompts)) || []).slice(0, 3);
+      list.forEach((p, i) => opts.push({ text: '📁 ' + String(p.title || p.name || ('Modèle ' + (i + 1))).replace(/[*_`\[\]]/g, '').slice(0, 16), cb: 'R0_LOADP_' + i }));
+      opts.push({ text: '💾 Défaut', cb: 'R0_DEFSAVE' });
+    }
+    const hasDef = !!(ctx && ctx.defaults && ctx.defaults[block.screen + '.' + block.key]);
+    return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ génère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
   }
-  // blocs à CHOIX (list/preset/literal)
-  return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d) };
+  // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
+  return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
 }
 
 function titleOf(block) {
@@ -320,4 +329,4 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
   return S.loadFacts(base, persona, id);
 }
 
-module.exports = { NEXT, SETMAP, ASKMAP, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk };
+module.exports = { NEXT, SETMAP, ASKMAP, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk, fieldAlias };

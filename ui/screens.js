@@ -53,7 +53,7 @@ function photoView(facts) {
   const has = C.hasImage(facts);
   const n = C.visibles(facts).filter(m => m.type !== 'video').length;
   const cap = '<b>📸 PHOTO · Choisir</b>'
-    + (has ? ('\n🖼 ' + n + ' photo(s)') : '\n<i>aucune photo — à créer</i>');
+    + (has ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet') : '\n<i>aucune photo — à créer</i>');
   // (P2/P1.1b) si une photo existe : « Utiliser » -> préparation (boîte à outils) ; « Modifier » -> galerie (choisir/éditer).
   const rows = (has
     ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '✏️ Modifier', cb: 'R0_PH_GAL' }]]
@@ -388,6 +388,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, galleryView, videoEditView, quitView, photoSourceView, gridRows,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, gridRows,
   PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel,
 };

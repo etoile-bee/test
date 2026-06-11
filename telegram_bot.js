@@ -2544,6 +2544,9 @@ let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoir
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
 let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
+// [RENDUS PERSISTANTS] mids des RENDUS FINAUX (photo/vidéo générée) postés comme messages DÉDIÉS : ils RESTENT dans le fil,
+//   JAMAIS supprimés ni édités. Distincts du COCKPIT (r0Mid, éphémère/édité en place). /v4r·restart·changement de projet ne les touchent pas.
+let r0RenderMids=[];
 function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
 function v4Generate(flow, m){ // (legacy stub gratuit — conservé en secours, non utilisé quand imageBackend est branché)
   try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
@@ -2590,7 +2593,12 @@ function cockpitV4(){
 // ═══ [RÉALISATION — colonne vertébrale /v4r] UN SEUL bloc vivant : édité en place ; recréé (delete+post) seulement
 //     sur bascule TEXTE↔PHOTO. Vues PURES = ui/spine_view (testées hors Telegram) ; transport ici.
 //     Image affichée UNIQUEMENT si elle existe (jamais de placeholder) ; génération SIMULÉE (zéro dépense). Isolé du legacy/v4. ═══
-function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget'), PO:require('./ui/photo_opts') }; }
+function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget'), PO:require('./ui/photo_opts'), DEF:require('./ui/defaults') }; }
+// [#17] MODÈLES PRÉ-ENREGISTRÉS : scripts (library.json) + prompts (prompts/<persona>/*.json) déjà existants — lecture seule.
+function _r0Library(){ try{ delete require.cache[require.resolve('./library.json')]; return require('./library.json')||{}; }catch(e){ return {scripts:[]}; } }
+function _r0Prompts(persona){ const out=[]; try{ const dir=path.join(BASE,'prompts',persona);
+  for(const fn of fs.readdirSync(dir)){ if(!/\.json$/.test(fn)) continue; try{ const j=JSON.parse(fs.readFileSync(path.join(dir,fn),'utf8')); if(j&&j.text) out.push({name:j.name||fn.replace(/\.json$/,''), text:j.text}); }catch(e){} } }catch(e){}
+  return out; }
 function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_catalog.json')]; return require('./outfits_catalog.json'); }catch(e){ return null; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
@@ -2707,6 +2715,10 @@ function r0Ctx(persona){
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
   if(r0Screen==='gallery' && r0GalKind!=='video'){ ctx.galleryFiles=r0RealImages(persona,9); } // [P1.1] vraies images dispo (projet+global)
+  // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
+  if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
+    ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
+    ctx.defaults=DEF.load(BASE,persona); }
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
   if((r0Screen==='confirm'||r0Screen==='confirm2') && r0Pending){
@@ -2730,7 +2742,10 @@ async function r0Render(persona, editMid, banner){
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){ const m=C.lastImage(f); media=(m&&m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto(); if(!media) kind='text'; } // photo RÉELLE si dispo, sinon démo
-  // [F] GALERIE/HISTORIQUE/RÉCENTS : afficher une vraie MOSAÏQUE (planche-contact) comme média du bloc.
+  // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
+  // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
+  //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
+  let _galFiles=null;
   if(r0Screen==='gallery' || r0Screen==='recents'){
     let files=[];
     if(r0Screen==='gallery'){
@@ -2740,16 +2755,48 @@ async function r0Render(persona, editMid, banner){
     }
     else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
     files=files.filter(Boolean);
-    if(files.length){ const mo=await r0Mosaic(files); if(mo){ kind='photo'; media=mo; } }
+    if(files.length){ kind='photo'; media=files[0]; _galFiles=files; } // aperçu immédiat = 1ère image (la planche arrive en fond)
   }
   await r0Paint(kind, media, caption, vw.rows, editMid);
   r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
+  // [NO-FREEZE] planche-contact EN FOND (fire-and-forget) — ne bloque pas le handler, donc Retour/Accueil restent répondants.
+  if(_galFiles && _galFiles.length>1 && !R0DRY){ r0KickMosaic(_galFiles, r0Mid, r0Screen, caption, vw.rows); }
+}
+// [NO-FREEZE] Construit la planche-contact HORS du chemin de réponse aux taps, puis la pose dans le bloc SI on y est toujours
+//   (même message, même écran, toujours une photo). Toute erreur/délai reste silencieux : la 1ère image affichée suffit.
+function r0KickMosaic(files, mid, scr, caption, rows){
+  Promise.resolve().then(async()=>{
+    try{
+      const mo=await r0Mosaic(files);
+      if(mo && r0Mid===mid && r0Screen===scr && r0Type==='photo'){ const ok=await editPhotoKb(mid, mo, cap1024(caption), r0Kb(rows)); if(ok) r0MediaPath=mo; }
+    }catch(e){ try{ jlog('[v4r] mosaïque fond : '+e.message); }catch(_){} }
+  });
+}
+// [RENDUS PERSISTANTS] Poste un RENDU FINAL (photo/vidéo) comme MESSAGE DÉDIÉ qui RESTE dans le chat (jamais r0Mid, jamais supprimé/édité).
+//   C'est le « keepsake » : la grammaire post-puis-supprime / édit-en-place du COCKPIT ne s'y applique JAMAIS. Sans boutons (intouchable).
+async function r0PostFinal(kind, file, caption){
+  try{
+    if(!file) return null;
+    let mid=null;
+    if(kind==='video'){ mid=await sendVideoKb(file, cap1024(caption), null); if(!mid){ const d=await sendPhotoKb(file, cap1024(caption), null); mid=r0MidOf(d); } }
+    else { const d=await sendPhotoKb(file, cap1024(caption), null); mid=r0MidOf(d); }
+    if(mid){ r0RenderMids.push(mid); jlog('[v4r] rendu persistant posté mid='+mid+' ('+kind+') — conservé dans le fil'); }
+    return mid;
+  }catch(e){ try{ jlog('[v4r] post rendu persistant err '+e.message); }catch(_){} return null; }
+}
+// Légende d'un rendu persistant : nom du projet + nature + (réel/simulation). Reste affichée à vie dans le fil.
+function r0FinalCap(persona, kind, sim, extra){
+  let nom=''; try{ const {C}=_r0(); const f=r0Cur(persona,false); nom=(C.titre?C.titre(f):'')||(f&&f.nom)||''; }catch(e){}
+  const tete=(kind==='video'?'🎬 <b>Vidéo générée</b>':'✨ <b>Photo générée</b>');
+  return tete+(nom?(' · '+_r0esc(nom)):'')+(extra?(' · '+extra):'')+(sim?'\n🟡 <i>simulation — aucune dépense</i>':'\n<i>conservée dans le fil</i>');
 }
 
 // [B3] /v4r typé : RESTAURE le contexte + poste un bloc FRAIS, en POST-PUIS-SUPPRIME (le bloc ne disparaît jamais).
 async function r0TypedV4r(txt){
   const persona=_persona(); r0Await=null; const old=r0Mid;
-  if(txt==='/v4r new'){ const {S}=_r0(); S.createProject(BASE,persona,{},Date.now());
+  if(txt==='/v4r new'){ const {S,DEF}=_r0(); const np=S.createProject(BASE,persona,{},Date.now());
+    // [#18] nouveau projet : pré-remplir les brouillons avec les DÉFAUTS du persona (sans rien écraser).
+    try{ const nid=np&&np.facts&&np.facts.projectId; if(nid){ ['photo','video'].forEach(k=>{ const dd=DEF.applyTo(BASE,persona,k,{}); if(Object.keys(dd).length) S.setDraft(BASE,persona,nid,k,dd,Date.now()); }); } }catch(e){}
     r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null; r0Mid=null; r0Type=null; r0MediaPath=null;
     await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
   if(txt==='/v4r'){ r0PickCurrent(persona); /*[B] reprend le projet AVEC médias (pas un vide)*/ if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
@@ -2783,6 +2830,19 @@ async function r0Dispatch(persona, d, editMid){
     await r0Render(persona, editMid, '⛔ <b>Budget de test épuisé ('+b.max+'/'+b.max+')</b> — réautorisation d\'Etoile nécessaire.');
     return;
   }
+  // [#17] CHARGER UN MODÈLE pré-enregistré (script/prompt) dans le brouillon — besoin du disque -> hors reducer pur. Aperçu = re-render.
+  if(d.indexOf('R0_LOADP_')===0 && r0Block){ const idx=+d.slice(9); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
+    let text=null; try{ if(field==='script'){ const sc=(_r0Library().scripts||[]).slice(-12).reverse(); text=sc[idx]&&sc[idx].script; }
+      else if(field==='prompt'){ const pl=_r0Prompts(persona); text=pl[idx]&&pl[idx].text; } }catch(e){}
+    if(text){ S.setDraft(BASE,persona,id,kind,{[field]:text},now); try{ await toast('📁 Modèle chargé — édite si besoin'); }catch(e){} }
+    else { try{ await toast('Modèle indisponible'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
+  // [#18] ENREGISTRER PAR DÉFAUT la valeur courante de l'outil — réutilisée aux prochaines générations/nouveaux projets.
+  if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
+    const dr=S.getDraft(r0Cur(persona),kind)||{}; const val=dr[field];
+    if(val!=null&&val!==''){ DEF.setField(BASE,persona,kind,field,val); try{ await toast('💾 Enregistré par défaut — réutilisé ensuite'); }catch(e){} }
+    else { try{ await toast('Rien à enregistrer (vide)'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
   if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image'){
@@ -2802,6 +2862,7 @@ async function r0Dispatch(persona, d, editMid){
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Génération non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour puis réessaie.';
+      if(out.ok){ const mi=C.lastImage(r0Cur(persona)); if(mi&&mi.file) await r0PostFinal('photo', mi.file, r0FinalCap(persona,'photo',false,'test n°'+out.tests+'/'+out.max)); } // [RENDU PERSISTANT] keepsake séparé
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } finally { r0Busy=false; }
     return;
@@ -2818,12 +2879,20 @@ async function r0Dispatch(persona, d, editMid){
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
+      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file) await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } // [RENDU PERSISTANT] keepsake séparé
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } finally { r0Busy=false; }
     return;
   }
   if(d==='R0_GO' && r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente'); }catch(e){} return; } // verrou aussi hors photo
   if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now); // simulé (tout le reste : vidéo/texte/etc. reste mock tant que non autorisé)
+  // [RENDU PERSISTANT] création SIMULÉE d'une photo/vidéo (LIVE off) : on dépose AUSSI un message dédié qui RESTE dans le fil (maquette).
+  if(res.op && res.op.type==='create' && (res.op.kind==='image' || res.op.kind==='video')){
+    try{ const cur2=r0Cur(persona); const isVid=res.op.kind==='video';
+      const mi=isVid?C.lastVideo(cur2):C.lastImage(cur2); let file=(mi&&mi.file&&fs.existsSync(mi.file))?mi.file:(isVid?await r0DemoVideo():r0DemoPhoto());
+      if(file) await r0PostFinal(isVid?'video':'photo', file, r0FinalCap(persona, isVid?'video':'photo', true, null));
+    }catch(e){ try{ jlog('[v4r] rendu sim persistant err '+e.message); }catch(_){} }
+  }
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
   if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; } /*réinit hors galerie*/
@@ -4058,7 +4127,7 @@ tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne
 if(R0DRY){
   module.exports = {
     R0DRY,
-    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[]; try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
+    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0RenderMids=[]; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[]; try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
     open:async()=>{ await r0TypedV4r('/v4r'); },                  // simule un /v4r
     typed:async(t)=>{ await r0TypedV4r(t); },
     // simule un TAP de bouton sur le bloc courant (= branche R0_ du vrai handler : sync mid/type + dispatch + answerCB TOUJOURS)
@@ -4067,7 +4136,17 @@ if(R0DRY){
       try{ await r0Dispatch(_persona(), d, mid); }catch(e){ R0DRY.log.push('THROW:'+e.message); try{ await r0Render(_persona(), mid, '⚠️ Action non aboutie — réessaie.'); }catch(_){} }
       try{ await tg('answerCallbackQuery',{}); }catch(_){}                  // le vrai handler répond TOUJOURS
     },
-    state:()=>{ const {C}=_r0(); const f=r0Cur(_persona(),false)||{}; return { screen:r0Screen, section:r0Section, block:r0Block&&r0Block.key, mid:r0Mid, type:r0Type, pending:r0Pending&&r0Pending.kind, alive:R0DRY.alive.size, answered:R0DRY.answered, curImg:(C.visibles(f).filter(m=>m.type!=='video')).length, curVid:(C.visibles(f).filter(m=>m.type==='video')).length }; },
+    state:()=>{ const {C}=_r0(); const f=r0Cur(_persona(),false)||{};
+      const renders=r0RenderMids.filter(m=>R0DRY.alive.has(m)).length;       // rendus persistants encore dans le fil
+      const cockpit=(r0Mid&&R0DRY.alive.has(r0Mid))?1:0;                      // bloc cockpit vivant (doit valoir 1)
+      return { screen:r0Screen, section:r0Section, block:r0Block&&r0Block.key, mid:r0Mid, type:r0Type, pending:r0Pending&&r0Pending.kind, alive:R0DRY.alive.size, cockpit:cockpit, renders:renders, answered:R0DRY.answered, curImg:(C.visibles(f).filter(m=>m.type!=='video')).length, curVid:(C.visibles(f).filter(m=>m.type==='video')).length }; },
+    // [CARTOGRAPHIE] boutons RÉELLEMENT rendus sur l'écran courant (cb à plat) — pour prouver Retour/Suivant + zéro tap mort.
+    buttons:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona());
+      const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx);
+      return [].concat.apply([], (vw.rows||[])).map(b=>b&&b.cb).filter(Boolean); }catch(e){ return []; } },
+    logs:()=>R0DRY.log.slice(),   // journal interne (THROW:* si une exception a été avalée) — la cartographie échoue si non vide
+    draft:(kind)=>{ try{ const {S}=_r0(); return S.getDraft(r0Cur(_persona(),false), kind)||{}; }catch(e){ return {}; } }, // brouillon courant (preuve #17/#18)
+    defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
