@@ -37,10 +37,14 @@ function situation(facts) {
 }
 
 // Lecture des manifestations (médias) par nature — image/vidéo sont des natures EXISTANTES du modèle.
-function medias(facts) { return (facts && facts.medias) || []; }
-function hasVideo(facts) { return medias(facts).some(function (m) { return m && m.type === 'video'; }); }
-function hasImage(facts) { return medias(facts).some(function (m) { return !m || m.type !== 'video'; }); }
-function lastMedia(facts) { const ms = medias(facts); return ms.length ? ms[ms.length - 1] : null; }
+//   La suppression est DOUCE : un média `supprime` RESTE dans le dossier (historique) mais n'est plus « visible ».
+function medias(facts) { return (facts && facts.medias) || []; }                            // TOUT (historique compris)
+function visibles(facts) { return medias(facts).filter(function (m) { return m && m.etat !== 'supprime'; }); }
+function hasVideo(facts) { return visibles(facts).some(function (m) { return m.type === 'video'; }); }
+function hasImage(facts) { return visibles(facts).some(function (m) { return m.type !== 'video'; }); }
+function lastMedia(facts) { const ms = visibles(facts); return ms.length ? ms[ms.length - 1] : null; }
+function lastImage(facts) { const ms = visibles(facts).filter(function (m) { return m.type !== 'video'; }); return ms.length ? ms[ms.length - 1] : null; }
+function lastVideo(facts) { const ms = visibles(facts).filter(function (m) { return m.type === 'video'; }); return ms.length ? ms[ms.length - 1] : null; }
 // KIND à matérialiser : la DERNIÈRE manifestation créée (esprit Option A : « je vois ce que je viens de créer »).
 //   Créer une image -> on voit l'image ; faire une vidéo -> on voit la vidéo ; regénérer l'image -> on revoit l'image.
 function mediaKind(facts) { const m = lastMedia(facts); if (!m) return 'text'; return m.type === 'video' ? 'video' : 'photo'; }
@@ -59,4 +63,4 @@ function titre(facts) {
   return '🧭 ' + s.cap + '\n📊 ' + s.etat + ' · 🗂 ' + s.decisions + ' décision(s)';
 }
 
-module.exports = { etat, capLine, situation, titre, prochainGeste, medias, hasImage, hasVideo, mediaKind };
+module.exports = { etat, capLine, situation, titre, prochainGeste, medias, visibles, hasImage, hasVideo, lastMedia, lastImage, lastVideo, mediaKind };

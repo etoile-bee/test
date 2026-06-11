@@ -24,6 +24,8 @@ function genId(persona, ts) {
 }
 
 // FAITS DURABLES uniquement (aucune dérivation). L'intention = cap composite (esquissable).
+//   `publication`, `statut`, `archive` = ATTRIBUTS du dossier (objet existant), conformes au modèle
+//   (Légende courte/longue/Plateforme prévues par MODELE_METIER) — AUCUN nouvel objet.
 function defaultFacts(persona, id, ts) {
   const t = iso(ts);
   return {
@@ -32,6 +34,8 @@ function defaultFacts(persona, id, ts) {
     intention: { message: null, emotion: null, public: null, objectif: null, declencheur: null },
     decisions: [],   // mémoire (action + raison)
     medias: [],      // Média produit (faits déposés par l'Atelier : candidate + RAW) — simulés en V1
+    publication: { legende_courte: null, legende_longue: null, hashtags: null, plateforme: null, publie_le: null },
+    statut: 'brouillon', // brouillon | actif | archive (attribut du dossier)
   };
 }
 
@@ -86,13 +90,61 @@ function recordDecision(base, persona, id, action, raison, auteur, ts) {
 // Atelier : dépose un fait-média à l'état `candidate` (simulé en V1 — zéro dépense).
 //   `type` = nature du média (image|video) — attribut d'un objet EXISTANT (le média = manifestation
 //   du cap), conforme au modèle scellé (MODELE_METIER : prompt rôle image/vidéo ; projet = image/vidéo/les deux).
-//   AUCUN objet ni règle nouveau : on qualifie une manifestation déjà prévue.
-function addCandidate(base, persona, id, ts, type) {
+//   `attrs` = autres ATTRIBUTS de la même manifestation (prompt, params, source, script, voix, musique,
+//   légendes…) — déjà prévus par le modèle (Prompt/Script/Légende/RAW). AUCUN objet ni règle nouveau.
+//   Renvoie { facts, mediaId } pour permettre l'édition immédiate de la matière déposée.
+function addCandidate(base, persona, id, ts, type, attrs) {
   const f = loadFacts(base, persona, id); if (!f) return null;
   f.medias = f.medias || [];
   const mid = 'm' + (f.medias.length + 1);
-  f.medias.push({ id: mid, etat: 'candidate', simule: true, type: (type === 'video' ? 'video' : 'image'), produit_le: iso(ts) });
+  const m = Object.assign({ id: mid, etat: 'candidate', simule: true, type: (type === 'video' ? 'video' : 'image'), produit_le: iso(ts) }, attrs || {});
+  f.medias.push(m);
+  saveFacts(base, persona, f, ts);
+  return { facts: f, mediaId: mid };
+}
+// Édite les ATTRIBUTS d'une manifestation existante (prompt/params/source/script/voix/musique/légendes…).
+function patchMedia(base, persona, id, mediaId, patch, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  const m = (f.medias || []).find(x => x.id === mediaId); if (!m) return null;
+  Object.assign(m, patch || {});
   return saveFacts(base, persona, f, ts);
+}
+// État d'une manifestation : 'garde' (validée) | 'supprime' (SOFT : sort de la vue, RESTE dans le dossier — rien ne se perd).
+function setMediaEtat(base, persona, id, mediaId, etat, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  const m = (f.medias || []).find(x => x.id === mediaId); if (!m) return null;
+  m.etat = etat;
+  return saveFacts(base, persona, f, ts);
+}
+// Publication : ATTRIBUTS du dossier (légendes/hashtags/plateforme). N'exécute RIEN (publier = ailleurs, gaté).
+function setPublication(base, persona, id, patch, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.publication = Object.assign({ legende_courte: null, legende_longue: null, hashtags: null, plateforme: null, publie_le: null }, f.publication, patch || {});
+  return saveFacts(base, persona, f, ts);
+}
+// BROUILLON de préparation (paramètres d'un écran riche AVANT génération) : ATTRIBUT du dossier.
+//   kind = 'photo' | 'video'. Tampon de travail durable (reconstruit l'écran à l'identique). Pas un nouvel objet.
+function setDraft(base, persona, id, kind, patch, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.draft = f.draft || {};
+  f.draft[kind] = Object.assign({}, f.draft[kind], patch || {});
+  return saveFacts(base, persona, f, ts);
+}
+function getDraft(facts, kind) { return (facts && facts.draft && facts.draft[kind]) || {}; }
+// Statut du dossier (brouillon | actif | archive). Soft : archiver ne supprime jamais.
+function setStatut(base, persona, id, statut, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.statut = statut;
+  return saveFacts(base, persona, f, ts);
+}
+// Duplique un dossier (copie d'amorce) — nouvel id, mêmes faits, repart en brouillon.
+function duplicateProject(base, persona, srcId, ts) {
+  const src = loadFacts(base, persona, srcId); if (!src) return null;
+  const id = genId(persona, ts);
+  const f = JSON.parse(JSON.stringify(src));
+  f.projectId = id; f.cree_le = iso(ts); f.statut = 'brouillon'; f.publication = Object.assign({}, f.publication, { publie_le: null });
+  saveFacts(base, persona, f, ts);
+  return { projectId: id, facts: f };
 }
 
 // Libellé lisible par défaut (jamais d'ID technique) — utilisé par la Conscience si pas de message.
@@ -104,5 +156,6 @@ function friendlyName(creeLe) {
 module.exports = {
   rroot, personaDir, pdir, fpath, genId, defaultFacts,
   createProject, loadFacts, saveFacts, listProjects, currentProject, friendlyName,
-  setIntention, recordDecision, addCandidate,
+  setIntention, recordDecision, addCandidate, patchMedia, setMediaEtat,
+  setPublication, setStatut, setDraft, getDraft, duplicateProject,
 };
