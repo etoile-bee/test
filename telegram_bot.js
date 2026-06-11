@@ -2523,7 +2523,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false; /*[RÉALISATION] génération en attente de confirmation (coût) + filtres galerie. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null; /*[RÉALISATION] génération en attente de confirmation (coût) + filtres galerie + écran de retour « quitter ». Transitoires.*/
 function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
 function v4Generate(flow, m){ // (legacy stub gratuit — conservé en secours, non utilisé quand imageBackend est branché)
   try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
@@ -2573,6 +2573,7 @@ function cockpitV4(){
 function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget') }; }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
+  if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
   const params = pending.kind==='video' ? Object.assign({duree:'23s'}, S.getDraft(f,'video')) : Object.assign({nb_images:1, mode:'eco'}, S.getDraft(f,'photo'));
   return COST.estimate(pending.kind==='video'?'video':'image', params, lb); }
 function _r0Lookbook(){ try{ delete require.cache[require.resolve('./lookbook.json')]; return require('./lookbook.json'); }catch(e){ return null; } }
@@ -2613,11 +2614,15 @@ async function r0Paint(targetKind, mediaPath, caption, rows, editMid){
                                        : await editPhotoKb(cur, mediaPath, cap1024(caption), kb);
     if(ok){ r0Mid=cur; r0Type=targetKind; return; }
   }
-  // recreate : supprime l'ancien + poste un bloc neuf (1 seul à l'écran)
-  if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null;
-  if(targetKind==='text'){ const r=await send(caption, kb); r0Mid=r0MidOf(r); r0Type='text'; }
-  else if(targetKind==='video'){ r0Mid=await sendVideoKb(mediaPath, cap1024(caption), kb)||null; r0Type='video'; }
-  else { const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); r0Mid=r0MidOf(d); r0Type='photo'; }
+  // recreate : POSTE D'ABORD le neuf, PUIS supprime l'ancien (point 7 : JAMAIS de bloc qui disparaît).
+  //   Si le neuf échoue -> on garde l'ancien (aucune perte). Recouvrement momentané (sous-seconde) toléré pour ne RIEN perdre.
+  const old=r0Mid; let newMid=null, newType=targetKind;
+  if(targetKind==='text'){ const r=await send(caption, kb); newMid=r0MidOf(r); }
+  else if(targetKind==='video'){ newMid=await sendVideoKb(mediaPath, cap1024(caption), kb)||null;
+    if(!newMid){ const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); newMid=r0MidOf(d); newType='photo'; } } // dégradé : jamais de trou
+  else { const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); newMid=r0MidOf(d); }
+  if(newMid){ r0Mid=newMid; r0Type=newType; if(old&&old!==newMid){ try{ await delMsg(old); }catch(e){} } } // l'ancien part seulement si le neuf est là
+  else { jlog('[v4r] recreate: échec du nouveau bloc — ancien conservé (aucune perte)'); /* r0Mid/r0Type inchangés */ }
 }
 // Contexte de rendu (listes dynamiques) construit depuis l'INVENTAIRE (repositionnement de l'existant).
 function r0Ctx(persona){
@@ -2671,11 +2676,11 @@ async function r0Dispatch(persona, d, editMid){
     return;
   }
   const pendingPaidGo = (d==='R0_GO' && r0Pending) ? r0Pending : null;
-  const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending}, cur, ctx);
+  const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom}, cur, ctx);
   if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now);
   // ENREGISTREMENT TEST RÉEL : uniquement si une génération payante a réellement été lancée (moteur réel armé).
   if(pendingPaidGo && ENG.live()){ const est=r0EstFor(persona, pendingPaidGo); const b=BUD.record(BASE, (est&&est.credits)||0); jlog('[v4r] TEST RÉEL n°'+b.tests+'/'+b.max+' (+'+((est&&est.credits)||0)+' cr) — moteur '+(est&&est.moteur)); }
-  r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending;
+  r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
   if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; } /*réinit hors galerie*/
   if(res.await) r0Await=res.await;
@@ -3809,25 +3814,12 @@ process.on('uncaughtException', (e)=>{ console.error('uncaughtException:', e && 
 process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e && e.stack ? e.stack : e); });
 
 setInterval(()=>{},1<<30);
-tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer · Bibliothèque · Aide)*/
-  /* — Pilotage (en tête) — */
-  {command:'menu',description:'🏠 Menu principal'},
-  {command:'stop',description:'⏹ Tout arrêter'},
+tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne garder que les points d'entrée MÉTIER.*/
+  {command:'v4r',description:'🎬 Studio (Accueil)'},
+  {command:'menu',description:'🏠 Menu'},
+  {command:'creer',description:'🚀 Créer une vidéo'},
+  {command:'newlook',description:'🎨 Nouveau look'},
   {command:'restart',description:'🔄 Redémarrer'},
-  {command:'go',description:'🏠 Menu principal (alias)'},
-  {command:'studio',description:'🎬 Studio (bibliothèque)'},
-  /* — Créer — */
-  {command:'creer',description:'🚀 Créer une vidéo (Express / Sur-mesure / Auto)'},
-  {command:'newlook',description:'🎨 Nouveau look (photos, même visage)'},
-  {command:'editer',description:'🎨 Éditer le look (sous-titres, image, zooms…)'},
-  {command:'apercu',description:'👁 Aperçu gratuit'},
-  /* — Bibliothèque — */
-  {command:'looks',description:'👗 Looks / Avatars'},
-  {command:'photos',description:'🖼 Photos générées'},
-  {command:'videos',description:'🎬 Vidéos'},
-  {command:'posted',description:'📤 Prêt à poster'},
-  {command:'historique',description:'🕘 Historique des générations'},
-  /* — Aide — */
   {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
@@ -3836,5 +3828,10 @@ tg('setMyCommands',{commands:[ /*[C4] cmdmenu v4 : familles (Pilotage · Créer 
   console.log('Bot running...');poll();
   /*[fix/restart-feedback] après un /restart demandé par l'utilisateur, RÉAFFICHER le cockpit (accueil) — sans message technique.
     Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
-  setTimeout(()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){} routeBlock('home','navigate').catch(()=>{}); } }catch(e){} },1500);
+  setTimeout(async ()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){}
+    /*[stabilisation point 1] /restart -> atterrissage AUTO sur l'Accueil /v4r + message système PERSISTANT avec accès /menu.*/
+    try{ const persona=_persona(); r0Mid=null; r0Type=null; r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0QuitFrom=null;
+      await r0Render(persona, null); }catch(e){ jlog('restart v4r err '+e.message); }
+    await send('🔄 <b>Redémarré</b> — tu es sur l\'Accueil du studio. Tape /menu pour le menu, /v4r pour revenir ici.').catch(()=>{});
+  } }catch(e){} },1500);
 }).catch(e=>{console.error(e.message);process.exit(1);});

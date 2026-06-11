@@ -16,11 +16,14 @@ function nom(facts) { return (facts && facts.intention && facts.intention.messag
 function capLigne(facts) { const i = (facts && facts.intention) || {}; return i.message ? ('🎯 ' + esc(short(i.message, 60))) : '🎯 <i>cap à définir</i>'; }
 const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
 
-// ── ÉCRAN 1 — ACCUEIL ───────────────────────────────────────────────────────
+// ── ÉCRAN 1 — ACCUEIL (jamais vide : COUVERTURE = dernière image du projet ; sinon sobre, sans placeholder) ──
 function homeView(facts) {
-  const cap = '<b>🎬 Studio podcast</b>\n' + capLigne(facts) + '\n\n<i>Choisis où aller :</i>';
+  const hasImg = C.hasImage(facts);
+  const cap = '<b>🎬 Studio podcast</b>\n' + capLigne(facts)
+    + (hasImg ? '\n🖼 <i>couverture : dernière image du projet</i>' : '\n<i>nouveau projet — commence par créer</i>')
+    + '\n\n<i>Choisis où aller :</i>';
   return {
-    kind: 'text', caption: cap, rows: [
+    kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
       [{ text: '🏛 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
     ],
@@ -32,12 +35,26 @@ function photoView(facts) {
   const has = C.hasImage(facts);
   const n = C.visibles(facts).filter(m => m.type !== 'video').length;
   const cap = '<b>📸 Photo</b> · ' + nom(facts) + '\n' + capLigne(facts)
-    + (has ? ('\n🖼 ' + n + ' photo(s) dans le projet') : '\n<i>aucune photo — à créer</i>');
-  return {
-    kind: has ? 'photo' : 'text', caption: cap, rows: [
+    + (has ? ('\n🖼 ' + n + ' photo(s) — <i>Utiliser la photo actuelle ?</i>') : '\n<i>aucune photo — à créer</i>');
+  // Arbre de décision (point 5) : si une photo existe -> « Utiliser / Une autre » en tête.
+  const rows = (has
+    ? [[{ text: '✅ Utiliser cette photo', cb: 'R0_PH_USE' }, { text: '🔄 Une autre', cb: 'R0_PH_OTHER' }]]
+    : []).concat([
       [{ text: '✨ Générer', cb: 'R0_PH_GEN' }, { text: '📥 Importer', cb: 'R0_PH_IMPORT' }],
       [{ text: '🖼 Galerie', cb: 'R0_PH_GAL' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
       [HOME],
+    ]);
+  return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
+}
+
+// ── PHOTO / CHOISIR UNE AUTRE (sources : Galerie · Archives · Récents · Importer) — point 5 ──
+function photoSourceView(facts) {
+  const cap = '<b>📸 Choisir une autre photo</b>\n<i>D\'où vient la photo ?</i>';
+  return {
+    kind: C.hasImage(facts) ? 'photo' : 'text', caption: cap, rows: [
+      [{ text: '🖼 Galerie', cb: 'R0_PH_GAL' }, { text: '📦 Archives', cb: 'R0_PH_HIST' }],
+      [{ text: '🕘 Récents', cb: 'R0_RECENTS' }, { text: '📥 Importer', cb: 'R0_PH_IMPORT' }],
+      [{ text: '◀ Photo', cb: 'R0_PHOTO' }, HOME],
     ],
   };
 }
@@ -88,14 +105,17 @@ function videoView(facts) {
   const kind = hasV ? 'video' : (hasI ? 'photo' : 'text');
   const cap = '<b>🎬 Vidéo</b> · ' + nom(facts) + '\n' + capLigne(facts)
     + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source disponible</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
-  return {
-    kind: kind, caption: cap, rows: [
+  // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
+  const hasSource = hasI || hasV;
+  const rows = (hasSource
+    ? [[{ text: '✅ Conserver ce look', cb: 'R0_VI_KEEPLOOK' }, { text: '✏️ Changer le look', cb: 'R0_VI_GENPHOTO' }]]
+    : []).concat([
       [{ text: '📥 Importer source', cb: 'R0_VI_IMPORT' }, { text: '🖼 Choisir photo existante', cb: 'R0_VI_PICK' }],
       [{ text: '✨ Générer photo source', cb: 'R0_VI_GENPHOTO' }],
       [{ text: '🎬 Créer une vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
       [{ text: '🕘 Historique vidéo', cb: 'R0_VI_HIST' }, HOME],
-    ],
-  };
+    ]);
+  return { kind: kind, caption: cap, rows: rows };
 }
 
 // ── ÉCRAN 3.1 — VIDÉO / PARAMÈTRES (blocs éditables en place) ─────────────────
@@ -189,15 +209,30 @@ function studioSectionView(facts, ctx) {
 // ── ÉCRAN 6 — RÉCENTS / ARCHIVES ─────────────────────────────────────────────
 function recentsView(facts, ctx) {
   const r = (ctx && ctx.recents) || { projets: [], brouillons: [], actifs: [], archives: [], legacy: 0 };
-  const top = (r.projets || []).slice(0, 5);
+  const top = (r.projets || []).slice(0, 9);                       // grille jusqu'à 9 projets (retrouvabilité)
   let cap = '<b>🕘 Récents / Archives</b>\n'
     + '📂 ' + (r.projets || []).length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
     + (r.legacy ? ('\n🗄 ' + r.legacy + ' projet(s) hérité(s) (lecture seule)') : '')
-    + '\n' + (top.length ? top.map((p, i) => (i + 1) + '. ' + esc(short((p.intention && p.intention.message) || p.projectId, 40))).join('\n') : '<i>aucun projet</i>');
-  const rows = top.map((p, i) => [{ text: '▶ ' + short((p.intention && p.intention.message) || ('Projet ' + (i + 1)), 28), cb: 'R0_RE_OPEN_' + i }]);
+    + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
+  // GRILLE 2/ligne (libellés lisibles), puis actions sur le projet courant, puis Accueil.
+  const rows = gridRows(top, (p, i) => ({ text: '▶ ' + short((p.intention && p.intention.message) || ('Projet ' + (i + 1)), 22), cb: 'R0_RE_OPEN_' + i }), 2);
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }, { text: '🗑 Supprimer', cb: 'R0_RE_DEL' }]);
   rows.push([HOME]);
   return { kind: 'text', caption: cap, rows: rows };
+}
+
+// ── « Enregistrer avant de quitter ? » (point 7) : ne JAMAIS effacer silencieusement un flux en cours ──
+function quitView(facts) {
+  const cap = '<b>Quitter ce flux ?</b>\n<i>Tu es au milieu d\'une préparation. Que faire ?</i>'
+    + '\n\n• <b>Enregistrer</b> : garde ton brouillon dans le projet.'
+    + '\n• <b>Quitter sans enregistrer</b> : abandonne ce brouillon (la matière déjà produite reste).'
+    + '\n• <b>Annuler</b> : revenir où tu étais.';
+  return {
+    kind: C.mediaKind(facts), caption: cap, rows: [
+      [{ text: '💾 Enregistrer', cb: 'R0_QUIT_SAVE' }, { text: '🚪 Quitter sans enregistrer', cb: 'R0_QUIT_DISCARD' }],
+      [{ text: '↩️ Annuler', cb: 'R0_QUIT_CANCEL' }],
+    ],
+  };
 }
 
 // ── GRILLE générique : éléments parcourables en lignes de `cols` (galeries/looks/réf/historiques) ──
@@ -220,28 +255,31 @@ function confirmView(facts, ctx) {
   const blocked = paid && live && b.exhausted;
   const recap = (cf.mediaKind === 'video')
     ? ('🎬 Vidéo' + (e.duree ? ' · ' + e.duree : '') + ' · ' + (e.nb || 1) + ' plan(s)')
-    : ('📸 Photo' + ' · ' + (e.nb || 1) + ' img · ' + (e.format || '9:16'));
-  let cap = '<b>' + (paid ? '💳 Confirmer la génération' : '✅ Confirmer') + '</b>'
+    : (cf.mediaKind === 'text')
+      ? '📝 Texte (génération IA)'
+      : ('📸 Photo' + ' · ' + (e.nb || 1) + ' img · ' + (e.format || '9:16'));
+  // TERMINOLOGIE « Aperçu → Générer » : l'écran EST le récapitulatif avant de générer ; le coût reste visible.
+  const gen = cf.mediaKind === 'video' ? '🎬 Générer' : (cf.mediaKind === 'text' ? '✨ Générer le texte' : '🎨 Générer');
+  const quoi = cf.mediaKind === 'video' ? 'la vidéo' : (cf.mediaKind === 'text' ? 'le texte' : 'la photo');
+  let cap = '<b>👁 Aperçu — récap avant ' + quoi + '</b>'
     + '\n' + recap
     + '\n⚙️ Moteur : ' + esc(e.moteur || '—');
   if (paid) {
-    cap += '\n🔴 <b>PAYANT</b> — ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
-    cap += '\n🔋 Crédits déjà consommés (tests réels) : ' + b.credits;
+    cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
+    cap += '\n🔋 Crédits déjà consommés (tests) : ' + b.credits;
     if (blocked) {
       cap += '\n\n⛔ <b>Budget de test épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation nécessaire.';
     } else if (live) {
-      cap += '\n🧪 <b>Test réel n°' + b.next + ' / ' + b.max + '</b> (réel — dépense à ce clic)';
-      cap += '\n\n<i>Rien n\'est dépensé sans ton clic ci-dessous.</i>';
+      cap += '\n🧪 <b>Test réel n°' + b.next + ' / ' + b.max + '</b> — dépense à ce clic.';
     } else {
-      cap += '\n🟡 <b>Simulation</b> (aucune dépense) · tests réels : ' + b.tests + '/' + b.max;
-      cap += '\n\n<i>Le moteur réel reste OFF ; ce clic ne dépense pas.</i>';
+      cap += '\n🟡 <b>Aperçu (simulation)</b> — aucune dépense · tests : ' + b.tests + '/' + b.max;
     }
   } else {
-    cap += '\n🟢 <b>GRATUIT</b> (traitement local)\n\n<i>Aucune dépense.</i>';
+    cap += '\n🟢 Traitement local — aucune dépense.';
   }
   const rows = blocked
     ? [[{ text: '⛔ Budget épuisé', cb: 'R0_GEN_CANCEL' }], [{ text: '🏠 Accueil', cb: 'R0_HOME' }]]
-    : [[{ text: (paid ? (live ? '💲 Valider (test réel n°' + b.next + ')' : '💲 Valider (simulation)') : '✅ Générer'), cb: 'R0_GO' }, { text: '✖️ Annuler', cb: 'R0_GEN_CANCEL' }],
+    : [[{ text: (paid && live ? gen + ' (test n°' + b.next + ')' : gen), cb: 'R0_GO' }, { text: '◀ Revenir', cb: 'R0_GEN_CANCEL' }],
        [{ text: '🏠 Accueil', cb: 'R0_HOME' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
@@ -307,6 +345,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, galleryView, videoEditView, gridRows,
+  confirmView, galleryView, videoEditView, quitView, photoSourceView, gridRows,
   PH_BLOCKS, VI_BLOCKS, PRESETS, esc,
 };

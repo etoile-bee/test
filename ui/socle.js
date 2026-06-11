@@ -131,6 +131,13 @@ function setDraft(base, persona, id, kind, patch, ts) {
   return saveFacts(base, persona, f, ts);
 }
 function getDraft(facts, kind) { return (facts && facts.draft && facts.draft[kind]) || {}; }
+// Vide les BROUILLONS de préparation (quitter sans enregistrer) — n'efface QUE le travail en cours,
+// jamais la matière produite / l'intention / la publication (suppression douce, rien de committé n'est perdu).
+function clearDraft(base, persona, id, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.draft = {};
+  return saveFacts(base, persona, f, ts);
+}
 // Statut du dossier (brouillon | actif | archive). Soft : archiver ne supprime jamais.
 function setStatut(base, persona, id, statut, ts) {
   const f = loadFacts(base, persona, id); if (!f) return null;
@@ -157,5 +164,5 @@ module.exports = {
   rroot, personaDir, pdir, fpath, genId, defaultFacts,
   createProject, loadFacts, saveFacts, listProjects, currentProject, friendlyName,
   setIntention, recordDecision, addCandidate, patchMedia, setMediaEtat,
-  setPublication, setStatut, setDraft, getDraft, duplicateProject,
+  setPublication, setStatut, setDraft, getDraft, clearDraft, duplicateProject,
 };

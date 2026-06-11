@@ -23,12 +23,21 @@ function avatars(base) {
   const items = Object.keys(profiles).map(k => (profiles[k].name || k));
   return { key: 'avatars', icon: '👤', label: 'Avatars', count: items.length, items: items, source: 'personas.json', vide: !items.length };
 }
+function _cap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+// Libellé LISIBLE d'une tenue (corrige le bug « affichage texte/JSON » dans le sélecteur Look).
+function _outfitLabel(o) {
+  if (o == null) return 'Look';
+  if (typeof o === 'string') return o;
+  if (o.label) return o.label; if (o.name) return o.name;
+  if (o.cat) return _cap(o.cat) + (o.id != null ? ' #' + o.id : '');     // ex. « Soiree #1 »
+  return 'Look' + (o.id != null ? ' #' + o.id : '');
+}
 function looks(base) {
   const cat = _readJSON(path.join(base, 'outfits_catalog.json'));
   const outfits = (cat && cat.outfits) || [];
   const lb = _readJSON(path.join(base, 'lookbook.json'));
   const saved = (lb && lb.saved) || [];
-  const items = outfits.slice(0, 6).map(o => (typeof o === 'string' ? o : (o.label || o.name || JSON.stringify(o).slice(0, 30))));
+  const items = outfits.slice(0, 9).map(_outfitLabel);                      // libellés propres (jamais de JSON brut)
   return { key: 'looks', icon: '👗', label: 'Looks', count: outfits.length + saved.length, items: items, source: 'outfits_catalog.json (' + outfits.length + ') + lookbook.saved (' + saved.length + ')', vide: !(outfits.length + saved.length) };
 }
 function decors(base) {

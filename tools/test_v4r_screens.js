@@ -96,9 +96,10 @@ chk('gate : R0_VI_GENERATE -> écran confirm, AUCUNE op', (() => { const r = NAV
 chk('gate : R0_GO -> op create (la seule porte de dépense, après confirmation)', (() => { const r = NAV.reduce('R0_GO', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.op && r.op.type === 'create'; })());
 chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.reduce('R0_GEN_CANCEL', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.st.screen === 'photo_prompt' && !r.op; })());
 const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
-const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, credits: 500 } });
-chk('confirm : affiche PAYANT + moteur + coût + 💲Valider / ✖️Annuler', /PAYANT/.test(cv.caption) && /Seedream/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
-chk('confirm : éco bien marqué PAYANT (gratuit=false)', estP.gratuit === false);
+const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
+chk('confirm : Aperçu→Générer (terminologie) + moteur + coût + 🎨Générer / ◀Revenir', /Aperçu/.test(cv.caption) && /Seedream/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
+chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /🎨 Générer/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
+chk('confirm : éco reste gatée (gratuit=false, donc passe par l\'écran de coût)', estP.gratuit === false);
 // ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
 chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() === false && ENG.mode('photo').exec === 'sim' && ENG.mode('soustitres').exec === 'local' && ENG.mode('photo').paid === true && ENG.mode('soustitres').paid === false);
 // ── GRILLE : galerie + section Studio en grille ; Vidéo>Édition regroupe la post-prod ──
@@ -107,6 +108,32 @@ chk('galerie : grille (pas de cul-de-sac : ◀ + 🏠)', has(gal, 'R0_PHOTO') &&
 const ve = SC.videoEditView(fvid);
 chk('Vidéo>Édition : Script+Légendes+Sous-titres+Édition image regroupés', ['R0_VIB_script', 'R0_VIB_legendes', 'R0_VE_SUBS', 'R0_VE_IMGFX'].every(c => has(ve, c)) && has(ve, 'R0_VIDEO'));
 chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)', has(SC.videoView(fimg), 'R0_VE'));
+
+// ── LOT STABILISATION : couverture des 10 points ──
+// (1) home jamais vide : cover photo si image, sobre (texte, aucun placeholder) sinon
+chk('point2 : Accueil = couverture photo si image, sobre (texte) sinon — jamais de placeholder', SC.homeView(fimg).kind === 'photo' && SC.homeView(f0).kind === 'text');
+// (5) photo decision tree + look bug (libellés propres)
+chk('point5 : Photo demande « Utiliser / Une autre » si une photo existe', has(SC.photoView(fimg), 'R0_PH_USE') && has(SC.photoView(fimg), 'R0_PH_OTHER'));
+chk('point5 : « Une autre » -> sources Galerie/Archives/Récents/Importer', (() => { const v = SC.photoSourceView(fimg); return ['R0_PH_GAL', 'R0_PH_HIST', 'R0_RECENTS', 'R0_PH_IMPORT'].every(c => has(v, c)); })());
+chk('point5 : sélecteur Look = libellés propres (pas de JSON brut)', (() => { const sp = NAV.blockSpec({ screen: 'photo', key: 'look' }, fimg, ctx); return sp.options.every(o => !/[{}\[\]]/.test(o.text)); })());
+// (6) video decision tree
+chk('point6 : Vidéo demande « Conserver ce look ? » si source/look', has(SC.videoView(fimg), 'R0_VI_KEEPLOOK'));
+// (7) save before quit : 🏠 depuis un flux en cours -> quit (jamais d'effacement)
+chk('point7 : 🏠 depuis flux en cours -> « quitter ? » (pas de sortie brutale)', (() => { const r = NAV.reduce('R0_HOME', { screen: 'photo_prompt' }, fimg, ctx); return r.st.screen === 'quit' && r.st.quitFrom === 'photo_prompt'; })());
+chk('point7 : Annuler -> revient au flux ; Quitter sans enreg. -> home + cleardraft ; Enregistrer -> home', (() => {
+  const c = NAV.reduce('R0_QUIT_CANCEL', { screen: 'quit', quitFrom: 'video_params' }, fimg, ctx);
+  const d2 = NAV.reduce('R0_QUIT_DISCARD', { screen: 'quit', quitFrom: 'photo_prompt' }, fimg, ctx);
+  const s2 = NAV.reduce('R0_QUIT_SAVE', { screen: 'quit', quitFrom: 'photo_prompt' }, fimg, ctx);
+  return c.st.screen === 'video_params' && d2.st.screen === 'home' && d2.op.type === 'cleardraft' && s2.st.screen === 'home' && !s2.op;
+})());
+chk('point7 : 🏠 depuis un écran NON en cours (photo) -> home direct (pas de friction)', NAV.reduce('R0_HOME', { screen: 'photo' }, fimg, ctx).st.screen === 'home');
+// (4) générateur de texte transversal, GATÉ (Anthropic) -> confirm, mappe champ existant
+chk('point4 : ✨ Générer (IA) dans un bloc texte -> confirm (gaté), aucune dépense directe', (() => { const r = NAV.reduce('R0_GENTXT_ph_prompt', { screen: 'block', block: { screen: 'photo', key: 'prompt' } }, fimg, ctx); return r.st.screen === 'confirm' && !r.op && r.st.pending.kind === 'text'; })());
+chk('point4 : GO texte -> op gentext (remplit un champ EXISTANT), retour au bloc', (() => { const r = NAV.reduce('R0_GO', { screen: 'confirm', pending: { kind: 'text', ask: 'ph_prompt' } }, fimg, ctx); return r.op && r.op.type === 'gentext' && r.st.screen === 'photo_prompt'; })());
+const cvT = SC.confirmView(f0, { confirm: { mediaKind: 'text', est: { moteur: 'Anthropic (claude-sonnet-4-6)', credits: null, eur: 0.01, gratuit: false }, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
+chk('point4 : confirm texte affiche Anthropic + coût (payant, gaté)', /Anthropic/.test(cvT.caption) && /Coût/.test(cvT.caption));
+// (9) grilles : récents jusqu'à 9 en grille
+chk('point9 : Récents en grille (≥1 ligne de projets) + actions + home', (() => { const v = SC.recentsView(f0, { recents: { projets: [f0, fimg], brouillons: [], archives: [], legacy: 0 } }); return has(v, 'R0_RE_OPEN_0') && has(v, 'R0_RE_OPEN_1') && has(v, 'R0_HOME'); })());
 
 // sobriété : aucun jargon dev visible
 const allcap = [home].concat(nonHome).map(v => v.caption).join(' ').toLowerCase();
