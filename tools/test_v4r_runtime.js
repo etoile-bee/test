@@ -305,6 +305,21 @@ async function main() {
   chk('G5 : la COPIE de la légende longue INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legl')));
   chk('G5 : le champ #️⃣ Hashtags reste SÉPARÉ (récupérable seul)', bot.fullText('tags').trim() === '#a #b #c');
 
+  // ════ [ANO-GENID-CREATE] DATA-SAFETY : 2+ créations de projet dans la MÊME seconde -> ids DISTINCTS (jamais d'écrasement silencieux) ════
+  //   genId a une résolution à la seconde ; createProject DOIT suffixer (-2,-3…) si l'id existe déjà. Cause historique de perte de projet.
+  {
+    const _fs = require('fs'), _os = require('os'), _path = require('path');
+    const S2 = require('../ui/socle');
+    const tb = _fs.mkdtempSync(_path.join(_os.tmpdir(), 'genid-create-'));
+    const ts = 1718000000000; // ts FIGÉ -> force la même seconde
+    const a = S2.createProject(tb, 'imany', {}, ts).projectId;
+    const b = S2.createProject(tb, 'imany', {}, ts).projectId;
+    const c = S2.createProject(tb, 'imany', {}, ts).projectId;
+    chk('ANO-GENID-CREATE : 3 créations même seconde -> 3 ids DISTINCTS (aucun écrasement)', new Set([a, b, c]).size === 3);
+    chk('ANO-GENID-CREATE : 3 projets RÉELLEMENT sur disque (aucune perte silencieuse)', S2.listProjects(tb, 'imany').length === 3);
+    try { _fs.rmSync(tb, { recursive: true, force: true }); } catch (e) {}
+  }
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

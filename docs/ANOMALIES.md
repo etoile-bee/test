@@ -5,6 +5,17 @@
 
 ---
 
+## ANO-GENID-CREATE — collision d'id à la création (résolution seconde) = perte silencieuse de projet
+- **Couche** : `ui/socle.js` `createProject` (et `duplicateProject`, cf [ANO-G4-MODELE-D5])
+- **Gravité** : 🔴 DATA-SAFETY (cause historique du « la vidéo revient sur une ancienne photo » : deux projets écrits sur le même id à la même seconde)
+- **Attendu** : créer 2+ projets dans la MÊME seconde ne doit JAMAIS écraser le précédent ; chaque projet a un id unique persistant.
+- **Constaté/risque** : `genId = persona_AAAA-MM-JJ-HH-mm-ss` (précision SECONDE). Sans garde, deux `createProject` dans la même seconde → même id → `saveFacts` écrase → perte silencieuse.
+- **Correctif** : garde d'unicité dans `createProject` — si `fpath(id)` existe déjà, suffixe incrémental `-2,-3…` (présent depuis `6a71755`). Tous les appelants (`telegram_bot.js:2651`, `:3011` /v4r new, `cockpit_controller.js:34`) passent par le chemin auto-genId GARDÉ (aucun id explicite). Symétrique au correctif `duplicateProject` (G4).
+- **Statut** : ✅ CONFORME (déjà gardé + désormais VERROUILLÉ par assertion anti-régression)
+- **PREUVE RÉELLE** : `createProject ×3` au même `ts` figé → ids `imany_2024-06-10-06-13-20`, `…-2`, `…-3` (3 distincts) ; `listProjects = 3` (0 perte). Assertion runtime `ANO-GENID-CREATE ×2` ✅.
+
+---
+
 ## LOT GAPS G1–G5 (offline, non déployé) — fermeture des écarts d'audit Etoile
 
 ### ANO-G1-GAL-HIST — Galerie ≡ Historique (doublon strict, viole D4)
