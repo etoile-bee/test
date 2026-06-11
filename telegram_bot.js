@@ -2659,16 +2659,18 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
 // [FIX réel] COUVERTURE du projet = la DERNIÈRE image visible dont le FICHIER EXISTE vraiment (on remonte la liste).
 //   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
+// [ANO-SOURCE-EDIT-REVERT] garde-fou ABSOLU : la couverture/source NE DOIT JAMAIS être la référence persona (cuir, sous references/).
+const _r0IsRef=p=>/\/references?\//i.test(String(p||''))||/imany_reference\./i.test(String(p||''));
 function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).filter(m=>m&&m.type!=='video');
-  for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&fs.existsSync(fp)) return fp; } }catch(e){}
-  // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo si une vraie existe).
-  try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&fs.existsSync(g[0])) return g[0]; }catch(e){}
+  for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; } }catch(e){}
+  // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo, JAMAIS la référence persona).
+  try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&!_r0IsRef(g[0])&&fs.existsSync(g[0])) return g[0]; }catch(e){}
   return r0DemoPhoto(); }
 // [SOURCE UNIQUE DE VÉRITÉ — Etoile] UNE seule image source, lue PARTOUT (Préparer · Aperçu · génération · vidéo · final).
 //   Priorité : source ÉPINGLÉE (draft.video.source_file puis draft.photo.source_file) -> sinon le cover (dernière image visible).
 //   Dès qu'une photo est sélectionnée/générée/posée, on épingle CETTE image dans les deux drafts -> aucun retour à une référence de base.
 function r0SourceFile(f){ try{ const {S}=_r0(); const dv=S.getDraft(f,'video')||{}, dp=S.getDraft(f,'photo')||{};
-  for(const fp of [dv.source_file, dp.source_file]){ if(fp&&fs.existsSync(fp)) return fp; } }catch(e){}
+  for(const fp of [dv.source_file, dp.source_file]){ if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; } }catch(e){} // [ANO-SOURCE-EDIT-REVERT] jamais la référence persona
   return r0CoverFile(f); }
 // Épingle l'image X comme SOURCE unique du projet (photo + vidéo) — appelée à la sélection, à la génération et au pont photo→vidéo.
 function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();

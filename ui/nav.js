@@ -381,7 +381,8 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
-    case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
+    case 'R0_VI_KEEPLOOK': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; // [ANO-SOURCE-EDIT-REVERT] « Garder » ÉPINGLE la photo courante comme source projet (sinon source vide -> dérive)
+      return Object.assign(go('video_params', '✅ <b>Look conservé</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf } } }); }
     case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf }, onlyIfImageAndNoSource: true } }); }
     case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
     // [R4] APERÇU VIDÉO = vrai écran récap (confirm). Production toujours via aperçu.

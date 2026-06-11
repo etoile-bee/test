@@ -35,6 +35,15 @@
 
 ## LOT OFFLINE (préparé, testé harness, NON déployé — attente feu vert pour déploiement groupé)
 
+### ANO-SOURCE-EDIT-REVERT — éditer sous-titres/script fait revenir l'image sur la référence persona (cuir)
+- **Gravité** : 🔴 BLOQUANTE — 🟢 PRÊTE (offline)
+- **Constaté (Etoile, capture 22:59)** : édition sous-titres/script → l'image source repasse de la sélection (blanc) à la référence persona (cuir).
+- **Reproduction** : harness (sandbox) = STABLE (source tient sur block script/sous-titres). Donc bug **réel-base**.
+- **Cause RACINE** : (a) **« Garder » (`R0_VI_KEEPLOOK`) n'épinglait PAS** `source_file` → sur ce chemin la source restait vide → `r0SourceFile` → `r0CoverFile` → **fallback global pouvant renvoyer une autre image**. (Hyp. (b) placeholder : écartée — `r0SourceFile` utilise `fs.existsSync` qui est vrai pour un dataless, donc il ne « rejette » pas vers la persona.)
+- **Correctif** : (1) `R0_VI_KEEPLOOK` épingle `source_file = cover courant` ; (2) **garde-fou ABSOLU** `_r0IsRef` : `r0SourceFile`/`r0CoverFile` ne retournent **JAMAIS** un fichier sous `references/` ni `imany_reference.*` → **plus aucune bascule cuir silencieuse**.
+- **Statut** : ✅ corrigée — preuve harness : « Garder » → `source_file=photo_…jpg` ; éditer sous-titres → `source==sélection: true` ; sweep 411 OK.
+- 🟡 *preuve réelle-base* : à confirmer au prochain test d'Etoile (la cause + le garde-fou couvrent le cas).
+
 ### ANO-SOURCE-PLACEHOLDER — source de génération réelle non matérialisée (trou trouvé par Dispatch)
 - **Gravité** : 🔴 BLOQUANTE — 🟢 PRÊTE (offline)
 - **Constaté** : `r0RealPhoto` faisait `refOverride = r0SourceFile()` SANS `r0EnsureLocal`. Si la source est un placeholder iCloud dataless (0 octet), le moteur reçoit un fichier vide → échec OU `getRefUrl` retombe sur la référence persona = **bug manteau cuir** pour toute source placeholder. Idem `r0RealVideo` (avatar source).
