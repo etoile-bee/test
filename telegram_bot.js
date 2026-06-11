@@ -2615,6 +2615,23 @@ function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_cata
 function _r0LookCats(){ try{ const list=(_r0Outfits()||{}).outfits||[]; const seen={}, out=[];
   for(const o of list){ const c=String(o.cat||'').toLowerCase(); if(c&&!seen[c]){ seen[c]=1; out.push(c.charAt(0).toUpperCase()+c.slice(1)+' #'+o.id); } }
   return out; }catch(e){ return []; } }
+// [SCRIPTS] CATÉGORIES/THÈMES RÉELS issus de la source legacy (workflow.js : niches coach relationnel femmes 20-40).
+//   Exposés comme les Tenues : une puce par thème ; le choix oriente la génération de script (draft.video.theme).
+const _R0_SCRIPT_CATS = [
+  { label: '🚩 Red flags', seed: 'relationship red flags to never ignore' },
+  { label: '☠️ Hommes toxiques', seed: 'toxic men patterns and how to spot them' },
+  { label: '🔗 Attachement', seed: 'attachment styles anxious avoidant in dating' },
+  { label: '💎 Estime de soi', seed: 'self-worth and knowing your value in relationships' },
+  { label: '💔 Ruptures', seed: 'healing after a breakup and moving on' },
+  { label: '🚪 Il s\'éloigne', seed: 'why men pull away and what it really means' },
+  { label: '⚠️ Erreurs dating', seed: 'common dating mistakes women make' },
+  { label: '🎭 Narcissiques', seed: 'narcissists in relationships, recognize and leave' },
+  { label: '💬 Conseils dating', seed: 'dating coach tips for modern women' },
+  { label: '🌊 Situationships', seed: 'situationships and why they keep you stuck' },
+  { label: '🌿 Soft life', seed: 'soft life and feminine energy mindset' },
+  { label: '👑 Sa valeur', seed: 'knowing your worth and raising your standards' },
+];
+function _r0ScriptCats(){ return _R0_SCRIPT_CATS; }
 // [#27] SOUS-TITRES : valeurs PAR DÉFAUT du style legacy (lecture seule de subtitle_style — JAMAIS d'écriture, verrou intact).
 function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; const s=require('./subtitle_style')||{};
   return { font:(s.fontLabel||s.font||'Archivo'), size:(s.size||'M'), pos:(s.position||s.pos||'bas'), display:(s.display||'mot') }; }catch(e){ return {}; } }
@@ -2839,6 +2856,7 @@ function r0Ctx(persona){
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
     ctx.defaults=DEF.load(BASE,persona);
     ctx.looks=_r0LookCats();      // [#26] TENUE : toutes les catégories du catalogue (soiree/business/casual/cosy/ete/fete), pas juste la 1ʳᵉ
+    ctx.scriptCats=_r0ScriptCats(); // [SCRIPTS] thèmes RÉELS legacy (red flags, hommes toxiques, attachement…) — comme les Tenues
     ctx.subStyle=_r0SubStyle();   // [#27] valeurs PAR DÉFAUT des sous-titres (lecture seule du legacy, verrou intact)
   }
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
@@ -3137,7 +3155,8 @@ async function r0RealVideo(persona, id){
   const secs=parseInt(String(draft.duree||'30'),10)||30;
   const parts=Math.max(1, Math.round(secs/30));                                    // 30s -> 1 part, 60s -> 2 (aligné Kling)
   const words=Math.max(20, Math.round(secs*2.4));                                  // densité de parole ~ legacy
-  const topic=(draft.script&&String(draft.script).trim()) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
+  // [SCRIPTS] priorité : script écrit > thème legacy choisi (seed EN) > source > nom. Le thème oriente la génération Anthropic.
+  const topic=(draft.script&&String(draft.script).trim()) || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
   let finalP=null, err=null;
   try{
     if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');

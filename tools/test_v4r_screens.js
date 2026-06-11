@@ -188,6 +188,23 @@ chk('D : sous-titres DÉFINITIF — AUCUN on/off, AUCUNE saisie texte', (() => {
 chk('D : panneau apparence = Valider + Retour + Aperçu présents', (() => { const v = NAV.view({ screen: 'block', block: { screen: 'video', key: 'soustitres' } }, fvid, {}); const c = cbs(v); return c.indexOf('R0_VE') >= 0 && c.indexOf('R0_STPREV') >= 0; })());
 chk('D : régler une couleur -> reste sur le panneau (réglages enchaînés)', (() => { const r = NAV.reduce('R0_SET_stcolor_jaune', { screen: 'block', block: { screen: 'video', key: 'soustitres' } }, fvid, {}); return r.st.screen === 'block' && r.op.type === 'draft' && r.op.patch.st_color === 'jaune'; })());
 chk('D : ✅ Valider sous-titres -> retour à Vidéo>Montage', NAV.resolveSet('stcolor', 'jaune', {}).field === 'st_color' && NAV.reduce('R0_VE', { screen: 'block', block: { screen: 'video', key: 'soustitres' } }, fvid, {}).st.screen === 'video_edit');
+// [SCRIPTS] CATÉGORIES/THÈMES RÉELS legacy exposés dans le bloc Script (comme les Tenues), choix orientant la génération
+const ctxSc = { scriptCats: [{ label: '🚩 Red flags', seed: 'red flags' }, { label: '☠️ Hommes toxiques', seed: 'toxic men' }] };
+chk('SCRIPTS : bloc Script expose les thèmes legacy (puces)', (() => { const v = SC.blockView(NAV.blockSpec({ screen: 'video', key: 'script' }, fvid, ctxSc)); const c = cbs(v); return c.indexOf('R0_STHEME_0') >= 0 && c.indexOf('R0_STHEME_1') >= 0; })());
+chk('SCRIPTS : choisir un thème -> mémorisé (draft.theme) + reste sur le panneau', (() => { const r = NAV.reduce('R0_STHEME_0', { screen: 'block', block: { screen: 'video', key: 'script' } }, fvid, ctxSc); return r.st.screen === 'block' && r.op.type === 'draft' && r.op.patch.theme === '🚩 Red flags' && r.op.patch.theme_seed === 'red flags'; })());
+// [RÉGRESSION « Enregistrer avant de quitter ? »] GARDE-FOU : depuis CHAQUE écran de flux en cours, 🏠 Accueil DOIT passer par l'écran quit
+//   (jamais d'abandon silencieux), l'écran quit DOIT proposer Enregistrer/Quitter/Annuler, et Annuler DOIT revenir à l'écran d'origine.
+const INPROG = ['photo_prompt', 'video_params', 'video_edit', 'confirm', 'confirm2', 'block'];
+INPROG.forEach(scr => {
+  const st0 = scr === 'block' ? { screen: 'block', block: { screen: 'video', key: 'script' } } : { screen: scr };
+  const r = NAV.reduce('R0_HOME', st0, fvid, ctx);
+  chk('QUIT : 🏠 depuis ' + scr + ' -> écran « Enregistrer avant de quitter ? »', r.st.screen === 'quit' && r.st.quitFrom === scr);
+  const back = NAV.reduce('R0_QUIT_CANCEL', { screen: 'quit', quitFrom: scr }, fvid, ctx);
+  chk('QUIT : ↩️ Annuler depuis quit -> revient à ' + scr, back.st.screen === scr);
+});
+chk('QUIT : écran propose Enregistrer + Quitter + Annuler', (() => { const c = cbs(SC.quitView(fvid)); return ['R0_QUIT_SAVE', 'R0_QUIT_DISCARD', 'R0_QUIT_CANCEL'].every(x => c.indexOf(x) >= 0); })());
+chk('QUIT : Enregistrer -> Accueil (brouillon gardé)', NAV.reduce('R0_QUIT_SAVE', { screen: 'quit', quitFrom: 'photo_prompt' }, fvid, ctx).st.screen === 'home');
+chk('QUIT : Quitter sans enregistrer -> Accueil + cleardraft', (() => { const r = NAV.reduce('R0_QUIT_DISCARD', { screen: 'quit', quitFrom: 'photo_prompt' }, fvid, ctx); return r.st.screen === 'home' && r.op && r.op.type === 'cleardraft'; })());
 // (J) import = demande d'envoi (instruction claire), pas de dépôt simulé direct
 chk('J : Importer -> attente d\'upload + instruction claire', (() => { const r = NAV.reduce('R0_PH_IMPORT', { screen: 'photo' }, f0, ctx); return r.await && r.await.upload === 'photo' && /Envoie ton image/.test(r.banner) && !r.op; })());
 chk('J : ASK affiche une instruction explicite', /Écris le prompt/.test(NAV.reduce('R0_ASK_ph_prompt', { screen: 'block' }, f0, ctx).banner));

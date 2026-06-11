@@ -134,6 +134,11 @@ function blockSpec(block, facts, ctx) {
       : [{ text: genLabel, cb: 'R0_GENTXT_' + ask }];
     // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable. Libellés LISIBLES (non coupés trop court).
     // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
+    // [SCRIPTS] CATÉGORIES/THÈMES RÉELS legacy (comme les Tenues) : une puce par thème ; oriente la génération. Marqueur 🔵 sur le thème courant.
+    if (block.key === 'script') {
+      const cats = (ctx && ctx.scriptCats) || [];
+      cats.forEach((c, i) => opts.push({ text: (d.theme === c.label ? '🔵 ' : '') + c.label, cb: 'R0_STHEME_' + i }));
+    }
     if (block.key === 'prompt' || block.key === 'script') {
       const list = ((ctx && ctx.presets && (block.key === 'script' ? ctx.presets.scripts : ctx.presets.prompts)) || []).slice(0, 3);
       list.forEach((p, i) => opts.push({ text: '📁 ' + String(p.title || p.name || ('Modèle ' + (i + 1))).replace(/[*_`\[\]"]/g, '').slice(0, 28), cb: 'R0_LOADP_' + i }));
@@ -255,6 +260,12 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_QUIT_DISCARD') { st.quitFrom = null; return Object.assign(go('home'), { op: { type: 'cleardraft' } }); }
   if (d === 'R0_QUIT_CANCEL') { const back = st.quitFrom || 'home'; st.quitFrom = null; return { st: Object.assign(st, { screen: back }) }; }
 
+  // [SCRIPTS] choisir un THÈME legacy -> mémorise label + seed dans le brouillon vidéo ; reste sur le panneau Script. Oriente la génération.
+  if (d.indexOf('R0_STHEME_') === 0) {
+    const i = +d.slice(10); const c = (ctx && ctx.scriptCats && ctx.scriptCats[i]) || null;
+    if (!c) return { st: st, toast: 'Thème indisponible' };
+    return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed } }, toast: '🎬 Thème : ' + c.label };
+  }
   if (d.indexOf('R0_SET_') === 0) {
     const rest = d.slice(7), us = rest.indexOf('_'), blk = rest.slice(0, us), token = rest.slice(us + 1);
     const r = resolveSet(blk, token, ctx);
