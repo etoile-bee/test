@@ -38,7 +38,22 @@ function jlog(line){
     fs.appendFileSync(JOURNAL,L);
   }catch(e){}
 }
+// ── [DRY-RUN] banc d'essai du VRAI chemin Telegram (R0_DRYRUN=1) : simule messages/edit/delete + « not modified ».
+//   AUCUN appel réseau, AUCUNE dépense. Sert à rejouer les séquences réelles (B1-B4) en test.
+const R0DRY = process.env.R0_DRYRUN ? { msgs:{}, alive:new Set(), nextMid:1000, log:[], answered:0 } : null;
+function _drySig(body){ return String((body&&(body.text!=null?body.text:body.caption))||'') + '|' + JSON.stringify((body&&body.reply_markup)||''); }
+function _dryTg(method,body){
+  R0DRY.log.push(method+(body&&body.message_id?(' #'+body.message_id):''));
+  if(method==='sendMessage'){ const id=++R0DRY.nextMid; R0DRY.msgs[id]={kind:'text',sig:_drySig(body)}; R0DRY.alive.add(id); return {ok:true,result:{message_id:id}}; }
+  if(method==='sendPhoto'||method==='sendVideo'){ const id=++R0DRY.nextMid; R0DRY.msgs[id]={kind:'media',sig:_drySig(body)}; R0DRY.alive.add(id); return {ok:true,result:{message_id:id}}; }
+  if(method==='editMessageText'||method==='editMessageCaption'){ const id=body.message_id; const cur=R0DRY.msgs[id]; if(!cur) return {ok:false,description:'message to edit not found'}; const sig=_drySig(body); if(cur.sig===sig) return {ok:false,description:'Bad Request: message is not modified'}; cur.sig=sig; if(method==='editMessageCaption')cur.kind='media'; return {ok:true,result:{message_id:id}}; }
+  if(method==='editMessageMedia'){ const id=body.message_id; const cur=R0DRY.msgs[id]; if(!cur) return {ok:false,description:'message to edit not found'}; cur.sig='media:'+(R0DRY.nextMid++); cur.kind='media'; return {ok:true,result:{message_id:id}}; }
+  if(method==='deleteMessage'){ const id=body.message_id; if(!R0DRY.msgs[id]) return {ok:false,description:'Bad Request: message to delete not found'}; delete R0DRY.msgs[id]; R0DRY.alive.delete(id); return {ok:true}; }
+  if(method==='answerCallbackQuery'){ R0DRY.answered++; return {ok:true}; }
+  return {ok:true,result:{message_id:++R0DRY.nextMid}};
+}
 async function tg(method,body,isForm){
+  if(R0DRY) return _dryTg(method,body);
   try{if(body&&(body.text||body.caption))jlog('BOT→ '+method+' : '+(body.text||body.caption));else if(method!=='getUpdates')jlog('BOT→ '+method);}catch(e){}
   if(isForm){
     const r=await fetch(`https://api.telegram.org/bot${TOKEN}/${method}`,{method:'POST',body:isForm});
@@ -108,6 +123,7 @@ async function sendVid(fp){
 }
 // Vidéo + caption + boutons en UN seul message (livraison consolidée). Renvoie le message_id.
 async function sendVideoKb(fp,caption,rows){
+  if(typeof R0DRY!=='undefined'&&R0DRY){ const r=_dryTg('sendVideo',{caption:caption}); return r.result.message_id; }
   uiLog({dir:'out',type:'video',screen:'video prête',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:false});
   try{
     const FormData=require('form-data');const f=new FormData();
@@ -438,6 +454,7 @@ async function dlPhotoNamed(fileId,name){
 }
 // envoie une photo locale AVEC boutons inline
 async function sendPhotoKb(fp,caption,rows){
+  if(typeof R0DRY!=='undefined'&&R0DRY){ return _dryTg('sendPhoto',{caption:caption}); }
   uiLog({dir:'out',type:'photo',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:false});
   try{
     let f=fp;
@@ -2161,6 +2178,7 @@ async function afterEdit(section){
 // ── Panneau d'édition EN PLACE (un seul message PHOTO, editMessageMedia) ─────────
 let editPanel={mid:null,section:'img'};
 async function editPhotoKb(mid,fp,caption,rows){
+  if(typeof R0DRY!=='undefined'&&R0DRY){ const r=_dryTg('editMessageMedia',{message_id:mid,caption:caption}); return !!(r&&r.ok); }
   const sig=_sig('photo',fp,caption,rows);
   if(sigSame(mid,sig))return true; // contenu identique -> on ne touche pas Telegram (zéro doublon)
   uiLog({dir:'out',type:'edit',screen:screenOf(caption),user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
@@ -2196,6 +2214,7 @@ let staleBloc={cockpit:false,photo:false,results:false};
 async function freshBloc(which,getMid,clearMid){ if(staleBloc[which]){staleBloc[which]=false;const m=getMid();if(m){await delMsg(m);clearMid();}} }
 function cap1024(s){s=String(s||'');return s.length>1024?s.slice(0,1000)+'…':s;}
 async function editVideoKb(mid,fp,caption,rows){
+  if(typeof R0DRY!=='undefined'&&R0DRY){ const r=_dryTg('editMessageMedia',{message_id:mid,caption:caption}); return !!(r&&r.ok); }
   const sig=_sig('video',fp,cap1024(caption),rows);
   if(sigSame(mid,sig))return true; // contenu identique -> rien à faire
   uiLog({dir:'out',type:'edit',screen:screenOf(caption)||'maquette',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
@@ -2584,18 +2603,20 @@ function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,
   if(!cur&&create){ cur=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet cree '+cur.projectId); }
   return cur?S.loadFacts(BASE,persona,cur.projectId):null; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
+const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
 let _r0Vid=null;
-function r0DemoVideo(){
+async function r0DemoVideo(){
   try{
     if(_r0Vid && fs.existsSync(_r0Vid)) return _r0Vid;
     const out=path.join(BASE,'assets_r','demo_video.mp4');
     if(fs.existsSync(out)){ _r0Vid=out; return out; }
+    if(R0DRY) return out; // dry : pas de ffmpeg
     const img=r0DemoPhoto(); if(!img) return null;
     fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true});
-    require('child_process').execFileSync('ffmpeg',['-y','-loop','1','-i',img,'-t','3',
+    await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','3',
       '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0015,1.15)\':d=75:s=720x1280:fps=25,format=yuv420p',
-      '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{stdio:'ignore',timeout:60000});
+      '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{timeout:60000});
     if(fs.existsSync(out)){ _r0Vid=out; return out; }
   }catch(e){ jlog('[v4r] demo video ffmpeg err '+e.message); }
   return null;
@@ -2617,11 +2638,12 @@ function r0RealImages(persona, max){
 }
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
-function r0Mosaic(files){
+async function r0Mosaic(files){
   try{
     files=(files||[]).filter(Boolean).slice(0,9);
     if(!files.length) return null;
     if(files.length===1) return files[0]; // une seule vignette -> l'image telle quelle
+    if(R0DRY) return files[0]; // dry : pas de ffmpeg (ne bloque pas les tests)
     const n=files.length, cols=(n<=2?2:(n<=4?2:3)), cell=300;
     const args=['-y']; files.forEach(f=>args.push('-i',f));
     let fc=''; const labels=[];
@@ -2631,7 +2653,7 @@ function r0Mosaic(files){
     const out=path.join(BASE,'assets_r','_mosaic.jpg');
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     args.push('-filter_complex',fc,'-map','[out]','-frames:v','1',out);
-    require('child_process').execFileSync('ffmpeg',args,{stdio:'ignore',timeout:30000});
+    await _execFileP('ffmpeg',args,{timeout:30000}); // [B4] ASYNC : ne bloque pas la boucle
     if(fs.existsSync(out)) return out;
   }catch(e){ jlog('[v4r] mosaic err '+e.message); }
   return null;
@@ -2700,7 +2722,7 @@ async function r0Render(persona, editMid, banner){
   if(vw.await) r0Await=vw.await; // certaines sous-vues arment une saisie
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
   let kind=vw.kind||'text', media=null;
-  if(kind==='video'){ media=r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
+  if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){ const m=C.lastImage(f); media=(m&&m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto(); if(!media) kind='text'; } // photo RÉELLE si dispo, sinon démo
   // [F] GALERIE/HISTORIQUE/RÉCENTS : afficher une vraie MOSAÏQUE (planche-contact) comme média du bloc.
   if(r0Screen==='gallery' || r0Screen==='recents'){
@@ -2712,10 +2734,23 @@ async function r0Render(persona, editMid, banner){
     }
     else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
     files=files.filter(Boolean);
-    if(files.length){ const mo=r0Mosaic(files); if(mo){ kind='photo'; media=mo; } }
+    if(files.length){ const mo=await r0Mosaic(files); if(mo){ kind='photo'; media=mo; } }
   }
   await r0Paint(kind, media, caption, vw.rows, editMid);
   r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
+}
+
+// [B3] /v4r typé : RESTAURE le contexte + poste un bloc FRAIS, en POST-PUIS-SUPPRIME (le bloc ne disparaît jamais).
+async function r0TypedV4r(txt){
+  const persona=_persona(); r0Await=null; const old=r0Mid;
+  if(txt==='/v4r new'){ const {S}=_r0(); S.createProject(BASE,persona,{},Date.now());
+    r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null; r0Mid=null; r0Type=null; r0MediaPath=null;
+    await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
+  if(txt==='/v4r'){ if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
+    r0Mid=null; r0Type=null; r0MediaPath=null; /*poste un bloc neuf ; l'ancien n'est supprimé qu'APRÈS (jamais de trou)*/
+    await r0Render(persona,null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
+  r0Screen='home'; r0Mid=null; r0Type=null; r0MediaPath=null;
+  await r0Render(persona,null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} }
 }
 
 function r0ParentOfAsk(ask){ return ask.indexOf('ph_')===0?'photo_prompt':(ask.indexOf('vi_')===0?'video_params':'publication'); }
@@ -2789,7 +2824,7 @@ async function r0RealPhoto(persona, id){
     if(!url) throw new Error('aucune image renvoyée');
     const dir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(dir,{recursive:true}); }catch(e){}
     localPath=path.join(dir,'photo_'+ts+'.jpg');
-    try{ require('child_process').execSync('curl -s -o "'+localPath+'" "'+url+'"', {timeout:60000}); }catch(e){ localPath=null; throw new Error('téléchargement échoué'); }
+    try{ await _execFileP('curl',['-s','-o',localPath,url],{timeout:60000}); }catch(e){ localPath=null; throw new Error('téléchargement échoué'); } // [B4] ASYNC
     if(!localPath || !fs.existsSync(localPath) || fs.statSync(localPath).size<2000){ localPath=null; throw new Error('fichier image vide'); }
   }catch(e){ err=(e&&e.message)||String(e); }
   if(localPath){
@@ -3732,25 +3767,7 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
-  if(txt.startsWith('/v4r')){ /*[A] /v4r RESTAURE le contexte du projet en cours (dernier écran), au lieu de réinitialiser à blanc.*/
-    try{
-      const persona=_persona(); r0Await=null;
-      if(txt==='/v4r new'){ /*nouveau projet explicite = repart à l'Accueil (mais l'ancien projet n'est pas effacé)*/
-        const {S}=_r0(); S.createProject(BASE,persona,{},Date.now());
-        r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null;
-        if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} r0Mid=null; r0Type=null; r0MediaPath=null; }
-        await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); return;
-      }
-      if(txt==='/v4r'){ /*reprend le contexte (état restauré) MAIS poste TOUJOURS un bloc FRAIS visible en bas (anti « rien ne bouge »)*/
-        if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
-        if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null; r0Type=null; r0MediaPath=null; /*bloc neuf -> toujours visible*/
-        await r0Render(persona, null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); return;
-      }
-      r0Screen='home'; if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null; r0Type=null; r0MediaPath=null;
-      await r0Render(persona, null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.');
-    }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indisponible.'); }
-    return;
-  }
+  if(txt.startsWith('/v4r')){ try{ await r0TypedV4r(txt); }catch(e){ jlog('v4r err '+e.message); try{ await send('⚠️ /v4r indisponible.'); }catch(_){} } return; }
   if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
@@ -3931,7 +3948,7 @@ async function poll(){
 
 // ── Single-instance lock + capture d'erreurs ────────────────────────────────
 const LOCK_FILE='/tmp/telegram_bot.lock';
-try{
+if(!R0DRY) try{
   if(fs.existsSync(LOCK_FILE)){
     const oldPid=parseInt(fs.readFileSync(LOCK_FILE,'utf8'),10);
     let alive=false;
@@ -3959,6 +3976,22 @@ tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne
   {command:'restart',description:'🔄 Redémarrer'},
   {command:'help',description:'❓ Aide'},
 ]}).catch(()=>{});
+// [DRY-RUN] banc d'essai : on N'AMORCE PAS le bot ; on exporte une API pour rejouer le VRAI chemin (callbacks/typed).
+if(R0DRY){
+  module.exports = {
+    R0DRY,
+    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[]; try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
+    open:async()=>{ await r0TypedV4r('/v4r'); },                  // simule un /v4r
+    typed:async(t)=>{ await r0TypedV4r(t); },
+    // simule un TAP de bouton sur le bloc courant (= branche R0_ du vrai handler : sync mid/type + dispatch + answerCB TOUJOURS)
+    tap:async(d)=>{ const mid=r0Mid||[...R0DRY.alive].slice(-1)[0]||null; const cur=mid&&R0DRY.msgs[mid];
+      r0Mid=mid; r0Type=(cur&&cur.kind==='media')?'photo':'text';
+      try{ await r0Dispatch(_persona(), d, mid); }catch(e){ R0DRY.log.push('THROW:'+e.message); try{ await r0Render(_persona(), mid, '⚠️ Action non aboutie — réessaie.'); }catch(_){} }
+      try{ await tg('answerCallbackQuery',{}); }catch(_){}                  // le vrai handler répond TOUJOURS
+    },
+    state:()=>({ screen:r0Screen, section:r0Section, block:r0Block&&r0Block.key, mid:r0Mid, type:r0Type, pending:r0Pending&&r0Pending.kind, alive:R0DRY.alive.size, answered:R0DRY.answered }),
+  };
+} else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>{ /*[C3] boot SILENCIEUX — aucun message technique dans le chat utilisateur*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/

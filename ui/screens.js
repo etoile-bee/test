@@ -167,7 +167,7 @@ function videoParamsView(facts) {
     [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],                                              // ÉDITION (sous-titres dédié)
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],     // VALIDATION
     [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }],                                               // PRODUCTION (= Suivant)
-    [{ text: '◀ Retour', cb: 'R0_VIDEO' }],                                                       // NAVIGATION
+    [{ text: '🏠 Accueil', cb: 'R0_HOME' }],                                                       // NAVIGATION (B1/B2 : sortie réelle, pas de boucle R0_VIDEO->video_params)
   ]);
   return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
 }

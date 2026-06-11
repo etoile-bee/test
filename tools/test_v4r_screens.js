@@ -46,7 +46,7 @@ chk('Vidéo : kind = vidéo si vidéo, sinon photo source, sinon texte', viv.kin
 // ── ÉCRAN 3.1 VIDÉO/PARAMÈTRES : 7 blocs + commandes ──
 const vip = SC.videoParamsView(fimg);
 chk('Vidéo/Paramètres : SOURCE (Garder/Remplacer/Générer) + ÉDITION (script/voix/musique/sous-titres/durée)', ['R0_VI_KEEPLOOK', 'R0_VI_PICK', 'R0_VI_GENPHOTO', 'R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(vip, c)));
-chk('Vidéo/Paramètres : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_VIDEO', 'R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE'].every(c => has(vip, c)) && !has(vip, 'R0_HOME'));
+chk('Vidéo/Paramètres : Aperçu/Valider/Générer + sortie Accueil (hub vidéo)', ['R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE', 'R0_HOME'].every(c => has(vip, c)));
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
 const vir = SC.videoResultView(fvid);
@@ -71,7 +71,7 @@ chk('Récents : ▶Ouvrir(0) 📋Dup 📦Arch 🗑Suppr 🏠', has(rec, 'R0_RE_O
 // ── COMMANDES GLOBALES (point 6) : Accueil RÉSERVÉ aux écrans non-flux ; les flux ont Retour, pas Accueil ──
 const sortie = [phr, vir, pub, studio, sect, rec]; // écrans de SORTIE/non-flux : gardent 🏠 Accueil
 const _estCv = { moteur: 'Seedream', credits: 1, eur: 0.058, gratuit: false };
-const flux = [php, vip, SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } }), SC.videoEditView(fvid)]; // EN COURS : Retour, pas d'Accueil
+const flux = [php, SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } }), SC.videoEditView(fvid)]; // flux PROFOND (édition/dépense) : Retour, pas d'Accueil ; le hub video_params a une sortie Accueil guardée
 chk('Global : 🏠 Accueil présent sur les écrans de SORTIE/non-flux', sortie.every(v => has(v, 'R0_HOME')));
 chk('point6 : écrans EN FLUX -> Retour, PAS d\'Accueil (sortie non accidentelle)', flux.every(v => !has(v, 'R0_HOME') && cbs(v).some(c => /R0_(PHOTO|VIDEO|GEN_CANCEL)$/.test(c))));
 chk('Global : Accueil = racine (4 portes, pas de 🏠 vers soi-même)', !has(home, 'R0_HOME') && has(home, 'R0_PHOTO'));
