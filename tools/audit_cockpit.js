@@ -47,7 +47,7 @@ function audit(label, v, isFlow) {
   const seen = {}, dup = [];
   cbs.forEach(c => { if (!c) return; if (seen[c]) dup.push(c); seen[c] = (seen[c] || 0) + 1; });
   const hasBack = cbs.some(c => /R0_(HOME|PHOTO|VIDEO|VIDEO_PARAMS|VI_RESULT|VE|STUDIO|GEN_CANCEL|QUIT_CANCEL|PHOTO$)/.test(c) || /R0_PHOTO$|R0_VIDEO$/.test(c));
-  const backExplicit = txts.some(t => /Retour|◀|Revenir|Annuler|Vidéo$|Photo$|Édition/.test(t)) || cbs.includes('R0_HOME');
+  const backExplicit = txts.some(t => /Retour|◀|Revenir|Annuler|Éditer|Vidéo$|Photo$|Édition/.test(t)) || cbs.includes('R0_HOME') || cbs.includes('R0_GEN_CANCEL');
   const forward = cbs.some(c => /R0_(PH_GEN|PH_GENERATE|PH_USE|PH_TOVIDEO|VI_CREATE|VI_GENERATE|GO|PUB|PUB_DO|VI_KEEPLOOK)/.test(c)) || txts.some(t => /Suivant|Générer|Créer|Utiliser|Publier/.test(t));
   const long = txts.filter(t => t.length > 18);
   const jsonLeak = (/\{"|":/.test(v.caption)) || txts.some(t => /\{"|":/.test(t));

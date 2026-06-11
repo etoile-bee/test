@@ -68,7 +68,7 @@ function blockSpec(block, facts, ctx) {
   if (block.key === 'soustitres') {
     const cur = d.soustitres || 'auto (défaut)';
     return {
-      title: '🔤 Sous-titres', current: cur, parentKind: pk, back: { text: '◀ Édition', cb: 'R0_VE' },
+      title: '🔤 Sous-titres', current: cur, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VI_CREATE' },
       hint: 'Réglages pour cette vidéo (l\'incrustation se fait au rendu).',
       options: [
         { text: (d.soustitres === 'on' ? '🔵 ' : '') + '✅ Activer', cb: 'R0_SET_ston_on' },
@@ -172,7 +172,7 @@ function view(state, facts, ctx) {
   }
 }
 
-function parentOf(blk) { return blk === 'pubplat' ? 'publication' : (blk.indexOf('st') === 0 ? 'video_edit' : (blk.indexOf('ph') === 0 ? 'photo_prompt' : 'video_params')); }
+function parentOf(blk) { return blk === 'pubplat' ? 'publication' : (blk.indexOf('st') === 0 ? 'video_params' : (blk.indexOf('ph') === 0 ? 'photo_prompt' : 'video_params')); }
 function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (ask.indexOf('vi_') === 0 ? 'video_params' : 'publication'); }
 
 // ═══ REDUCER PUR : (action, état, faits, ctx) -> { st, op?, banner?, toast?, await? } ═══
@@ -203,6 +203,7 @@ function reduce(action, st0, facts, ctx) {
     return { st: st, await: { ask: ak }, banner: '✍️ <b>' + SC.esc(m.prompt || 'Ta réponse ?') + '</b>\n<i>Envoie-la dans le prochain message — je l\'intègre au bloc.</i>' }; }
   // GÉNÉRATEUR DE TEXTE (Anthropic, PAYANT) -> passe par la CONFIRMATION de coût comme le reste.
   if (d.indexOf('R0_GENTXT_') === 0) { st.pending = { kind: 'text', mediaKind: 'text', ask: d.slice(10) }; return go('confirm'); }
+  if (d === 'R0_PHB_edition') { return { st: st, toast: '🎨 Édition image (local, gratuit)', op: { type: 'draft', kind: 'photo', patch: { image_fx: 'réglée' } } }; } // (P2) Édition dans la prépa photo (local)
   if (d.indexOf('R0_PHB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'photo', key: d.slice(7) } }) }; }
   if (d.indexOf('R0_VIB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: d.slice(7) } }) }; }
   if (d.indexOf('R0_ST_') === 0 && d !== 'R0_STUDIO') { st.section = d.slice(6); return { st: Object.assign(st, { screen: 'studio_section', block: null }) }; }
@@ -215,7 +216,7 @@ function reduce(action, st0, facts, ctx) {
   switch (d) {
     case 'R0_HOME': return go('home');
     case 'R0_PHOTO': return go('photo');
-    case 'R0_VIDEO': return go('video');
+    case 'R0_VIDEO': return go((C.hasImage(facts) || C.hasVideo(facts)) ? 'video_params' : 'video'); // (P3) source dispo -> menu Vidéo directement
     case 'R0_STUDIO': st.section = null; return go('studio');
     case 'R0_RECENTS': return go('recents');
     case 'R0_PH_GEN': return go('photo_prompt');
@@ -238,7 +239,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_KEEP': return Object.assign(go('photo_result', '✅ <b>Photo gardée</b>'), { op: { type: 'etat', which: 'lastImage', etat: 'garde' } });
     case 'R0_PH_DEL': return Object.assign(go('photo', '🗑 <b>Photo retirée</b> <i>(historique conservé)</i>'), { op: { type: 'etat', which: 'lastImage', etat: 'supprime' } });
     case 'R0_PH_EDIT': return Object.assign(go('photo_prompt'), { op: { type: 'loaddraft', kind: 'photo', which: 'lastImage' } });
-    case 'R0_PH_USE': return go('photo_result', '✅ <b>Photo retenue</b>');        // « Utiliser la photo actuelle » -> revue/édition/suite
+    case 'R0_PH_USE': return go('photo_prompt', '🛠 <b>Préparation photo</b>');     // (P2) « Utiliser » -> menu de PRÉPARATION (boîte à outils)
     case 'R0_PH_OTHER': return go('photo_source');                                 // « Une autre » -> sources (Galerie/Archives/Récents/Importer)
     case 'R0_PH_TOVIDEO': return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' } } });
     // VIDÉO
@@ -294,7 +295,9 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
     case 'loaddraft': { const m = op.which === 'lastVideo' ? C.lastVideo(facts) : C.lastImage(facts); if (m) { const fields = op.kind === 'photo' ? ['prompt', 'avatar', 'look', 'decor', 'refs', 'format'] : ['source', 'mouvement', 'script', 'voix', 'musique', 'legendes', 'params']; const patch = {}; fields.forEach(k => { if (m[k] != null) patch[k] = m[k]; }); S.setDraft(base, persona, id, op.kind, patch, ts); } break; }
     case 'statut': S.setStatut(base, persona, id, op.statut, ts); break;
     case 'cleardraft': S.clearDraft(base, persona, id, ts); break;
-    case 'picksrc': { // pose le média choisi (galerie) comme SOURCE vidéo du projet courant — raccordement au flux
+    case 'picksrc': { // [P1.1] pose l'image choisie (galerie) DANS le projet (média réel) + comme source vidéo — raccordement au flux
+      const real = (ctx && ctx.galleryFiles) || null;
+      if (real && real[op.index]) { S.addCandidate(base, persona, id, ts, 'image', { file: real[op.index], simule: false, source: 'galerie' }); S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1) }, ts); break; }
       const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
       const want = (ctx && ctx.galleryKind) === 'video' ? 'video' : 'image';
       const items = all.filter(m => want === 'video' ? m.type === 'video' : m.type !== 'video');

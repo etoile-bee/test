@@ -24,7 +24,8 @@ chk('Accueil : kind texte', home.kind === 'text');
 
 // ── ÉCRAN 2 PHOTO : boutons exacts + kind ──
 const ph0 = SC.photoView(f0), phi = SC.photoView(fimg);
-chk('Photo : ✨Générer 📥Importer 🖼Galerie 🕘Historique 🏠', ['R0_PH_GEN', 'R0_PH_IMPORT', 'R0_PH_GAL', 'R0_PH_HIST', 'R0_HOME'].every(c => has(ph0, c)));
+chk('Photo (vide) : Générer/Importer/Historique/Accueil', ['R0_PH_GEN', 'R0_PH_IMPORT', 'R0_PH_HIST', 'R0_HOME'].every(c => has(ph0, c)));
+chk('Photo (avec image) : Utiliser(prépa) + Modifier(galerie)', has(SC.photoView(fimg), 'R0_PH_USE') && has(SC.photoView(fimg), 'R0_PH_GAL'));
 chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kind === 'text' && phi.kind === 'photo');
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
@@ -44,7 +45,7 @@ chk('Vidéo : kind = vidéo si vidéo, sinon photo source, sinon texte', viv.kin
 
 // ── ÉCRAN 3.1 VIDÉO/PARAMÈTRES : 7 blocs + commandes ──
 const vip = SC.videoParamsView(fimg);
-chk('Vidéo/Paramètres : 7 blocs (source/mouvement/script/voix/musique/légendes/params)', ['R0_VIB_source', 'R0_VIB_mouvement', 'R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VIB_legendes', 'R0_VIB_params'].every(c => has(vip, c)));
+chk('Vidéo/Paramètres : SOURCE (Garder/Remplacer/Générer) + ÉDITION (script/voix/musique/sous-titres/durée)', ['R0_VI_KEEPLOOK', 'R0_VI_PICK', 'R0_VI_GENPHOTO', 'R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(vip, c)));
 chk('Vidéo/Paramètres : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_VIDEO', 'R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE'].every(c => has(vip, c)) && !has(vip, 'R0_HOME'));
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
@@ -100,7 +101,7 @@ chk('gate : R0_GO -> op create (la seule porte de dépense, après confirmation)
 chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.reduce('R0_GEN_CANCEL', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.st.screen === 'photo_prompt' && !r.op; })());
 const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
 const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
-chk('confirm : Aperçu→Générer (terminologie) + moteur + coût + 🎨Générer / ◀Revenir', /Aperçu/.test(cv.caption) && /Seedream/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
+chk('confirm : compact (Aperçu + Coût) + 🎨Générer / ✏️Éditer', /Aperçu/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
 chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /🎨 Générer/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
 chk('confirm : éco reste gatée (gratuit=false, donc passe par l\'écran de coût)', estP.gratuit === false);
 // ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
@@ -116,7 +117,7 @@ chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)',
 // (1) home jamais vide : cover photo si image, sobre (texte, aucun placeholder) sinon
 chk('point2 : Accueil = couverture photo si image, sobre (texte) sinon — jamais de placeholder', SC.homeView(fimg).kind === 'photo' && SC.homeView(f0).kind === 'text');
 // (5) photo decision tree + look bug (libellés propres)
-chk('point5 : Photo demande « Utiliser / Une autre » si une photo existe', has(SC.photoView(fimg), 'R0_PH_USE') && has(SC.photoView(fimg), 'R0_PH_OTHER'));
+chk('point5 : Photo (avec image) = Utiliser(prépa) + Modifier(galerie)', has(SC.photoView(fimg), 'R0_PH_USE') && has(SC.photoView(fimg), 'R0_PH_GAL'));
 chk('point5 : « Une autre » -> sources Galerie/Archives/Récents/Importer', (() => { const v = SC.photoSourceView(fimg); return ['R0_PH_GAL', 'R0_PH_HIST', 'R0_RECENTS', 'R0_PH_IMPORT'].every(c => has(v, c)); })());
 chk('point5 : sélecteur Look = libellés propres (pas de JSON brut)', (() => { const sp = NAV.blockSpec({ screen: 'photo', key: 'look' }, fimg, ctx); return sp.options.every(o => !/[{}\[\]]/.test(o.text)); })());
 // point5 : AUTO-RÉPARATION d'une valeur héritée (JSON, même tronqué) -> libellé lisible, jamais de JSON affiché
@@ -142,7 +143,7 @@ chk('point7 : 🏠 depuis un écran NON en cours (photo) -> home direct (pas de 
 chk('point4 : ✨ Générer (IA) dans un bloc texte -> confirm (gaté), aucune dépense directe', (() => { const r = NAV.reduce('R0_GENTXT_ph_prompt', { screen: 'block', block: { screen: 'photo', key: 'prompt' } }, fimg, ctx); return r.st.screen === 'confirm' && !r.op && r.st.pending.kind === 'text'; })());
 chk('point4 : GO texte -> op gentext (remplit un champ EXISTANT), retour au bloc', (() => { const r = NAV.reduce('R0_GO', { screen: 'confirm', pending: { kind: 'text', ask: 'ph_prompt' } }, fimg, ctx); return r.op && r.op.type === 'gentext' && r.st.screen === 'photo_prompt'; })());
 const cvT = SC.confirmView(f0, { confirm: { mediaKind: 'text', est: { moteur: 'Anthropic (claude-sonnet-4-6)', credits: null, eur: 0.01, gratuit: false }, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
-chk('point4 : confirm texte affiche Anthropic + coût (payant, gaté)', /Anthropic/.test(cvT.caption) && /Coût/.test(cvT.caption));
+chk('point4 : confirm texte compact (Texte IA + coût, payant gaté)', /Texte/.test(cvT.caption) && /Coût/.test(cvT.caption));
 // (9) grilles : récents jusqu'à 9 en grille
 chk('point9 : Récents en grille (≥1 ligne de projets) + actions + home', (() => { const v = SC.recentsView(f0, { recents: { projets: [f0, fimg], brouillons: [], archives: [], legacy: 0 } }); return has(v, 'R0_RE_OPEN_0') && has(v, 'R0_RE_OPEN_1') && has(v, 'R0_HOME'); })());
 
@@ -170,6 +171,26 @@ chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() =
   const gs = [SC.galleryView(fvid, { galleryKind: 'image' }), SC.photoSourceView(fimg), SC.videoEditView(fvid), SC.quitView(fimg)];
   return gs.every(v => { const cb = cbs(v); return cb.some(c => /R0_(HOME|PHOTO|VIDEO|QUIT_CANCEL)/.test(c)); });
 })());
+
+// ── LOT raccordement v2 (A→L) ──
+// (G) titres courts uniformes
+chk('G : titres « PHOTO/VIDÉO · Étape »', /📸 PHOTO · Choisir/.test(SC.photoView(f0).caption) && /📸 PHOTO · Préparer/.test(SC.photoPromptView(fimg, ctx).caption) && /🎬 VIDÉO · Choisir/.test(SC.videoView(f0).caption) && /🎬 VIDÉO · Préparer/.test(SC.videoParamsView(fimg).caption));
+chk('G : titre Aperçu cohérent (📸/🎬 · Aperçu)', /📸 PHOTO · Aperçu/.test(SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, max: 10, next: 1, credits: 0 } } }).caption));
+// (K) durée visible + éditable + défaut
+chk('K : durée visible avec défaut dans Vidéo·Préparer', /⏱ Durée : 30s/.test(SC.videoParamsView(fimg).caption) && has(SC.videoParamsView(fimg), 'R0_VIB_duree'));
+chk('K : presets durée 15/30/60', SC.PRESETS.vi_duree.join(',') === '15s,30s,60s' && NAV.resolveSet('viduree', '2', {}).value === '60s');
+// (E) musique OFF/Automatique/Personnalisée
+chk('E : musique off/automatique/personnalisée', SC.PRESETS.vi_musique[0] === 'off' && NAV.resolveSet('vimus', '0', {}).value === 'off');
+// (D) sous-titres dédiés dans Vidéo>Édition : activer/désactiver/position/taille, retour à Édition
+chk('D : Vidéo>Édition -> Sous-titres', has(SC.videoEditView(fvid), 'R0_VE_SUBS'));
+chk('D : bloc sous-titres = activer/désactiver/position/taille', (() => { const v = NAV.view({ screen: 'block', block: { screen: 'video', key: 'soustitres' } }, fvid, {}); const c = cbs(v); return ['R0_SET_ston_on', 'R0_SET_ston_off', 'R0_SET_stpos_haut', 'R0_SET_stsize_S'].every(x => c.indexOf(x) >= 0) && c.indexOf('R0_VI_CREATE') >= 0; })());
+chk('D : régler un sous-titre -> retour au menu Vidéo (P3)', NAV.parentOf('ston') === 'video_params' && NAV.resolveSet('ston', 'on', {}).field === 'soustitres');
+// (J) import = demande d'envoi (instruction claire), pas de dépôt simulé direct
+chk('J : Importer -> attente d\'upload + instruction claire', (() => { const r = NAV.reduce('R0_PH_IMPORT', { screen: 'photo' }, f0, ctx); return r.await && r.await.upload === 'photo' && /Envoie ton image/.test(r.banner) && !r.op; })());
+chk('J : ASK affiche une instruction explicite', /Écris le prompt/.test(NAV.reduce('R0_ASK_ph_prompt', { screen: 'block' }, f0, ctx).banner));
+// (H) Photo<->Vidéo direct (sans Accueil)
+chk('H : Photo·Résultat « Créer vidéo » -> video_params (pas d\'Accueil) + source posée', (() => { const r = NAV.reduce('R0_PH_TOVIDEO', { screen: 'photo_result' }, fimg, ctx); return r.st.screen === 'video_params' && r.op && r.op.kind === 'video' && r.op.patch.source; })());
+chk('H : Vidéo « Changer la photo » -> flux photo avec retour auto (pas d\'Accueil)', (() => { const r = NAV.reduce('R0_VI_GENPHOTO', { screen: 'video' }, fimg, ctx); return r.st.screen === 'photo_prompt' && r.st.ret === 'video'; })());
 
 // sobriété : aucun jargon dev visible
 const allcap = [home].concat(sortie).concat(flux).map(v => v.caption).join(' ').toLowerCase();

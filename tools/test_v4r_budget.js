@@ -37,11 +37,11 @@ const f = S.defaultFacts('imany', 't', Date.UTC(2026, 5, 11, 13));
 const est = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
 // cas SIMULATION (live=false) : pas de blocage, le clic ne dépense pas
 const vSim = SC.confirmView(f, { confirm: { mediaKind: 'photo', est: est, live: false, budget: { tests: 3, credits: 1.44, max: 10, next: 4, remaining: 7, exhausted: false } } });
-chk('confirm SIM : moteur + coût + crédits consommés + état simulation', /Seedream/.test(vSim.caption) && /Coût/.test(vSim.caption) && /consommés.*: 1\.44/.test(vSim.caption) && /simulation/i.test(vSim.caption));
+chk('confirm SIM : coût + compteur tests + état simulation (compact)', /Coût/.test(vSim.caption) && /Tests : 3\/10/.test(vSim.caption) && /simulation/i.test(vSim.caption));
 chk('confirm SIM : bouton valider présent (pas de blocage)', [].concat.apply([], vSim.rows).some(b => b.cb === 'R0_GO'));
 // cas RÉEL non épuisé : compteur « test réel n°X/10 »
 const vReal = SC.confirmView(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: { tests: 3, credits: 1.44, max: 10, next: 4, remaining: 7, exhausted: false } } });
-chk('confirm RÉEL : affiche « test réel n°4 / 10 »', /test réel n°4 \/ 10/i.test(vReal.caption) && [].concat.apply([], vReal.rows).some(b => b.cb === 'R0_GO'));
+chk('confirm RÉEL : affiche « test réel n°4/10 »', /test réel n°4\/10/i.test(vReal.caption) && [].concat.apply([], vReal.rows).some(b => b.cb === 'R0_GO'));
 // cas RÉEL épuisé : blocage, pas de R0_GO
 const vBlocked = SC.confirmView(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: { tests: 10, credits: 4.8, max: 10, next: 11, remaining: 0, exhausted: true } } });
 chk('confirm RÉEL ÉPUISÉ : message « budget épuisé » + AUCUN bouton de dépense', /épuisé/i.test(vBlocked.caption) && !([].concat.apply([], vBlocked.rows).some(b => b.cb === 'R0_GO')));

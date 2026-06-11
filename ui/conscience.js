@@ -63,4 +63,17 @@ function titre(facts) {
   return '🧭 ' + s.cap + '\n📊 ' + s.etat + ' · 🗂 ' + s.decisions + ' décision(s)';
 }
 
-module.exports = { etat, capLine, situation, titre, prochainGeste, medias, visibles, hasImage, hasVideo, lastMedia, lastImage, lastVideo, mediaKind };
+// (P9) STATUT du projet — DÉRIVÉ des faits (aucun objet/champ stocké). Évolue automatiquement.
+//   Préparation photo → Photo validée → Préparation vidéo → Vidéo générée → Terminé.
+function statutProjet(facts) {
+  const p = (facts && facts.publication) || {};
+  if (p.publie_le) return 'Terminé';
+  if (hasVideo(facts)) return 'Vidéo générée';
+  const dv = (facts && facts.draft && facts.draft.video) || {};
+  const imgGardee = visibles(facts).some(m => m.type !== 'video' && m.etat === 'garde');
+  if (dv.source) return 'Préparation vidéo';
+  if (imgGardee) return 'Photo validée';
+  return 'Préparation photo';
+}
+
+module.exports = { etat, capLine, situation, titre, prochainGeste, medias, visibles, hasImage, hasVideo, lastMedia, lastImage, lastVideo, mediaKind, statutProjet };

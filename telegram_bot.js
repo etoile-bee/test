@@ -2601,6 +2601,20 @@ function r0DemoVideo(){
   return null;
 }
 function r0Kb(rows){ return (rows||[]).map(r=>r.map(b=>({text:b.text, callback_data:b.cb}))); } /*{cb} -> {callback_data}*/
+// [P1.1] IMAGES RÉELLES DISPONIBLES : fichiers image qui existent VRAIMENT (projet + global), récents d'abord, dédupliqués.
+//   Lecture seule de l'existant (aucun nouvel objet). Sert la galerie/historique pour montrer les VRAIES images.
+function r0RealImages(persona, max){
+  max=max||9; const {C}=_r0(); const out=[]; const seen={};
+  const add=(p)=>{ try{ if(p&&fs.existsSync(p)&&fs.statSync(p).size>1000){ const k=path.basename(p); if(!seen[k]){ seen[k]=1; out.push({p:p,m:fs.statSync(p).mtimeMs}); } } }catch(e){} };
+  // 1) projet courant : médias avec fichier réel
+  try{ const cur=r0Cur(persona,false); if(cur){ (C.visibles(cur)||[]).forEach(md=>{ if(md.type!=='video'&&md.file) add(md.file); }); } }catch(e){}
+  // 2) global : photos réelles générées (v4r), générations legacy, looks générés
+  try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(/^photo_.*\.(jpg|jpeg|png)$/i.test(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
+  try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(g,x)); }catch(e){}
+  try{ const ld=fs.realpathSync(path.join(BASE,'looks')); for(const x of fs.readdirSync(ld)) if(/^gen_.*\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ld,x)); }catch(e){}
+  out.sort((a,b)=>b.m-a.m);
+  return out.slice(0,max).map(o=>o.p);
+}
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
 function r0Mosaic(files){
@@ -2664,6 +2678,7 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
+  if(r0Screen==='gallery' && r0GalKind!=='video'){ ctx.galleryFiles=r0RealImages(persona,9); } // [P1.1] vraies images dispo (projet+global)
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
   if(r0Screen==='confirm' && r0Pending){
@@ -2672,7 +2687,7 @@ function r0Ctx(persona){
     ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };
     if(r0Pending.kind==='image'){ const {PO,S:Sx}=_r0(); const f2=r0Cur(persona,true); const dr=Sx.getDraft(f2,'photo')||{};
       const mp=PO.buildPhotoOpts(dr, _r0Lookbook(), _r0Outfits());
-      ctx.confirm.prep={ prompt:(mp.opts.basePrompt||null), outfit:(mp.opts.extra?'tenue choisie':(mp.opts.category||null)), decor:(mp.opts.env||null), unmapped:mp.unmapped }; }
+      ctx.confirm.prep={ prompt:(mp.opts.basePrompt||null), outfit:(mp.opts.extra?'tenue choisie':(mp.opts.category||null)), decor:(mp.opts.env||null), format:(dr.format||'9:16'), unmapped:mp.unmapped }; }
   }
   return ctx;
 }
@@ -2690,8 +2705,11 @@ async function r0Render(persona, editMid, banner){
   // [F] GALERIE/HISTORIQUE/RÉCENTS : afficher une vraie MOSAÏQUE (planche-contact) comme média du bloc.
   if(r0Screen==='gallery' || r0Screen==='recents'){
     let files=[];
-    if(r0Screen==='gallery'){ const want=r0GalKind==='video'?'video':'image'; const all=r0GalAll?C.medias(f):C.visibles(f);
-      files=all.filter(m=>want==='video'?m.type==='video':m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+    if(r0Screen==='gallery'){
+      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,9); } // [P1.1] VRAIES images (projet+global)
+      else { const want=r0GalKind==='video'?'video':'image'; const all=r0GalAll?C.medias(f):C.visibles(f);
+        files=all.filter(m=>want==='video'?m.type==='video':m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+    }
     else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
     files=files.filter(Boolean);
     if(files.length){ const mo=r0Mosaic(files); if(mo){ kind='photo'; media=mo; } }
