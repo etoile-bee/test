@@ -2633,12 +2633,14 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
   if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
-// [CLOUD] Reconnexion au mécanisme iCloud EXISTANT (outputs = symlink iCloud) : copie le rendu final dans outputs/generations
-//   -> resync auto iCloud + visible dans l'app Fichiers + remonte dans la galerie globale. AUCUN nouveau connecteur. Pas en dry-run.
-function r0CloudCopy(file){ try{ if(!file || (typeof R0DRY!=='undefined'&&R0DRY)) return null;
-  const dir=path.join(BASE,'outputs','generations'); fs.mkdirSync(dir,{recursive:true});
-  const dest=path.join(dir,'v4r_'+path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
-  jlog('[v4r] rendu copié vers iCloud: '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
+// [CLOUD] Reconnexion au mécanisme iCloud EXISTANT : dossier historique = « podcast-looks » (= la cible du symlink `looks/`).
+//   Chaque PROJET a son sous-dossier podcast-looks/<projet>/ avec tous ses fichiers (photo/vidéo/…) -> resync auto iCloud + app Fichiers.
+//   AUCUN nouveau connecteur. Pas en dry-run (sandbox ne touche jamais le vrai iCloud).
+function r0CloudCopy(file, projId){ try{ if(!file || (typeof R0DRY!=='undefined'&&R0DRY)) return null;
+  let lookRoot; try{ lookRoot=getLooksDir(); }catch(e){ lookRoot=path.join(BASE,'looks'); } // realpath de looks/ -> .../podcast-looks
+  const dir=path.join(lookRoot, projId||'v4r'); fs.mkdirSync(dir,{recursive:true});
+  const dest=path.join(dir, path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
+  jlog('[v4r] rendu déposé dans podcast-looks/'+(projId||'v4r')+': '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
 let _r0Vid=null;
@@ -2939,7 +2941,7 @@ async function r0Dispatch(persona, d, editMid){
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
-      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } } // [CLOUD]+[RENDU PERSISTANT]
+      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } } // [CLOUD podcast-looks/<projet>]+[RENDU PERSISTANT]
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } finally { r0Busy=false; }
     return;
@@ -2983,7 +2985,7 @@ async function r0RealPhoto(persona, id){
   }catch(e){ err=(e&&e.message)||String(e); }
   if(localPath){
     S.addCandidate(BASE,persona,id,ts,'image', Object.assign({}, draft, {file:localPath, simule:false, moteur:'seedream-v4', prompt:(draft.prompt||'(éco)')}));
-    r0CloudCopy(localPath); // [CLOUD] reconnecte au schéma legacy : dépôt aussi dans outputs/generations (= iCloud) -> resync + galerie
+    r0CloudCopy(localPath, id); // [CLOUD] dépôt dans podcast-looks/<projet>/ (= iCloud) -> resync + app Fichiers + galerie
     const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — 1 test réel consommé
     jlog('[v4r] TEST RÉEL PHOTO n°'+b.tests+'/'+b.max+' — photo déposée '+localPath);
     return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
