@@ -67,6 +67,7 @@ Après le fix systémique [[ANO-CTX-BLOCK-DEMO-GENERAL]], les 9 panneaux d'édit
 - **Gravité** : 🟡 (par design probable — à confirmer Etoile)
 - **Constaté** : import **photo** (→`looks/`) · **vidéo** (→`projects_r/<id>/`) · **référence** (→draft) existent et fonctionnent (rattachés+remontés+persistants, prouvé) ; **audio** n'a AUCUN chemin d'import (l'audio est GÉNÉRÉ par ElevenLabs/Kling, pas téléversé). Aussi : photo stockée dans le patrimoine global `looks/` vs vidéo dans le dossier projet (incohérence d'emplacement, sans perte).
 - **Statut** : 🟡 À ARBITRER (Etoile : faut-il un import audio ? faut-il uniformiser l'emplacement photo→dossier projet ?). Aucun correctif appliqué (pas de bug, choix produit).
+- **PREUVE RENFORCÉE (avant/après dispatch)** : `gen_audit_import_pub.js` → `docs/AUDIT_B_IMPORT_PUB.md` : #6 photo (looks/ · rattachée projet · Fichiers · Historique · **réutilisable comme source vidéo**), vidéo (dossier projet · source épinglée), réf (draft) ✅ ; #8 publication **avant/après** : `etat candidate→garde→publie`, **chemin fichier IDENTIQUE** (aucun move ; `setMediaEtat` ne fait aucune op fichier), même entrée média conservée, écran Publié distinct ✅. 13/13.
 
 ## ANO-ARCH-VERSIONING — #3 historique des modifications de champ (DOCUMENTATION pour arbitrage Etoile, NON implémenté)
 - **Couche** : `socle.setDraft` / `applyOp` `gentext`
