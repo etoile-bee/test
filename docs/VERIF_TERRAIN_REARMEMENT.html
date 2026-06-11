@@ -1,0 +1,61 @@
+<!doctype html><meta charset=utf-8><title>Vérif terrain + réarmement</title><style>body{font-family:-apple-system,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.4em}</style>
+<h1>Vérif terrain + sous-titres + plan de réarmement (11/06/2026)</h1>
+
+<blockquote>Read-only sur les données · archive gelée · LIVE OFF. UI/correctifs déployés au fil de l'eau.</blockquote>
+
+<h2>A. Bug grille (mosaïque par page) — CORRIGÉ ✅</h2>
+<p>Cause : la planche-contact était écrite dans un fichier FIXE <code>_mosaic.jpg</code> → cache Telegram périmé → page 2 réaffichait la planche de page 1 (« retombe sur une image unique »). <b>Fix</b> : nom de planche <b>unique par contenu</b> (hash des fichiers de la page) → chaque page a SA planche, swap correct en place. Récents aussi paginés, couverture réelle par projet. Déployé.</p>
+
+<h2>B. Vérification terrain (vraie base, read-only) — ✅</h2>
+<table><thead><tr><th>Contrôle</th><th>Résultat</th></tr></thead><tbody>
+<tr><td>Fichiers galerie ouvrables (distinct)</td><td><b>162</b>, <b>0 cassé/manquant</b></td></tr>
+<tr><td>Médias réels (facts.json) avec fichier existant</td><td><b>622 / 622</b> (0 manquant)</td></tr>
+<tr><td>id dupliqué / type invalide</td><td><b>0 / 0</b></td></tr>
+<tr><td>Source vidéo épinglée (<code>source_file</code>)</td><td>1, fichier présent (0 manquant)</td></tr>
+<tr><td>Vidéo qui « revient sur une ancienne photo » en navigant</td><td><b>non</b> (source épinglée <code>source_id</code>/<code>source_file</code>, prouvé runtime R2 + /v4r-fix)</td></tr>
+<tr><td>Chaque projet pointe ses fichiers</td><td>cohérent ; les 318 inter-projets seront rendus autonomes par la copie physique (archive, à ton GO)</td></tr>
+</tbody></table>
+<p><b>Verdict : aucun fichier cassé/manquant, aucune incohérence id↔fichier↔média, source vidéo saine.</b></p>
+
+<h2>B2. Régression « /v4r fait disparaître le projet » — CAUSE RÉELLE TROUVÉE + CORRIGÉE ✅</h2>
+<p>Le projet ne disparaissait PAS (logs : <code>/v4r</code> reprend toujours le projet courant). Mais :</p>
+<p>1. <code>v4r_nav.json</code> gardait <code>screen=video_params</code> → <code>/v4r</code> rouvrait un <b>écran profond</b>, pas l'accueil/couverture. <b>Fix</b> : <code>/v4r</code> force l'<b>accueil du projet courant</b> (couverture) ; <code>r0RestoreNav</code> réservé à <code>/restart</code>.</p>
+<p>2. La couverture retombait sur une <b>démo</b> quand la dernière entrée n'avait pas de fichier. <b>Fix</b> : <code>r0CoverFile()</code> prend la dernière image AVEC fichier existant.</p>
+<p>Régression couverte par test (<code>/v4r-fix</code> : écran profond → /v4r → accueil + média conservé + rendus intacts). Déployé.</p>
+
+<h2>C. Sous-titres — DIAGNOSTIC (pas un bug) + rendu complet</h2>
+<p><b>Pourquoi ils n'apparaissent pas sur l'image/aperçu</b> : les sous-titres sont <b>incrustés AU RENDU VIDÉO</b> (<code>render_local.js</code>, ffmpeg + libass <code>.ass</code>), à partir des *wordTimings* de la <b>voix</b>. Ils n'existent donc que sur la <b>vidéo générée réelle</b> — pas sur une photo ni sur l'aperçu (image fixe, aucune parole, aucun timing). En <b>simulation</b> (maquette locale), il n'y a pas de voix réelle → pas d'incrustation.</p>
+<p><b>Ce qui EST garanti</b> : le <b>réglage</b> sous-titres (actif · police · taille · position · affichage) est visible et récupérable partout (Montage › Sous-titres, Aperçu vidéo, Vidéo·Résultat, Ressources). → ce n'est pas une perte ; c'est une feature de rendu. Les sous-titres incrustés apparaîtront sur la 1ʳᵉ vidéo réelle.</p>
+
+<h3>Rendu complet — chaque élément s'affiche / est récupérable</h3>
+<table><thead><tr><th>Élément</th><th>Où il s'affiche / se récupère</th><th>État</th></tr></thead><tbody>
+<tr><td>Image</td><td>Galerie, Accueil (couverture), PHOTO·Résultat, Ressources</td><td>✅</td></tr>
+<tr><td>Texte/Prompt (entier)</td><td>Bloc Prompt, Aperçu, « 📄 Texte complet »</td><td>✅</td></tr>
+<tr><td>Script (entier)</td><td>Bloc Script, VIDÉO·Résultat, « 📄 Script complet »</td><td>✅</td></tr>
+<tr><td>Légende courte/longue</td><td>Publication, VIDÉO·Résultat, Ressources, « 📄 Texte complet »</td><td>✅</td></tr>
+<tr><td>Hashtags</td><td>idem légendes</td><td>✅</td></tr>
+<tr><td>Sous-titres (réglage)</td><td>Montage › Sous-titres, Aperçu, Résultat</td><td>✅ réglage</td></tr>
+<tr><td>Sous-titres (incrustés)</td><td>sur la VIDÉO réelle uniquement (rendu)</td><td>⚠️ nécessite rendu vidéo réel</td></tr>
+<tr><td>Audio (voix)</td><td>fichier produit au rendu vidéo réel ; réglage voix dans Montage</td><td>⚠️ réel</td></tr>
+<tr><td>Vidéo</td><td>VIDÉO·Résultat, Historique vidéo, Fichiers projet</td><td>✅</td></tr>
+</tbody></table>
+
+<h2>D. PLAN DE RÉARMEMENT SÉCURISÉ (préparé — NON exécuté)</h2>
+<blockquote>À exécuter UNIQUEMENT après : (3) GO migration d'Etoile, (4) son GO réarmement. Aujourd'hui : <b>rien armé</b>.</blockquote>
+
+<table><thead><tr><th>Maillon</th><th>Activation propre</th><th>Garde-fou</th></tr></thead><tbody>
+<tr><td>Moteurs réels</td><td><code>engines.setLive(true)</code> (crée <code>v4r_live</code>) ; clés <code>.env</code> présentes → <code>liveFor(photo/video)=true</code></td><td><code>live()</code> forcé OFF sous R0_DRYRUN (tests ne dépensent jamais)</td></tr>
+<tr><td>Génération PHOTO réelle</td><td><code>R0_GO</code> depuis confirm2 → <code>r0RealPhoto</code> (Seedream éco ~0,48 cr)</td><td><b>double-confirmation</b> + budget ≤10 + coût affiché + verrou anti double-clic</td></tr>
+<tr><td>Génération VIDÉO réelle</td><td><code>R0_GO</code> vidéo → <code>r0RealVideo</code> (script Anthropic + voix ElevenLabs + lipsync Kling, ~13–26 cr)</td><td>idem + 1ᵉʳ run = clic d'Etoile (jamais l'assistant)</td></tr>
+<tr><td>Stockage local</td><td>dépôt <code>projects_r/&lt;persona&gt;/&lt;id&gt;/</code></td><td>facts.json = source de vérité</td></tr>
+<tr><td>Sync iCloud</td><td><code>r0CloudCopy(file,id)</code> → <code>podcast-looks/&lt;projet&gt;/</code> (symlink iCloud)</td><td>garde-fou <code>test_v4r_cloud_chain</code> (échoue si cible dévie)</td></tr>
+<tr><td>Galerie / Historique</td><td><code>r0RealImages</code> / <code>r0RealVideos</code> agrègent automatiquement</td><td>compteurs étiquetés + pagination complète</td></tr>
+<tr><td>Telegram</td><td>bloc cockpit (<code>r0Paint</code>) + rendu persistant (<code>r0PostFinal</code>)</td><td>rendus jamais supprimés</td></tr>
+<tr><td>Publication</td><td><code>R0_PUB_DO</code> → marque « publié » → Archives publiées</td><td>envoi réel GATÉ (aucun post auto)</td></tr>
+</tbody></table>
+
+<p><b>Ordre recommandé</b> : (1) tu valides la preuve de lecture + cette vérif terrain → (2) GO migration (copie rétroactive, même mécanisme) → (3) GO réarmement → (4) tests réels e2e ciblés (photo d'abord, 30 s vidéo ensuite). <b>Je n'arme rien sans ton GO explicite.</b></p>
+
+<h2>Statut</h2>
+<p>Bug grille ✅ · /v4r régression ✅ · vérif terrain ✅ · sous-titres diagnostiqués (réglage récupérable ; incrustation = rendu réel) · plan réarmement prêt (non exécuté). Tests : runtime 70, carto 130, screens 79, nav 28, cloud-guard 14, audit 0. <b>LIVE OFF, archive gelée.</b></p>
+
