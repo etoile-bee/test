@@ -196,7 +196,7 @@ chk('SCRIPTS : bloc Script expose les thèmes legacy (puces)', (() => { const v 
 chk('SCRIPTS : choisir un thème -> mémorisé (draft.theme) + reste sur le panneau', (() => { const r = NAV.reduce('R0_STHEME_0', { screen: 'block', block: { screen: 'video', key: 'script' } }, fvid, ctxSc); return r.st.screen === 'block' && r.op.type === 'draft' && r.op.patch.theme === '🚩 Red flags' && r.op.patch.theme_seed === 'red flags'; })());
 // [RÉGRESSION « Enregistrer avant de quitter ? »] GARDE-FOU : depuis CHAQUE écran de flux en cours, 🏠 Accueil DOIT passer par l'écran quit
 //   (jamais d'abandon silencieux), l'écran quit DOIT proposer Enregistrer/Quitter/Annuler, et Annuler DOIT revenir à l'écran d'origine.
-const INPROG = ['photo_prompt', 'video_params', 'video_edit', 'confirm', 'confirm2', 'block'];
+const INPROG = ['photo_prompt', 'video_params', 'video_edit', 'confirm', 'validation', 'confirm2', 'block']; // [SÉCURITÉ] inclut 'validation' (D3) — la confirmation « Quitter ? » doit y être garantie
 INPROG.forEach(scr => {
   const st0 = scr === 'block' ? { screen: 'block', block: { screen: 'video', key: 'script' } } : { screen: scr };
   const r = NAV.reduce('R0_HOME', st0, fvid, ctx);
