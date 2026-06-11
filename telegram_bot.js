@@ -2773,6 +2773,12 @@ function r0Ctx(persona){
     const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
     ctx.pretFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE); ctx.pretTotal=list.length;
     ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
+  // [ARCHIVES PUBLIÉES] médias marqués « publie », paginés.
+  if(r0Screen==='publies'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
+    const list=(C.medias(f)||[]).filter(m=>m.etat==='publie'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+    const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
+    ctx.publiesFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE); ctx.publiesTotal=list.length;
+    ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };

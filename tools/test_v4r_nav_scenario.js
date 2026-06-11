@@ -79,8 +79,7 @@ tap('R0_GO'); chk('2. ✅ Validé : on VOIT la vidéo, MÊME message_id (swap en
 tap('R0_VI_KEEP'); chk('2. vidéo gardée + image conservée (rien perdu)', C.lastVideo(facts()).etat === 'garde' && C.hasImage(facts()));
 tap('R0_PUB'); chk('2. → Publication (même bloc vidéo)', st.screen === 'publication' && type === 'video');
 const before = JSON.stringify(facts().publication);
-tap('R0_PUB_DO'); chk('2. 📤 Publier : GATÉ (aucune publication réelle, publie_le reste vide)', !facts().publication.publie_le);
-chk('2. la tentative est tracée en mémoire (décision)', (facts().decisions || []).some(d => /publication/.test(d.action)));
+tap('R0_PUB_DO'); chk('2. 📤 Publier -> Archives publiées (média marqué « publie », envoi réel gaté)', st.screen === 'publies' && (C.medias(facts()) || []).some(m => m.etat === 'publie') && !facts().publication.publie_le);
 
 // ═══════════ SCÉNARIO 3 — VIDÉO EN GÉNÉRANT D'ABORD UNE PHOTO (retour auto) ═══════════
 console.log('\n━━ Scénario 3 : vidéo en générant la photo (retour auto) ━━');

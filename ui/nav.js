@@ -207,6 +207,7 @@ function view(state, facts, ctx) {
     case 'photo_montage': return SC.photoMontageView(facts, ctx);
     case 'resources': return SC.resourcesView(facts, ctx);
     case 'pret': return SC.pretView(facts, ctx);
+    case 'publies': return SC.publiesView(facts, ctx);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
     default: return SC.homeView(facts);
   }
@@ -251,6 +252,7 @@ function reduce(action, st0, facts, ctx) {
   // [PRÊT À POSTER] valide le média courant (état « garde ») et l'ajoute à la file prête à publier.
   if (d === 'R0_READY') { return Object.assign(go('pret', '📤 <b>Ajouté à « Prêt à poster »</b>'), { op: { type: 'etat', which: 'lastVideo', etat: 'garde' } }); }
   if (d.indexOf('R0_PRETITEM_') === 0) { return go('publication', '📤 <b>Sélection à publier</b>'); }
+  if (d.indexOf('R0_PUBITEM_') === 0) { return { st: st, toast: '📤 Média publié (archive)' }; }
   // [#25/#7] RÉFÉRENCE PHOTO : consulter · remplacer (upload) · verrouiller. Reste sur le bloc référence.
   if (d === 'R0_REF_VIEW') { return { st: st, toast: '👁 Référence courante affichée (image de base)' }; }
   if (d === 'R0_REF_REPLACE') { return { st: st, await: { upload: 'reference' }, banner: '🖼 <b>Envoie la nouvelle image de référence.</b>\n<i>Elle servira de base à tes prochaines générations (aucune dépense).</i>' }; }
@@ -336,7 +338,8 @@ function reduce(action, st0, facts, ctx) {
     // PUBLICATION (gatée)
     case 'R0_PUB_EDIT': return { st: Object.assign(st, { screen: 'block', block: { screen: 'pub', key: 'legende' } }) };
     case 'R0_PUB_SAVE': return Object.assign({ st: st, toast: '💾 Brouillon sauvegardé au dossier' }, { op: { type: 'statut', statut: 'brouillon' } });
-    case 'R0_PUB_DO': return Object.assign(go('publication', '📤 <b>Publication GATÉE</b> <i>(nécessite le GO d\'Etoile — aucun envoi réel)</i>'), { op: { type: 'decision', action: 'tentative publication', raison: 'GATÉE — GO requis' } });
+    case 'R0_PUB_DO': return Object.assign(go('publies', '📤 <b>Marqué publié</b> → Archives publiées <i>(envoi réel gaté)</i>'), { op: { type: 'etat', which: 'lastMedia', etat: 'publie' } });
+    case 'R0_PUBLISHED': return go('publies');   // Studio → Archives publiées
     default: return { st: st };
   }
 }
@@ -348,7 +351,7 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
   const draftKey = (mediaKind) => (mediaKind === 'video' ? 'video' : 'photo'); // média image|video -> tampon photo|video
   switch (op.type) {
     case 'create': S.addCandidate(base, persona, id, ts, op.kind, op.useDraft ? S.getDraft(facts, draftKey(op.kind)) : (op.attrs || {})); break;
-    case 'etat': { const m = op.which === 'lastVideo' ? C.lastVideo(facts) : C.lastImage(facts); if (m) S.setMediaEtat(base, persona, id, m.id, op.etat, ts); break; }
+    case 'etat': { const m = op.which === 'lastVideo' ? C.lastVideo(facts) : (op.which === 'lastMedia' ? C.lastMedia(facts) : C.lastImage(facts)); if (m) S.setMediaEtat(base, persona, id, m.id, op.etat, ts); break; }
     case 'draft': {
       if (op.onlyIfImage && !C.hasImage(facts)) break;
       if (op.onlyIfImageAndNoSource && (!C.hasImage(facts) || S.getDraft(facts, 'video').source)) break;

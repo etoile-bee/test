@@ -228,6 +228,19 @@ function pretView(facts, ctx) {
   return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
+// ── ARCHIVES PUBLIÉES (Studio › Historique) : tout ce qui a été marqué « publié », grille paginée ──
+function publiesView(facts, ctx) {
+  const items = (ctx && ctx.publiesFiles) || [];
+  const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
+  const total = (ctx && ctx.publiesTotal != null) ? ctx.publiesTotal : items.length;
+  let cap = '<b>📤 Archives publiées</b> · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+    + (items.length ? '\n<i>tes médias publiés (retrouvables ici)</i>' : '\n<i>rien de publié pour l\'instant</i>');
+  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PUBITEM_' + i }), 3);
+  if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  rows.push([{ text: '◀ Retour', cb: 'R0_STUDIO' }, HOME]);
+  return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
+}
+
 // ── ÉCRAN 4 — PUBLICATION ────────────────────────────────────────────────────
 function publicationView(facts) {
   const p = (facts && facts.publication) || {};
@@ -255,7 +268,7 @@ function studioView(facts, ctx) {
   for (let i = 0; i < secs.length; i += 2) {
     rows.push(secs.slice(i, i + 2).map(s => ({ text: s.icon + ' ' + s.label, cb: 'R0_ST_' + s.key })));
   }
-  rows.push([{ text: '🕘 Historique', cb: 'R0_PH_HIST' }]);   // [Etoile] accès à l'historique (médias) depuis le Studio
+  rows.push([{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, { text: '📤 Publiés', cb: 'R0_PUBLISHED' }]);   // [Etoile] Historique + Archives publiées depuis le Studio
   rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
@@ -488,6 +501,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, gridRows,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, publiesView, gridRows,
   PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

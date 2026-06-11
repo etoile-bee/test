@@ -90,7 +90,7 @@ chk('reduce : R0_VI_GENPHOTO -> confirmation puis R0_GO (ret=video) -> retour AU
   const g = NAV.reduce('R0_GO', c.st, f0, ctx); // valide -> auto video + op image + then(source)
   return c.st.screen === 'confirm' && g.st.screen === 'video' && g.st.ret == null && g.op && g.op.then;
 })());
-chk('reduce : R0_PUB_DO -> publication + op decision (GATÉ, pas de publish)', (() => { const x = NAV.reduce('R0_PUB_DO', { screen: 'publication' }, fvid, ctx); return x.st.screen === 'publication' && x.op.type === 'decision'; })());
+chk('reduce : R0_PUB_DO -> Archives publiées + marque le média « publie » (envoi réel gaté)', (() => { const x = NAV.reduce('R0_PUB_DO', { screen: 'publication' }, fvid, ctx); return x.st.screen === 'publies' && x.op.type === 'etat' && x.op.etat === 'publie'; })());
 chk('reduce : suppression = op etat supprime (DOUX, pas de hard delete)', NAV.reduce('R0_PH_DEL', { screen: 'photo_result' }, fimg, ctx).op.etat === 'supprime');
 
 // ── COST GATE : génération -> confirmation AVANT dépense (jamais d'op directe) ──
