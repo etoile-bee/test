@@ -2571,7 +2571,8 @@ function cockpitV4(){
 // ═══ [RÉALISATION — colonne vertébrale /v4r] UN SEUL bloc vivant : édité en place ; recréé (delete+post) seulement
 //     sur bascule TEXTE↔PHOTO. Vues PURES = ui/spine_view (testées hors Telegram) ; transport ici.
 //     Image affichée UNIQUEMENT si elle existe (jamais de placeholder) ; génération SIMULÉE (zéro dépense). Isolé du legacy/v4. ═══
-function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget') }; }
+function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget'), PO:require('./ui/photo_opts') }; }
+function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_catalog.json')]; return require('./outfits_catalog.json'); }catch(e){ return null; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
@@ -2669,6 +2670,9 @@ function r0Ctx(persona){
     const {ENG,BUD}=_r0();
     const est=r0EstFor(persona, r0Pending);
     ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };
+    if(r0Pending.kind==='image'){ const {PO,S:Sx}=_r0(); const f2=r0Cur(persona,true); const dr=Sx.getDraft(f2,'photo')||{};
+      const mp=PO.buildPhotoOpts(dr, _r0Lookbook(), _r0Outfits());
+      ctx.confirm.prep={ prompt:(mp.opts.basePrompt||null), outfit:(mp.opts.extra?'tenue choisie':(mp.opts.category||null)), decor:(mp.opts.env||null), unmapped:mp.unmapped }; }
   }
   return ctx;
 }
@@ -2721,6 +2725,10 @@ async function r0Dispatch(persona, d, editMid){
     return;
   }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
+  // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
+  if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image'){
+    try{ const {PO}=_r0(); jlog('[v4r] PHOTO '+(ENG.liveFor('photo')?'RÉEL':'SIMULÉ')+' — '+PO.trace(S.getDraft(cur,'photo'), _r0Lookbook(), _r0Outfits())); }catch(e){}
+  }
   // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
   const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo'));
   if(realPhoto){
@@ -2750,11 +2758,13 @@ async function r0Dispatch(persona, d, editMid){
 //   Défensive : toute erreur -> aucune photo déposée + message clair, JAMAIS de crash. Enregistre 1 test réel sur succès.
 async function r0RealPhoto(persona, id){
   const {S,BUD}=_r0(); const ts=Date.now();
-  const draft=S.getDraft(r0Cur(persona),'photo')||{};
+  const {PO}=_r0(); const draft=S.getDraft(r0Cur(persona),'photo')||{};
+  const mapped=PO.buildPhotoOpts(draft, _r0Lookbook(), _r0Outfits());      // PROMPT/LOOK/DÉCOR du projet -> opts moteur
+  jlog('[v4r réel] '+PO.trace(draft, _r0Lookbook(), _r0Outfits()));        // trace de ce qui part au moteur
   let localPath=null, err=null;
   try{
     const gen=await Promise.race([
-      nlMod().generateLook({mode:'eco', count:1}, (msg)=>{ try{ jlog('[v4r réel] '+msg); }catch(e){} }),
+      nlMod().generateLook(Object.assign({mode:'eco', count:1}, mapped.opts), (msg)=>{ try{ jlog('[v4r réel] '+msg); }catch(e){} }),
       new Promise((_,rej)=>setTimeout(()=>rej(new Error('délai dépassé (240 s) — réessaie')),240000)), // garde-fou : ne reste JAMAIS bloqué
     ]);
     const url=(gen&&gen.urls&&gen.urls[0])||null;

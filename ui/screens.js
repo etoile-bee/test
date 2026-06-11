@@ -286,6 +286,13 @@ function confirmView(facts, ctx) {
   let cap = '<b>' + titre + '</b>'
     + '\n' + recap
     + '\n⚙️ Moteur : ' + esc(e.moteur || '—');
+  // (point 4) montre ce qui SERA envoyé au moteur (prompt/look/décor du projet) + ce qui n'est pas paramétrable.
+  if (cf.prep) {
+    cap += '\n📝 Prompt : ' + (cf.prep.prompt ? esc(short(cf.prep.prompt, 50)) : '<i>défaut</i>')
+      + '\n👗 Look : ' + (cf.prep.outfit ? esc(cf.prep.outfit) : '<i>défaut</i>')
+      + '\n🏛 Décor : ' + (cf.prep.decor ? esc(cf.prep.decor) : '<i>défaut</i>');
+    if (cf.prep.unmapped && cf.prep.unmapped.length) cap += '\n<i>ℹ️ non paramétrable : ' + esc(cf.prep.unmapped.join(' ; ')) + '</i>';
+  }
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     cap += '\n🔋 Crédits déjà consommés (tests) : ' + b.credits;
