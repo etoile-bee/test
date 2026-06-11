@@ -2570,7 +2570,11 @@ function cockpitV4(){
 // ═══ [RÉALISATION — colonne vertébrale /v4r] UN SEUL bloc vivant : édité en place ; recréé (delete+post) seulement
 //     sur bascule TEXTE↔PHOTO. Vues PURES = ui/spine_view (testées hors Telegram) ; transport ici.
 //     Image affichée UNIQUEMENT si elle existe (jamais de placeholder) ; génération SIMULÉE (zéro dépense). Isolé du legacy/v4. ═══
-function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines') }; }
+function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), SB:require('./ui/spine_block'), NAV:require('./ui/nav'), SC:require('./ui/screens'), INV:require('./ui/inventory'), COST:require('./ui/cockpit_cost'), ENG:require('./ui/engines'), BUD:require('./ui/budget') }; }
+// Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
+function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
+  const params = pending.kind==='video' ? Object.assign({duree:'23s'}, S.getDraft(f,'video')) : Object.assign({nb_images:1, mode:'eco'}, S.getDraft(f,'photo'));
+  return COST.estimate(pending.kind==='video'?'video':'image', params, lb); }
 function _r0Lookbook(){ try{ delete require.cache[require.resolve('./lookbook.json')]; return require('./lookbook.json'); }catch(e){ return null; } }
 function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,persona);
@@ -2627,15 +2631,12 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
-  // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant.
+  // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
+  //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
   if(r0Screen==='confirm' && r0Pending){
-    const f=r0Cur(persona,true); const lb=_r0Lookbook();
-    const params = r0Pending.kind==='video'
-      ? Object.assign({duree:'23s'}, _r0().S.getDraft(f,'video'))
-      : Object.assign({nb_images:1, mode:'eco'}, _r0().S.getDraft(f,'photo'));
-    const est=COST.estimate(r0Pending.kind==='video'?'video':'image', params, lb);
-    const credits=(lb&&lb.pricing&&lb.pricing.credits_restants);
-    ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, credits:(credits!=null?credits:null) };
+    const {ENG,BUD}=_r0();
+    const est=r0EstFor(persona, r0Pending);
+    ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.live(), budget:BUD.state(BASE) };
   }
   return ctx;
 }
@@ -2662,8 +2663,18 @@ async function r0Dispatch(persona, d, editMid){
   const {S,NAV}=_r0(); const now=Date.now();
   const cur=r0Cur(persona,true); const id=cur.projectId; r0Await=null;
   const ctx=r0Ctx(persona);
+  const {ENG,BUD}=_r0();
+  // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
+  if(d==='R0_GO' && r0Pending && ENG.live() && BUD.state(BASE).exhausted){
+    const b=BUD.state(BASE); jlog('[v4r] GO bloqué : budget tests réels épuisé '+b.max+'/'+b.max);
+    await r0Render(persona, editMid, '⛔ <b>Budget de test épuisé ('+b.max+'/'+b.max+')</b> — réautorisation d\'Etoile nécessaire.');
+    return;
+  }
+  const pendingPaidGo = (d==='R0_GO' && r0Pending) ? r0Pending : null;
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending}, cur, ctx);
   if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now);
+  // ENREGISTREMENT TEST RÉEL : uniquement si une génération payante a réellement été lancée (moteur réel armé).
+  if(pendingPaidGo && ENG.live()){ const est=r0EstFor(persona, pendingPaidGo); const b=BUD.record(BASE, (est&&est.credits)||0); jlog('[v4r] TEST RÉEL n°'+b.tests+'/'+b.max+' (+'+((est&&est.credits)||0)+' cr) — moteur '+(est&&est.moteur)); }
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
   if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; } /*réinit hors galerie*/

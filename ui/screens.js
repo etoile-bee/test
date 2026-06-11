@@ -208,27 +208,42 @@ function gridRows(items, mkBtn, cols) {
 }
 
 // ── CONFIRMATION DE DÉPENSE (Aperçu→Récap→Coût→Validation) : AVANT toute génération payante (photo ET vidéo) ──
-//   ctx.confirm = { mediaKind:'photo'|'video', est:{moteur,credits,eur,gratuit,...}, credits, regen }
+//   ctx.confirm = { mediaKind, est:{moteur,credits,eur,gratuit,...}, credits, live:bool, budget:{tests,credits,max,next,remaining,exhausted} }
+//   Affiche : (1) moteur · (2) coût · (3) crédits déjà consommés (cumul tests réels) + « test réel n°X/10 » · (4) validation.
+//   En SIMULATION (live=false) : aucune dépense, le compteur n'avance pas. À 10/10 réel : BLOQUE.
 function confirmView(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
   const e = cf.est || {};
   const paid = !e.gratuit;
+  const live = !!cf.live;          // moteur réel armé (GO d'Etoile) vs simulation
+  const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
+  const blocked = paid && live && b.exhausted;
   const recap = (cf.mediaKind === 'video')
     ? ('🎬 Vidéo' + (e.duree ? ' · ' + e.duree : '') + ' · ' + (e.nb || 1) + ' plan(s)')
     : ('📸 Photo' + ' · ' + (e.nb || 1) + ' img · ' + (e.format || '9:16'));
   let cap = '<b>' + (paid ? '💳 Confirmer la génération' : '✅ Confirmer') + '</b>'
     + '\n' + recap
-    + '\n⚙️ Moteur : ' + esc(e.moteur || '—')
-    + '\n' + (paid
-      ? ('🔴 <b>PAYANT</b> — ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?') + (ctx && ctx.credits != null ? ('\n🔋 Crédits restants : ' + ctx.credits) : ''))
-      : '🟢 <b>GRATUIT</b> (traitement local)')
-    + '\n\n<i>' + (paid ? 'Rien n\'est dépensé sans ton clic ci-dessous.' : 'Aucune dépense.') + '</i>';
-  return {
-    kind: C.mediaKind(facts), caption: cap, rows: [
-      [{ text: (paid ? '💲 Valider et générer' : '✅ Générer'), cb: 'R0_GO' }, { text: '✖️ Annuler', cb: 'R0_GEN_CANCEL' }],
-      [{ text: '🏠 Accueil', cb: 'R0_HOME' }],
-    ],
-  };
+    + '\n⚙️ Moteur : ' + esc(e.moteur || '—');
+  if (paid) {
+    cap += '\n🔴 <b>PAYANT</b> — ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
+    cap += '\n🔋 Crédits déjà consommés (tests réels) : ' + b.credits;
+    if (blocked) {
+      cap += '\n\n⛔ <b>Budget de test épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation nécessaire.';
+    } else if (live) {
+      cap += '\n🧪 <b>Test réel n°' + b.next + ' / ' + b.max + '</b> (réel — dépense à ce clic)';
+      cap += '\n\n<i>Rien n\'est dépensé sans ton clic ci-dessous.</i>';
+    } else {
+      cap += '\n🟡 <b>Simulation</b> (aucune dépense) · tests réels : ' + b.tests + '/' + b.max;
+      cap += '\n\n<i>Le moteur réel reste OFF ; ce clic ne dépense pas.</i>';
+    }
+  } else {
+    cap += '\n🟢 <b>GRATUIT</b> (traitement local)\n\n<i>Aucune dépense.</i>';
+  }
+  const rows = blocked
+    ? [[{ text: '⛔ Budget épuisé', cb: 'R0_GEN_CANCEL' }], [{ text: '🏠 Accueil', cb: 'R0_HOME' }]]
+    : [[{ text: (paid ? (live ? '💲 Valider (test réel n°' + b.next + ')' : '💲 Valider (simulation)') : '✅ Générer'), cb: 'R0_GO' }, { text: '✖️ Annuler', cb: 'R0_GEN_CANCEL' }],
+       [{ text: '🏠 Accueil', cb: 'R0_HOME' }]];
+  return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
 // ── GALERIE / HISTORIQUE (grille) : parcourir les médias du projet sans cul-de-sac ──
