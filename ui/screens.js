@@ -481,7 +481,11 @@ function blockView(spec) {
   const opts = spec.options || [];
   for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3));
   if (spec.askCb) rows.push([{ text: '✍️ Saisir', cb: spec.askCb }]);
-  rows.push([spec.back || { text: '◀ Retour', cb: 'R0_HOME' }]);
+  if (spec.previewCb) rows.push([{ text: '👁 Aperçu', cb: spec.previewCb }]); // [SOUS-TITRES] incruste un échantillon dans le style courant
+  // [VALIDER + RETOUR À CHAQUE ÉTAPE] tout bloc expose ✅ Valider ET ◀ Retour (le brouillon est déjà sauvegardé : les deux ramènent au parent).
+  const backBtn = spec.back || { text: '◀ Retour', cb: 'R0_HOME' };
+  const validBtn = { text: spec.validateLabel || '✅ Valider', cb: spec.validateCb || backBtn.cb };
+  rows.push([validBtn, backBtn]);
   return { kind: spec.parentKind || 'text', caption: cap, rows: rows, await: spec.await || null };
 }
 

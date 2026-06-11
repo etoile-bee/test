@@ -153,7 +153,7 @@ async function saveLipsyncRaw(url,num,ts,outDir){
   try{const p=require('path').join(outDir,ts+'_raw_p'+num+'.mp4');require('child_process').execSync('curl -s -o "'+p+'" "'+url+'"');console.log('  Raw saved:',p);return p;}catch(e){console.log('  (raw save skipped)');return null;}
 }
 // === Aiguillage rendu : LOCAL (ffmpeg+libass) par defaut, Shotstack en secours via USE_SHOTSTACK=1 ===
-async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions,localInput){
+async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reactions,localInput,styleOpts){
   if(process.env.USE_SHOTSTACK==='1'){
     return await renderVideoShotstack(lipsyncUrl,wordTimings,keywords,duration,num,reactions);
   }
@@ -167,7 +167,8 @@ async function renderVideo(lipsyncUrl,wordTimings,keywords,duration,num,reaction
     else throw new Error('render local: pas d\'input video (ni raw local ni URL): '+lipsyncUrl);
   }
   const output='/tmp/wf_render_'+num+'.mp4';
-  const r=await renderLocal({input:input,wordTimings:wordTimings,keywords:keywords||[],duration:duration,reactions:reactions||[],output:output});
+  // [SOUS-TITRES DÉFINITIF] styleOpts (police/taille/position/couleur PAR vidéo) surchargent subtitle_style.js — appliqués à l'incrustation finale.
+  const r=await renderLocal(Object.assign({input:input,wordTimings:wordTimings,keywords:keywords||[],duration:duration,reactions:reactions||[],output:output}, styleOpts||{}));
   console.log('  OK local:',r.output,'('+r.duration.toFixed(2)+'s, '+r.segments+' seg, '+r.subtitles+' sous-titres, '+r.reactions+' reaction)');
   return r.output;
 }

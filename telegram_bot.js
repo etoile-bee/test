@@ -2665,7 +2665,7 @@ function r0ArchiveProjet(persona, id){
     const W=(folder,name,txt)=>{ if(txt!=null&&String(txt).trim()) try{ fs.writeFileSync(path.join(dir,folder,name),String(txt)); }catch(e){} };
     W('Prompts','prompt.txt',dp.prompt); W('Scripts','script.txt',dv.script);
     W('Légendes','legendes.txt',[pub.legende_courte&&('COURTE:\n'+pub.legende_courte),pub.legende_longue&&('LONGUE:\n'+pub.legende_longue),pub.hashtags&&('HASHTAGS:\n'+pub.hashtags)].filter(Boolean).join('\n\n'));
-    W('Sous-titres','soustitres.txt',['actif: '+(dv.soustitres||'auto'),'police: '+(dv.st_font||'-'),'taille: '+(dv.st_size||'-'),'position: '+(dv.st_pos||'-'),'affichage: '+(dv.st_display||'-')].join('\n'));
+    W('Sous-titres','soustitres.txt',['actif: auto (incrustés)','affichage: '+(dv.st_display||'-'),'police: '+(dv.st_font||'-'),'taille: '+(dv.st_size||'-'),'position: '+(dv.st_pos||'-'),'couleur: '+(dv.st_color||'-')].join('\n'));
     if(dp.reference&&fs.existsSync(dp.reference)){ try{ fs.copyFileSync(dp.reference,path.join(dir,'Références',path.basename(dp.reference))); }catch(e){} }
     if(dp.look){ W('Looks','look.txt',String(dp.look)); }
     const manifest={ projectId:id, persona:persona, titre:(f.intention&&f.intention.message)||id, cree_le:f.cree_le, modifie_le:f.modifie_le, statut:f.statut,
@@ -2987,15 +2987,22 @@ async function r0Dispatch(persona, d, editMid){
   // [P6] ENREGISTRER MODÈLE : mémorise TOUTE la config courante (photo: prompt/look/decor/format ; vidéo: script/voix/musique/soustitres/duree) comme défauts réutilisables.
   if(d==='R0_SAVEMODEL'){ const {DEF}=_r0(); const f3=r0Cur(persona,true);
     const kind=(r0Pending&&r0Pending.mediaKind==='video')?'video':'photo'; const dr=S.getDraft(f3,kind)||{};
-    const fields=kind==='video'?['script','voix','musique','soustitres','duree','st_font','st_size','st_pos','st_display']:['prompt','look','decor','format','reference'];
+    const fields=kind==='video'?['script','voix','musique','duree','st_font','st_size','st_pos','st_display','st_color']:['prompt','look','decor','format','reference'];
     let n=0; fields.forEach(ff=>{ if(dr[ff]!=null&&dr[ff]!=='') { DEF.setField(BASE,persona,kind,ff,dr[ff]); n++; } });
     try{ await toast(n?('💾 Modèle enregistré ('+n+' réglages réutilisables)'):'Rien à enregistrer'); }catch(e){}
     await r0Render(persona, editMid); return; }
   // [#18] ENREGISTRER PAR DÉFAUT la valeur courante de l'outil — réutilisée aux prochaines générations/nouveaux projets.
-  if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
-    const dr=S.getDraft(r0Cur(persona),kind)||{}; const val=dr[field];
-    if(val!=null&&val!==''){ DEF.setField(BASE,persona,kind,field,val); try{ await toast('💾 Enregistré par défaut — réutilisé ensuite'); }catch(e){} }
-    else { try{ await toast('Rien à enregistrer (vide)'); }catch(e){} }
+  if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen;
+    const dr=S.getDraft(r0Cur(persona),kind)||{};
+    // [SOUS-TITRES DÉFINITIF] le panneau d'apparence porte PLUSIEURS champs (st_*) -> on les mémorise TOUS comme défauts.
+    const fields=(r0Block.key==='soustitres')?['st_display','st_font','st_size','st_pos','st_color']:[NAV.fieldAlias(r0Block)];
+    let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
+    try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
+    await r0Render(persona, editMid); return; }
+  // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
+  if(d==='R0_STPREV'){ const png=await r0SubSample(persona);
+    if(png){ try{ await sendPhotoKb(png, '👁 <i>Aperçu sous-titres — apparence appliquée (police · taille · position · couleur). Le rendu final utilisera EXACTEMENT ces réglages.</i>', null); }catch(e){} }
+    else { try{ await toast('Aperçu indisponible (pas d\'image source du projet)'); }catch(e){} }
     await r0Render(persona, editMid); return; }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
@@ -3091,6 +3098,36 @@ async function r0RealPhoto(persona, id){
 //   appelée UNIQUEMENT depuis le clic « Oui, générer » d'Etoile (LIVE + clés présentes). La SOURCE = la dernière photo
 //   validée du projet (devient l'avatar Higgsfield). Défensive : toute erreur -> aucune vidéo déposée + message clair,
 //   JAMAIS de crash. Enregistre 1 test réel (au coût estimé) sur succès seulement. Timeout dur (anti-blocage).
+// [SOUS-TITRES DÉFINITIF] mappe les réglages d'apparence PAR vidéo (draft.video.st_*) -> options render_local (incrustation finale).
+//   Les MÊMES valeurs alimentent l'APERÇU (r0SubSample) ET le rendu réel -> ce qu'elle règle s'applique aux deux.
+function r0SubOpts(dv){ dv=dv||{};
+  const FONTS={archivo:'Archivo Black',classique:'Arial'};
+  const SIZE={S:58,M:78,L:98};
+  const OYP={bas:0.27,milieu:0.50,haut:0.78};   // fraction depuis le bas (OY)
+  const ALIGN={bas:2,milieu:5,haut:8};          // alignement ASS (bas/milieu/haut, centré)
+  const COLOR={blanc:'&H00FFFFFF',jaune:'&H0000FFFF',cyan:'&H00FFFF00'}; // ASS = &HAABBGGRR
+  const o={};
+  if(dv.st_font&&FONTS[dv.st_font])o.font=FONTS[dv.st_font];
+  if(dv.st_size&&SIZE[dv.st_size]!=null)o.fontSize=SIZE[dv.st_size];
+  if(dv.st_pos){ if(OYP[dv.st_pos]!=null)o.oy=OYP[dv.st_pos]; if(ALIGN[dv.st_pos]!=null)o.alignment=ALIGN[dv.st_pos]; }
+  if(dv.st_color&&COLOR[dv.st_color])o.color=COLOR[dv.st_color];
+  return o;
+}
+// [SOUS-TITRES DÉFINITIF] APERÇU : incruste un échantillon (1res lignes du script, sinon phrase type) dans LE style courant,
+//   via le MÊME render_local.buildAss que le rendu final -> l'aperçu reflète fidèlement la vidéo générée. Local, gratuit.
+async function r0SubSample(persona){
+  try{ const {S,C}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
+    const img=r0CoverFile(f); if(!img||!fs.existsSync(img)) return null;
+    const o=r0SubOpts(dv); const rl=freshRL(); const W=720,H=1280;
+    let phrase=(dv.script&&String(dv.script).trim())||'Un aperçu de tes sous-titres incrustés';
+    phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,8).join(' '); // 1res lignes du script
+    const assPath='/tmp/v4rsub_'+Date.now()+'.ass';
+    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color}));
+    const out='/tmp/v4rsub_'+Date.now()+'.png';
+    try{ await _execFileP('ffmpeg',['-y','-i',img,'-vf','scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1,ass='+assPath,'-frames:v','1','-q:v','2',out],{timeout:30000}); }catch(e){ return null; }
+    return fs.existsSync(out)?out:null;
+  }catch(e){ return null; }
+}
 async function r0RealVideo(persona, id){
   const {S,C,BUD}=_r0(); const ts=Date.now();
   const facts=r0Cur(persona); const draft=S.getDraft(facts,'video')||{};
@@ -3116,7 +3153,7 @@ async function r0RealVideo(persona, id){
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
         const lip=await WF.generateLipsync(imageUrl, audio.audioUrl, i);           // lipsync Kling
         const rawi=await WF.saveLipsyncRaw(lip, i, tsStr, outDir);
-        const vid=await WF.renderVideo(lip, audio.wordTimings, c.keywords, audio.duration, i, c.reactions, rawi); // sous-titres LOCAL (gratuit)
+        const vid=await WF.renderVideo(lip, audio.wordTimings, c.keywords, audio.duration, i, c.reactions, rawi, r0SubOpts(draft)); // sous-titres LOCAL (gratuit) — apparence PAR vidéo (draft.st_*)
         const p=await WF.saveOpen(vid, c, tsStr, i, outDir);
         clips.push(p);
       }

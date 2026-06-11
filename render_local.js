@@ -245,10 +245,12 @@ function buildAss(chunks, opts = {}) {
 
   // Couleurs ASS = &HAABBGGRR (AA: 00=opaque, FF=transparent)
   const white = '&H00FFFFFF';
+  const primary = opts.color || white;   // [SOUS-TITRES DÉFINITIF] couleur du texte pilotée PAR vidéo (opts.color), défaut blanc
   const shadow = '&H73000000'; // noir ~55% opaque -> ombre douce (pas de gros contour noir)
-  // Bold=-1, BorderStyle=1, Outline=1 BLANC (épaissit, façon text-stroke), Shadow=2 (ombre douce)
+  const align = opts.alignment || 2;     // 2 = bas-centre (défaut), 8 = haut-centre, 5 = milieu-centre — pilote la position verticale
+  // Bold=-1, BorderStyle=1, Outline=1 (épaissit, façon text-stroke), Shadow=2 (ombre douce). Contour reste blanc pour la lisibilité.
   const styleLine =
-    `Style: Main,${font},${size},${white},${white},${white},${shadow},-1,0,0,0,100,100,${spacing},0,1,1,2,2,40,40,${marginV},1`;
+    `Style: Main,${font},${size},${primary},${primary},${white},${shadow},-1,0,0,0,100,100,${spacing},0,1,1,2,${align},40,40,${marginV},1`;
 
   const header =
 `[Script Info]
@@ -300,6 +302,8 @@ async function renderLocal(opts) {
   const fontSize = opts.fontSize != null ? opts.fontSize : (style.fontSize != null ? style.fontSize : FONT_SIZE);
   const oy = opts.oy != null ? opts.oy : (style.oy != null ? style.oy : OY);
   const letterSpacing = opts.letterSpacing != null ? opts.letterSpacing : (style.letterSpacing != null ? style.letterSpacing : LETTER_SPACING);
+  const subColor = opts.color != null ? opts.color : null;       // [SOUS-TITRES DÉFINITIF] couleur ASS PAR vidéo (opts > défaut blanc dans buildAss)
+  const subAlign = opts.alignment != null ? opts.alignment : null; // alignement ASS (2 bas / 5 milieu / 8 haut) PAR vidéo
   const subsOn = opts.subs != null ? (+opts.subs ? 1 : 0) : (style.subs != null ? style.subs : 1); // sous-titres ON par défaut
 
   // Réglages fx (style.json) : Image (couleur), Zooms, Musique — surchargeables par opts
@@ -354,7 +358,7 @@ async function renderLocal(opts) {
   if (colorFilter) fc.push(`[vcc]${colorFilter}[vc]`); else fc.push(`[vcc]null[vc]`);
   // sous-titres : burn-in libass si SUBS=1, sinon vidéo propre (pour ajouter les captions dans TikTok)
   if (subsOn) {
-    fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing }));
+    fs.writeFileSync(assPath, buildAss(chunks, { font, fontSize, oy, letterSpacing, color: subColor, alignment: subAlign }));
     fc.push(`[vc]ass=${assPath}[vs]`);
     fc.push(`[vs]format=yuv420p[vout]`);
   } else {

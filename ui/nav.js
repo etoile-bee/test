@@ -66,24 +66,32 @@ function blockSpec(block, facts, ctx) {
   // SOUS-TITRES (D) : activer/désactiver · position · taille — réglages PAR PROJET (draft.video), retour à Vidéo>Édition.
   //   Lit subtitle_style.js (legacy) pour les valeurs PAR DÉFAUT affichées, SANS jamais le modifier (verrou intact).
   if (block.key === 'soustitres') {
-    const cur = d.soustitres || 'auto (défaut)';
-    // [#27] STYLE LEGACY réexposé PAR PROJET : affichage · police · taille · position (lecture des défauts subtitle_style, jamais d'écriture du verrou).
+    // [SOUS-TITRES DÉFINITIF] AUTO-générés + incrustés : AUCUN on/off, AUCUN champ texte.
+    //   ELLE règle UNIQUEMENT l'APPARENCE (boîte à outils legacy) : disposition · police · taille · position · couleur.
+    //   Lecture des défauts subtitle_style (jamais d'écriture du verrou). Réglages PAR vidéo (draft.video), panneau qui RESTE ouvert.
     const sty = (ctx && ctx.subStyle) || {};
-    const cap = (d.soustitres || 'auto') + ' · ' + (d.st_display || sty.display || 'mot') + ' · ' + (d.st_font || sty.font || 'défaut') + ' · ' + (d.st_size || sty.size || 'M') + ' · ' + (d.st_pos || sty.pos || 'bas');
+    const disp = d.st_display || sty.display || 'mot', font = d.st_font || sty.font || 'archivo';
+    const size = d.st_size || sty.size || 'M', pos = d.st_pos || sty.pos || 'bas', col = d.st_color || sty.color || 'blanc';
+    const cap = 'auto · ' + disp + ' · ' + font + ' · ' + size + ' · ' + pos + ' · ' + col;
     return {
-      title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VI_CREATE' },
-      hint: 'Style PAR vidéo (affichage · police · taille · position). Incrustation au rendu.',
+      title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VE' },
+      validateCb: 'R0_VE', validateLabel: '✅ Valider',
+      previewCb: 'R0_STPREV', // 👁 Aperçu : incruste un échantillon du script dans CE style (même moteur que le rendu)
+      hint: 'Incrustés automatiquement. Tu règles l\'apparence ; l\'aperçu et la vidéo finale utilisent ces réglages.',
       options: [
-        { text: (d.soustitres === 'on' ? '🔵 ' : '') + '✅ Activer', cb: 'R0_SET_ston_on' },
-        { text: (d.soustitres === 'off' ? '🔵 ' : '') + '🚫 Désactiver', cb: 'R0_SET_ston_off' },
-        { text: (d.st_display === 'mot' ? '🔵 ' : '') + '🔠 Mot-à-mot', cb: 'R0_SET_stdisp_mot' },
-        { text: (d.st_display === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
-        { text: (d.st_font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
-        { text: (d.st_font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' },
-        { text: (d.st_size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
-        { text: (d.st_size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
-        { text: (d.st_pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
-        { text: (d.st_pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
+        { text: (disp === 'mot' ? '🔵 ' : '') + '🔠 Mot-à-mot', cb: 'R0_SET_stdisp_mot' },
+        { text: (disp === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
+        { text: (font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
+        { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' },
+        { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
+        { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
+        { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
+        { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
+        { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
+        { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
+        { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
+        { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
+        { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' },
         { text: '💾 Défaut', cb: 'R0_DEFSAVE' }, // [#18] mémorise les réglages sous-titres courants
       ],
     };
@@ -175,6 +183,7 @@ function resolveSet(blk, token, ctx) {
   if (blk === 'stsize') { return { target: 'draft', kind: 'video', field: 'st_size', value: token }; }     // S|L
   if (blk === 'stdisp') { return { target: 'draft', kind: 'video', field: 'st_display', value: token }; }  // mot|phrase [#27]
   if (blk === 'stfont') { return { target: 'draft', kind: 'video', field: 'st_font', value: token }; }     // archivo|classique [#27]
+  if (blk === 'stcolor') { return { target: 'draft', kind: 'video', field: 'st_color', value: token }; }   // blanc|jaune|cyan [DÉFINITIF]
   const spec = SETMAP[blk]; if (!spec) return null;
   let value;
   if (spec.src === 'list') value = ((ctx && ctx[spec.name]) || [])[+token];
@@ -250,6 +259,8 @@ function reduce(action, st0, facts, ctx) {
     const rest = d.slice(7), us = rest.indexOf('_'), blk = rest.slice(0, us), token = rest.slice(us + 1);
     const r = resolveSet(blk, token, ctx);
     const op = r ? (r.target === 'pub' ? { type: 'pub', patch: { [r.field]: r.value } } : { type: 'draft', kind: r.kind, patch: { [r.field]: r.value } }) : { type: 'none' };
+    // [SOUS-TITRES DÉFINITIF] le panneau d'apparence RESTE ouvert (réglages multiples enchaînés) ; ✅ Valider referme. Les autres blocs (choix unique) referment au choix.
+    if (blk.indexOf('st') === 0) { return { st: Object.assign(st, { screen: 'block' }), op: op }; }
     return { st: Object.assign(st, { screen: parentOf(blk), block: null }), op: op };
   }
   if (d.indexOf('R0_ASK_') === 0) { const ak = d.slice(7); const m = ASKMAP[ak] || {};
@@ -266,6 +277,7 @@ function reduce(action, st0, facts, ctx) {
   if (d.indexOf('R0_PRETITEM_') === 0) { return go('publication', '📤 <b>Sélection à publier</b>'); }
   if (d.indexOf('R0_PUBITEM_') === 0) { return { st: st, toast: '📤 Média publié (archive)' }; }
   // [#25/#7] RÉFÉRENCE PHOTO : consulter · remplacer (upload) · verrouiller. Reste sur le bloc référence.
+  if (d === 'R0_STPREV') { return { st: st, toast: '👁 Aperçu sous-titres' }; } // [SOUS-TITRES] le bot intercepte et incruste l'échantillon ; reste sur le panneau
   if (d === 'R0_REF_VIEW') { return { st: st, toast: '👁 Référence courante affichée (image de base)' }; }
   if (d === 'R0_REF_REPLACE') { return { st: st, await: { upload: 'reference' }, banner: '🖼 <b>Envoie la nouvelle image de référence.</b>\n<i>Elle servira de base à tes prochaines générations (aucune dépense).</i>' }; }
   if (d === 'R0_REF_LOCK') { const lock = !((facts && facts.draft && facts.draft.photo) || {}).ref_locked; return { st: st, toast: lock ? '🔒 Référence verrouillée' : '🔓 Référence déverrouillée', op: { type: 'draft', kind: 'photo', patch: { ref_locked: lock } } }; }
