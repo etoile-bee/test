@@ -1,4 +1,4 @@
-<!doctype html><meta charset=utf-8><title>Structure archive projet</title><style>body{font-family:-apple-system,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}pre{background:#1e1e1e;color:#e6e6e6;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px}pre code{background:none;color:inherit}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.5em}</style>
+<!doctype html><meta charset=utf-8><title>Structure archive projet</title><style>body{font-family:-apple-system,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}pre{background:#1e1e1e;color:#e6e6e6;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px}pre code{background:none;color:inherit}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.5em}</style>
 <h1>Proposition — Archive de référence par projet (podcast-looks)</h1>
 
 <blockquote><b>PROPOSITION SEULEMENT. Aucune écriture/copie/suppression</b> tant qu'Etoile n'a pas validé l'arborescence.</blockquote>
@@ -181,6 +181,35 @@
 </tbody></table>
 
 <p><b>Honnête</b> : seuls <b>Photos &amp; Vidéos</b> ont la copie média câblée aujourd'hui (<code>r0CloudCopy</code>). Les <b>textes + références + exports + manifeste</b> = <code>r0ArchiveProjet</code> <b>à coder</b> (≈30–40 lignes, même mécanisme, après validation). Aucun type n'est « cassé » — les 🟡 sont <b>non encore câblés</b>, pas défaillants.</p>
+
+<h2>14. CARTOGRAPHIE DE LECTURE APRÈS MIGRATION (storage ≠ visibilité)</h2>
+
+<blockquote>⚠️ La migration met à jour les LECTEURS pour agréger <code>podcast-looks/projets/<b></code> </b>EN PLUS** des sources actuelles (rien retiré). Sinon : fichiers archivés mais INVISIBLES. C'est une partie du même mécanisme (à coder avec l'archiveur, après validation).</blockquote>
+
+<h3>Tableau : lecteur → dossiers scannés APRÈS migration</h3>
+<table><thead><tr><th>Lecteur</th><th>Dossiers scannés (après migration)</th><th>Couvre</th></tr></thead><tbody>
+<tr><td><b>Galerie</b> (images) <code>r0RealImages</code></td><td><code>projects_r/&lt;persona&gt;/*/photo_*</code> · <code>outputs/generations/*</code> · <b><code>podcast-looks/*</code> (élargi : TOUTES les images, incl. patrimoine <code>IMG_*</code>)</b> · <b><code>podcast-looks/projets/&lt;persona&gt;/*/Photos/*</code> (NOUVEAU)</b></td><td>1+2+3</td></tr>
+<tr><td><b>Historique vidéo</b> <code>r0RealVideos</code></td><td><code>outputs/*.mp4</code> (legacy iCloud) · <code>outputs/generations/<b></code> · <code>projects_r/&lt;persona&gt;/*/*.mp4</code> · </b><code>podcast-looks/projets/&lt;persona&gt;/*/Vidéos/*</code> (NOUVEAU)**</td><td>1+2+3</td></tr>
+<tr><td><b>Récents</b> <code>INV.recents</code></td><td><code>projects_r/&lt;persona&gt;/*</code> (base vivante = source de vérité)</td><td>base</td></tr>
+<tr><td><b>Archives</b> <code>INV.recents.archives</code></td><td><code>projects_r/&lt;persona&gt;/*</code> (statut archivé)</td><td>base</td></tr>
+<tr><td><b>Recherche projet</b></td><td><code>projects_r/&lt;persona&gt;/*</code> (id/nom) + dossier <code>podcast-looks/projets/&lt;id&gt;/</code> accessible par nom</td><td>base + archive</td></tr>
+</tbody></table>
+
+<h3>Réponses aux 4 questions (noir sur blanc)</h3>
+<p>1. <b>618 photos archivées remontent-elles auto dans Galerie ET Historique ?</b> <b>OUI</b> — dès que le glob <code>podcast-looks/projets/&lt;persona&gt;/*/Photos/*</code> est ajouté à <code>r0RealImages</code> (l'« historique images » = même lecteur en mode global). *(aujourd'hui ce dossier = 0 car pas encore migré ; le glob est ajouté PAR la migration.)*</p>
+<p>2. <b>117 vidéos legacy (<code>podcast-outputs/</code>) continuent dans l'Historique vidéo ?</b> <b>OUI</b> — <code>r0RealVideos</code> lit déjà <code>outputs/*.mp4</code> (113) + <code>outputs/generations/<b></code> (12) = </b>117** (vérifié). Rien retiré.</p>
+<p>3. <b>Lecture simultanée des 3 sources ?</b> <b>OUI — agrégation des trois, sans rien perdre</b> : Galerie/Historique = <b>fichiers</b> agrégés (<code>podcast-looks/projets/<b></code> + <code>podcast-outputs/</b></code> + <code>projects_r/<b></code> + <code>outputs/generations</code> + <code>podcast-looks</code> racine) ; Récents/Archives/Recherche = </b>base vivante** (<code>projects_r</code>). Aucune source unique.</p>
+<p>4. <b>Photos (podcast-looks) + vidéos legacy (podcast-outputs) d'un même projet : regroupées comment ?</b> — <b>Par PROJET</b> pour tout ce qui est archivé sous <code>podcast-looks/projets/&lt;id&gt;/</code> (Photos + Vidéos d'un même projet = même dossier ; l'écran « Fichiers du projet » lit ce dossier). <b>Limite honnête</b> : les vidéos legacy de <code>podcast-outputs/</code> sont <b>à plat, sans lien projet</b> → elles remontent dans l'<b>Historique vidéo GLOBAL</b>, pas sous un projet précis (aucune association projet↔vidéo n'existe en legacy). Les vidéos <b>générées par v4r</b> (futures), elles, iront dans <code>podcast-looks/projets/&lt;id&gt;/Vidéos/</code> = <b>groupées par projet</b>.</p>
+
+<h3>PREUVE DE LECTURE simulée (<code>tools/verif_lecture_post_migration.js</code>, read-only)</h3>
+<p>Comptes AUJOURD'HUI avec les globs post-migration (avant copie : le dossier archive est encore vide, le patrimoine est déjà couvert) :</p>
+<table><thead><tr><th>Lecteur</th><th>Verrait (distinct)</th><th>Détail sources</th></tr></thead><tbody>
+<tr><td>Galerie images</td><td><b>162</b></td><td>projects_r 14 · generations 58 · <b>podcast-looks racine 90 (patrimoine IMG_* — +62 vs lecteur actuel)</b> · archive 0</td></tr>
+<tr><td>Historique vidéo</td><td><b>117</b></td><td>outputs racine 113 · generations 12 · projects_r 0 · archive 0</td></tr>
+<tr><td>Récents</td><td><b>112</b> projets</td><td>base vivante (brouillons 111 · archives 1)</td></tr>
+</tbody></table>
+
+<p>→ <b>Gain de visibilité immédiat</b> : le lecteur élargi surface <b>+62 images de patrimoine</b> (<code>IMG_*</code> dans podcast-looks) qui étaient <b>invisibles</b> (l'actuel ne lit que <code>gen_*</code>). Après la copie rétroactive, <code>podcast-looks/projets/<b>/Photos</code> se remplit et </b>remonte automatiquement<b> (le glob est déjà prévu). </b>Aucun fichier archivé ne restera invisible.**</p>
 
 <h2>Décisions attendues d'Etoile avant toute écriture</h2>
 <p>1. Nom de dossier : <b>(A) projectId brut</b> [recommandé] ou (B) <code>date_slug</code> ?</p>

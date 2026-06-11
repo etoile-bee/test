@@ -183,6 +183,35 @@ Constat : la majorité des références **ne vivent pas dans le dossier du proje
 
 **Honnête** : seuls **Photos & Vidéos** ont la copie média câblée aujourd'hui (`r0CloudCopy`). Les **textes + références + exports + manifeste** = `r0ArchiveProjet` **à coder** (≈30–40 lignes, même mécanisme, après validation). Aucun type n'est « cassé » — les 🟡 sont **non encore câblés**, pas défaillants.
 
+## 14. CARTOGRAPHIE DE LECTURE APRÈS MIGRATION (storage ≠ visibilité)
+
+> ⚠️ La migration met à jour les LECTEURS pour agréger `podcast-looks/projets/**` **EN PLUS** des sources actuelles (rien retiré). Sinon : fichiers archivés mais INVISIBLES. C'est une partie du même mécanisme (à coder avec l'archiveur, après validation).
+
+### Tableau : lecteur → dossiers scannés APRÈS migration
+| Lecteur | Dossiers scannés (après migration) | Couvre |
+|---|---|---|
+| **Galerie** (images) `r0RealImages` | `projects_r/<persona>/*/photo_*` · `outputs/generations/*` · **`podcast-looks/*` (élargi : TOUTES les images, incl. patrimoine `IMG_*`)** · **`podcast-looks/projets/<persona>/*/Photos/*` (NOUVEAU)** | 1+2+3 |
+| **Historique vidéo** `r0RealVideos` | `outputs/*.mp4` (legacy iCloud) · `outputs/generations/**` · `projects_r/<persona>/*/*.mp4` · **`podcast-looks/projets/<persona>/*/Vidéos/*` (NOUVEAU)** | 1+2+3 |
+| **Récents** `INV.recents` | `projects_r/<persona>/*` (base vivante = source de vérité) | base |
+| **Archives** `INV.recents.archives` | `projects_r/<persona>/*` (statut archivé) | base |
+| **Recherche projet** | `projects_r/<persona>/*` (id/nom) + dossier `podcast-looks/projets/<id>/` accessible par nom | base + archive |
+
+### Réponses aux 4 questions (noir sur blanc)
+1. **618 photos archivées remontent-elles auto dans Galerie ET Historique ?** **OUI** — dès que le glob `podcast-looks/projets/<persona>/*/Photos/*` est ajouté à `r0RealImages` (l'« historique images » = même lecteur en mode global). *(aujourd'hui ce dossier = 0 car pas encore migré ; le glob est ajouté PAR la migration.)*
+2. **117 vidéos legacy (`podcast-outputs/`) continuent dans l'Historique vidéo ?** **OUI** — `r0RealVideos` lit déjà `outputs/*.mp4` (113) + `outputs/generations/**` (12) = **117** (vérifié). Rien retiré.
+3. **Lecture simultanée des 3 sources ?** **OUI — agrégation des trois, sans rien perdre** : Galerie/Historique = **fichiers** agrégés (`podcast-looks/projets/**` + `podcast-outputs/**` + `projects_r/**` + `outputs/generations` + `podcast-looks` racine) ; Récents/Archives/Recherche = **base vivante** (`projects_r`). Aucune source unique.
+4. **Photos (podcast-looks) + vidéos legacy (podcast-outputs) d'un même projet : regroupées comment ?** — **Par PROJET** pour tout ce qui est archivé sous `podcast-looks/projets/<id>/` (Photos + Vidéos d'un même projet = même dossier ; l'écran « Fichiers du projet » lit ce dossier). **Limite honnête** : les vidéos legacy de `podcast-outputs/` sont **à plat, sans lien projet** → elles remontent dans l'**Historique vidéo GLOBAL**, pas sous un projet précis (aucune association projet↔vidéo n'existe en legacy). Les vidéos **générées par v4r** (futures), elles, iront dans `podcast-looks/projets/<id>/Vidéos/` = **groupées par projet**.
+
+### PREUVE DE LECTURE simulée (`tools/verif_lecture_post_migration.js`, read-only)
+Comptes AUJOURD'HUI avec les globs post-migration (avant copie : le dossier archive est encore vide, le patrimoine est déjà couvert) :
+| Lecteur | Verrait (distinct) | Détail sources |
+|---|---|---|
+| Galerie images | **162** | projects_r 14 · generations 58 · **podcast-looks racine 90 (patrimoine IMG_* — +62 vs lecteur actuel)** · archive 0 |
+| Historique vidéo | **117** | outputs racine 113 · generations 12 · projects_r 0 · archive 0 |
+| Récents | **112** projets | base vivante (brouillons 111 · archives 1) |
+
+→ **Gain de visibilité immédiat** : le lecteur élargi surface **+62 images de patrimoine** (`IMG_*` dans podcast-looks) qui étaient **invisibles** (l'actuel ne lit que `gen_*`). Après la copie rétroactive, `podcast-looks/projets/**/Photos` se remplit et **remonte automatiquement** (le glob est déjà prévu). **Aucun fichier archivé ne restera invisible.**
+
 ## Décisions attendues d'Etoile avant toute écriture
 1. Nom de dossier : **(A) projectId brut** [recommandé] ou (B) `date_slug` ?
 2. Sous-racine `podcast-looks/projets/<persona>/` OK, ou `podcast-looks/<projet>/` à plat ?
