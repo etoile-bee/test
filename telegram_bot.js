@@ -8,7 +8,15 @@ const os=require('os');
 const TOKEN=process.env.TELEGRAM_TOKEN;
 const CHAT_ID=String(process.env.TELEGRAM_CHAT_ID);
 const REOPEN_FLAG='/tmp/ws_reopen_cockpit'; // [fix/restart-feedback] drapeau : ré-ouvrir le cockpit après un /restart demandé
-const BASE=path.join(os.homedir(),'podcast-workflow');
+// [DATA-INTÉGRITÉ] Le banc d'essai (R0_DRYRUN) écrit dans une base SANDBOX isolée — JAMAIS dans les vrais projects_r.
+//   Cause racine corrigée : « la base n'est pas la même en test qu'en réel » + plus aucune pollution des données réelles.
+const BASE=process.env.R0_DRYRUN?path.join(os.homedir(),'podcast-workflow','.v4r_sandbox'):path.join(os.homedir(),'podcast-workflow');
+// [DATA-INTÉGRITÉ] sandbox de test : on ISOLE l'écriture des projets (projects_r) mais on PARTAGE EN LECTURE les catalogues
+//   réels (looks/outputs/prompts) via symlink -> les tests voient les mêmes ressources qu'en réel, sans polluer les vrais projets.
+if(process.env.R0_DRYRUN){ try{ fs.mkdirSync(BASE,{recursive:true}); const REAL=path.join(os.homedir(),'podcast-workflow');
+  for(const d of ['looks','outputs','prompts']){ const link=path.join(BASE,d); try{ if(!fs.existsSync(link)) fs.symlinkSync(path.join(REAL,d),link); }catch(e){} }
+  for(const f of ['library.json','lookbook.json','outfits_catalog.json']){ const link=path.join(BASE,f); try{ if(!fs.existsSync(link)) fs.symlinkSync(path.join(REAL,f),link); }catch(e){} }
+}catch(e){} }
 const LOOKS=path.join(BASE,'looks');
 const ENV_PATH=path.join(BASE,'.env');
 const LIBRARY=path.join(BASE,'library.json');
@@ -2721,7 +2729,7 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
-  if(r0Screen==='gallery' && r0GalKind!=='video'){ ctx.galleryFiles=r0RealImages(persona,9); } // [P1.1] vraies images dispo (projet+global)
+  if(r0Screen==='gallery' && r0GalKind!=='video'){ const allImg=r0RealImages(persona,9999); ctx.galleryFiles=allImg.slice(0,9); ctx.galleryTotal=allImg.length; } // [DATA] compteur = VRAI total ; affichage = 9 vignettes
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
@@ -4147,7 +4155,9 @@ tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne
 if(R0DRY){
   module.exports = {
     R0DRY,
-    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0RenderMids=[]; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[]; try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
+    reset:()=>{ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0Mid=null; r0Type=null; r0MediaPath=null; r0RenderMids=[]; r0GalKind='image'; r0GalAll=false; r0QuitFrom=null; r0SrcReturn=null; R0DRY.msgs={}; R0DRY.alive.clear(); R0DRY.answered=0; R0DRY.log=[];
+      try{ fs.rmSync(path.join(BASE,'projects_r'),{recursive:true,force:true}); }catch(e){} // [DATA-INTÉGRITÉ] sandbox repart VIERGE à chaque test (jamais de cumul, jamais la vraie base)
+      try{ fs.unlinkSync(path.join(BASE,'v4r_budget.json')); }catch(e){} try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
     open:async()=>{ await r0TypedV4r('/v4r'); },                  // simule un /v4r
     typed:async(t)=>{ await r0TypedV4r(t); },
     // simule un TAP de bouton sur le bloc courant (= branche R0_ du vrai handler : sync mid/type + dispatch + answerCB TOUJOURS)

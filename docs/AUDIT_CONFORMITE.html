@@ -4,6 +4,35 @@
 <blockquote>Règle : <b>factuel uniquement</b>. ✅ Conforme · 🟡 Partiel · ❌ Non conforme · ⚠️ Non vérifiable en simulation.</blockquote>
 <blockquote>Preuve = test runtime/carto rejoué sur le VRAI chemin, ou fichier. « non terminé » = marqué non terminé.</blockquote>
 
+<h2>0bis. DATA-INTÉGRITÉ (priorité absolue — base RÉELLE, pas une fixture)</h2>
+
+<p><b>Cause racine trouvée et corrigée</b> : le banc d'essai tournait avec <code>BASE = dossier réel</code> → mes tests écrivaient dans les vrais <code>projects_r</code>. Résultat mesuré sur la VRAIE base : <b>5446 candidats <code>simule:true</code></b> injectés par mes tests (un projet montait à 650 médias quasi tous faux) → c'est ce qui gonflait le compteur « 435 disponibles ».</p>
+<li><b>Correctif racine</b> : sous <code>R0_DRYRUN</code>, <code>BASE</code> = sandbox isolée <code>.v4r_sandbox</code> (catalogues réels partagés en lecture via symlink). Les tests ne touchent <b>plus jamais</b> les vrais projets. *(preuve : sweep complet sur sandbox, vraie base inchangée)*</li>
+<li><b>Pollution nettoyée</b> : 5446 entrées simulées retirées, <b>618 médias réels conservés</b>, sauvegarde <code>facts.json.prepurge</code> dans chaque projet nettoyé (28). 5 projets étaient 100% test → vidés.</li>
+<li><b>Collision d'id projet (même seconde)</b> : <code>createProject</code> ne peut plus <b>écraser</b> un projet existant (suffixe <code>-2</code>…) → plus de perte silencieuse si deux projets créés vite. *(bug data-intégrité réel corrigé)*</li>
+
+<h3>Compteurs : qui compte quoi (étiquetés, cohérents)</h3>
+<table><thead><tr><th>Compteur</th><th>Lit</th><th>Étiquette après correction</th></tr></thead><tbody>
+<tr><td>PHOTO·Choisir « N photos »</td><td><code>facts.medias</code> du <b>projet courant</b> (non supprimés)</td><td>« N photos disponibles <b>dans le projet</b> »</td></tr>
+<tr><td>Galerie « X média · 9 affichés »</td><td><b>agrégat global</b> : projet + <code>projects_r/*/photo_*</code> + <code>outputs/generations</code> + <code>looks/gen_*</code></td><td>total réel + nb vignettes affichées</td></tr>
+</tbody></table>
+<p>Les deux chiffres comptaient des périmètres différents (projet vs global) sans le dire → désormais <b>étiquetés</b> et le total galerie n'est plus tronqué à 9.</p>
+
+<h3>Intégrité source PHOTO→VIDÉO (le point le plus inquiétant)</h3>
+<p>RÈGLE appliquée : photo validée → <b>épinglée</b> comme source vidéo (<code>source_id</code> + <code>source_file</code>), ne change plus tant qu'on ne clique pas Remplacer. <code>r0RealVideo</code> consomme la source épinglée. <b>Affichée = enregistrée = transmise</b> : 🟡 — identité (<code>source_id</code>) prouvée stable après édition d'un autre champ (<code>test_v4r_runtime</code> R2) ; l'égalité avec le <b>fichier réel transmis au moteur</b> = ⚠️ (non vérifiable sans run réel). Collision d'id (qui causait le « retour sur une ancienne photo ») corrigée.</p>
+
+<h3>Inventaire médias &amp; stockage (état réel)</h3>
+<table><thead><tr><th>Type</th><th>Stocké</th><th>Remonte dans</th></tr></thead><tbody>
+<tr><td>Photos générées (réel)</td><td><code>projects_r/&lt;persona&gt;/&lt;id&gt;/photo_*.jpg</code></td><td>Galerie/Historique ✅, Ressources ✅, projet ✅</td></tr>
+<tr><td>Photos importées</td><td>candidat projet (fichier local)</td><td>Galerie ✅, projet ✅</td></tr>
+<tr><td>Vidéos générées</td><td><code>projects_r/&lt;persona&gt;/&lt;id&gt;/*.mp4</code></td><td>Vidéo·Résultat ✅, projet ✅ ; <b>Vidéo›Historique global ❌</b></td></tr>
+<tr><td>RAW (originaux génération)</td><td>local <code>projects_r/.../</code> + <code>outputs/</code></td><td><b>❌ PAS poussés au Drive · PAS listés dans Historique›Fichiers</b></td></tr>
+<tr><td>Scripts/légendes/sous-titres</td><td><code>facts.draft</code> / <code>facts.publication</code></td><td>Ressources ✅, Résultat ✅</td></tr>
+<tr><td>Rendus (keepsakes)</td><td>messages Telegram persistants</td><td>chat ✅ (jamais supprimés)</td></tr>
+</tbody></table>
+
+<p><b>RAW → Drive + Historique›Fichiers = ❌ NON FAIT</b> (structurel : nécessiterait un connecteur Drive + extension de l'écran Ressources ; signalé, non commencé).</p>
+
 <h2>0. RAPPORT D'INCIDENT DÉPENSE (chiffre exact)</h2>
 
 <li><b>11 générations photo réelles</b> déclenchées par MES tests (LIVE laissé armé + porte <code>realPhoto</code> sans garde <code>!R0DRY</code>).</li>

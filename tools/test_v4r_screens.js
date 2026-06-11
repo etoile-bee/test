@@ -110,7 +110,7 @@ chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() 
 const gal = SC.galleryView(fvid, { galleryKind: 'image' });
 chk('galerie : grille (pas de cul-de-sac : ◀ + 🏠)', has(gal, 'R0_PHOTO') && has(gal, 'R0_HOME'));
 const ve = SC.videoEditView(fvid);
-chk('Vidéo>Montage : Script/Voix/Musique/Sous-titres/Durée/Mouvement regroupés', ['R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree', 'R0_VIB_mouvement'].every(c => has(ve, c)) && has(ve, 'R0_VI_CREATE'));
+chk('Vidéo>Montage : Script/Voix/Musique/Sous-titres/Durée (Mouvement/Anim RETIRÉ)', ['R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(ve, c)) && !has(ve, 'R0_VIB_mouvement') && has(ve, 'R0_VI_CREATE'));
 chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)', has(SC.videoView(fimg), 'R0_VE'));
 
 // ── LOT STABILISATION : couverture des 10 points ──

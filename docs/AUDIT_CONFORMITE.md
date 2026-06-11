@@ -3,6 +3,35 @@
 > Règle : **factuel uniquement**. ✅ Conforme · 🟡 Partiel · ❌ Non conforme · ⚠️ Non vérifiable en simulation.
 > Preuve = test runtime/carto rejoué sur le VRAI chemin, ou fichier. « non terminé » = marqué non terminé.
 
+## 0bis. DATA-INTÉGRITÉ (priorité absolue — base RÉELLE, pas une fixture)
+
+**Cause racine trouvée et corrigée** : le banc d'essai tournait avec `BASE = dossier réel` → mes tests écrivaient dans les vrais `projects_r`. Résultat mesuré sur la VRAIE base : **5446 candidats `simule:true`** injectés par mes tests (un projet montait à 650 médias quasi tous faux) → c'est ce qui gonflait le compteur « 435 disponibles ».
+- **Correctif racine** : sous `R0_DRYRUN`, `BASE` = sandbox isolée `.v4r_sandbox` (catalogues réels partagés en lecture via symlink). Les tests ne touchent **plus jamais** les vrais projets. *(preuve : sweep complet sur sandbox, vraie base inchangée)*
+- **Pollution nettoyée** : 5446 entrées simulées retirées, **618 médias réels conservés**, sauvegarde `facts.json.prepurge` dans chaque projet nettoyé (28). 5 projets étaient 100% test → vidés.
+- **Collision d'id projet (même seconde)** : `createProject` ne peut plus **écraser** un projet existant (suffixe `-2`…) → plus de perte silencieuse si deux projets créés vite. *(bug data-intégrité réel corrigé)*
+
+### Compteurs : qui compte quoi (étiquetés, cohérents)
+| Compteur | Lit | Étiquette après correction |
+|---|---|---|
+| PHOTO·Choisir « N photos » | `facts.medias` du **projet courant** (non supprimés) | « N photos disponibles **dans le projet** » |
+| Galerie « X média · 9 affichés » | **agrégat global** : projet + `projects_r/*/photo_*` + `outputs/generations` + `looks/gen_*` | total réel + nb vignettes affichées |
+Les deux chiffres comptaient des périmètres différents (projet vs global) sans le dire → désormais **étiquetés** et le total galerie n'est plus tronqué à 9.
+
+### Intégrité source PHOTO→VIDÉO (le point le plus inquiétant)
+RÈGLE appliquée : photo validée → **épinglée** comme source vidéo (`source_id` + `source_file`), ne change plus tant qu'on ne clique pas Remplacer. `r0RealVideo` consomme la source épinglée. **Affichée = enregistrée = transmise** : 🟡 — identité (`source_id`) prouvée stable après édition d'un autre champ (`test_v4r_runtime` R2) ; l'égalité avec le **fichier réel transmis au moteur** = ⚠️ (non vérifiable sans run réel). Collision d'id (qui causait le « retour sur une ancienne photo ») corrigée.
+
+### Inventaire médias & stockage (état réel)
+| Type | Stocké | Remonte dans |
+|---|---|---|
+| Photos générées (réel) | `projects_r/<persona>/<id>/photo_*.jpg` | Galerie/Historique ✅, Ressources ✅, projet ✅ |
+| Photos importées | candidat projet (fichier local) | Galerie ✅, projet ✅ |
+| Vidéos générées | `projects_r/<persona>/<id>/*.mp4` | Vidéo·Résultat ✅, projet ✅ ; **Vidéo›Historique global ❌** |
+| RAW (originaux génération) | local `projects_r/.../` + `outputs/` | **❌ PAS poussés au Drive · PAS listés dans Historique›Fichiers** |
+| Scripts/légendes/sous-titres | `facts.draft` / `facts.publication` | Ressources ✅, Résultat ✅ |
+| Rendus (keepsakes) | messages Telegram persistants | chat ✅ (jamais supprimés) |
+
+**RAW → Drive + Historique›Fichiers = ❌ NON FAIT** (structurel : nécessiterait un connecteur Drive + extension de l'écran Ressources ; signalé, non commencé).
+
 ## 0. RAPPORT D'INCIDENT DÉPENSE (chiffre exact)
 
 - **11 générations photo réelles** déclenchées par MES tests (LIVE laissé armé + porte `realPhoto` sans garde `!R0DRY`).

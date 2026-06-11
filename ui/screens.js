@@ -367,7 +367,9 @@ function galleryView(facts, ctx) {
   const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
   const items = realFiles || all.filter(m => (kindWanted === 'video' ? m.type === 'video' : m.type !== 'video'));
   const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + (ctx && ctx.galleryAll ? ' (historique)' : '');
-  let cap = '<b>' + titre + '</b> · ' + items.length + ' image(s) réelle(s)'
+  // [DATA] compteur cohérent : TOTAL réel disponible + nombre affiché (vignettes). Plus de chiffre ambigu.
+  const total = (ctx && ctx.galleryTotal != null) ? ctx.galleryTotal : items.length;
+  let cap = '<b>' + titre + '</b> · ' + total + ' média(s) · ' + Math.min(items.length, 9) + ' affiché(s)'
     + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>aucune image — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
   const rows = gridRows(items, (m, i) => ({ text: '🖼 ' + (i + 1), cb: 'R0_GITEM_' + i }), 3)
@@ -403,18 +405,18 @@ function resourcesView(facts, ctx) {
 // ── VIDÉO > ÉDITION (post-production regroupée) : Script · Légendes · Sous-titres · Édition image ──
 function videoEditView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
-  // [R6] 🛠 MONTAGE VIDÉO : tous les outils au même endroit — Script · Voix · Musique · Sous-titres · Durée · Mouvement.
+  // [R6] 🛠 MONTAGE VIDÉO : Script · Voix · Musique · Sous-titres · Durée. (Mouvement/Anim RETIRÉ : géré dans le prompt Kling, pas de contrôle séparé qui interfère.)
   let cap = '<b>🛠 VIDÉO · Montage</b>'
     + '\n📝 Script : ' + val(d.script ? short(d.script, 40) : null)
     + '\n🎤 Voix : ' + val(d.voix) + '   🎵 Musique : ' + val(d.musique)
     + '\n🔤 Sous-titres : ' + esc(String(d.soustitres || 'auto'))
-    + '\n⏱ Durée : ' + val(d.duree, '30s') + '   🎞 Mouvement : ' + val(d.mouvement)
+    + '\n⏱ Durée : ' + val(d.duree, '30s')
     + '\n<i>Tout au même endroit — gratuit (local).</i>';
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
       [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '🎤 Voix', cb: 'R0_VIB_voix' }],
       [{ text: '🎵 Musique', cb: 'R0_VIB_musique' }, { text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],
-      [{ text: '⏱ Durée', cb: 'R0_VIB_duree' }, { text: '🎞 Mouvement', cb: 'R0_VIB_mouvement' }],
+      [{ text: '⏱ Durée', cb: 'R0_VIB_duree' }],
       [{ text: '◀ Retour', cb: 'R0_VI_CREATE' }],
     ],
   };

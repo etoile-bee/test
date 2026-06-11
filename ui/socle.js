@@ -54,7 +54,10 @@ function saveFacts(base, persona, facts, ts) {
 }
 
 function createProject(base, persona, init, ts) {
-  const id = (init && init.projectId) || genId(persona, ts);
+  let id = (init && init.projectId) || genId(persona, ts);
+  // [DATA-INTÉGRITÉ] ne JAMAIS écraser un projet existant : si l'id (précision seconde) existe déjà, suffixe -2, -3…
+  //   (sinon deux créations dans la même seconde -> collision d'id -> perte silencieuse du projet précédent).
+  if (!(init && init.projectId)) { const baseId = id; let n = 2; while (fs.existsSync(fpath(base, persona, id))) { id = baseId + '-' + n; n++; } }
   const f = Object.assign(defaultFacts(persona, id, ts), (init && init.facts) ? init.facts : {});
   f.projectId = id; f.persona = persona || 'default';
   saveFacts(base, persona, f, ts);

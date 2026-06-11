@@ -119,18 +119,22 @@ function blockSpec(block, facts, ctx) {
   if (FREE[block.key]) {
     const ask = FREE[block.key];
     // « Image source » = sélection RÉELLE (Choisir une photo / Importer), pas une saisie libre.
+    // [scripts] « 🔄 Régénérer le script » (réutilisable à volonté) ; sinon « ✨ Générer (IA) ».
+    const genLabel = block.key === 'script' ? '🔄 Régénérer le script' : '✨ Générer (IA)';
     const opts = (block.key === 'source')
       ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
-      : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
-    // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable.
+      : [{ text: genLabel, cb: 'R0_GENTXT_' + ask }];
+    // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable. Libellés LISIBLES (non coupés trop court).
     // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
     if (block.key === 'prompt' || block.key === 'script') {
       const list = ((ctx && ctx.presets && (block.key === 'script' ? ctx.presets.scripts : ctx.presets.prompts)) || []).slice(0, 3);
-      list.forEach((p, i) => opts.push({ text: '📁 ' + String(p.title || p.name || ('Modèle ' + (i + 1))).replace(/[*_`\[\]]/g, '').slice(0, 16), cb: 'R0_LOADP_' + i }));
+      list.forEach((p, i) => opts.push({ text: '📁 ' + String(p.title || p.name || ('Modèle ' + (i + 1))).replace(/[*_`\[\]"]/g, '').slice(0, 28), cb: 'R0_LOADP_' + i }));
       opts.push({ text: '💾 Défaut', cb: 'R0_DEFSAVE' });
     }
     const hasDef = !!(ctx && ctx.defaults && ctx.defaults[block.screen + '.' + block.key]);
-    return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ génère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
+    // [scripts/prompts EN ENTIER] prompt/script affichés en mode TEXTE (caption jusqu'à 4096), pas en média (limité à 1024) -> texte complet copiable/éditable.
+    const pkFree = (block.key === 'prompt' || block.key === 'script') ? 'text' : pk;
+    return { title: titleOf(block), current: d[block.key], parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
   }
   // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
