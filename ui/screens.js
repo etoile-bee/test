@@ -36,9 +36,9 @@ const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
 // ── ÉCRAN 1 — ACCUEIL (jamais vide : COUVERTURE = dernière image du projet ; sinon sobre, sans placeholder) ──
 function homeView(facts) {
   const hasImg = C.hasImage(facts);
-  const cap = '<b>🎬 Studio podcast</b>\n' + capLigne(facts)
-    + '\n📍 <b>' + esc(C.statutProjet(facts)) + '</b>'   // (P9) statut DÉRIVÉ, évolue automatiquement
-    + (hasImg ? '\n🖼 <i>couverture : dernière image</i>' : '\n<i>nouveau projet — commence par créer</i>')
+  // (I) Accueil sobre : nom du projet + statut dérivé + 4 portes. (plus de « cap à définir » ni « couverture : … »)
+  const cap = '<b>🎬 Studio</b> · ' + esc(nom(facts))
+    + '\n📍 <b>' + esc(C.statutProjet(facts)) + '</b>'
     + '\n\n<i>Choisis où aller :</i>';
   return {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
@@ -79,15 +79,14 @@ function photoSourceView(facts) {
 // ── ÉCRAN 2.1 — PHOTO / PROMPT (préparation, blocs éditables en place) ────────
 const PH_BLOCKS = [
   { key: 'prompt', icon: '📝', label: 'Prompt' }, { key: 'avatar', icon: '👤', label: 'Avatar' },
-  { key: 'look', icon: '👗', label: 'Look' }, { key: 'decor', icon: '🏛', label: 'Décor' },
-  { key: 'refs', icon: '📎', label: 'Références' }, { key: 'params', icon: '⚙️', label: 'Paramètres' },
+  { key: 'look', icon: '👗', label: 'Tenue' }, { key: 'decor', icon: '🏛', label: 'Décor' },
+  { key: 'refs', icon: '📎', label: 'Références' },
 ];
 function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
-  let cap = '<b>📸 PHOTO · Préparer</b>\n'
-    + PH_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + val(d[b.key])).join('\n')
-    + '\n🎨 Édition : ' + val(d.image_fx);
+  // (J) prépa = étape + action seulement (le détail des valeurs va dans l'Aperçu).
+  let cap = '<b>📸 PHOTO · Préparer</b>\nChoisissez l\'action suivante.';
   const blockRows = [];
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
@@ -140,7 +139,7 @@ function videoView(facts) {
 
 // ── ÉCRAN 3.1 — VIDÉO / PARAMÈTRES (blocs éditables en place) ─────────────────
 const VI_BLOCKS = [
-  { key: 'source', icon: '🖼', label: 'Image source' }, { key: 'mouvement', icon: '🎞', label: 'Mouvement' },
+  { key: 'source', icon: '🖼', label: 'Source' }, { key: 'mouvement', icon: '🎞', label: 'Anim.' },
   { key: 'script', icon: '📝', label: 'Script' }, { key: 'voix', icon: '🎤', label: 'Voix' },
   { key: 'musique', icon: '🎵', label: 'Musique' }, { key: 'legendes', icon: '💬', label: 'Légendes' },
   { key: 'duree', icon: '⏱', label: 'Durée' }, { key: 'params', icon: '⚙️', label: 'Format' },
@@ -149,25 +148,18 @@ const DUREE_DEFAUT = '30s';
 function videoParamsView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
-  const srcLabel = d.source || (hasI ? 'photo du projet' : null);
-  // Durée TOUJOURS visible (défaut explicite) — répond à « ça génère quoi ? ».
-  const shown = (b) => b.key === 'source' ? val(srcLabel)
-    : b.key === 'duree' ? (d.duree ? esc(d.duree) : (DUREE_DEFAUT + ' <i>(défaut)</i>'))
-    : b.key === 'params' ? (d.format ? esc(d.format) : '9:16 <i>(défaut)</i>')
-    : val(d[b.key]);
-  let cap = '<b>🎬 VIDÉO · Préparer</b>\n'
-    + VI_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + shown(b)).join('\n')
-    + '\n🔤 Sous-titres : ' + val(d.soustitres);
-  // (P3) DEUX GROUPES : IMAGE SOURCE (Garder/Remplacer/Générer) puis ÉDITION (Script·Voix·Musique·Sous-titres·Durée·Format·Mouvement).
+  // (J) prépa = étape + action seulement (le détail va dans l'Aperçu).
+  let cap = '<b>🎬 VIDÉO · Préparer</b>\nChoisissez l\'action suivante.';
+  // (P3) DEUX GROUPES : IMAGE SOURCE (Garder/Changer/Générer) puis ÉDITION (2 par ligne, libellés courts).
   const edit = VI_BLOCKS.filter(b => b.key !== 'source'); const editRows = [];
-  for (let i = 0; i < edit.length; i += 3) editRows.push(edit.slice(i, i + 3).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
+  for (let i = 0; i < edit.length; i += 2) editRows.push(edit.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
   const rows = [
-    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Remplacer', cb: 'R0_VI_PICK' }, { text: '✨ Générer', cb: 'R0_VI_GENPHOTO' }], // IMAGE SOURCE
+    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }, { text: '✨ Générer', cb: 'R0_VI_GENPHOTO' }], // IMAGE SOURCE
   ].concat(editRows).concat([
     [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],                                              // ÉDITION (sous-titres dédié)
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],     // VALIDATION
-    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }],                                               // PRODUCTION (= Suivant)
-    [{ text: '🏠 Accueil', cb: 'R0_HOME' }],                                                       // NAVIGATION (B1/B2 : sortie réelle, pas de boucle R0_VIDEO->video_params)
+    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }],                                               // PRODUCTION
+    [{ text: '🏠 Accueil', cb: 'R0_HOME' }],                                                       // NAVIGATION (sortie réelle, pas de boucle)
   ]);
   return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
 }
@@ -246,9 +238,9 @@ function recentsView(facts, ctx) {
     + '📂 ' + (r.projets || []).length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
     + (r.legacy ? ('\n🗄 ' + r.legacy + ' projet(s) hérité(s) (lecture seule)') : '')
     + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
-  // GRILLE 2/ligne (libellés lisibles), puis actions sur le projet courant, puis Accueil.
-  const rows = gridRows(top, (p, i) => ({ text: '▶ ' + short((p.intention && p.intention.message) || ('Projet ' + (i + 1)), 22), cb: 'R0_RE_OPEN_' + i }), 2);
-  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }, { text: '🗑 Supprimer', cb: 'R0_RE_DEL' }]);
+  // (E) NUMÉROTATION claire 1..N ; (F) une SEULE action de retrait = « Archiver » (soft : retire de la vue, ne supprime jamais le fichier).
+  const rows = gridRows(top, (p, i) => ({ text: (i + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 20), cb: 'R0_RE_OPEN_' + i }), 2);
+  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]);
   rows.push([HOME]);
   return { kind: 'text', caption: cap, rows: rows };
 }
@@ -290,11 +282,11 @@ function confirmView(facts, ctx) {
   // (P8) BLOC COMPACT : titre + infos UTILES seulement.
   let cap = '<b>' + titre + '</b>';
   if (cf.mediaKind === 'photo') {
-    cap += '\n🖼 Format : ' + (cf.prep && cf.prep.format ? esc(cf.prep.format) : '9:16')
-      + '\n👗 Look : ' + (cf.prep && cf.prep.outfit ? esc(cf.prep.outfit) : 'défaut')
-      + '\n🏛 Décor : ' + (cf.prep && cf.prep.decor ? esc(cf.prep.decor) : 'défaut');
+    // (2) Aperçu compact : Format · Tenue · Décor (seulement si définis) — aucun jargon technique.
+    cap += '\n🖼 Format : ' + (cf.prep && cf.prep.format ? esc(cf.prep.format) : '9:16');
+    if (cf.prep && cf.prep.outfit) cap += '\n👗 Tenue : ' + esc(cf.prep.outfit);
+    if (cf.prep && cf.prep.decor) cap += '\n🏛 Décor : ' + esc(cf.prep.decor);
     if (cf.prep && cf.prep.prompt) cap += '\n📝 ' + esc(short(cf.prep.prompt, 48));
-    if (cf.prep && cf.prep.unmapped && cf.prep.unmapped.length) cap += '\n<i>ℹ️ non réglable : ' + esc(cf.prep.unmapped.join(' ; ')) + '</i>';
   } else if (cf.mediaKind === 'video') {
     cap += '\n⏱ Durée : ' + (e.duree || '30s') + '\n🖼 Photos nécessaires : ' + nbPhotos(e.duree);
   } else {
@@ -307,10 +299,27 @@ function confirmView(facts, ctx) {
     else cap += '\n🧪 Tests : ' + b.tests + '/' + b.max + ' · 🟡 Aperçu (simulation)';
   } else cap += '\n🟢 Local — gratuit.';
   // En plein flux : PRODUCTION (Générer) + NAVIGATION (Retour). Pas d'Accueil ici (évite une sortie accidentelle).
-  // (P4) « Éditer » = revenir à la préparation pour modifier AVANT de générer (sans perdre le travail).
+  // (GARDE-FOU) « Générer » N'EFFECTUE PAS la dépense : il ouvre une 2ᵉ confirmation explicite (R0_GO2). « Éditer » = retour prépa.
   const rows = blocked
     ? [[{ text: '✏️ Éditer', cb: 'R0_GEN_CANCEL' }]]
-    : [[{ text: (paid && live ? gen + ' (test n°' + b.next + ')' : gen), cb: 'R0_GO' }, { text: '✏️ Éditer', cb: 'R0_GEN_CANCEL' }]];
+    : [[{ text: gen, cb: 'R0_GO2' }, { text: '✏️ Éditer', cb: 'R0_GEN_CANCEL' }]];
+  return { kind: C.mediaKind(facts), caption: cap, rows: rows };
+}
+
+// ── 2ᵉ CONFIRMATION (garde-fou dépense) : SEUL « Oui, générer » déclenche l'appel réel. ──
+function confirm2View(facts, ctx) {
+  const cf = (ctx && ctx.confirm) || {};
+  const e = cf.est || {}; const paid = !e.gratuit; const live = !!cf.live;
+  const b = cf.budget || { tests: 0, max: 10, next: 1, exhausted: false };
+  const blocked = paid && live && b.exhausted;
+  const cout = (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
+  let cap;
+  if (blocked) cap = '<b>⛔ Budget de test épuisé (' + b.max + '/' + b.max + ')</b>\nRéautorisation nécessaire — aucune dépense.';
+  else if (live) cap = '<b>⚠️ Dépense réelle</b>\n💳 ' + cout + '\n🧪 Test réel n°' + b.next + '/' + b.max + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer la génération ?</b>';
+  else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i>\n🧪 Tests : ' + b.tests + '/' + b.max + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
+  const rows = blocked
+    ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]]
+    : [[{ text: '✅ Oui, générer (n°' + b.next + ')', cb: 'R0_GO' }], [{ text: '✖️ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 

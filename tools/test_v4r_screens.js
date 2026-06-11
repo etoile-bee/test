@@ -30,7 +30,7 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
-chk('Photo/Prompt : 6 blocs (Prompt/Avatar/Look/Décor/Références/Paramètres)', ['R0_PHB_prompt', 'R0_PHB_avatar', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_refs', 'R0_PHB_params'].every(c => has(php, c)));
+chk('Photo/Prompt : 5 blocs (Prompt/Avatar/Tenue/Décor/Références) + Édition (Paramètres retiré)', ['R0_PHB_prompt', 'R0_PHB_avatar', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_refs', 'R0_PHB_edition'].every(c => has(php, c)) && !has(php,'R0_PHB_params'));
 chk('Photo/Prompt : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_PHOTO', 'R0_PH_PREVIEW', 'R0_PH_VALID', 'R0_PH_GENERATE'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──
@@ -66,7 +66,7 @@ chk('Studio/Section : ➕✏️📋🗑✅ + ◀ 🏠', ['R0_STA_add', 'R0_STA_e
 
 // ── ÉCRAN 6 RÉCENTS ──
 const rec = SC.recentsView(f0, ctx);
-chk('Récents : ▶Ouvrir(0) 📋Dup 📦Arch 🗑Suppr 🏠', has(rec, 'R0_RE_OPEN_0') && ['R0_RE_DUP', 'R0_RE_ARCH', 'R0_RE_DEL', 'R0_HOME'].every(c => has(rec, c)));
+chk('Récents : ▶Ouvrir(0) 📋Dup 📦Arch 🏠 (un seul retrait = Archiver, plus de Supprimer)', has(rec, 'R0_RE_OPEN_0') && ['R0_RE_DUP', 'R0_RE_ARCH', 'R0_HOME'].every(c => has(rec, c)) && !has(rec, 'R0_RE_DEL'));
 
 // ── COMMANDES GLOBALES (point 6) : Accueil RÉSERVÉ aux écrans non-flux ; les flux ont Retour, pas Accueil ──
 const sortie = [phr, vir, pub, studio, sect, rec]; // écrans de SORTIE/non-flux : gardent 🏠 Accueil
@@ -101,7 +101,7 @@ chk('gate : R0_GO -> op create (la seule porte de dépense, après confirmation)
 chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.reduce('R0_GEN_CANCEL', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.st.screen === 'photo_prompt' && !r.op; })());
 const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
 const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
-chk('confirm : compact (Aperçu + Coût) + 🎨Générer / ✏️Éditer', /Aperçu/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
+chk('confirm récap : Aperçu + Coût + Générer(->2e confirm R0_GO2) / Éditer ; PAS de dépense directe', /Aperçu/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO2') && !has(cv,'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
 chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /🎨 Générer/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
 chk('confirm : éco reste gatée (gratuit=false, donc passe par l\'écran de coût)', estP.gratuit === false);
 // ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
@@ -177,7 +177,7 @@ chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() =
 chk('G : titres « PHOTO/VIDÉO · Étape »', /📸 PHOTO · Choisir/.test(SC.photoView(f0).caption) && /📸 PHOTO · Préparer/.test(SC.photoPromptView(fimg, ctx).caption) && /🎬 VIDÉO · Choisir/.test(SC.videoView(f0).caption) && /🎬 VIDÉO · Préparer/.test(SC.videoParamsView(fimg).caption));
 chk('G : titre Aperçu cohérent (📸/🎬 · Aperçu)', /📸 PHOTO · Aperçu/.test(SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, max: 10, next: 1, credits: 0 } } }).caption));
 // (K) durée visible + éditable + défaut
-chk('K : durée visible avec défaut dans Vidéo·Préparer', /⏱ Durée : 30s/.test(SC.videoParamsView(fimg).caption) && has(SC.videoParamsView(fimg), 'R0_VIB_duree'));
+chk('K : durée éditable (bloc dans la prépa) + visible à l Aperçu', has(SC.videoParamsView(fimg), 'R0_VIB_duree') && /⏱ Durée : 30s/.test(SC.confirmView(fvid,{confirm:{mediaKind:'video',est:{moteur:'x',duree:'30s',gratuit:false},live:false,budget:{tests:0,max:10,next:1}}}).caption));
 chk('K : presets durée 15/30/60', SC.PRESETS.vi_duree.join(',') === '15s,30s,60s' && NAV.resolveSet('viduree', '2', {}).value === '60s');
 // (E) musique OFF/Automatique/Personnalisée
 chk('E : musique off/automatique/personnalisée', SC.PRESETS.vi_musique[0] === 'off' && NAV.resolveSet('vimus', '0', {}).value === 'off');

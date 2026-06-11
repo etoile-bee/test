@@ -9,8 +9,20 @@ const bot = require('../telegram_bot.js');
 
 let ok = 0, ko = 0;
 function chk(l, c) { if (c) { ok++; console.log('✅ ' + l); } else { ko++; console.log('❌ ' + l); } }
+// flux RÉEL de génération photo = récap -> Générer(R0_GO2) -> 2e confirmation -> Oui(R0_GO)
+async function genPhotoFull() { await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); }
 
 async function main() {
+  // ════ A : DOUBLE-CONFIRMATION (aucune dépense sans 2 clics explicites) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
+  await bot.tap('R0_PH_GENERATE'); const sR = bot.state();
+  chk('A : « Générer » (prépa) -> écran RÉCAP (confirm), pas de dépense', sR.screen === 'confirm');
+  const imgBefore = bot.state().curImg;
+  await bot.tap('R0_GO2'); const sC2 = bot.state();
+  chk('A : clic Générer du récap -> 2ᵉ CONFIRMATION (confirm2), TOUJOURS pas de média créé', sC2.screen === 'confirm2' && bot.state().curImg === imgBefore);
+  await bot.tap('R0_GO2_CANCEL'); chk('A : « Annuler » -> retour récap, aucun média créé', bot.state().screen === 'confirm' && bot.state().curImg === imgBefore);
+  await bot.tap('R0_GO2'); await bot.tap('R0_GO'); chk('A : SEUL « Oui, générer » crée le média (1 dépense après 2 confirmations)', bot.state().curImg === imgBefore + 1);
+
   // ════ B4 (transversal) : CHAQUE tap répond TOUJOURS + 1 SEUL bloc à tout instant ════
   bot.reset(); await bot.open();
   chk('ouverture /v4r : exactement 1 bloc visible', bot.state().alive === 1);
@@ -22,7 +34,7 @@ async function main() {
 
   // ════ B1 : Accueil → Vidéo → Valider → on peut CONTINUER / SORTIR (pas de flux mort) ════
   bot.reset(); await bot.open();
-  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO'); // une photo existe (source)
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // une photo existe (source)
   await bot.tap('R0_VIDEO'); const sV = bot.state();
   chk('B1 : Vidéo (source dispo) -> menu video_params, 1 bloc', sV.screen === 'video_params' && sV.alive === 1);
   await bot.tap('R0_VI_VALID'); const sVal = bot.state();
@@ -36,7 +48,7 @@ async function main() {
 
   // ════ B2 : « Retour » produit un changement réel (pas de boucle, pas « not modified » figé) ════
   bot.reset(); await bot.open();
-  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO');
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_VIDEO'); // -> video_params (menu)
   const scrBeforeBack = bot.state().screen;
   await bot.tap('R0_HOME'); // sortie du menu vidéo
@@ -49,11 +61,22 @@ async function main() {
 
   // ════ B3 : /v4r ne fait JAMAIS disparaître le bloc (même avec un résultat affiché) ════
   bot.reset(); await bot.open();
-  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO'); // bloc RÉSULTAT photo
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // bloc RÉSULTAT photo
   chk('B3 : résultat photo affiché, 1 bloc', bot.state().alive === 1);
   await bot.open(); // /v4r de nouveau
   chk('B3 : après /v4r, le bloc EXISTE toujours (jamais 0 bloc)', bot.state().alive === 1);
   await bot.typed('/v4r new'); chk('B3 : /v4r new -> 1 bloc (pas de disparition)', bot.state().alive === 1);
+
+  // ════ B (projet courant) : au retour /v4r on retombe sur le projet AVEC médias (couverture), pas un vide ════
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // projet courant a une photo
+  chk('B : projet de travail a une image', bot.state().curImg >= 1);
+  await bot.typed('/v4r new'); // crée un projet VIDE (plus récent)
+  chk('B : /v4r new -> projet vide (0 image)', bot.state().curImg === 0);
+  await bot.open(); // /v4r -> doit RESTAURER le projet avec médias
+  const sB = bot.state();
+  chk('B : /v4r reprise -> projet courant AVEC médias (pas le vide)', sB.curImg >= 1);
+  chk('B : Accueil affiche la COUVERTURE (bloc photo, pas texte)', sB.screen === 'home' && sB.type === 'photo');
 
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);

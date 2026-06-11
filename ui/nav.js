@@ -163,6 +163,7 @@ function view(state, facts, ctx) {
     case 'studio_section': return SC.studioSectionView(facts, ctx);
     case 'recents': return SC.recentsView(facts, ctx);
     case 'confirm': return SC.confirmView(facts, ctx);
+    case 'confirm2': return SC.confirm2View(facts, ctx);
     case 'gallery': return SC.galleryView(facts, ctx);
     case 'video_edit': return SC.videoEditView(facts);
     case 'quit': return SC.quitView(facts);
@@ -180,7 +181,7 @@ function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (
 //   Partagé par le câble Telegram ET la preuve de scénario -> garantit que le test exécute la VRAIE logique.
 //   op.type ∈ create|etat|draft|pub|loaddraft|statut|duplicate|openrecent|decision|none
 // Écrans « flux en cours » : quitter vers l'Accueil demande d'abord « Enregistrer avant de quitter ? » (point 7).
-const IN_PROGRESS = { photo_prompt: 1, video_params: 1, block: 1, confirm: 1, video_edit: 1 };
+const IN_PROGRESS = { photo_prompt: 1, video_params: 1, block: 1, confirm: 1, confirm2: 1, video_edit: 1 };
 
 function reduce(action, st0, facts, ctx) {
   const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null, pending: st0.pending || null, quitFrom: st0.quitFrom || null, srcReturn: st0.srcReturn || null };
@@ -269,6 +270,8 @@ function reduce(action, st0, facts, ctx) {
       if (st.ret === 'video') { st.ret = null; return Object.assign(go('video', '✨ <b>Photo créée</b> → source vidéo prête'), { op: { type: 'create', kind: 'image', useDraft: true, then: { type: 'draft', kind: 'video', patch: { source: 'photo générée' } } } }); }
       return Object.assign(go('photo_result', '✨ <b>Photo générée</b>'), { op: { type: 'create', kind: 'image', useDraft: true } });
     }
+    case 'R0_GO2': return go('confirm2');                                          // (garde-fou) récap -> 2ᵉ confirmation explicite (ne dépense PAS)
+    case 'R0_GO2_CANCEL': return go('confirm', '✖️ Annulé — aucune dépense');        // 2ᵉ confirmation annulée -> retour récap
     case 'R0_GEN_CANCEL': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : (p.kind === 'text' ? parentOfAsk(p.ask || 'ph_prompt') : 'photo_prompt'), '✖️ Annulé — aucune dépense'); }
     // PUBLICATION (gatée)
     case 'R0_PUB_EDIT': return { st: Object.assign(st, { screen: 'block', block: { screen: 'pub', key: 'legende' } }) };

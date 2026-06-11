@@ -2602,6 +2602,12 @@ function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/<
 function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,persona);
   if(!cur&&create){ cur=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet cree '+cur.projectId); }
   return cur?S.loadFacts(BASE,persona,cur.projectId):null; }
+// [B] À la reprise : « projet courant » = le plus récent QUI A des médias (sa vraie dernière prod), pas un projet vide.
+//   On le « touche » pour qu'il redevienne le projet courant -> l'Accueil affiche sa couverture.
+function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BASE,persona)||[];
+  const withMedia=list.find(p=>(C.visibles(p)||[]).length>0); const pick=withMedia||list[0];
+  if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
+  return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
@@ -2703,7 +2709,7 @@ function r0Ctx(persona){
   if(r0Screen==='gallery' && r0GalKind!=='video'){ ctx.galleryFiles=r0RealImages(persona,9); } // [P1.1] vraies images dispo (projet+global)
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
-  if(r0Screen==='confirm' && r0Pending){
+  if((r0Screen==='confirm'||r0Screen==='confirm2') && r0Pending){
     const {ENG,BUD}=_r0();
     const est=r0EstFor(persona, r0Pending);
     ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };
@@ -2746,7 +2752,7 @@ async function r0TypedV4r(txt){
   if(txt==='/v4r new'){ const {S}=_r0(); S.createProject(BASE,persona,{},Date.now());
     r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null; r0Mid=null; r0Type=null; r0MediaPath=null;
     await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
-  if(txt==='/v4r'){ if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
+  if(txt==='/v4r'){ r0PickCurrent(persona); /*[B] reprend le projet AVEC médias (pas un vide)*/ if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
     r0Mid=null; r0Type=null; r0MediaPath=null; /*poste un bloc neuf ; l'ancien n'est supprimé qu'APRÈS (jamais de trou)*/
     await r0Render(persona,null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} } return; }
   r0Screen='home'; r0Mid=null; r0Type=null; r0MediaPath=null;
@@ -3989,7 +3995,7 @@ if(R0DRY){
       try{ await r0Dispatch(_persona(), d, mid); }catch(e){ R0DRY.log.push('THROW:'+e.message); try{ await r0Render(_persona(), mid, '⚠️ Action non aboutie — réessaie.'); }catch(_){} }
       try{ await tg('answerCallbackQuery',{}); }catch(_){}                  // le vrai handler répond TOUJOURS
     },
-    state:()=>({ screen:r0Screen, section:r0Section, block:r0Block&&r0Block.key, mid:r0Mid, type:r0Type, pending:r0Pending&&r0Pending.kind, alive:R0DRY.alive.size, answered:R0DRY.answered }),
+    state:()=>{ const {C}=_r0(); const f=r0Cur(_persona(),false)||{}; return { screen:r0Screen, section:r0Section, block:r0Block&&r0Block.key, mid:r0Mid, type:r0Type, pending:r0Pending&&r0Pending.kind, alive:R0DRY.alive.size, answered:R0DRY.answered, curImg:(C.visibles(f).filter(m=>m.type!=='video')).length, curVid:(C.visibles(f).filter(m=>m.type==='video')).length }; },
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
@@ -4000,7 +4006,7 @@ if(R0DRY){
     Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
   setTimeout(async ()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){}
     /*[A] /restart -> RESTAURE le contexte du projet en cours (dernier écran), pas un retour à blanc. Message système persistant.*/
-    try{ const persona=_persona(); r0Mid=null; r0Type=null; r0MediaPath=null; r0Await=null;
+    try{ const persona=_persona(); r0Mid=null; r0Type=null; r0MediaPath=null; r0Await=null; r0PickCurrent(persona); /*[B] reprend le projet AVEC médias*/
       if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null; }
       await r0Render(persona, null, r0Screen==='home'?null:'↩️ <i>Contexte restauré</i>'); }catch(e){ jlog('restart v4r err '+e.message); }
     await send('🔄 <b>Redémarré</b> — contexte restauré. /menu pour le menu, /v4r pour reprendre.').catch(()=>{});
