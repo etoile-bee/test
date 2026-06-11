@@ -40,26 +40,43 @@ Après le fix systémique [[ANO-CTX-BLOCK-DEMO-GENERAL]], les 9 panneaux d'édit
 | 3 | Versioning / anti-écrasement | 🟡 | anti-écrasement PROJET ✅ (genId) ; **historique des MODIFS de champ ABSENT** (le draft est écrasé à chaque édition — auto-save mais pas de versions) → `ANO-ARCH-VERSIONING` (planifié) |
 | 4 | Coût : 0 moteur réel sur retour/aperçu/nav/restart/test | ✅ **prouvé** | compteur tests réels INCHANGÉ (0→0) après nav/aperçu/retour/restart/régén-non-confirmée ; `liveFor(photo/video)=false` en dry ; seul `R0_GO`+LIVE+`!R0DRY` dépense — `gen_audit_transversal.js` + `test_v4r_nospend` 4/0 |
 | 5 | Réel vs test isolés | ✅ **prouvé** | la VRAIE base `projects_r` INCHANGÉE par le test (112→112) ; le projet de test vit dans le bac `mkdtemp` ; `R0DRY` — `gen_audit_transversal.js` + [[tests-v4r-isolation-mkdtemp]] |
-| 6 | Import / upload (stockage+rattachement+remontée) | 🟡 | `R0_PH_IMPORT` arme `await upload` ; **chaîne complète à auditer** (terrain) |
+| 6 | Import / upload (stockage+rattachement+remontée) | ✅ **prouvé** (1 réserve) | photo→`dlPhoto`→`looks/` (persistant) + `addCandidate` (rattaché projet) → remonte Fichiers (visibles) + Galerie (walk looks/) ; vidéo→`projects_r/<id>/import_*.mp4` + source épinglée ; réf→`setDraft`. **Réserve** : pas de chemin d'IMPORT **audio** (audio = GÉNÉRÉ ElevenLabs/Kling — à confirmer Etoile) ; emplacements ≠ (photo looks/ global vs vidéo projet) — voir `ANO-IMPORT-AUDIO`. `gen_audit_b2.js` |
 | 7 | Corbeille / restore | ✅ | `r0Corbeille`→`.corbeille/` (soft-delete), `r0Restore` (SECURITES #11) |
-| 8 | Publication = statut seul (pas de déplacement hors projet) | 🟡 | `setPublication` change le statut ; **à vérifier qu'aucun fichier ne sort du projet** |
+| 8 | Publication = statut seul (pas de déplacement hors projet) | ✅ **prouvé** | `R0_PUB_DO` → `op etat='publie'` (`setMediaEtat`) : change UNIQUEMENT la métadonnée `etat`, **aucun fichier déplacé** ; `publies` = filtre `medias(etat==='publie')`. Prêt-à-poster (`pret`, etat `garde`) / Publié (`publies`) / Historique (tous médias) = écrans DISTINCTS. Lecture code `nav.js:325/425` + `telegram_bot.js:2908` |
 | 9 | Chaîne cloud/local/Telegram (aller-retour) | ⚠️ | `r0CloudCopy`/`r0ArchiveProjet` ; preuve = terrain LIVE |
-| 10 | UX mobile (boutons non coupés/cachés) | 🟡 | boutons sous-titres regroupés ✅ ; revue visuelle clavier/coupures = terrain |
+| 10 | UX mobile (boutons non coupés/cachés) | ✅ **prouvé** (1 exception OK) | aucune ligne > 3 boutons (dump tous écrans) ; aucun libellé > 18 car SAUF « ✨ Générer maintenant » (20, **CTA canonique seul sur sa ligne** → OK mobile) ; sous-titres regroupés. `gen_audit_b2.js` |
 | 11 | États d'erreur (message+cause+action, 0 perte) | ✅ | filet `uncaught*` + `koBanner` cause exacte (SECURITES #6) |
 | 12 | Concurrence (double-clic, retour/stop/restart pendant gén) | ✅ | verrou `.v4r_generating`, `r0Busy`, deploy-guard (SECURITES #5) |
-| 13 | Cohérence des libellés | 🟡 | relabel Historique (G1) ✅ ; passe complète des libellés à faire |
+| 13 | Cohérence des libellés | ✅ **prouvé** | dump lexical tous écrans : 1 incohérence trouvée (`🛑 STOP` vs `🛑 Stop`) → **corrigée** ([[ANO-CTX-LIBELLE-STOP]]) ; 0 terme contradictoire restant. `gen_audit_b2.js` |
 | 14 | Accessibilité fichiers (≥1 endroit clair, sans doublon) | ✅ | Fichiers hub + Historique (lecture) + Galerie (sélection), rôles distincts G1/G2 |
 | 15 | Reconstruction projet depuis le dossier cloud | ⚠️ | `r0ArchiveProjet` écrit l'archive ; reconstruction = test terrain |
 | 16 | Test réel final (chaîne complète) | ⚠️ | terrain Etoile, LIVE ON |
 
-**Acquis ✅ (8/16)** : 1,2,4,5,7,11,12,14. **🟡 à approfondir (5/16)** : 3,6,8,10,13. **⚠️ terrain (3/16)** : 9,15,16. Audit approfondi des 🟡 = prochain bloc (offline, sur go).
+**Acquis ✅ (12/16)** : 1,2,4,5,6,7,8,10,11,12,13,14 (preuves : `gen_audit_transversal.js` + `gen_audit_b2.js` + lectures code). **🟡 (1/16)** : 3 (versioning — DOCUMENTÉ, arbitrage Etoile, voir `ANO-ARCH-VERSIONING`). **⚠️ terrain (3/16)** : 9 (cloud↔Telegram), 15 (reconstruction cloud), 16 (test réel final) — nécessitent LIVE.
 
-## ANO-ARCH-VERSIONING — pas d'historique des modifications de champ (écrasement du draft)
-- **Couche** : `socle.setDraft` (le brouillon est remplacé à chaque édition d'un champ)
-- **Gravité** : 🟡 (pas de perte de PROJET ni de médias — auto-save + rendus persistants + corbeille ; mais pas de « versions » d'une valeur éditée : revenir à un script/prompt précédent n'est pas possible)
-- **Statut** : 🟡 PLANIFIÉ (non requis par un arbitrage Etoile à ce stade — signalé honnêtement, à arbitrer)
-- **Constaté** : éditer puis ré-éditer un champ remplace l'ancienne valeur sans la conserver.
-- **Piste** : journaliser les versions de champ (ring buffer par champ) si Etoile le souhaite ; sinon laisser tel quel (les MÉDIAS générés, eux, sont tous conservés dans l'historique).
+## ANO-CTX-LIBELLE-STOP — #13 casse de libellé incohérente (« STOP » vs « Stop »)
+- **Écran** : Accueil (`homeView`) — bouton `🛑 STOP` (majuscules) alors que partout ailleurs `🛑 Stop`.
+- **Gravité** : 🟡 (cohérence visuelle)
+- **Cause** : `screens.js:56` codait `🛑 STOP` en dur ; le wrapper (`nav.js:245`) et le reste utilisent `🛑 Stop`.
+- **Correctif** : `screens.js` → `🛑 Stop` (casse unifiée). Assertion runtime `LIBELLÉ : Accueil expose « 🛑 Stop »`.
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE** : dump lexical `gen_audit_b2.js` : avant `stop -> {🛑 STOP, 🛑 Stop}` ; après → 1 seule forme. Sweep 448/0.
+
+## ANO-IMPORT-AUDIO — pas de chemin d'import audio + emplacements de stockage hétérogènes
+- **Couche** : réception upload (`telegram_bot.js:4153+`)
+- **Gravité** : 🟡 (par design probable — à confirmer Etoile)
+- **Constaté** : import **photo** (→`looks/`) · **vidéo** (→`projects_r/<id>/`) · **référence** (→draft) existent et fonctionnent (rattachés+remontés+persistants, prouvé) ; **audio** n'a AUCUN chemin d'import (l'audio est GÉNÉRÉ par ElevenLabs/Kling, pas téléversé). Aussi : photo stockée dans le patrimoine global `looks/` vs vidéo dans le dossier projet (incohérence d'emplacement, sans perte).
+- **Statut** : 🟡 À ARBITRER (Etoile : faut-il un import audio ? faut-il uniformiser l'emplacement photo→dossier projet ?). Aucun correctif appliqué (pas de bug, choix produit).
+
+## ANO-ARCH-VERSIONING — #3 historique des modifications de champ (DOCUMENTATION pour arbitrage Etoile, NON implémenté)
+- **Couche** : `socle.setDraft` / `applyOp` `gentext`
+- **Gravité** : 🟡 (aucune perte de PROJET ni de MÉDIA — voir ci-dessous)
+- **COMPORTEMENT ACTUEL PRÉCIS (constaté + tracé code)** :
+  - **Régénérer** un texte (`R0_REGEN_SCRIPT`/`R0_ASK_*`/saisie) **ÉCRASE** la valeur du champ dans `draft` (`setDraft` remplace `draft.video.script` / `draft.photo.prompt` / `publication.legende_*` / `draft.video.st_*`). Pas de pile de versions.
+  - **CE QUI EST CONSERVÉ** : (a) chaque MÉDIA généré (photo/vidéo) = rendu persistant séparé dans le fil + entrée `medias` (jamais écrasé) ; (b) corbeille récupérable (`r0Corbeille`/`r0Restore`) ; (c) le défaut/modèle (`R0_DEFSAVE`) et le modèle-projet (`R0_SAVEMODEL` = duplication) ; (d) auto-save permanent du brouillon courant.
+  - **CE QUI EST PERDU** : l'ANCIENNE valeur TEXTE d'un champ après ré-édition (ex. version n-1 d'un script/prompt/légende/réglage sous-titres). On ne peut pas « revenir à la version précédente du script ».
+- **Statut** : 🟡 **À ARBITRER PAR ETOILE** — veut-elle un **historique des versions** de prompt / script / légende / sous-titres (revenir en arrière) ? **NON implémenté volontairement** (pas de bug ; choix produit).
+- **Piste si OUI** : ring buffer par champ (`draft._versions[champ] = [..N]`) + bouton « ⏪ Version précédente » sur les blocs texte. Coût modéré, isolé. À chiffrer sur go.
 
 ---
 

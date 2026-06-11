@@ -305,6 +305,10 @@ async function main() {
   chk('G5 : la COPIE de la légende longue INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legl')));
   chk('G5 : le champ #️⃣ Hashtags reste SÉPARÉ (récupérable seul)', bot.fullText('tags').trim() === '#a #b #c');
 
+  // ════ [ANO-CTX-LIBELLE-STOP] #13 cohérence libellés : « Stop » même casse partout (jamais « STOP ») ════
+  bot.reset(); await bot.open();
+  chk('LIBELLÉ : Accueil expose « 🛑 Stop » (casse unifiée, pas « STOP »)', bot.labels().includes('🛑 Stop') && !bot.labels().includes('🛑 STOP'));
+
   // ════ [ANO-CTX-SOUSTITRES-DEMO] le panneau Sous-titres peint le CLIP de la SOURCE PROJET (jamais une démo générique) ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // hasVideo=true = condition du bug (parentKind video)

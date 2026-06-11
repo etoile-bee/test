@@ -53,7 +53,7 @@ function homeView(facts) {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
       [{ text: '🏛 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
-      [{ text: '🛑 STOP', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12/#3] Stop/Restart sur l'Accueil
+      [{ text: '🛑 Stop', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12/#3] Stop/Restart sur l'Accueil — [ANO-CTX-LIBELLE-STOP] casse unifiée « Stop »
     ],
   };
 }
