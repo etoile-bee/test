@@ -354,7 +354,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
-    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // [VISIBILITÉ Etoile] défaut GLOBAL : TOUT le patrimoine photo (ancien legacy + migré + nouveau), bascule projet dispo
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_prompt'; return go('gallery');   // [D4] GALERIE = SÉLECTION (scope PROJET par défaut, bascule 🌍 Tout dispo) ; le patrimoine global = Historique (R0_PH_HIST)
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // historique -> PRÉPARER aussi
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
@@ -376,7 +376,7 @@ function reduce(action, st0, facts, ctx) {
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
-    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'video_params'; return go('gallery'); // [VISIBILITÉ] défaut GLOBAL : choisir QUELLE photo (tout le patrimoine) -> pose source -> retour prépa
+    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // [D4] SÉLECTION source vidéo (scope PROJET par défaut, bascule 🌍 Tout) ; patrimoine global = Historique
     case 'R0_GALSCOPE': { const ns = !((ctx && ctx.galleryAll)); st.galleryAll = ns; return { st: Object.assign(st, { screen: 'gallery' }), toast: ns ? '🌍 Tout le patrimoine' : '📁 Ce projet seulement' }; } // bascule projet/global (lit le scope courant via ctx)
     case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');

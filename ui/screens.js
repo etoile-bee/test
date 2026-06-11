@@ -464,7 +464,7 @@ function resourcesView(facts, ctx) {
     [{ text: '✏️ Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '📄 Lég. longue', cb: 'R0_FULLTEXT_legl' }, { text: '#️⃣ Hashtags', cb: 'R0_FULLTEXT_tags' }],
     [{ text: '🖼 Galerie photos', cb: 'R0_PH_HIST' }, { text: '🎬 Vidéos', cb: 'R0_VI_HIST' }],
     [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
-    [{ text: '◀ Retour', cb: C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO' }, HOME],
+    [{ text: '◀ Retour', cb: (ctx && ctx.resReturn) || (C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO') }, HOME], // [RETOUR CONTEXTUEL] revient à l'origine (Studio/Récents/Résultat)
   ];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }

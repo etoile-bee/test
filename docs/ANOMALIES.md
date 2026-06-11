@@ -85,6 +85,17 @@
 
 ---
 
+## ÉCARTS D'AUDIT préparés offline (lot groupé)
+
+### D4 — Doublon Galerie ≡ Historique
+- 🔴 → 🟢 PRÊTE (offline) : `R0_PH_GAL`/`R0_VI_GAL` repassent en **scope PROJET** (sélection, bascule 🌍 Tout dispo) ; `R0_PH_HIST`/`R0_VI_HIST` restent **GLOBAL** (journal). Plus de doublon. Le patrimoine complet reste accessible via Historique + le toggle (readers déjà fixés 239/239). Preuve : `R0_PH_GAL galleryAll=false`, `R0_PH_HIST galleryAll=true`.
+
+### Retour contextuel `resources` (Fichiers)
+- 🟡 → 🟢 PRÊTE (offline) : `r0ResFrom` mémorise l'écran d'origine (Studio/Récents/Résultat) ; le ◀ Retour de Fichiers y revient. Preuve : Fichiers ouvert depuis Studio → Retour = Studio (true). Reset en quittant.
+
+### Changement de référence par upload (`R0_REF_REPLACE`)
+- ⚠️ **NON VÉRIFIABLE EN HARNESS** (nécessite un upload Telegram réel). Le code arme l'attente d'upload + copie vers `references/imany/imany_reference.*`. À tester EN TERRAIN après déploiement (envoyer une image → vérifier qu'elle devient la référence). Marqué ⚠️.
+
 ## Checklist 16 points (à dérouler)
 1) Parcours Photo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie
 2) Parcours Vidéo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie

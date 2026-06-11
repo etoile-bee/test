@@ -2551,7 +2551,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
-let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null, r0SubReturn=null, r0GalDel=false, r0ResFrom=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
@@ -2873,6 +2873,7 @@ function r0Ctx(persona){
   };
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
+  ctx.resReturn=r0ResFrom; // [RETOUR CONTEXTUEL] origine d'ouverture de Fichiers/Ressources (Studio/Récents/Résultat)
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
     if(r0GalKind==='video'){ const projV=(C.visibles(f)||[]).filter(m=>m.type==='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
@@ -3113,6 +3114,8 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_FIN_SAVE'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; let r=null; try{ r=r0ArchiveProjet(persona, id); }catch(e){}
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
     return; }
+  // [RETOUR CONTEXTUEL — résources/Fichiers] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat), pas un défaut fixe.
+  if(d==='R0_RES'){ r0ResFrom = (r0Screen==='studio'?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':null)))); }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
@@ -3181,6 +3184,7 @@ async function r0Dispatch(persona, d, editMid){
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
   if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; r0GalDel=false; } /*réinit hors galerie (scope + mode retrait)*/
+  if(r0Screen!=='resources'){ r0ResFrom=null; } /*[RETOUR CONTEXTUEL] oublie l'origine une fois Fichiers quitté*/
   if(res.await) r0Await=res.await;
   if(res.toast){ try{ await toast(res.toast); }catch(e){} }
   await r0Render(persona, editMid, res.banner);
