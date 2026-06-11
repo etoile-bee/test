@@ -2932,8 +2932,10 @@ async function r0Render(persona, editMid, banner){
   // [APERÇU VIDÉO RÉEL] sur l'aperçu vidéo (confirm + pending vidéo), on peint un VRAI CLIP échantillon avec sous-titres incrustés
   //   dans le style courant -> elle VOIT la forme (hauteur/taille/police/couleur) AVANT de générer, et peut l'ajuster (🔤 Sous-titres).
   if(r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video'){
-    const clip=await r0SubClip(persona); if(clip){ media=clip; kind='video'; }
-    else { media=r0SourceFile(f); kind=media?'photo':'text'; } // dégradé : still source si ffmpeg indispo
+    const clip=await r0SubClip(persona);                       // CLIP sous-titré (matérialise la source iCloud avant ffmpeg)
+    if(clip){ media=clip; kind='video'; }
+    else { const png=await r0SubSample(persona);               // repli : PNG AVEC sous-titres incrustés (jamais l'image nue silencieuse)
+      if(png){ media=png; kind='photo'; } else { media=r0SourceFile(f); kind=media?'photo':'text'; } }
   }
   else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){
@@ -3233,9 +3235,19 @@ function r0SubOpts(dv){ dv=dv||{};
 }
 // [SOUS-TITRES DÉFINITIF] APERÇU : incruste un échantillon (1res lignes du script, sinon phrase type) dans LE style courant,
 //   via le MÊME render_local.buildAss que le rendu final -> l'aperçu reflète fidèlement la vidéo générée. Local, gratuit.
+// [iCloud DATALESS — Etoile] une photo source peut être un PLACEHOLDER non téléchargé (taille logique pleine mais 0 bloc) :
+//   ffmpeg lirait 0 octet -> échec -> repli statique. On force le téléchargement (brctl) et on ATTEND la matérialisation.
+async function r0EnsureLocal(file){ try{ if(!file||!fs.existsSync(file)) return false;
+  let blocks='1'; try{ blocks=require('child_process').execSync('stat -f%b "'+file+'" 2>/dev/null').toString().trim(); }catch(e){}
+  if(+blocks>0) return true;                                   // déjà matérialisé sur le disque
+  try{ await _execFileP('brctl',['download',file],{timeout:20000}); }catch(e){}
+  for(let i=0;i<12;i++){ try{ const b=require('child_process').execSync('stat -f%b "'+file+'" 2>/dev/null').toString().trim(); if(+b>0) return true; }catch(e){} await new Promise(r=>setTimeout(r,400)); }
+  return false;
+}catch(e){ return false; } }
 async function r0SubSample(persona){
   try{ const {S,C}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
     const img=r0CoverFile(f); if(!img||!fs.existsSync(img)) return null;
+    await r0EnsureLocal(img); // iCloud : matérialise la source avant ffmpeg
     const o=r0SubOpts(dv); const rl=freshRL(); const W=720,H=1280;
     let phrase=(dv.script&&String(dv.script).trim())||'Un aperçu de tes sous-titres incrustés';
     phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,8).join(' '); // 1res lignes du script
@@ -3263,7 +3275,7 @@ async function r0SubClip(persona){
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     const rl=freshRL(); const assPath='/tmp/subclip_'+h.toString(36)+'.ass';
     fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color}));
-    try{ if(fs.statSync(img).size<30000) require('child_process').execSync('brctl download "'+img+'" 2>/dev/null'); }catch(e){}
+    const local=await r0EnsureLocal(img); if(!local){ try{ jlog('[v4r] subclip : source iCloud non matérialisée '+path.basename(img)); }catch(_){} return null; } // [iCloud] matérialise avant ffmpeg (placeholders dataless)
     await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','4',
       '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0012,1.12)\':d=100:s=720x1280:fps=25,ass='+assPath+',format=yuv420p',
       '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{timeout:60000});
