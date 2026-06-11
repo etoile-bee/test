@@ -318,10 +318,21 @@ async function main() {
     _stM.rows[0].length === 3 && _stM.rows[1].length === 2 && _stM.rows[2].length === 3 && _stM.rows[3].length === 3 && _stM.rows[4].length === 3);
   chk('CTX-S/T : reste DANS le contexte (◀ Retour -> aperçu vidéo R0_VI_PREVIEW, pas un écran orphelin)', bot.buttons().includes('R0_VI_PREVIEW'));
   await bot.tap('R0_BLOCK_OK'); chk('CTX-S/T : ✅ Valider revient à l\'aperçu vidéo (confirm), 1 cockpit', bot.state().screen === 'confirm' && bot.state().cockpit === 1);
-  // un AUTRE écran d'édition vidéo ne peint pas de démo non plus (classe de bug)
-  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
-  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_VE');
-  chk('CTX-BLOCK : un écran d\'édition vidéo ne peint JAMAIS une démo (source projet, pas demo_video)', !/demo_video/.test(bot.media() || ''));
+  // [ANO-CTX-BLOCK-DEMO-GENERAL] AUCUN panneau d'édition vidéo-parent ne peint de démo : Script · Musique · Durée -> SOURCE projet, jamais demo_video.
+  for (const [label, cb] of [['Script', 'R0_VIB_script'], ['Musique', 'R0_VIB_musique'], ['Durée', 'R0_VIB_duree']]) {
+    bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+    await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // hasVideo=true (parentKind=video)
+    await bot.tap('R0_VE'); await bot.tap(cb);
+    const m = bot.media() || '';
+    chk('CTX-BLOCK-GENERAL : ' + label + ' (block) ne peint PAS de démo', !/demo_video|demo_photo/.test(m));
+    chk('CTX-BLOCK-GENERAL : ' + label + ' peint la SOURCE projet (= cover du projet)', m === '' || m === (bot.cover() || '___'));
+  }
+  // panneaux PHOTO-parent : Tenue/Décor peignent la source photo projet (jamais démo)
+  for (const [label, cb] of [['Tenue', 'R0_PHB_look'], ['Décor', 'R0_PHB_decor']]) {
+    bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+    await bot.tap(cb);
+    chk('CTX-BLOCK-GENERAL : ' + label + ' (photo) peint la source projet (cover), pas une démo', bot.media() === bot.cover() && !!bot.cover());
+  }
 
   // ════ [ANO-GENID-CREATE] DATA-SAFETY : 2+ créations de projet dans la MÊME seconde -> ids DISTINCTS (jamais d'écrasement silencieux) ════
   //   genId a une résolution à la seconde ; createProject DOIT suffixer (-2,-3…) si l'id existe déjà. Cause historique de perte de projet.

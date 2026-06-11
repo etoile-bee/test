@@ -17,13 +17,14 @@
 - **Statut** : ✅ CORRIGÉE (offline, non déployé)
 - **PREUVE RÉELLE (dump dispatch)** : aperçu vidéo media = `subclip_uhoilb.mp4` (source `s11.jpg`) ; panneau S/T media = **`subclip_uhoilb.mp4`** (MÊME fichier, `subclip_`, pas `demo_video`) ; markup groupé `[Mot|Phrase|Paragraphe] [Archivo|Classique] [Petit|Moyen|Grand] [Haut|Milieu|Bas] [Blanc|Jaune|Cyan] [Défaut] [Aperçu] [Retour] [Valider]…`. Assertions runtime CTX-S/T ×6 ✅.
 
-## ANO-CTX-BLOCK-DEMO — classe de bug : tout écran d'édition `block` peignait une démo (parentKind=video)
-- **Écran** : tous les `block` vidéo (script · voix · musique · durée · source · soustitres) quand `C.hasVideo` (parentKind=`video`)
-- **Gravité** : 🔴 (même racine que ci-dessus, généralisée)
-- **Cause** : `blockView` renvoie `kind=parentKind` ; `parentKind('video')='video'` si le projet a une vidéo → `r0Render` peignait `r0DemoVideo()`.
-- **Correctif** : `r0Render` — `kind==='video' && r0Screen==='block'` → peint `r0SourceFile(f)` (source projet), JAMAIS une démo. La démo ne subsiste que pour les écrans NON-édition sans clip réel (dégradé propre).
-- **Statut** : ✅ CORRIGÉE (offline) — fix générique couvrant tous les modules d'édition.
-- **PREUVE RÉELLE** : block réel (Vidéo·Édition) media = source projet `s11.jpg`, `demo_video` absent. Assertion runtime CTX-BLOCK ✅.
+## ANO-CTX-BLOCK-DEMO-GENERAL — RÈGLE SYSTÉMIQUE : aucun écran d'édition ne peint une démo
+- **Écran** : TOUS les `block` (photo : prompt·tenue·décor·référence ; vidéo : script·voix·musique·durée·source·soustitres ; pub : légendes)
+- **Gravité** : 🔴 (même racine que ci-dessus, généralisée — relevée par Dispatch : le 1ᵉʳ correctif ne special-casait que `soustitres`, Script/Musique/Durée tombaient encore sur `r0DemoVideo` ligne 2952)
+- **Cause** : `blockView` renvoie `kind=parentKind` ; `parentKind('video')='video'` dès qu'une vidéo existe → la branche `else if(kind==='video')` peignait `r0DemoVideo()` pour tout panneau vidéo non-soustitres.
+- **Correctif (systémique, pas de special-case)** : nouvelle règle dans `r0Render` — `const _isEditPanel = (r0Screen==='block')`. Soustitres → `r0SubClip` (source + S/T). **Tout autre panneau d'édition** → `r0RealSource(f)` (drafts épinglés → images projet → patrimoine réel, **SANS repli démo** : null → texte). `r0DemoVideo`/`r0DemoPhoto` désormais RÉSERVÉS aux écrans NON-édition. Nouveau helper `r0RealSource` (telegram_bot.js) garantit « source réelle ou rien, jamais une démo ». Le bloc `if(kind==='photo')` aval ne ré-introduit pas de démo pour les panneaux d'édition.
+- **Statut** : ✅ CORRIGÉE (offline) — règle générale couvrant les 13 modules d'édition (photo ET vidéo).
+- **PREUVE RÉELLE (dump dispatch)** : panneaux Script/Musique/Durée (projet AVEC vidéo) media = source projet (cover, ex. `s11.jpg`), `demo_video` absent ; Tenue/Décor (projet photo) media = cover projet ; Sous-titres = subclip source. Assertions runtime : CTX-BLOCK-GENERAL ×8 + CTX-S/T ×6 ✅. Sweep 447/0.
+- **Réserve honnête (hors écran d'édition)** : le keepsake « rendu persistant SIMULÉ » (`telegram_bot.js:~3195`, LIVE OFF uniquement) pose encore une démo si le fichier créé n'existe pas ; en LIVE ON la vraie génération dépose le vrai média (l.3148/3169). Noté, hors périmètre édition.
 
 > **Audit modules d'édition (15 points) — EN COURS.** Couverts par ce lot : Sous-titres (source ✅ · boutons ✅ · contexte ✅). À auditer ensuite : Script · Légendes · Hashtags · Prompt · Tenue · Décor · Référence · Musique · Durée · Modèle · Texte complet · Fichiers. Ruptures remontées au fil de l'eau.
 

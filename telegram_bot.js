@@ -2674,6 +2674,16 @@ function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).fi
 function r0SourceFile(f){ try{ const {S}=_r0(); const dv=S.getDraft(f,'video')||{}, dp=S.getDraft(f,'photo')||{};
   for(const fp of [dv.source_file, dp.source_file]){ if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; } }catch(e){} // [ANO-SOURCE-EDIT-REVERT] jamais la référence persona
   return r0CoverFile(f); }
+// [ANO-CTX-BLOCK-DEMO-GENERAL] SOURCE RÉELLE STRICTE du projet (drafts épinglés -> images visibles du projet -> patrimoine réel),
+//   SANS aucun repli démo/placeholder : renvoie null si AUCUNE image réelle. Utilisée par les écrans d'ÉDITION (block) :
+//   un panneau d'édition montre le CONTEXTE PROJET ou RIEN (texte) — JAMAIS une démo étrangère (manteau cuir).
+function r0RealSource(f){ try{ const {S,C}=_r0(); const dv=S.getDraft(f,'video')||{}, dp=S.getDraft(f,'photo')||{};
+  for(const fp of [dv.source_file, dp.source_file]){ if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; }
+  const imgs=(C.visibles(f)||[]).filter(m=>m&&m.type!=='video');
+  for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; }
+  const pers=(f&&f.persona)||(typeof _persona==='function'?_persona():'imany');
+  const g=r0RealImages(pers,1); if(g&&g[0]&&!_r0IsRef(g[0])&&fs.existsSync(g[0])) return g[0];
+}catch(e){} return null; }
 // Épingle l'image X comme SOURCE unique du projet (photo + vidéo) — appelée à la sélection, à la génération et au pont photo→vidéo.
 function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();
   S.setDraft(BASE,persona,id,'photo',{source_file:file},ts); S.setDraft(BASE,persona,id,'video',{source_file:file},ts);
@@ -2938,22 +2948,26 @@ async function r0Render(persona, editMid, banner){
   //   dans le style courant -> elle VOIT la forme (hauteur/taille/police/couleur) AVANT de générer, et peut l'ajuster (🔤 Sous-titres).
   // [ANO-CTX-SOUSTITRES-DEMO] APERÇU VIDÉO (confirm) **ET** panneau SOUS-TITRES (block soustitres) peignent le CLIP de LA SOURCE PROJET
   //   (r0SubClip = r0SourceFile + sous-titres incrustés), repli PNG sous-titré (r0SubSample). JAMAIS une démo générique (manteau cuir).
-  const _isSubPanel = (r0Screen==='block' && r0Block && r0Block.key==='soustitres');
+  const _isEditPanel = (r0Screen==='block');                                                     // TOUT écran d'édition (prompt/look/decor/ref/script/musique/duree/soustitres/source/legendes…)
+  const _isSubPanel = (_isEditPanel && r0Block && r0Block.key==='soustitres');
   const _isVideoApercu = (r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video');
   if(_isVideoApercu || _isSubPanel){
     const clip=await r0SubClip(persona);                       // CLIP sous-titré (matérialise la source iCloud avant ffmpeg)
     if(clip){ media=clip; kind='video'; }
     else { const png=await r0SubSample(persona);               // repli : PNG AVEC sous-titres incrustés (jamais l'image nue silencieuse)
-      if(png){ media=png; kind='photo'; } else { media=r0SourceFile(f); kind=media?'photo':'text'; } }
+      if(png){ media=png; kind='photo'; } else { media=r0RealSource(f); kind=media?'photo':'text'; } }
   }
-  // [ANO-CTX-BLOCK-DEMO] un écran d'ÉDITION (block : script/voix/musique/durée/source…) ne peint JAMAIS une démo générique :
-  //   il montre la SOURCE projet (cohérence « même source » exigée par Etoile), pas un clip d'illustration étranger au projet.
-  else if(kind==='video' && r0Screen==='block'){ media=r0SourceFile(f); kind=media?'photo':'text'; }
-  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo (écrans NON-édition)
+  // [ANO-CTX-BLOCK-DEMO-GENERAL] RÈGLE SYSTÉMIQUE : AUCUN écran d'ÉDITION (block, quel que soit le parentKind) ne peint une démo.
+  //   Il peint TOUJOURS le CONTEXTE PROJET (r0RealSource = même fichier que l'aperçu) ; si aucune source réelle -> texte (JAMAIS r0DemoVideo/r0DemoPhoto).
+  else if(_isEditPanel){ media=r0RealSource(f); kind=media?'photo':'text'; }
+  // Démo/dégradé RÉSERVÉ aux écrans NON-édition (ex. aperçu vidéo sans clip ffmpeg dispo).
+  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } }
   if(kind==='photo'){
     // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
     //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).
-    media=(r0Screen==='photo_result')?r0CoverFile(f):r0SourceFile(f); if(!media) kind='text';
+    //   Écran d'ÉDITION : on garde la source RÉELLE déjà résolue (jamais de repli démo via r0SourceFile).
+    if(_isEditPanel){ if(!media){ media=r0RealSource(f); if(!media) kind='text'; } }
+    else { media=(r0Screen==='photo_result')?r0CoverFile(f):r0SourceFile(f); if(!media) kind='text'; }
   }
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
