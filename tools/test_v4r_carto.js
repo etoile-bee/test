@@ -71,6 +71,17 @@ async function main() {
     rows.push({ scr, n: btns.length, reachedOK, answeredAll, cockpitAll, noThrow, exitOK, retourOK });
   }
 
+  // ── [FIX STRUCTUREL] RÈGLE DE NAVIGATION : tout écran requis DOIT avoir ses boutons (sinon déploiement KO) ──
+  //   gen  -> 👁 Aperçu + ✅ Valider + ✨ Générer (+ ◀ Retour) ; edit -> ✅ Valider (+ ◀ Retour). Empêche la disparition silencieuse.
+  const NAVREQ = require('../ui/nav').NAVREQ || {};
+  const reM = { apercu: /👁|Aperçu/, valider: /✅\s*Valider/, generer: /✨\s*Génér/, retour: /◀|Retour|Annuler/, accueil: /🏠|Accueil/, stop: /🛑|Stop/ };
+  for (const scr of Object.keys(NAVREQ)) {
+    if (!REACH[scr]) { chk('NAVREQ : ' + scr + ' a une route REACH', false); continue; }
+    await reach(scr); const L = bot.labels(); const cls = NAVREQ[scr].cls;
+    const need = cls === 'gen' ? ['apercu', 'valider', 'generer', 'retour', 'accueil', 'stop'] : ['valider', 'retour', 'accueil', 'stop'];
+    for (const k of need) chk('NAVREQ[' + cls + '] ' + scr + ' a ' + k, L.some(t => reM[k].test(t)));
+  }
+
   // ── TABLEAU écran × sortie ──
   console.log('\n┌─ CARTOGRAPHIE RUNTIME ' + '─'.repeat(40));
   console.log('│ écran           btns  atteint  répond  1-cockpit  no-throw  sortie  retour');

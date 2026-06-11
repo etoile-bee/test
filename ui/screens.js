@@ -411,6 +411,8 @@ function galleryView(facts, ctx) {
   // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page (sélection correcte).
   const rows = gridRows(items, (m, i) => ({ text: ic + (pg.base + i + 1), cb: 'R0_GITEM_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  // [VISIBILITÉ] bascule scope : tout le patrimoine <-> ce projet seulement (la galerie remonte TOUT par défaut)
+  rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }]);
   rows.push([{ text: '◀ Retour', cb: back }, HOME]);
   // image -> aperçu mosaïque (photo) ; vidéo -> liste texte (pas de planche d'images possible)
   return { kind: (items.length && kindWanted !== 'video') ? 'photo' : 'text', caption: cap, rows: rows };

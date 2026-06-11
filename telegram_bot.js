@@ -2553,7 +2553,7 @@ let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoir
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
 let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
-const R0_PAGE=9; /*taille de page (9 vignettes/projets par écran)*/
+const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 // [RENDUS PERSISTANTS] mids des RENDUS FINAUX (photo/vidéo générée) postés comme messages DÉDIÉS : ils RESTENT dans le fil,
 //   JAMAIS supprimés ni édités. Distincts du COCKPIT (r0Mid, éphémère/édité en place). /v4r·restart·changement de projet ne les touchent pas.
@@ -2656,6 +2656,8 @@ function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } }
 //   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
 function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).filter(m=>m&&m.type!=='video');
   for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&fs.existsSync(fp)) return fp; } }catch(e){}
+  // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo si une vraie existe).
+  try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&fs.existsSync(g[0])) return g[0]; }catch(e){}
   return r0DemoPhoto(); }
 // [CLOUD] Reconnexion au mécanisme iCloud EXISTANT : dossier historique = « podcast-looks » (= la cible du symlink `looks/`).
 //   Chaque PROJET a son sous-dossier podcast-looks/<projet>/ avec tous ses fichiers (photo/vidéo/…) -> resync auto iCloud + app Fichiers.
@@ -2754,7 +2756,7 @@ function r0RealVideos(persona, max){
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
 async function r0Mosaic(files, startNum){
   try{
-    files=(files||[]).filter(Boolean).slice(0,9);
+    files=(files||[]).filter(Boolean).slice(0,6); // [Etoile] 6 vignettes max par mosaïque (numérotées 1-6)
     if(!files.length) return null;
     if(R0DRY) return files[0]; // dry : pas de ffmpeg (ne bloque pas les tests)
     startNum=startNum||1;
@@ -2898,11 +2900,11 @@ async function r0Render(persona, editMid, banner){
   if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents'){
     let files=[];
     if(r0Screen==='gallery'){
-      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,9); } // VRAIES images (projet ou global selon le scope)
+      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIES images (projet ou global selon le scope)
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
-        files=all.filter(m=>m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+        files=all.filter(m=>m.type!=='video').slice(0,R0_PAGE).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
     }
-    else { const r=ctx.recents||{projets:[]}; const base=(ctx.page&&ctx.page.base)||0; files=(r.projets||[]).slice(base,base+9).map(p=>r0CoverFile(p)); } // page courante + couverture réelle par projet
+    else { const r=ctx.recents||{projets:[]}; const base=(ctx.page&&ctx.page.base)||0; files=(r.projets||[]).slice(base,base+R0_PAGE).map(p=>r0CoverFile(p)); } // page courante + couverture réelle par projet (6/page)
     files=files.filter(Boolean);
     if(files.length){ kind='photo'; media=files[0]; _galFiles=files; } // aperçu immédiat = 1ère image (la planche arrive en fond)
   }

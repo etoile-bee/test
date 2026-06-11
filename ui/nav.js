@@ -197,17 +197,49 @@ function resolveSet(blk, token, ctx) {
   return { target: 'draft', kind: spec.kind, field: spec.field, value: value };
 }
 
+// ═══ [FIX STRUCTUREL DÉFINITIF — Etoile] EXIGENCES DE NAVIGATION PAR ÉCRAN ═══
+//   Plus jamais d'ajout au cas par cas : le WRAPPER garantit, de façon centralisée, les boutons requis selon la CLASSE de l'écran.
+//   cls 'gen'  = écran de préparation MENANT À UNE GÉNÉRATION  -> exige 👁 Aperçu + ✅ Valider + ✨ Générer (+ ◀ Retour + 🏠 + 🛑)
+//   cls 'edit' = sous-vue d'édition / réglage                  -> exige ✅ Valider (+ ◀ Retour + 🏠 + 🛑)
+//   prod = cb de l'entrée de production (ouvre le récap/Aperçu) ; gen = cb « Générer » ; back = cb retour parent.
+//   La cartographie ÉCHOUE le déploiement si un écran requis n'a pas ses boutons (voir NAVREQ + test_v4r_carto).
+const NAVREQ = {
+  photo_prompt: { cls: 'gen', prod: 'R0_PH_PREVIEW', gen: 'R0_PH_GENERATE', back: 'R0_PHOTO' },
+  video_params: { cls: 'gen', prod: 'R0_VI_PREVIEW', gen: 'R0_VI_GENERATE', back: 'R0_VI_BACK' },
+  photo_montage: { cls: 'edit', back: 'R0_PH_GEN' },
+  video_edit: { cls: 'edit', back: 'R0_VI_CREATE' },
+  block: { cls: 'edit' }, // blockView fournit déjà ✅ Valider + ◀ Retour (et 👁 Aperçu pour les sous-titres)
+};
+function _btxt(rows) { return [].concat.apply([], rows).map(b => (b && b.text) || ''); }
+function _bcb(rows) { return [].concat.apply([], rows).map(b => b && b.cb).filter(Boolean); }
 // Rendu d'un état de navigation -> vue pure. state = { screen, section?, block? }
-//   [Etoile] WRAPPER : chaque écran NON-RACINE garantit 🏠 Accueil + 🛑 Stop (ajoutés si absents) -> sortie possible à TOUTE étape.
+//   [Etoile] WRAPPER : tout écran NON-RACINE garantit ◀ Retour + (✅ Valider | 👁 Aperçu | ✨ Générer selon la classe) + 🏠 Accueil + 🛑 Stop.
 function view(state, facts, ctx) {
   const v = _view(state, facts, ctx);
-  if (state.screen !== 'home' && v && Array.isArray(v.rows)) {
-    const flat = [].concat.apply([], v.rows).map(b => b && b.cb);
-    const extra = [];
-    if (!flat.includes('R0_HOME')) extra.push({ text: '🏠 Accueil', cb: 'R0_HOME' });
-    if (!flat.includes('R0_STOP')) extra.push({ text: '🛑 Stop', cb: 'R0_STOP' });
-    if (extra.length) v.rows = v.rows.concat([extra]);
+  if (state.screen === 'home' || !v || !Array.isArray(v.rows)) return v;
+  const req = NAVREQ[state.screen] || null;
+  const texts = _btxt(v.rows);
+  const hasTxt = re => texts.some(t => re.test(t));
+  const RETOUR = /◀|Retour|Annuler|↩/;
+  const APERCU = /👁|Aperçu/;
+  const VALID = /✅\s*Valider/;
+  const GENER = /✨\s*Génér/;
+  const add = [];
+  if (req && req.cls === 'gen') {
+    if (!hasTxt(APERCU)) add.push({ text: '👁 Aperçu', cb: req.prod });
+    if (!hasTxt(VALID)) add.push({ text: '✅ Valider', cb: req.prod });
+    if (!hasTxt(GENER)) add.push({ text: '✨ Générer', cb: req.gen || req.prod });
+  } else if (req && req.cls === 'edit') {
+    if (!hasTxt(VALID) && req.back) add.push({ text: '✅ Valider', cb: req.back });
   }
+  if (!hasTxt(RETOUR) && req && req.back) add.push({ text: '◀ Retour', cb: req.back });
+  if (add.length) v.rows = v.rows.concat([add]);
+  // 🏠 Accueil + 🛑 Stop garantis en dernier (sortie possible à TOUTE étape).
+  const cb = _bcb(v.rows);
+  const tail = [];
+  if (cb.indexOf('R0_HOME') < 0) tail.push({ text: '🏠 Accueil', cb: 'R0_HOME' });
+  if (cb.indexOf('R0_STOP') < 0) tail.push({ text: '🛑 Stop', cb: 'R0_STOP' });
+  if (tail.length) v.rows = v.rows.concat([tail]);
   return v;
 }
 function _view(state, facts, ctx) {
@@ -318,7 +350,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
-    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_prompt'; return go('gallery');   // [P1] choisir -> PRÉPARER (chaîne complète : modifier/aperçu/valider/générer)
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // [VISIBILITÉ Etoile] défaut GLOBAL : TOUT le patrimoine photo (ancien legacy + migré + nouveau), bascule projet dispo
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // historique -> PRÉPARER aussi
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
@@ -339,7 +371,8 @@ function reduce(action, st0, facts, ctx) {
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
-    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
+    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'video_params'; return go('gallery'); // [VISIBILITÉ] défaut GLOBAL : choisir QUELLE photo (tout le patrimoine) -> pose source -> retour prépa
+    case 'R0_GALSCOPE': { const ns = !((ctx && ctx.galleryAll)); st.galleryAll = ns; return { st: Object.assign(st, { screen: 'gallery' }), toast: ns ? '🌍 Tout le patrimoine' : '📁 Ce projet seulement' }; } // bascule projet/global (lit le scope courant via ctx)
     case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
@@ -419,4 +452,4 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
   return S.loadFacts(base, persona, id);
 }
 
-module.exports = { NEXT, SETMAP, ASKMAP, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk, fieldAlias };
+module.exports = { NEXT, SETMAP, ASKMAP, NAVREQ, view, blockSpec, resolveSet, parentKind, titleOf, reduce, applyOp, parentOf, parentOfAsk, fieldAlias };
