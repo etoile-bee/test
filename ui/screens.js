@@ -487,8 +487,16 @@ function videoEditView(facts) {
 // ── BLOC SUB-VIEW générique (T1, édité en place) : valeur courante + puces/saisie + ◀ retour parent ──
 //   spec = { title, current, options:[{text,cb}], askCb?, back:{text,cb}, parentKind }
 function blockView(spec) {
-  let cap = '<b>' + spec.title + '</b>\nActuel : ' + val(spec.current)
-    + (spec.hint ? ('\n<i>' + esc(spec.hint) + '</i>') : '');
+  // [TEXTE COPIABLE — Etoile] sur les blocs TEXTE (prompt/script…), la valeur est dans un bloc <code> -> copie d'un geste = TEXTE BRUT SEUL.
+  //   L'instruction/aide reste HORS du bloc copiable (ligne <i> séparée). Les blocs à choix gardent l'affichage court.
+  let cap;
+  if (spec.parentKind === 'text' && spec.current != null && String(spec.current).trim()) {
+    cap = '<b>' + spec.title + '</b>\n<code>' + esc(String(spec.current)) + '</code>'
+      + (spec.hint ? ('\n\n<i>' + esc(spec.hint) + '</i>') : '');
+  } else {
+    cap = '<b>' + spec.title + '</b>\nActuel : ' + val(spec.current)
+      + (spec.hint ? ('\n<i>' + esc(spec.hint) + '</i>') : '');
+  }
   const rows = [];
   const opts = spec.options || [];
   for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3));

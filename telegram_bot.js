@@ -3051,7 +3051,10 @@ async function r0Dispatch(persona, d, editMid){
     const label={ prompt:'📝 Prompt complet', script:'🎬 Script complet', legc:'✏️ Légende courte', legl:'📄 Légende longue', tags:'#️⃣ Hashtags', soustitres:'🔤 Sous-titres' }[field]||'Texte';
     if(!String(txt).trim()){ try{ await toast('Rien à envoyer (vide)'); }catch(e){} return; }
     const full=String(txt); try{ await toast('📄 Envoyé ci-dessous'); }catch(e){}
-    for(let p=0;p<full.length;p+=3900){ const part=full.slice(p,p+3900); await send('<b>'+_r0esc(label)+'</b>\n'+_r0esc(part)).catch(()=>{}); } // découpe si > limite Telegram
+    // [TEXTE COPIABLE — Etoile] le bloc destiné à la COPIE = TEXTE BRUT SEUL (zéro en-tête/pied/instruction).
+    //   L'étiquette part dans un message SÉPARÉ ; le contenu est envoyé dans un bloc <code> (copie d'un geste = exactement le texte).
+    try{ await send('<b>'+_r0esc(label)+'</b> — <i>copie le bloc ci-dessous (texte seul)</i>'); }catch(e){}
+    for(let p=0;p<full.length;p+=3500){ const part=full.slice(p,p+3500); await send('<code>'+_r0esc(part)+'</code>').catch(()=>{}); } // contenu BRUT SEUL, copiable d'un geste
     return; }
   // [HUB ASSETS] récupération de FICHIERS un par un : image · vidéo · voix/audio (envoyés tels quels). Lecture seule.
   if(d==='R0_GETIMG'){ const fp=r0CoverFile(r0Cur(persona,false)||{});
