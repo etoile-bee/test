@@ -143,6 +143,31 @@ chk('point4 : confirm texte affiche Anthropic + coût (payant, gaté)', /Anthrop
 // (9) grilles : récents jusqu'à 9 en grille
 chk('point9 : Récents en grille (≥1 ligne de projets) + actions + home', (() => { const v = SC.recentsView(f0, { recents: { projets: [f0, fimg], brouillons: [], archives: [], legacy: 0 } }); return has(v, 'R0_RE_OPEN_0') && has(v, 'R0_RE_OPEN_1') && has(v, 'R0_HOME'); })());
 
+// ── RACCORDEMENT SOURCE/IMPORT -> FLUX (point 1) : choisir en galerie pose la source + retour auto ──
+chk('raccord : R0_VI_PICK -> galerie (choix réel), pas d\'impasse', NAV.reduce('R0_VI_PICK', { screen: 'video_params' }, fimg, ctx).st.screen === 'gallery');
+chk('raccord : choix galerie (R0_GITEM) -> op picksrc + RETOUR AUTO au flux', (() => { const r = NAV.reduce('R0_GITEM_0', { screen: 'gallery', srcReturn: 'video_params' }, fimg, ctx); return r.op && r.op.type === 'picksrc' && r.st.screen === 'video_params'; })());
+chk('raccord : galerie depuis Photo -> retour revue photo (photo_result)', NAV.reduce('R0_GITEM_0', { screen: 'gallery', srcReturn: 'photo_result' }, fimg, ctx).st.screen === 'photo_result');
+chk('raccord : bloc « Image source » = Choisir/Importer (sélection réelle, pas saisie)', (() => { const sp = NAV.blockSpec({ screen: 'video', key: 'source' }, fimg, ctx); return sp.options.some(o => o.cb === 'R0_VI_PICK') && sp.options.some(o => o.cb === 'R0_VI_IMPORT'); })());
+chk('raccord : « Modifier » recharge les params dans le flux (op loaddraft)', NAV.reduce('R0_PH_EDIT', { screen: 'photo_result' }, fimg, ctx).op.type === 'loaddraft' && NAV.reduce('R0_VI_EDIT', { screen: 'video_result' }, fvid, ctx).op.type === 'loaddraft');
+// ── ÉDITION -> RETOUR PRÉPARATION avec valeur (point 2) ──
+chk('point2 : SET d\'une puce -> retour préparation (video_params) avec valeur', (() => { const r = NAV.reduce('R0_SET_vimouv_0', { screen: 'block', block: { screen: 'video', key: 'mouvement' } }, fimg, ctx); return r.st.screen === 'video_params' && r.op.type === 'draft' && r.op.patch.mouvement === 'zoom lent'; })());
+chk('point2 : un bloc n\'est jamais une impasse (back = préparation)', (() => { const sp = NAV.blockSpec({ screen: 'video', key: 'mouvement' }, fimg, ctx); return sp.back && /R0_VI_CREATE|R0_VIDEO/.test(sp.back.cb); })());
+// ── LIBELLÉS COURTS (point 3) : aucun bouton tronqué (≤ ~16 chars hors emoji) ──
+const allBtns = [home, ph0, SC.photoView(fimg), php, phr, vi0, SC.videoView(fimg), vip, vir, pub, studio, sect, rec, SC.photoSourceView(fimg), SC.videoEditView(fvid), SC.galleryView(fvid, { galleryKind: 'image' }), SC.quitView(fimg)]
+  .flatMap(v => [].concat.apply([], v.rows)).map(b => b.text);
+chk('point3 : libellés courts (aucun > 18 caractères)', allBtns.every(t => t.length <= 18));
+chk('point3 : libellés cibles présents (Conserver/Changer/Choisir/Créer vidéo/Historique)', /Conserver/.test(allBtns.join(' ')) && /Changer/.test(allBtns.join(' ')) && /Choisir/.test(allBtns.join(' ')) && /Créer vidéo/.test(allBtns.join(' ')));
+// ── AUDIT JSON BRUT (point 4) : aucune liste n'affiche de JSON/objet sérialisé ──
+const listCaps = [SC.studioSectionView(f0, { section: { icon: '👗', label: 'Looks', count: 2, items: [{ id: 1, cat: 'soiree' }, { id: 2, cat: 'business' }], source: 'x' } }),
+  SC.galleryView(fvid, { galleryKind: 'image' }), SC.recentsView(f0, ctx)];
+chk('point4 : Studio/Galerie/Récents — aucun JSON brut affiché (objets -> libellés)', listCaps.every(v => !/\{"|":/.test(v.caption) && [].concat.apply([], v.rows).every(b => !/\{"|":/.test(b.text))));
+chk('point4 : décor/avatars/prompts -> libellés propres (cleanLabel sur item objet)', SC.cleanLabel({ id: 2, cat: 'business' }) === 'Business #2');
+// ── NO-ORPHAN sur les NOUVEAUX écrans ──
+chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() => {
+  const gs = [SC.galleryView(fvid, { galleryKind: 'image' }), SC.photoSourceView(fimg), SC.videoEditView(fvid), SC.quitView(fimg)];
+  return gs.every(v => { const cb = cbs(v); return cb.some(c => /R0_(HOME|PHOTO|VIDEO|QUIT_CANCEL)/.test(c)); });
+})());
+
 // sobriété : aucun jargon dev visible
 const allcap = [home].concat(nonHome).map(v => v.caption).join(' ').toLowerCase();
 chk('sobriété : aucun jargon dev', !/(socle|dérivation|placeholder|message_id|reducer|ffmpeg|callback)/.test(allcap));

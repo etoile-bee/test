@@ -79,8 +79,11 @@ function blockSpec(block, facts, ctx) {
   const FREE = { prompt: 'ph_prompt', script: 'vi_script', source: 'vi_source' };
   if (FREE[block.key]) {
     const ask = FREE[block.key];
-    const opts = (block.key === 'source') ? [] : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
-    return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Touche ✍️ Saisir.' : 'Écris, ou ✨ génère puis édite.') };
+    // « Image source » = sélection RÉELLE (Choisir une photo / Importer), pas une saisie libre.
+    const opts = (block.key === 'source')
+      ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
+      : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
+    return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : 'Écris, ou ✨ génère puis édite.') };
   }
   // blocs à CHOIX (list/preset/literal)
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d) };
@@ -159,7 +162,7 @@ function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (
 const IN_PROGRESS = { photo_prompt: 1, video_params: 1, block: 1, confirm: 1, video_edit: 1 };
 
 function reduce(action, st0, facts, ctx) {
-  const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null, pending: st0.pending || null, quitFrom: st0.quitFrom || null };
+  const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null, pending: st0.pending || null, quitFrom: st0.quitFrom || null, srcReturn: st0.srcReturn || null };
   const go = (screen, banner) => ({ st: Object.assign(st, { screen: screen, block: null }), banner: banner });
   const d = action;
 
@@ -182,7 +185,10 @@ function reduce(action, st0, facts, ctx) {
   if (d.indexOf('R0_VIB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: d.slice(7) } }) }; }
   if (d.indexOf('R0_ST_') === 0 && d !== 'R0_STUDIO') { st.section = d.slice(6); return { st: Object.assign(st, { screen: 'studio_section', block: null }) }; }
   if (d.indexOf('R0_STA_') === 0) { return { st: st, toast: '🏛 Studio — édition à venir (lecture seule)' }; }
+  if (d.indexOf('R0_STI_') === 0) { return { st: st, toast: '🏛 Élément (lecture seule)' }; }
   if (d.indexOf('R0_RE_OPEN_') === 0) { return { st: Object.assign(st, { screen: 'home', block: null }), op: { type: 'openrecent', index: +d.slice(11) }, banner: '📂 <b>Projet ouvert</b>' }; }
+  // RACCORDEMENT (point 1) : choisir un média en galerie -> le POSE comme source + RETOUR AUTO au flux (jamais d'impasse).
+  if (d.indexOf('R0_GITEM_') === 0) { const i = +d.slice(9); const back = st.srcReturn || 'video_params'; st.srcReturn = null; return { st: Object.assign(st, { screen: back, block: null }), op: { type: 'picksrc', index: i }, banner: '✅ <b>Source sélectionnée</b>' }; }
 
   switch (d) {
     case 'R0_HOME': return go('home');
@@ -200,8 +206,8 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return Object.assign(go('photo_result', '📥 <b>Photo importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import', prompt: '(importée)' } } });
-    case 'R0_PH_GAL': return go('gallery');                       // galerie en GRILLE (médias visibles)
-    case 'R0_PH_HIST': st.galleryAll = true; return go('gallery');// historique en GRILLE (versions comprises)
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_result'; return go('gallery');   // galerie : choisir -> revue photo
+    case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_result'; return go('gallery');   // historique (versions comprises)
     case 'R0_PH_PREVIEW': return { st: st, toast: '👁 Aperçu (coût nul)' };
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
     // GÉNÉRATION PHOTO -> passe par la CONFIRMATION DE COÛT (jamais de dépense directe)
@@ -215,11 +221,11 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_TOVIDEO': return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' } } });
     // VIDÉO
     case 'R0_VI_IMPORT': return Object.assign(go('video', '📥 <b>Source importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import' }, then: { type: 'draft', kind: 'video', patch: { source: 'photo importée' } } } });
-    case 'R0_VI_PICK': return Object.assign(go('video_params', '🖼 <b>Photo choisie comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' }, onlyIfImage: true } });
+    case 'R0_VI_PICK': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
     case 'R0_VI_CREATE': return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' }, onlyIfImageAndNoSource: true } });
-    case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; return go('gallery');
+    case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
     case 'R0_VI_PREVIEW': return { st: st, toast: '👁 Aperçu vidéo (coût nul)' };
     case 'R0_VI_VALID': return { st: st, toast: '✅ Paramètres vidéo validés' };
     // GÉNÉRATION VIDÉO -> CONFIRMATION DE COÛT (payant : Anthropic+ElevenLabs+Kling)
@@ -240,8 +246,7 @@ function reduce(action, st0, facts, ctx) {
       if (st.ret === 'video') { st.ret = null; return Object.assign(go('video', '✨ <b>Photo créée</b> → source vidéo prête'), { op: { type: 'create', kind: 'image', useDraft: true, then: { type: 'draft', kind: 'video', patch: { source: 'photo générée' } } } }); }
       return Object.assign(go('photo_result', '✨ <b>Photo générée</b>'), { op: { type: 'create', kind: 'image', useDraft: true } });
     }
-    case 'R0_GEN_CANCEL': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : 'photo_prompt', '✖️ Annulé — aucune dépense'); }
-    case 'R0_GITEM': return { st: st, toast: 'média' };
+    case 'R0_GEN_CANCEL': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : (p.kind === 'text' ? parentOfAsk(p.ask || 'ph_prompt') : 'photo_prompt'), '✖️ Annulé — aucune dépense'); }
     // PUBLICATION (gatée)
     case 'R0_PUB_EDIT': return { st: Object.assign(st, { screen: 'block', block: { screen: 'pub', key: 'legende' } }) };
     case 'R0_PUB_SAVE': return Object.assign({ st: st, toast: '💾 Brouillon sauvegardé au dossier' }, { op: { type: 'statut', statut: 'brouillon' } });
@@ -267,6 +272,12 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
     case 'loaddraft': { const m = op.which === 'lastVideo' ? C.lastVideo(facts) : C.lastImage(facts); if (m) { const fields = op.kind === 'photo' ? ['prompt', 'avatar', 'look', 'decor', 'refs', 'format'] : ['source', 'mouvement', 'script', 'voix', 'musique', 'legendes', 'params']; const patch = {}; fields.forEach(k => { if (m[k] != null) patch[k] = m[k]; }); S.setDraft(base, persona, id, op.kind, patch, ts); } break; }
     case 'statut': S.setStatut(base, persona, id, op.statut, ts); break;
     case 'cleardraft': S.clearDraft(base, persona, id, ts); break;
+    case 'picksrc': { // pose le média choisi (galerie) comme SOURCE vidéo du projet courant — raccordement au flux
+      const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
+      const want = (ctx && ctx.galleryKind) === 'video' ? 'video' : 'image';
+      const items = all.filter(m => want === 'video' ? m.type === 'video' : m.type !== 'video');
+      const m = items[op.index]; if (m) S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1) }, ts);
+      break; }
     case 'gentext': { // texte généré (simulé tant que LIVE off) -> écrit dans le CHAMP EXISTANT (mappe ASKMAP). Aucun objet nouveau.
       const m = ASKMAP[op.ask]; if (m) { const txt = SIMTEXT[op.ask] || '✨ (texte généré — simulé, éditable)';
         if (m.target === 'pub') S.setPublication(base, persona, id, { [m.field]: txt }, ts);

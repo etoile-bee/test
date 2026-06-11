@@ -70,7 +70,8 @@ tap('R0_PH_KEEP'); chk('1. ✅ Garder : photo validée, même bloc', C.lastImage
 console.log('\n━━ Scénario 2 : vidéo depuis photo existante ━━');
 const midPhoto2 = mid;
 tap('R0_VIDEO'); chk('2. Photo→Vidéo : photo source visible (même bloc, édité)', type === 'photo' && mid === midPhoto2);
-tap('R0_VI_PICK'); chk('2. 🖼 Choisir photo existante : source posée', S.getDraft(facts(), 'video').source === 'photo du projet');
+tap('R0_VI_PICK'); chk('2. 🖼 Choisir -> galerie (choix réel de la photo, pas d\'impasse)', st.screen === 'gallery');
+tap('R0_GITEM_0'); chk('2. sélection en galerie -> source POSÉE + RETOUR AUTO au flux (video_params)', st.screen === 'video_params' && /Photo #1/.test(S.getDraft(facts(), 'video').source || ''));
 tap('R0_VIB_mouvement'); tap('R0_SET_vimouv_0'); chk('2. mouvement choisi', S.getDraft(facts(), 'video').mouvement === 'zoom lent');
 const rVgen = tap('R0_VI_GENERATE'); chk('2. 🎬 Générer vidéo -> CONFIRMATION de coût (payant, gaté)', st.screen === 'confirm' && !rVgen.op && !C.hasVideo(facts()));
 tap('R0_GO'); chk('2. ✅ Validé : on VOIT la vidéo, MÊME message_id (swap en place)', type === 'video' && mid === midPhoto2 && C.hasVideo(facts()));

@@ -53,7 +53,7 @@ function photoView(facts) {
     + (has ? ('\n🖼 ' + n + ' photo(s) — <i>Utiliser la photo actuelle ?</i>') : '\n<i>aucune photo — à créer</i>');
   // Arbre de décision (point 5) : si une photo existe -> « Utiliser / Une autre » en tête.
   const rows = (has
-    ? [[{ text: '✅ Utiliser cette photo', cb: 'R0_PH_USE' }, { text: '🔄 Une autre', cb: 'R0_PH_OTHER' }]]
+    ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '🔄 Changer', cb: 'R0_PH_OTHER' }]]
     : []).concat([
       [{ text: '✨ Générer', cb: 'R0_PH_GEN' }, { text: '📥 Importer', cb: 'R0_PH_IMPORT' }],
       [{ text: '🖼 Galerie', cb: 'R0_PH_GAL' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
@@ -108,7 +108,7 @@ function photoResultView(facts) {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_PH_DEL' }],
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
-      [{ text: '🎬 Faire une vidéo avec cette photo', cb: 'R0_PH_TOVIDEO' }],
+      [{ text: '🎬 Créer vidéo', cb: 'R0_PH_TOVIDEO' }],
       [HOME],
     ],
   };
@@ -123,12 +123,12 @@ function videoView(facts) {
   // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
   const hasSource = hasI || hasV;
   const rows = (hasSource
-    ? [[{ text: '✅ Conserver ce look', cb: 'R0_VI_KEEPLOOK' }, { text: '✏️ Changer le look', cb: 'R0_VI_GENPHOTO' }]]
+    ? [[{ text: '✅ Conserver', cb: 'R0_VI_KEEPLOOK' }, { text: '✏️ Changer', cb: 'R0_VI_GENPHOTO' }]]
     : []).concat([
-      [{ text: '📥 Importer source', cb: 'R0_VI_IMPORT' }, { text: '🖼 Choisir photo existante', cb: 'R0_VI_PICK' }],
-      [{ text: '✨ Générer photo source', cb: 'R0_VI_GENPHOTO' }],
-      [{ text: '🎬 Créer une vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
-      [{ text: '🕘 Historique vidéo', cb: 'R0_VI_HIST' }, HOME],
+      [{ text: '📥 Importer', cb: 'R0_VI_IMPORT' }, { text: '🖼 Choisir', cb: 'R0_VI_PICK' }],
+      [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }],
+      [{ text: '🎬 Créer vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
+      [{ text: '🕘 Historique', cb: 'R0_VI_HIST' }, HOME],
     ]);
   return { kind: kind, caption: cap, rows: rows };
 }
@@ -154,7 +154,7 @@ function videoParamsView(facts) {
   const rows = blockRows.concat([
     [{ text: '◀ Retour', cb: 'R0_VIDEO' }, { text: '❌ Annuler', cb: 'R0_VI_CANCEL' }],
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],
-    [{ text: '🎬 Générer vidéo', cb: 'R0_VI_GENERATE' }, HOME],
+    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }, HOME],
   ]);
   return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
 }
@@ -170,7 +170,7 @@ function videoResultView(facts) {
     kind: 'video', caption: cap, rows: [
       [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_VI_DEL' }],
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
-      [{ text: '📤 Exporter / Publier', cb: 'R0_PUB' }],
+      [{ text: '📤 Publier', cb: 'R0_PUB' }],
       [HOME],
     ],
   };
@@ -187,8 +187,8 @@ function publicationView(facts) {
     + (p.publie_le ? ('\n✅ publié le ' + esc(p.publie_le)) : '');
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
-      [{ text: '◀ Retour', cb: 'R0_VI_RESULT' }, { text: '✏️ Modifier légende', cb: 'R0_PUB_EDIT' }],
-      [{ text: '💾 Sauvegarder brouillon', cb: 'R0_PUB_SAVE' }, { text: '📤 Publier', cb: 'R0_PUB_DO' }],
+      [{ text: '◀ Retour', cb: 'R0_VI_RESULT' }, { text: '✏️ Légende', cb: 'R0_PUB_EDIT' }],
+      [{ text: '💾 Brouillon', cb: 'R0_PUB_SAVE' }, { text: '📤 Publier', cb: 'R0_PUB_DO' }],
       [HOME],
     ],
   };
@@ -213,9 +213,9 @@ function studioSectionView(facts, ctx) {
     + (items.length ? '' : '\n<i>section présente — vide pour l\'instant</i>')
     + '\n<i>source : ' + esc(s.source || '—') + '</i>';
   // GRILLE des éléments (parcours facile), puis actions de section, puis retour.
-  const rows = gridRows(items, (it, i) => ({ text: short(String(it), 14), cb: 'R0_STI_' + i }), 3).concat([
+  const rows = gridRows(items, (it, i) => ({ text: short(cleanLabel(it), 14), cb: 'R0_STI_' + i }), 3).concat([   // libellé lisible (jamais de JSON brut)
     [{ text: '➕ Ajouter', cb: 'R0_STA_add' }, { text: '✏️ Modifier', cb: 'R0_STA_edit' }, { text: '📋 Dupliquer', cb: 'R0_STA_dup' }],
-    [{ text: '🗑 Supprimer', cb: 'R0_STA_del' }, { text: '✅ Sélectionner', cb: 'R0_STA_sel' }],
+    [{ text: '🗑 Supprimer', cb: 'R0_STA_del' }, { text: '✅ Choisir', cb: 'R0_STA_sel' }],
     [{ text: '◀ Retour', cb: 'R0_STUDIO' }, HOME],
   ]);
   return { kind: 'text', caption: cap, rows: rows };
@@ -244,7 +244,7 @@ function quitView(facts) {
     + '\n• <b>Annuler</b> : revenir où tu étais.';
   return {
     kind: C.mediaKind(facts), caption: cap, rows: [
-      [{ text: '💾 Enregistrer', cb: 'R0_QUIT_SAVE' }, { text: '🚪 Quitter sans enregistrer', cb: 'R0_QUIT_DISCARD' }],
+      [{ text: '💾 Enregistrer', cb: 'R0_QUIT_SAVE' }, { text: '🚪 Quitter', cb: 'R0_QUIT_DISCARD' }],
       [{ text: '↩️ Annuler', cb: 'R0_QUIT_CANCEL' }],
     ],
   };
@@ -326,7 +326,7 @@ function videoEditView(facts) {
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
       [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '💬 Légendes', cb: 'R0_VIB_legendes' }],
-      [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }, { text: '🎨 Édition image', cb: 'R0_VE_IMGFX' }],
+      [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }, { text: '🎨 Image', cb: 'R0_VE_IMGFX' }],
       [{ text: '◀ Vidéo', cb: 'R0_VIDEO' }, HOME],
     ],
   };
