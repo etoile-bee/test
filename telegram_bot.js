@@ -2524,6 +2524,7 @@ let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
 let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
 function v4Generate(flow, m){ // (legacy stub gratuit — conservé en secours, non utilisé quand imageBackend est branché)
   try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
@@ -2607,12 +2608,16 @@ async function r0Paint(targetKind, mediaPath, caption, rows, editMid){
   const p=SB.plan(r0Type, cur, targetKind);
   if(p.action==='edit'){
     if(targetKind==='text'){ const ok=await tgEditText(cur, caption, kb); if(ok!==false){ r0Mid=cur; r0Type='text'; return; } }
-    else { try{ const r=await tg('editMessageCaption',{message_id:cur, caption:cap1024(caption), parse_mode:'HTML', reply_markup:{inline_keyboard:kb}});
+    else if(mediaPath && mediaPath!==r0MediaPath){ // le FICHIER média a CHANGÉ -> remplacer l'image/vidéo en place (editMessageMedia), pas juste la légende
+      const ok=(targetKind==='video') ? await editVideoKb(cur, mediaPath, cap1024(caption), kb)
+                                       : await editPhotoKb(cur, mediaPath, cap1024(caption), kb);
+      if(ok){ r0Mid=cur; r0Type=targetKind; r0MediaPath=mediaPath; return; }
+    } else { try{ const r=await tg('editMessageCaption',{message_id:cur, caption:cap1024(caption), parse_mode:'HTML', reply_markup:{inline_keyboard:kb}});
       if(r&&(r.ok||isNotMod(r.description))){ r0Mid=cur; r0Type=targetKind; return; } }catch(e){} }
   } else if(p.action==='editMedia'){ // image DEVIENT vidéo (ou l'inverse) dans le MÊME message
     const ok = (targetKind==='video') ? await editVideoKb(cur, mediaPath, cap1024(caption), kb)
                                        : await editPhotoKb(cur, mediaPath, cap1024(caption), kb);
-    if(ok){ r0Mid=cur; r0Type=targetKind; return; }
+    if(ok){ r0Mid=cur; r0Type=targetKind; r0MediaPath=mediaPath; return; }
   }
   // recreate : POSTE D'ABORD le neuf, PUIS supprime l'ancien (point 7 : JAMAIS de bloc qui disparaît).
   //   Si le neuf échoue -> on garde l'ancien (aucune perte). Recouvrement momentané (sous-seconde) toléré pour ne RIEN perdre.
@@ -2621,6 +2626,7 @@ async function r0Paint(targetKind, mediaPath, caption, rows, editMid){
   else if(targetKind==='video'){ newMid=await sendVideoKb(mediaPath, cap1024(caption), kb)||null;
     if(!newMid){ const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); newMid=r0MidOf(d); newType='photo'; } } // dégradé : jamais de trou
   else { const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); newMid=r0MidOf(d); }
+  r0MediaPath=(targetKind==='text')?null:mediaPath; // mémorise le média affiché
   if(newMid){ r0Mid=newMid; r0Type=newType; if(old&&old!==newMid){ try{ await delMsg(old); }catch(e){} } } // l'ancien part seulement si le neuf est là
   else { jlog('[v4r] recreate: échec du nouveau bloc — ancien conservé (aucune perte)'); /* r0Mid/r0Type inchangés */ }
 }
@@ -2679,14 +2685,19 @@ async function r0Dispatch(persona, d, editMid){
   // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
   const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo'));
   if(realPhoto){
-    await r0Render(persona, editMid, '⏳ <b>Génération réelle en cours…</b> <i>(Seedream — patiente ~30 s à 1 min)</i>'); // reste sur l'écran courant
-    const out=await r0RealPhoto(persona, id); // appelle generateLook, dépose la photo RÉELLE, enregistre le test
-    r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
-    const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
-    const koBanner='⚠️ <b>Génération réelle non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Tu peux réessayer.';
-    await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
+    if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
+    r0Busy=true;
+    try{
+      await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // reste sur l'écran courant
+      const out=await r0RealPhoto(persona, id); // appelle generateLook (avec timeout), dépose la photo RÉELLE, enregistre le test
+      r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
+      const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
+      const koBanner='⚠️ <b>Génération non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour puis réessaie.';
+      await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
+    } finally { r0Busy=false; }
     return;
   }
+  if(d==='R0_GO' && r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente'); }catch(e){} return; } // verrou aussi hors photo
   if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now); // simulé (tout le reste : vidéo/texte/etc. reste mock tant que non autorisé)
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
@@ -2703,7 +2714,10 @@ async function r0RealPhoto(persona, id){
   const draft=S.getDraft(r0Cur(persona),'photo')||{};
   let localPath=null, err=null;
   try{
-    const gen=await nlMod().generateLook({mode:'eco', count:1}, (msg)=>{ try{ jlog('[v4r réel] '+msg); }catch(e){} });
+    const gen=await Promise.race([
+      nlMod().generateLook({mode:'eco', count:1}, (msg)=>{ try{ jlog('[v4r réel] '+msg); }catch(e){} }),
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('délai dépassé (240 s) — réessaie')),240000)), // garde-fou : ne reste JAMAIS bloqué
+    ]);
     const url=(gen&&gen.urls&&gen.urls[0])||null;
     if(!url) throw new Error('aucune image renvoyée');
     const dir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(dir,{recursive:true}); }catch(e){}

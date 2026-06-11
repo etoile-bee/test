@@ -11,12 +11,15 @@ function planParts(sec) { sec = sec || 23; const n = Math.max(1, Math.ceil(sec /
 function r2(x) { return Math.round(x * 100) / 100; }
 function r3(x) { return Math.round(x * 1000) / 1000; }
 
-// IMAGE : nb × coût unitaire (lookbook.ops['image_<mode>'] sinon 1 crédit/image).
+// IMAGE : nb × coût unitaire. Clé prioritaire ops['image_<mode>'], SINON ops['<mode>'] (relevés réels : eco/hd),
+//   sinon 1 cr/image. (Réconciliation : l'affichage = le coût réel — éco = 0,48 cr, pas 1.)
 function estimateImage(params, lb) {
   const nb = (params && params.nb_images) || 1;
   const mode = (params && params.mode) || 'eco';
-  const unit = ops(lb)['image_' + mode];
-  const credits = unit != null ? r3(unit * nb) : nb;
+  const o = ops(lb);
+  const unit = (o['image_' + mode] != null) ? o['image_' + mode] : o[mode];
+  let credits = unit != null ? r3(unit * nb) : nb;
+  if (mode === 'hd' && o['image_hd'] == null && o.hd != null) credits = r3(o.hd); // ops.hd = coût TOTAL du batch (relevé), pas par image
   return { kind: 'image', nb: nb, format: (params && params.format) || '9:16', moteur: 'Seedream', credits: credits, eur: r3(credits * eurPerCredit(lb)), gratuit: false };
 }
 
