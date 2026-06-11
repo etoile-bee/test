@@ -2611,9 +2611,10 @@ function _r0Prompts(persona){ const out=[]; try{ const dir=path.join(BASE,'promp
   for(const fn of fs.readdirSync(dir)){ if(!/\.json$/.test(fn)) continue; try{ const j=JSON.parse(fs.readFileSync(path.join(dir,fn),'utf8')); if(j&&j.text) out.push({name:j.name||fn.replace(/\.json$/,''), text:j.text}); }catch(e){} } }catch(e){}
   return out; }
 function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_catalog.json')]; return require('./outfits_catalog.json'); }catch(e){ return null; } }
-// [#26] TENUE : expose TOUTES les catégories du catalogue (1 entrée par catégorie, format « Cat #id » compris par photo_opts).
+// [#26/Etoile] TENUE : expose les catégories du catalogue en LIBELLÉS PROPRES (accentués, sans « #id »). Le mapping moteur (photo_opts) résout le nom de catégorie.
+const _R0_TENUE_LABELS={ soiree:'Soirée', business:'Business', casual:'Casual', cosy:'Cosy', ete:'Été', fete:'Fête' };
 function _r0LookCats(){ try{ const list=(_r0Outfits()||{}).outfits||[]; const seen={}, out=[];
-  for(const o of list){ const c=String(o.cat||'').toLowerCase(); if(c&&!seen[c]){ seen[c]=1; out.push(c.charAt(0).toUpperCase()+c.slice(1)+' #'+o.id); } }
+  for(const o of list){ const c=String(o.cat||'').toLowerCase(); if(c&&!seen[c]){ seen[c]=1; out.push(_R0_TENUE_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))); } }
   return out; }catch(e){ return []; } }
 // [SCRIPTS] CATÉGORIES/THÈMES RÉELS issus de la source legacy (workflow.js : niches coach relationnel femmes 20-40).
 //   Exposés comme les Tenues : une puce par thème ; le choix oriente la génération de script (draft.video.theme).

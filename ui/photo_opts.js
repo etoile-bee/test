@@ -29,7 +29,14 @@ function buildPhotoOpts(draft, lookbook, outfits) {
       else { opts.extra = String(draft.look); }
     } else if (lookbook && lookbook.categories && lookbook.categories[String(draft.look).toLowerCase()]) {
       opts.category = String(draft.look).toLowerCase();
-    } else { opts.extra = String(draft.look); }
+    } else {
+      // [Etoile] LIBELLÉ DE CATÉGORIE PROPRE (« Soirée », « Été », « Fête »…) -> dé-accentue, retrouve la catégorie du catalogue et prend une tenue représentative.
+      const norm = String(draft.look).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      const list = (outfits && outfits.outfits) || [];
+      const inCat = list.filter(x => String(x.cat).toLowerCase() === norm);
+      if (inCat.length) { const o = inCat[0]; opts.extra = o.prompt; opts.category = norm; }
+      else { opts.extra = String(draft.look); }
+    }
   }
 
   // DÉCOR (libellé) -> clé d'environnement du lookbook
