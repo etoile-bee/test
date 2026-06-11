@@ -2659,6 +2659,22 @@ function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).fi
   // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo si une vraie existe).
   try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&fs.existsSync(g[0])) return g[0]; }catch(e){}
   return r0DemoPhoto(); }
+// [HUB ASSETS] envoie un FICHIER en document (audio/voix…), garde-fou dry-run (sandbox ne poste rien de réel).
+async function r0SendDoc(fp, caption){ try{
+  if(typeof R0DRY!=='undefined'&&R0DRY){ return _dryTg('sendDocument',{caption:caption}); }
+  const FormData=require('form-data'); const form=new FormData();
+  form.append('chat_id',CHAT_ID); form.append('document',fs.readFileSync(fp),{filename:path.basename(fp)});
+  if(caption){ form.append('caption',caption); form.append('parse_mode','HTML'); }
+  const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendDocument',{method:'POST',body:form}); return r.json();
+}catch(e){ try{ jlog('[v4r] sendDoc err '+e.message); }catch(_){} return null; } }
+// [HUB ASSETS] retrouve le fichier AUDIO/voix de la version courante (ElevenLabs) : projet projects_r + archive podcast-looks/Audio. Lecture seule.
+function r0FindAudio(persona){ try{ const cur=r0Cur(persona,false); if(!cur) return null; const id=cur.projectId; const A=/\.(mp3|wav|m4a|aac|ogg)$/i; const found=[];
+  const scan=(dir)=>{ try{ for(const x of fs.readdirSync(dir)){ if(A.test(x)){ const fp=path.join(dir,x); try{ found.push({p:fp,m:fs.statSync(fp).mtimeMs}); }catch(e){} } } }catch(e){} };
+  scan(path.join(BASE,'projects_r',persona,id));
+  let ld; try{ ld=getLooksDir(); }catch(e){ ld=path.join(BASE,'looks'); }
+  scan(path.join(ld,'projets',persona,id,'Audio'));
+  found.sort((a,b)=>b.m-a.m); return found[0]?found[0].p:null;
+}catch(e){ return null; } }
 // [CLOUD] Reconnexion au mécanisme iCloud EXISTANT : dossier historique = « podcast-looks » (= la cible du symlink `looks/`).
 //   Chaque PROJET a son sous-dossier podcast-looks/<projet>/ avec tous ses fichiers (photo/vidéo/…) -> resync auto iCloud + app Fichiers.
 //   AUCUN nouveau connecteur. Pas en dry-run (sandbox ne touche jamais le vrai iCloud).
@@ -2991,12 +3007,24 @@ async function r0Dispatch(persona, d, editMid){
   // [texte entier] Envoie le TEXTE COMPLET (prompt/script/légendes) en message(s) SÉPARÉ(S) — copiable/éditable, hors limite média 1024.
   if(d.indexOf('R0_FULLTEXT_')===0){ const field=d.slice(12); const f3=r0Cur(persona,true);
     const dp=S.getDraft(f3,'photo')||{}, dv=S.getDraft(f3,'video')||{}, pub=(f3&&f3.publication)||{};
-    const txt={ prompt:dp.prompt, script:dv.script, legc:pub.legende_courte, legl:pub.legende_longue, tags:pub.hashtags }[field] || '';
-    const label={ prompt:'📝 Prompt complet', script:'🎬 Script complet', legc:'✏️ Légende courte', legl:'📄 Légende longue', tags:'#️⃣ Hashtags' }[field]||'Texte';
+    // [HUB] sous-titres = AUTO-générés ; on restitue le RÉGLAGE D'APPARENCE (la matière texte vient du script à l'incrustation).
+    const subTxt='Sous-titres : auto-générés depuis le script, incrustés au rendu.\nApparence — affichage: '+(dv.st_display||'mot')+' · police: '+(dv.st_font||'archivo')+' · taille: '+(dv.st_size||'M')+' · position: '+(dv.st_pos||'bas')+' · couleur: '+(dv.st_color||'blanc');
+    const txt={ prompt:dp.prompt, script:dv.script, legc:pub.legende_courte, legl:pub.legende_longue, tags:pub.hashtags, soustitres:subTxt }[field] || '';
+    const label={ prompt:'📝 Prompt complet', script:'🎬 Script complet', legc:'✏️ Légende courte', legl:'📄 Légende longue', tags:'#️⃣ Hashtags', soustitres:'🔤 Sous-titres' }[field]||'Texte';
     if(!String(txt).trim()){ try{ await toast('Rien à envoyer (vide)'); }catch(e){} return; }
-    const full=String(txt); try{ await toast('📄 Texte envoyé ci-dessous'); }catch(e){}
+    const full=String(txt); try{ await toast('📄 Envoyé ci-dessous'); }catch(e){}
     for(let p=0;p<full.length;p+=3900){ const part=full.slice(p,p+3900); await send('<b>'+_r0esc(label)+'</b>\n'+_r0esc(part)).catch(()=>{}); } // découpe si > limite Telegram
     return; }
+  // [HUB ASSETS] récupération de FICHIERS un par un : image · vidéo · voix/audio (envoyés tels quels). Lecture seule.
+  if(d==='R0_GETIMG'){ const fp=r0CoverFile(r0Cur(persona,false)||{});
+    if(fp&&fs.existsSync(fp)){ try{ await sendPhotoKb(fp,'🖼 <i>Image de la version</i>',null); }catch(e){} } else { try{ await toast('Aucune image'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
+  if(d==='R0_GETVID'){ const mv=C.lastVideo(r0Cur(persona,false)); const fp=mv&&mv.file;
+    if(fp&&fs.existsSync(fp)){ try{ await sendVideoKb(fp,'🎬 <i>Vidéo de la version</i>',null); }catch(e){ try{ await send('🎬 Vidéo : '+_r0esc(path.basename(fp))); }catch(_){} } } else { try{ await toast('Aucune vidéo'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
+  if(d==='R0_GETAUDIO'){ const a=r0FindAudio(persona);
+    if(a){ try{ await r0SendDoc(a,'🎙 <i>Voix/Audio (ElevenLabs)</i>'); }catch(e){ try{ await send('🎙 Audio : '+_r0esc(path.basename(a))); }catch(_){} } } else { try{ await toast('Aucun audio trouvé pour cette version'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   // [#17] CHARGER UN MODÈLE pré-enregistré (script/prompt) dans le brouillon — besoin du disque -> hors reducer pur. Aperçu = re-render.
   if(d.indexOf('R0_LOADP_')===0 && r0Block){ const idx=+d.slice(9); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
     let text=null; try{ if(field==='script'){ const sc=(_r0Library().scripts||[]).slice(-12).reverse(); text=sc[idx]&&sc[idx].script; }

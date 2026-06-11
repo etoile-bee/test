@@ -268,13 +268,14 @@ function studioView(facts, ctx) {
   for (let i = 0; i < secs.length; i += 2) {
     rows.push(secs.slice(i, i + 2).map(s => ({ text: s.icon + ' ' + s.label, cb: 'R0_ST_' + s.key })));
   }
-  rows.push([{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, { text: '📤 Publiés', cb: 'R0_PUBLISHED' }]);   // [Etoile] Historique + Archives publiées depuis le Studio
+  rows.push([{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, { text: '📤 Publiés', cb: 'R0_PUBLISHED' }]);   // [Etoile] Historique = TOUT (publiés ET non publiés) ; Publiés = uniquement les versions publiées
+  rows.push([{ text: '🗂 Fichiers', cb: 'R0_RES' }]);   // [HUB] accès direct aux assets de la version courante (image/vidéo/script/légendes/audio/sous-titres/prompt/hashtags)
   rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
 function studioSectionView(facts, ctx) {
   const s = (ctx && ctx.section) || { icon: '🏛', label: 'Section', count: 0, items: [], source: '' };
-  const items = (s.items || []).slice(0, 9);
+  const items = (s.items || []).slice(0, 6);
   let cap = '<b>' + s.icon + ' ' + esc(s.label) + '</b> · ' + s.count + ' élément(s)'
     + (items.length ? '' : '\n<i>section présente — vide pour l\'instant</i>')
     + '\n<i>source : ' + esc(s.source || '—') + '</i>';
@@ -291,7 +292,7 @@ function studioSectionView(facts, ctx) {
 function recentsView(facts, ctx) {
   const r = (ctx && ctx.recents) || { projets: [], brouillons: [], actifs: [], archives: [], legacy: 0 };
   const all = (r.projets || []);
-  const pg = (ctx && ctx.page) || { idx: 0, pages: Math.max(1, Math.ceil(all.length / 9)), base: 0, size: 9 };
+  const pg = (ctx && ctx.page) || { idx: 0, pages: Math.max(1, Math.ceil(all.length / 6)), base: 0, size: 6 };
   const top = all.slice(pg.base, pg.base + pg.size);               // page courante
   let cap = '<b>🕘 Récents / Archives</b>\n'
     + '📂 ' + all.length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
@@ -300,7 +301,7 @@ function recentsView(facts, ctx) {
   // NUMÉRO AFFICHÉ + index cb = ABSOLUS (base de page + j) -> ouverture correcte ; retrait = Archiver (soft).
   const rows = gridRows(top, (p, j) => ({ text: (pg.base + j + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 18), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_REPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_REPREV' }, { text: 'Suivant ▶', cb: 'R0_RENEXT' }]);
-  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]);
+  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }, { text: '🗂 Fichiers', cb: 'R0_RES' }]); // [HUB] accès assets du projet ouvert
   rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
@@ -447,9 +448,14 @@ function resourcesView(facts, ctx) {
     + '\n📄 Légende longue : ' + val(p.legende_longue ? short(p.legende_longue, 40) : null)
     + '\n#️⃣ Hashtags : ' + val(p.hashtags)
     + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'));
+  // [HUB ASSETS — Etoile] récupération UN PAR UN de TOUS les fichiers de la version : un bouton dédié par type.
+  //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
   const rows = [
+    [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
+    [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
+    [{ text: '✏️ Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '📄 Lég. longue', cb: 'R0_FULLTEXT_legl' }, { text: '#️⃣ Hashtags', cb: 'R0_FULLTEXT_tags' }],
     [{ text: '🖼 Galerie photos', cb: 'R0_PH_HIST' }, { text: '🎬 Vidéos', cb: 'R0_VI_HIST' }],
-    [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
+    [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
     [{ text: '◀ Retour', cb: C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO' }, HOME],
   ];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
