@@ -206,6 +206,7 @@ function view(state, facts, ctx) {
     case 'video_source': return SC.videoSourceView(facts);
     case 'photo_montage': return SC.photoMontageView(facts, ctx);
     case 'resources': return SC.resourcesView(facts, ctx);
+    case 'pret': return SC.pretView(facts, ctx);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
     default: return SC.homeView(facts);
   }
@@ -247,6 +248,9 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_RESTART') { return go('home', '🔄 <b>Rafraîchi</b>'); }
   // [#22/#24] RESSOURCES / FICHIERS DU PROJET : hub de récupération de tous les assets.
   if (d === 'R0_RES') { return go('resources'); }
+  // [PRÊT À POSTER] valide le média courant (état « garde ») et l'ajoute à la file prête à publier.
+  if (d === 'R0_READY') { return Object.assign(go('pret', '📤 <b>Ajouté à « Prêt à poster »</b>'), { op: { type: 'etat', which: 'lastVideo', etat: 'garde' } }); }
+  if (d.indexOf('R0_PRETITEM_') === 0) { return go('publication', '📤 <b>Sélection à publier</b>'); }
   // [#25/#7] RÉFÉRENCE PHOTO : consulter · remplacer (upload) · verrouiller. Reste sur le bloc référence.
   if (d === 'R0_REF_VIEW') { return { st: st, toast: '👁 Référence courante affichée (image de base)' }; }
   if (d === 'R0_REF_REPLACE') { return { st: st, await: { upload: 'reference' }, banner: '🖼 <b>Envoie la nouvelle image de référence.</b>\n<i>Elle servira de base à tes prochaines générations (aucune dépense).</i>' }; }

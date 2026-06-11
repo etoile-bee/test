@@ -2552,6 +2552,8 @@ let v4active=false, _v4=null;
 let r0Mid=null, r0Type=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant (id+type texte|photo|vidéo) + saisie texte en attente*/
 let r0Screen='home', r0Section=null, r0Block=null, r0Ret=null; /*[RÉALISATION] état de navigation TRANSITOIRE (reconstructible, non critique) : écran courant + section Studio + bloc édité + retour-auto (flux Vidéo→Photo→Vidéo)*/
 let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcReturn=null; /*[RÉALISATION] génération en attente (coût) + filtres galerie + retour « quitter » + retour après choix de source. Transitoires.*/
+let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
+const R0_PAGE=9; /*taille de page (9 vignettes/projets par écran)*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 // [RENDUS PERSISTANTS] mids des RENDUS FINAUX (photo/vidéo générée) postés comme messages DÉDIÉS : ils RESTENT dans le fil,
 //   JAMAIS supprimés ni édités. Distincts du COCKPIT (r0Mid, éphémère/édité en place). /v4r·restart·changement de projet ne les touchent pas.
@@ -2753,12 +2755,24 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
-  // [GALERIE — comportement unique + compteur EXACT] projet = médias du projet ; global (historique) = TOUT. Le total = la liste affichée.
-  if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
+  // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
+  if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
     if(r0GalKind==='video'){ const projV=(C.visibles(f)||[]).filter(m=>m.type==='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
-      const list=r0GalAll? r0RealVideos(persona,9999) : projV; ctx.galleryFiles=list.slice(0,9); ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; }
+      list=r0GalAll? r0RealVideos(persona,9999) : projV; }
     else { const projI=(C.visibles(f)||[]).filter(m=>m.type!=='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
-      const list=r0GalAll? r0RealImages(persona,9999) : projI; ctx.galleryFiles=list.slice(0,9); ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; } }
+      list=r0GalAll? r0RealImages(persona,9999) : projI; }
+    const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
+    ctx.galleryFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE);
+    ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet';
+    ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
+  // [PAGINATION] Récents/Archives : page courante pour la grille de projets.
+  if(r0Screen==='recents'){ const tot=((ctx.recents&&ctx.recents.projets)||[]).length; const pages=Math.max(1,Math.ceil(tot/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0; ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
+  // [PRÊT À POSTER] file des médias VALIDÉS (etat « garde ») du projet, avec fichier réel, paginée.
+  if(r0Screen==='pret'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
+    const list=(C.medias(f)||[]).filter(m=>m.etat==='garde'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+    const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
+    ctx.pretFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE); ctx.pretTotal=list.length;
+    ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
@@ -2876,6 +2890,10 @@ async function r0Dispatch(persona, d, editMid){
   const cur=r0Cur(persona,true); const id=cur.projectId; r0Await=null;
   const ctx=r0Ctx(persona);
   const {ENG,BUD,C}=_r0();
+  // [PAGINATION] toute action HORS pagination remet la page à 0 (on rouvre une grille au début) ; les flèches changent la page.
+  if(!/^R0_(GNEXT|GPREV|RENEXT|REPREV)$/.test(d)) r0Page=0;
+  if(/^R0_(GNEXT|RENEXT)$/.test(d)){ r0Page++; await r0Render(persona, editMid); return; }       // Suivant ▶
+  if(/^R0_(GPREV|REPREV)$/.test(d)){ r0Page=Math.max(0,r0Page-1); await r0Render(persona, editMid); return; } // ◀ Précédent
   // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
   if(d==='R0_GO' && r0Pending && ENG.live() && BUD.state(BASE).exhausted){
     const b=BUD.state(BASE); jlog('[v4r] GO bloqué : budget tests réels épuisé '+b.max+'/'+b.max);

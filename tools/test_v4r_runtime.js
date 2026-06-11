@@ -182,6 +182,23 @@ async function main() {
   chk('PERSIST : après /restart -> rendus persistants TOUJOURS dans le fil (jamais supprimés)', after.renders === before.renders);
   chk('PERSIST : après /restart -> 1 seul cockpit (pas d\'empilement)', after.cockpit === 1);
 
+  // ════ PAGINATION : la galerie globale (>9 médias) propose Précédent/Suivant et change de page ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_HIST'); // historique global (lit looks/outputs réels via symlink)
+  const gBtns = bot.buttons();
+  chk('PAGINATION : galerie globale propose Suivant ▶ et ◀ Précédent', gBtns.includes('R0_GNEXT') && gBtns.includes('R0_GPREV'));
+  await bot.tap('R0_GNEXT'); chk('PAGINATION : Suivant -> on reste sur la galerie (page changée), 1 cockpit', bot.state().screen === 'gallery' && bot.state().cockpit === 1);
+  await bot.tap('R0_GPREV'); chk('PAGINATION : Précédent répond, 1 cockpit', bot.state().screen === 'gallery' && bot.state().cockpit === 1);
+
+  // ════ STUDIO : entrée « 🕘 Historique » ════
+  bot.reset(); await bot.open(); await bot.tap('R0_STUDIO');
+  chk('STUDIO : entrée Historique présente', bot.buttons().includes('R0_PH_HIST'));
+
+  // ════ PRÊT À POSTER : bouton sur VIDÉO·Résultat -> écran pret (média validé) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // video_result
+  chk('PRÊT À POSTER : bouton présent sur VIDÉO·Résultat', bot.buttons().includes('R0_READY'));
+  await bot.tap('R0_READY'); chk('PRÊT À POSTER : ouvre l\'écran pret, 1 cockpit', bot.state().screen === 'pret' && bot.state().cockpit === 1);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

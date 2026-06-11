@@ -132,11 +132,12 @@ function photoMontageView(facts, ctx) {
 function photoResultView(facts) {
   const m = C.lastImage(facts) || {};
   const dr = (facts && facts.draft && facts.draft.photo) || {};
+  // [écran final métier] image + prompt utilisé + tenue + décor + référence. Pas de jargon « test/simulation » en évidence.
   const cap = '<b>' + titleFor('photo_resultat') + '</b>'
-    + '\n📝 ' + val(m.prompt || dr.prompt, '<i>(prompt simulé)</i>')
+    + '\n📝 Prompt : ' + val(m.prompt || dr.prompt)
     + '\n👗 Tenue : ' + val(cleanLabel(m.look || dr.look))
     + '\n🏛 Décor : ' + val(m.decor || dr.decor)
-    + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(simulée)</i>' : ' <i>(réelle)</i>');
+    + '\n🖼 Référence : ' + val((dr.reference ? 'définie' + (dr.ref_locked ? ' 🔒' : '') : null));
   return {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
@@ -203,17 +204,28 @@ function videoResultView(facts) {
     + '\n✏️ Courte : ' + val(p.legende_courte)
     + '\n📄 Longue : ' + val(p.legende_longue ? short(p.legende_longue, 50) : null)
     + '\n#️⃣ Hashtags : ' + val(p.hashtags)
-    + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'))
-    + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(maquette locale)</i>' : '');
+    + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'));
   return {
     kind: 'video', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
-      [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publier', cb: 'R0_PUB' }],
-      [{ text: '🗂 Fichiers projet', cb: 'R0_RES' }],
+      [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '🗂 Fichiers projet', cb: 'R0_RES' }],
+      [{ text: '📤 Prêt à poster', cb: 'R0_READY' }, { text: '📤 Publier', cb: 'R0_PUB' }],
       [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '◀ Retour', cb: 'R0_VIDEO' }],
       [HOME],
     ],
   };
+}
+// ── PRÊT À POSTER : file des médias validés (etat « garde ») prêts à publier — grille paginée ──
+function pretView(facts, ctx) {
+  const items = (ctx && ctx.pretFiles) || [];
+  const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
+  const total = (ctx && ctx.pretTotal != null) ? ctx.pretTotal : items.length;
+  let cap = '<b>📤 Prêt à poster</b> · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+    + (items.length ? '\n<i>touche un numéro pour le publier</i>' : '\n<i>aucun média validé — touche « Garder » sur un résultat</i>');
+  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PRETITEM_' + i }), 3);
+  if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  rows.push([{ text: '◀ Retour', cb: 'R0_VI_RESULT' }, HOME]);
+  return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
 // ── ÉCRAN 4 — PUBLICATION ────────────────────────────────────────────────────
@@ -243,7 +255,8 @@ function studioView(facts, ctx) {
   for (let i = 0; i < secs.length; i += 2) {
     rows.push(secs.slice(i, i + 2).map(s => ({ text: s.icon + ' ' + s.label, cb: 'R0_ST_' + s.key })));
   }
-  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);   // [R3] Retour -> Accueil (enfant direct, pas de doublon)
+  rows.push([{ text: '🕘 Historique', cb: 'R0_PH_HIST' }]);   // [Etoile] accès à l'historique (médias) depuis le Studio
+  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
 function studioSectionView(facts, ctx) {
@@ -264,15 +277,18 @@ function studioSectionView(facts, ctx) {
 // ── ÉCRAN 6 — RÉCENTS / ARCHIVES ─────────────────────────────────────────────
 function recentsView(facts, ctx) {
   const r = (ctx && ctx.recents) || { projets: [], brouillons: [], actifs: [], archives: [], legacy: 0 };
-  const top = (r.projets || []).slice(0, 9);                       // grille jusqu'à 9 projets (retrouvabilité)
+  const all = (r.projets || []);
+  const pg = (ctx && ctx.page) || { idx: 0, pages: Math.max(1, Math.ceil(all.length / 9)), base: 0, size: 9 };
+  const top = all.slice(pg.base, pg.base + pg.size);               // page courante
   let cap = '<b>🕘 Récents / Archives</b>\n'
-    + '📂 ' + (r.projets || []).length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
-    + (r.legacy ? ('\n🗄 ' + r.legacy + ' projet(s) hérité(s) (lecture seule)') : '')
+    + '📂 ' + all.length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
+    + (r.legacy ? ('\n🗄 ' + r.legacy + ' hérité(s)') : '') + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
-  // (E) NUMÉROTATION claire 1..N ; (F) une SEULE action de retrait = « Archiver » (soft : retire de la vue, ne supprime jamais le fichier).
-  const rows = gridRows(top, (p, i) => ({ text: (i + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 20), cb: 'R0_RE_OPEN_' + i }), 2);
+  // NUMÉRO AFFICHÉ + index cb = ABSOLUS (base de page + j) -> ouverture correcte ; retrait = Archiver (soft).
+  const rows = gridRows(top, (p, j) => ({ text: (pg.base + j + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 18), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
+  if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_REPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_REPREV' }, { text: 'Suivant ▶', cb: 'R0_RENEXT' }]);
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]);
-  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);   // [R3] Retour -> Accueil (enfant direct, pas de doublon)
+  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
 
@@ -373,11 +389,15 @@ function galleryView(facts, ctx) {
   const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + scope;
   const total = (ctx && ctx.galleryTotal != null) ? ctx.galleryTotal : items.length;
   const ic = kindWanted === 'video' ? '🎬 ' : '🖼 ';
-  let cap = '<b>' + titre + '</b> · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)') + ' · ' + Math.min(items.length, 9) + ' affiché(s)'
+  const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
+  let cap = '<b>' + titre + '</b> · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)')
+    + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>rien ici — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
-  const rows = gridRows(items, (m, i) => ({ text: ic + (i + 1), cb: 'R0_GITEM_' + i }), 3)
-    .concat([[{ text: '◀ Retour', cb: back }, HOME]]);
+  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page (sélection correcte).
+  const rows = gridRows(items, (m, i) => ({ text: ic + (pg.base + i + 1), cb: 'R0_GITEM_' + i }), 3);
+  if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  rows.push([{ text: '◀ Retour', cb: back }, HOME]);
   // image -> aperçu mosaïque (photo) ; vidéo -> liste texte (pas de planche d'images possible)
   return { kind: (items.length && kindWanted !== 'video') ? 'photo' : 'text', caption: cap, rows: rows };
 }
@@ -468,6 +488,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, gridRows,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, gridRows,
   PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };
