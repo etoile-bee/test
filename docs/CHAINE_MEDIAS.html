@@ -1,0 +1,85 @@
+<!doctype html><meta charset=utf-8><title>Chaîne médias /v4r</title><style>body{font-family:-apple-system,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:13px}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.5em}</style>
+<h1>Chaîne complète des médias /v4r — tracée sur le code &amp; les données réels (11/06/2026)</h1>
+
+<blockquote>UI gelée · aucune suppression · aucun nouveau connecteur. Document de <b>lecture/vérification</b> uniquement.</blockquote>
+<blockquote>Ordre de priorité : <b>Données → Stockage → Galerie → Historique → Cloud</b>.</blockquote>
+
+<h2>A. PHOTO générée (chemin RÉEL, pas à pas)</h2>
+
+<table><thead><tr><th>Étape</th><th>Quoi</th><th>Code / chemin exact</th></tr></thead><tbody>
+<tr><td>1. Arrive</td><td>Seedream/Higgsfield renvoie une URL d'image</td><td><code>newlook.generateLook()</code> (appelé par <code>r0RealPhoto</code>)</td></tr>
+<tr><td>2. Récupère</td><td>téléchargement local du fichier</td><td><code>r0RealPhoto(persona,id)</code> → <code>curl -o &lt;localPath&gt;</code></td></tr>
+<tr><td>3. Stocké</td><td><b>fichier final</b></td><td><code>projects_r/&lt;persona&gt;/&lt;id&gt;/photo_&lt;ts&gt;.jpg</code> — <b>LOCAL</b> (<code>~/podcast-workflow/projects_r</code>)</td></tr>
+<tr><td>4. Enregistré projet</td><td>entrée média dans le socle</td><td><code>S.addCandidate(…, 'image', {file:localPath, simule:false, moteur:'seedream-v4', …})</code> → <code>facts.medias[]</code></td></tr>
+<tr><td>5. Galerie</td><td>agrégation lecture</td><td><code>r0RealImages()</code> : projet courant + <code>projects_r/*/photo_*</code> + <code>outputs/generations/*</code> + <code>looks/gen_*</code></td></tr>
+<tr><td>6. Telegram</td><td>bloc cockpit + keepsake</td><td><code>r0Paint</code> (editMessageMedia/sendPhoto) <b>+</b> <code>r0PostFinal</code> (sendPhotoKb = message persistant)</td></tr>
+</tbody></table>
+
+<h2>B. VIDÉO générée (chemin RÉEL, pas à pas)</h2>
+
+<table><thead><tr><th>Étape</th><th>Quoi</th><th>Code / chemin exact</th></tr></thead><tbody>
+<tr><td>1. Arrive</td><td>script (Anthropic) → voix (ElevenLabs) → lipsync (Kling) → rendu (ffmpeg local)</td><td><code>workflow.js</code> (WF) via <code>r0RealVideo</code></td></tr>
+<tr><td>2. Récupère</td><td>assemble/écrit le mp4 final</td><td><code>r0RealVideo(persona,id)</code> → <code>WF.saveOpen</code> / <code>WF.concatClips</code></td></tr>
+<tr><td>3. Stocké</td><td><b>fichier final + raws</b></td><td><code>projects_r/&lt;persona&gt;/&lt;id&gt;/*.mp4</code> (+ <code>*_raw_*.mp4</code>) — <b>LOCAL</b></td></tr>
+<tr><td>4. Enregistré projet</td><td>entrée média</td><td><code>S.addCandidate(…, 'video', {file:finalP, simule:false, moteur:'kling+elevenlabs'})</code></td></tr>
+<tr><td>5. Galerie/Historique</td><td>Vidéo›Historique</td><td>lit <b>les médias du projet courant</b> (PAS l'agrégat global → écart <b>G</b>)</td></tr>
+<tr><td>6. Telegram</td><td>bloc + keepsake</td><td><code>r0Paint</code> (editVideo/sendVideo) <b>+</b> <code>r0PostFinal</code> (sendVideoKb persistant)</td></tr>
+</tbody></table>
+
+<h2>C. LES 7 RÉPONSES (noir sur blanc)</h2>
+
+<p><b>1. Qui livre le fichier final Higgsfield aujourd'hui ?</b></p>
+<p>Photo : <code>r0RealPhoto</code> via <code>newlook.generateLook</code> (download <code>curl</code>). Vidéo : <code>r0RealVideo</code> via <code>workflow.js</code> (Kling lipsync + rendu <code>render_local.js</code>).</p>
+
+<p><b>2. Dossier exact de stockage ?</b></p>
+<p><code>/Users/fayrouzn/podcast-workflow/projects_r/&lt;persona&gt;/&lt;id&gt;/</code> — <b>LOCAL</b>. (Le legacy, lui, écrit dans <code>outputs/</code> = symlink iCloud.)</p>
+
+<p><b>3. Qui alimente la galerie ?</b></p>
+<p><code>r0RealImages()</code> lit, dédupliqué, le plus récent d'abord : (a) projet courant, (b) <code>projects_r/*/photo_*.jpg</code>, (c) <code>outputs/generations/*</code>, (d) <code>looks/gen_*</code>. Vidéo›Historique = projet courant uniquement (écart G).</p>
+
+<p><b>4. Qui alimente Telegram ?</b></p>
+<p><code>r0Paint</code> (le bloc cockpit, édité en place) <b>et</b> <code>r0PostFinal</code> (le rendu persistant), via <code>sendPhotoKb</code>/<code>sendVideoKb</code>/<code>editMessageMedia</code>.</p>
+
+<p><b>5. Où sont stockés les 618 médias réels ?</b></p>
+<p><code>projects_r/imany/&lt;id&gt;/photo_*.jpg</code> (local), référencés par <code>media.file</code> dans chaque <code>facts.json</code>. (Tous vérifiés présents sur disque.)</p>
+
+<p><b>6. INVENTAIRE détaillé (vrais, hors sim) :</b></p>
+<table><thead><tr><th>Élément</th><th>Compte</th><th>Emplacement</th></tr></thead><tbody>
+<tr><td>Projets</td><td>112 (23 avec média)</td><td><code>projects_r/imany/</code> (local)</td></tr>
+<tr><td>Photos réelles</td><td><b>618</b></td><td><code>projects_r/imany/&lt;id&gt;/photo_*.jpg</code> (local)</td></tr>
+<tr><td>Vidéos générées (v4r)</td><td><b>0</b></td><td>(aucune réelle produite en v4r)</td></tr>
+<tr><td>Vidéos finales (legacy)</td><td><b>199</b> mp4</td><td><code>outputs/</code> → <b>iCloud</b></td></tr>
+<tr><td>Générations (legacy)</td><td><b>63</b></td><td><code>outputs/generations/</code> → <b>iCloud</b></td></tr>
+<tr><td>Looks</td><td><b>90</b> (dont 28 <code>gen_</code>)</td><td><code>looks/</code> (local)</td></tr>
+<tr><td>Référence</td><td><b>1</b> (<code>imany_reference</code>)</td><td><code>looks/</code> (local)</td></tr>
+<tr><td>Scripts (bibliothèque)</td><td><b>73</b></td><td><code>library.json</code></td></tr>
+<tr><td>Tenues (catalogue)</td><td><b>234</b> (6 catégories)</td><td><code>outfits_catalog.json</code></td></tr>
+</tbody></table>
+
+<p><b>7. Preuve : mémoire unique du projet, aucune génération ne disparaît</b></p>
+<li>Le fichier est <b>sur disque</b> (<code>projects_r/&lt;id&gt;/…</code>) → survit au process, à <code>/menu</code>, <code>/restart</code>, à une mise à jour (c'est un fichier).</li>
+<li>L'entrée est dans <code>facts.json</code> du projet (<code>media.file</code>) → relue à chaque rendu. *(preuve : après génération en sandbox, <code>facts.json</code> sur disque contient le média — vérifié.)*</li>
+<li>Le rendu Telegram est posté en <b>message dédié non suivi</b> (<code>r0PostFinal</code>) → la grammaire post-puis-supprime du cockpit ne le touche JAMAIS.</li>
+<li><code>/v4r</code> et <code>/v4r new</code> <b>conservent</b> les rendus (preuve : <code>test_v4r_runtime</code> RP — 1 cockpit + N rendus conservés).</li>
+<li><code>/menu</code> et <code>/restart</code> : <b>ne suppriment ni <code>projects_r</code> ni les mids de rendus</b> (revue de code) ; <code>/restart</code> ré-affiche via <code>r0PickCurrent</code> (reprend le projet AVEC médias). Statut : ✅ fichier/disque · ✅ rendus persistants · ✅ /v4r prouvé · 🟡 /menu·/restart vérifiés par revue de code (pas encore rejoués automatiquement).</li>
+
+<h2>D. VERDICT DRIVE — existant vs nouveau connecteur</h2>
+
+<p><b>Le « cloud » qui marchait = iCloud Drive.</b> <code>outputs</code> est un <b>symlink</b> vers <code>~/Library/Mobile Documents/com~apple~CloudDocs/podcast-outputs/</code> → tout ce qui y est écrit se synchronise tout seul et apparaît dans l'app Fichiers (iPhone). Le legacy y écrit (<code>personaOutDir()</code> = <code>outputs</code>), d'où « génération → cloud → Telegram → galerie ».</p>
+
+<p><b>Ce qui a changé</b> : <code>/v4r</code> écrit ses générations dans <code>projects_r/</code> qui est <b>LOCAL</b> (pas de symlink iCloud). → les médias /v4r ne montent pas dans le cloud / l'app Fichiers.</p>
+
+<p><b>Verdict</b> : ❌ <b>PAS besoin d'un nouveau connecteur Drive.</b> Le mécanisme cloud existe déjà (symlink iCloud sur <code>outputs</code>). Il suffit de <b>reconnecter l'existant</b> — 2 options (à valider, non faites ici car UI/données gelées) :</p>
+<li>(a) faire de <code>projects_r</code> un dossier <b>dans</b> l'arbre iCloud (déplacement + symlink, avec sauvegarde) ; ou</li>
+<li>(b) <b>copier</b> chaque rendu final v4r dans <code>outputs/generations/</code> (déjà iCloud) au moment du dépôt — 1 ligne, sans toucher le reste.</li>
+<p>Aucun connecteur tiers (Google Drive/rclone) n'est requis. <code>tmpfiles.org</code> dans le code n'est PAS du stockage : c'est un upload <b>transitoire</b> pour donner une URL publique de l'avatar/audio à Higgsfield/Kling.</p>
+
+<h2>E. Synthèse priorités (Données → Stockage → Galerie → Historique → Cloud)</h2>
+<table><thead><tr><th>Maillon</th><th>État réel</th><th>Note</th></tr></thead><tbody>
+<tr><td>Données (intégrité)</td><td>✅</td><td>618 réels, 0 perdu, pollution sim nettoyée + backup, collision d'id corrigée</td></tr>
+<tr><td>Stockage</td><td>🟡</td><td>local <code>projects_r</code> OK et persistant ; <b>pas encore</b> dans l'arbre iCloud</td></tr>
+<tr><td>Galerie</td><td>🟡</td><td>agrège photos (projet+global) ; <b>vidéos pas agrégées globalement</b> (G)</td></tr>
+<tr><td>Historique</td><td>🟡</td><td>photos OK ; vidéos = projet courant seulement</td></tr>
+<tr><td>Cloud</td><td>❌</td><td>/v4r local, non synchro iCloud — <b>reconnexion</b> de l'existant à prévoir (pas de nouveau connecteur)</td></tr>
+</tbody></table>
+
