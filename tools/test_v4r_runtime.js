@@ -6,29 +6,37 @@ process.env.R0_DRYRUN = '1';
 process.env.TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'dry';
 process.env.TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1';
 
-// ════ [HERMÉTIQUE — anti-FAUX-VERT] le test SE SUFFIT : il sème SON patrimoine dans un bac ISOLÉ. ════
-//   CAUSE RACINE du « 73 OK / 10 KO » constaté par l'opérateur (alors que le code est IDENTIQUE) :
-//   `prompts/` et `looks/` ne sont PAS versionnés (git ls-files = 0). Sur une machine sans ces données
-//   (checkout neuf, looks iCloud non téléchargés), 10 assertions qui SUPPOSAIENT un patrimoine pré-existant
-//   échouaient — pas une régression de code, un test NON déterministe. Ici on GARANTIT le patrimoine -> vert PARTOUT.
-//   Doit s'exécuter AVANT require(telegram_bot) car BASE est figée au chargement depuis V4R_SANDBOX.
-(function seedHermeticSandbox() {
+// ════ [ISOLATION TOTALE — anti-FAUX-VERT] fixture ÉPHÉMÈRE, ZÉRO lecture de la vraie BASE / des symlinks iCloud. ════
+//   CAUSE RACINE du « 73 OK / 10 KO » de l'opérateur (code IDENTIQUE) : la suite lisait la VRAIE BASE
+//   (`~/podcast-workflow` ou son sandbox symlinké). Or `looks/`, `prompts/`, `outputs/` ne sont PAS versionnés
+//   et le symlink `outputs`→iCloud ne se résout pas pareil selon l'environnement (VM : `find outputs/` = 0 ;
+//   machine réelle : 239 vidéos). Donc le MÊME commit donnait 83/0 ici et 73/10 là-bas. C'était un test
+//   NON déterministe (« marche en test, pas en réel »), pas une perte de comportement.
+//   CORRECTIF : on crée une BASE temporaire UNIQUE (`fs.mkdtempSync`), on y sème un état projet CONTRÔLÉ, on
+//   FORCE le module dessus (V4R_SANDBOX, lu à l'init de BASE), on ne touche JAMAIS la vraie BASE, on NETTOIE à la fin.
+//   Doit s'exécuter AVANT require(telegram_bot) — BASE est figée au chargement.
+const _iso = (function isolateRuntimeFixture() {
   const fs = require('fs'), path = require('path'), os = require('os');
-  const BOX = path.join(os.tmpdir(), 'v4r_runtime_box');
-  try { fs.rmSync(BOX, { recursive: true, force: true }); } catch (e) {}            // bac TOUJOURS neuf -> reproductible
-  const REPO = path.resolve(__dirname, '..');
-  // 1) ≥12 VRAIS jpeg NON VIDES (r0RealImages exige size>0) -> couverture + rendus persistants + P2 + pagination.
+  const BOX = fs.mkdtempSync(path.join(os.tmpdir(), 'v4r-runtime-'));   // BASE UNIQUE par run -> aucune collision, aucun état hérité
+  // 1) ≥12 VRAIS jpeg NON VIDES (r0RealImages rejette size<=0) -> couverture + rendus persistants + P2 + pagination.
   const TINYJPG = Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AfwB//9k=', 'base64');
   fs.mkdirSync(path.join(BOX, 'looks'), { recursive: true });
   for (let i = 0; i < 12; i++) fs.writeFileSync(path.join(BOX, 'looks', 'seed_' + String(i).padStart(2, '0') + '.jpg'), TINYJPG);
-  fs.mkdirSync(path.join(BOX, 'outputs'), { recursive: true });
+  fs.mkdirSync(path.join(BOX, 'outputs'), { recursive: true });        // patrimoine vidéo CONTRÔLÉ (vide) — pas de symlink iCloud
   // 2) un MODÈLE de prompt pré-enregistré, texte LONG -> R0_LOADP_0 (#17/#18) + « 📄 Texte complet » + P6.
   fs.mkdirSync(path.join(BOX, 'prompts', 'imany'), { recursive: true });
   fs.writeFileSync(path.join(BOX, 'prompts', 'imany', 'seed.json'),
     JSON.stringify({ name: 'Modèle test', text: ('Portrait éditorial cinématographique, lumière douce de fenêtre, peau nette, regard caméra, profondeur de champ, rendu mode magazine — ').repeat(3) }));
-  // 3) catalogues VERSIONNÉS (donc présents partout) partagés en LECTURE : tenues ≥5, lookbook, scripts.
-  for (const f of ['library.json', 'lookbook.json', 'outfits_catalog.json']) { try { fs.symlinkSync(path.join(REPO, f), path.join(BOX, f)); } catch (e) {} }
-  process.env.V4R_SANDBOX = BOX;
+  // 3) catalogues CONTRÔLÉS écrits DANS le bac (jamais lus depuis le repo/réel) -> déterministes partout.
+  fs.writeFileSync(path.join(BOX, 'outfits_catalog.json'), JSON.stringify({   // #26 : ≥5 catégories distinctes
+    outfits: ['soiree', 'business', 'casual', 'cosy', 'ete', 'fete'].map((c, i) => ({ id: 'o' + i, cat: c, name: c })) }));
+  fs.writeFileSync(path.join(BOX, 'library.json'), JSON.stringify({           // scripts pré-enregistrés (déterministes)
+    scripts: [0, 1, 2].map(i => ({ name: 'Script ' + (i + 1), script: 'Script de test ' + (i + 1) + ' — accroche · point clé · chute.' })) }));
+  fs.writeFileSync(path.join(BOX, 'lookbook.json'), JSON.stringify({          // pricing minimal -> coûts stables sur la Validation
+    pricing: { eur_per_credit: 0.058, ops: { eco: 0.48, hd: 1, video30s: 5 } } }));
+  process.env.V4R_SANDBOX = BOX;                                       // FORCE BASE du module sur le bac (lu à l'init)
+  process.on('exit', () => { try { fs.rmSync(BOX, { recursive: true, force: true }); } catch (e) {} });  // NETTOYAGE garanti
+  return BOX;
 })();
 
 const bot = require('../telegram_bot.js');
