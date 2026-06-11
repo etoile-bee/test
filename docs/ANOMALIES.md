@@ -35,11 +35,11 @@ Après le fix systémique [[ANO-CTX-BLOCK-DEMO-GENERAL]], les 9 panneaux d'édit
 
 | # | Contrôle | État | Preuve / réserve |
 |---|---|---|---|
-| 1 | Identité projet | ✅ | `projectId` stable (socle) ; id unique garanti [[ANO-GENID-CREATE]] |
-| 2 | Source de vérité par type | ✅ | image=`r0SourceFile`/`r0RealSource` ; draft par type (photo/video/pub) |
+| 1 | Identité projet | ✅ **prouvé** | `projectId` STABLE sur Vidéo/Aperçu/Retour/`/v4r`/`/restart` (1 seul id) ; id unique garanti [[ANO-GENID-CREATE]] — `gen_audit_transversal.js` |
+| 2 | Source de vérité par type | ✅ **prouvé** | cover/source IDENTIQUE Préparer→Vidéo→Montage (`s11.jpg`) ; image=`r0SourceFile`/`r0RealSource` ; draft par type — `gen_audit_transversal.js` |
 | 3 | Versioning / anti-écrasement | 🟡 | anti-écrasement PROJET ✅ (genId) ; **historique des MODIFS de champ ABSENT** (le draft est écrasé à chaque édition — auto-save mais pas de versions) → `ANO-ARCH-VERSIONING` (planifié) |
-| 4 | Coût : 0 moteur réel sur retour/aperçu/nav/restart/test | ✅ | `test_v4r_nospend` 4/0 ; `engines.live()` OFF en dry ; seul `R0_GO`+LIVE dépense |
-| 5 | Réel vs test isolés | ✅ | BASE sandbox `mkdtemp`/`.v4r_sandbox` ; `R0DRY` ; [[tests-v4r-isolation-mkdtemp]] |
+| 4 | Coût : 0 moteur réel sur retour/aperçu/nav/restart/test | ✅ **prouvé** | compteur tests réels INCHANGÉ (0→0) après nav/aperçu/retour/restart/régén-non-confirmée ; `liveFor(photo/video)=false` en dry ; seul `R0_GO`+LIVE+`!R0DRY` dépense — `gen_audit_transversal.js` + `test_v4r_nospend` 4/0 |
+| 5 | Réel vs test isolés | ✅ **prouvé** | la VRAIE base `projects_r` INCHANGÉE par le test (112→112) ; le projet de test vit dans le bac `mkdtemp` ; `R0DRY` — `gen_audit_transversal.js` + [[tests-v4r-isolation-mkdtemp]] |
 | 6 | Import / upload (stockage+rattachement+remontée) | 🟡 | `R0_PH_IMPORT` arme `await upload` ; **chaîne complète à auditer** (terrain) |
 | 7 | Corbeille / restore | ✅ | `r0Corbeille`→`.corbeille/` (soft-delete), `r0Restore` (SECURITES #11) |
 | 8 | Publication = statut seul (pas de déplacement hors projet) | 🟡 | `setPublication` change le statut ; **à vérifier qu'aucun fichier ne sort du projet** |
