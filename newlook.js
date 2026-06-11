@@ -102,7 +102,16 @@ function buildPrompt(lb,opts){
 
 /*v8 : moteur SEEDREAM v4 (celui qu'Etoile utilise a la main, rendu valide) + reference photo directe — Soul abandonne*/
 let _refUrl=null;
-async function getRefUrl(client,log){
+async function getRefUrl(client,log,override){
+  // [SOURCE UNIQUE — Etoile] si une image source explicite est fournie (la photo SÉLECTIONNÉE/cover du projet),
+  //   on recrée À PARTIR D'ELLE (jamais le cache de la référence persona). Pas de cache pour l'override (peut changer à chaque projet).
+  if(override){ try{ if(fs.existsSync(override)){
+    const tmp='/tmp/sdrefov_'+Date.now()+'.jpg';
+    try{require('child_process').execSync('sips -Z 1536 -s format jpeg "'+override+'" --out "'+tmp+'" 2>/dev/null || ffmpeg -y -i "'+override+'" -vf scale=1536:-2 -q:v 2 "'+tmp+'" 2>/dev/null');}catch(e){}
+    const b=fs.readFileSync(fs.existsSync(tmp)?tmp:override); try{fs.unlinkSync(tmp);}catch(e){}
+    log('reference (source projet) : '+path.basename(override));
+    return await client.uploadImage(b,'jpeg');
+  } }catch(e){ log('(override ref échoué, repli sur référence persona : '+(e.message||e)+')'); } }
   if(_refUrl)return _refUrl;
   const refAbs=pickRefFile(); /*[p2] priorite imany_reference.* trie par date*/
   if(!refAbs)throw new Error('aucune photo dans looks/references/ (ni imany/)');
@@ -134,7 +143,7 @@ async function generateLook(opts,log){
   if(!lb.categories[opts.category]&&!opts.extra&&opts.category!=='random')opts.category=Object.keys(lb.categories)[0];
   const prompt=buildPrompt(lb,opts);
   const mode=opts.mode||'eco'; /*[fix] défaut = ÉCO (un seul sujet) ; la planche (multi-angles) ne se déclenche QUE si explicitement choisie*/
-  const refUrl=await getRefUrl(client,log);
+  const refUrl=await getRefUrl(client,log,opts.refOverride); // [SOURCE UNIQUE] refOverride = photo source du projet (sélection/cover) si fournie
   /*v9 FINAL : /v1/text2image/seedream (schema revele par sonde : params.prompt + params.input_images) — meme client v1 que Kling/Soul*/
   log('moteur : seedream (/v1, reference imany)');
   const sdParams={

@@ -2659,6 +2659,16 @@ function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).fi
   // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo si une vraie existe).
   try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&fs.existsSync(g[0])) return g[0]; }catch(e){}
   return r0DemoPhoto(); }
+// [SOURCE UNIQUE DE VÉRITÉ — Etoile] UNE seule image source, lue PARTOUT (Préparer · Aperçu · génération · vidéo · final).
+//   Priorité : source ÉPINGLÉE (draft.video.source_file puis draft.photo.source_file) -> sinon le cover (dernière image visible).
+//   Dès qu'une photo est sélectionnée/générée/posée, on épingle CETTE image dans les deux drafts -> aucun retour à une référence de base.
+function r0SourceFile(f){ try{ const {S}=_r0(); const dv=S.getDraft(f,'video')||{}, dp=S.getDraft(f,'photo')||{};
+  for(const fp of [dv.source_file, dp.source_file]){ if(fp&&fs.existsSync(fp)) return fp; } }catch(e){}
+  return r0CoverFile(f); }
+// Épingle l'image X comme SOURCE unique du projet (photo + vidéo) — appelée à la sélection, à la génération et au pont photo→vidéo.
+function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();
+  S.setDraft(BASE,persona,id,'photo',{source_file:file},ts); S.setDraft(BASE,persona,id,'video',{source_file:file},ts);
+}catch(e){} }
 // [HUB ASSETS] envoie un FICHIER en document (audio/voix…), garde-fou dry-run (sandbox ne poste rien de réel).
 async function r0SendDoc(fp, caption){ try{
   if(typeof R0DRY!=='undefined'&&R0DRY){ return _dryTg('sendDocument',{caption:caption}); }
@@ -2845,6 +2855,7 @@ function r0Ctx(persona){
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
+  ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
     if(r0GalKind==='video'){ const projV=(C.visibles(f)||[]).filter(m=>m.type==='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
@@ -2904,9 +2915,9 @@ async function r0Render(persona, editMid, banner){
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){
-    // [P2] Sur les écrans VIDÉO (prép/montage), on affiche la SOURCE ÉPINGLÉE (la photo validée), identique partout — jamais recalculée.
-    let pinned=null; if(/^video/.test(r0Screen) || (r0Block&&r0Block.screen==='video')){ try{ const dv=_r0().S.getDraft(f,'video')||{}; if(dv.source_file&&fs.existsSync(dv.source_file)) pinned=dv.source_file; }catch(e){} }
-    media=pinned||r0CoverFile(f); if(!media) kind='text';
+    // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
+    //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).
+    media=(r0Screen==='photo_result')?r0CoverFile(f):r0SourceFile(f); if(!media) kind='text';
   }
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
@@ -3115,9 +3126,11 @@ async function r0Dispatch(persona, d, editMid){
 //   Défensive : toute erreur -> aucune photo déposée + message clair, JAMAIS de crash. Enregistre 1 test réel sur succès.
 async function r0RealPhoto(persona, id){
   const {S,BUD}=_r0(); const ts=Date.now();
-  const {PO}=_r0(); const draft=S.getDraft(r0Cur(persona),'photo')||{};
+  const {PO}=_r0(); const cur0=r0Cur(persona); const draft=S.getDraft(cur0,'photo')||{};
   const mapped=PO.buildPhotoOpts(draft, _r0Lookbook(), _r0Outfits());      // PROMPT/LOOK/DÉCOR du projet -> opts moteur
-  jlog('[v4r réel] '+PO.trace(draft, _r0Lookbook(), _r0Outfits()));        // trace de ce qui part au moteur
+  // [SOURCE UNIQUE] la génération RECRÉE à partir de la photo source ÉPINGLÉE du projet (sélection/cover), pas la référence persona par défaut.
+  const srcRef=r0SourceFile(cur0); if(srcRef&&fs.existsSync(srcRef)) mapped.opts.refOverride=srcRef;
+  jlog('[v4r réel] '+PO.trace(draft, _r0Lookbook(), _r0Outfits())+' | refOverride='+(mapped.opts.refOverride?path.basename(mapped.opts.refOverride):'(référence persona)'));
   let localPath=null, err=null;
   try{
     const gen=await Promise.race([
@@ -3133,6 +3146,7 @@ async function r0RealPhoto(persona, id){
   }catch(e){ err=(e&&e.message)||String(e); }
   if(localPath){
     S.addCandidate(BASE,persona,id,ts,'image', Object.assign({}, draft, {file:localPath, simule:false, moteur:'seedream-v4', prompt:(draft.prompt||'(éco)')}));
+    r0PinSource(persona, id, localPath); // [SOURCE UNIQUE] la photo générée DEVIENT la source du projet (lue partout, y compris vidéo)
     r0CloudCopy(localPath, id); // [CLOUD] dépôt dans podcast-looks/<projet>/ (= iCloud) -> resync + app Fichiers + galerie
     const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — 1 test réel consommé
     jlog('[v4r] TEST RÉEL PHOTO n°'+b.tests+'/'+b.max+' — photo déposée '+localPath);
@@ -3179,8 +3193,8 @@ async function r0SubSample(persona){
 async function r0RealVideo(persona, id){
   const {S,C,BUD}=_r0(); const ts=Date.now();
   const facts=r0Cur(persona); const draft=S.getDraft(facts,'video')||{};
-  // [R2] CONSERVATION : on utilise la source ÉPINGLÉE au passage photo→vidéo (jamais remplacée) ; repli sur la dernière image.
-  const src=C.lastImage(facts); const srcPath=(draft.source_file && fs.existsSync(draft.source_file)) ? draft.source_file : (src&&src.file);
+  // [SOURCE UNIQUE] la vidéo utilise EXACTEMENT la même image source que partout ailleurs (r0SourceFile : source épinglée -> cover).
+  const srcPath=r0SourceFile(facts);
   const est=r0EstFor(persona, {kind:'video', mediaKind:'video'});                 // coût estimé (cr) AVANT — sert au compteur de test
   const secs=parseInt(String(draft.duree||'30'),10)||30;
   const parts=Math.max(1, Math.round(secs/30));                                    // 30s -> 1 part, 60s -> 2 (aligné Kling)

@@ -367,7 +367,8 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_OTHER': return go('photo_source');                                 // « Une autre » -> sources (Galerie/Archives/Récents/Importer)
     // [R2] PHOTO→VIDÉO : la MÊME photo devient la source (on PIN le fichier exact -> jamais remplacée silencieusement).
     // [P2] On épingle EXACTEMENT l'image AFFICHÉE (couverture réelle = ctx.coverFile), pas un « dernier média » qui peut différer.
-    case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; const cf = (ctx && ctx.coverFile) || mi.file || null; return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf } } }); }
+    case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; // [SOURCE UNIQUE] la MÊME image source part en vidéo
+      return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf } } }); }
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
@@ -377,7 +378,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
-    case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; const cf = (ctx && ctx.coverFile) || mi.file || null; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf }, onlyIfImageAndNoSource: true } }); }
+    case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; const cf = (ctx && (ctx.sourceFile || ctx.coverFile)) || mi.file || null; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf }, onlyIfImageAndNoSource: true } }); }
     case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
     // [R4] APERÇU VIDÉO = vrai écran récap (confirm). Production toujours via aperçu.
     case 'R0_VI_PREVIEW': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');
@@ -432,7 +433,10 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
     case 'cleardraft': S.clearDraft(base, persona, id, ts); break;
     case 'picksrc': { // [P1.1] pose l'image choisie (galerie) DANS le projet (média réel) + comme source vidéo — raccordement au flux
       const real = (ctx && ctx.galleryFiles) || null;
-      if (real && real[op.index]) { S.addCandidate(base, persona, id, ts, 'image', { file: real[op.index], simule: false, source: 'galerie' }); S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1) }, ts); break; }
+      if (real && real[op.index]) { const file = real[op.index]; S.addCandidate(base, persona, id, ts, 'image', { file: file, simule: false, source: 'galerie' });
+        // [SOURCE UNIQUE] épingle CETTE photo comme source du projet (photo + vidéo) -> lue partout, jamais remplacée par une référence.
+        S.setDraft(base, persona, id, 'photo', { source_file: file }, ts);
+        S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1), source_file: file }, ts); break; }
       const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
       const want = (ctx && ctx.galleryKind) === 'video' ? 'video' : 'image';
       const items = all.filter(m => want === 'video' ? m.type === 'video' : m.type !== 'video');
