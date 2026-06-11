@@ -94,6 +94,42 @@
 
 <blockquote>Extension de code nécessaire (à faire APRÈS validation) : passer un <code>kind</code> à <code>r0CloudCopy</code> + une fonction <code>r0ArchiveProjet(id)</code> qui écrit manifeste + textes. ~30 lignes, sur la base existante. <b>Signalé, non codé tant que l'arborescence n'est pas validée.</b></blockquote>
 
+<h2>6. UN SEUL MÉCANISME (rétroactif = futur)</h2>
+
+<p>La copie rétroactive des médias EXISTANTS utilisera <b>exactement le même code</b> que les futures générations : la même fonction <code>r0CloudCopy(file, projId, kind)</code> + le même <code>r0ArchiveProjet(id)</code> (manifeste/sous-dossiers). Le « rétroactif » = <b>rejouer ce mécanisme</b> sur chaque projet existant (une boucle sur les projets qui appelle les MÊMES fonctions). <b>Aucun script one-off divergent</b> : le patrimoine est traité comme un nouveau rendu. → garantit qu'il n'y a jamais « deux systèmes selon la date ».</p>
+
+<h2>7. RÉCAP COMPLET (A — noir sur blanc)</h2>
+
+<p>1. <b>Ce qui SERA COPIÉ</b> (par type → sous-dossier) : Photos (618) → <code>Photos/</code> ; vidéos du projet → <code>Vidéos/</code> (0 en v4r) ; <code>draft.photo.prompt</code> → <code>Prompts/prompt.txt</code> ; <code>draft.video.script</code> → <code>Scripts/script.txt</code> ; <code>publication.*</code> → <code>Légendes/legendes.txt</code> ; référence → <code>Références/</code> ; tenue → <code>Looks/look.txt</code> ; réglages sous-titres → <code>Sous-titres/soustitres.txt</code> ; médias validés (<code>garde</code>) → <code>Exports finaux/</code>. + <code>projet.json</code> + <code>RECAP.txt</code> + <code>facts.snapshot.json</code>.</p>
+<p>2. <b>Ce qui RESTERA UNIQUEMENT EN BASE</b> (non déplacé/non archivé) : états vivants (<code>media.etat</code>, <code>v4r_nav.json</code>, <code>v4r_budget.json</code>, <code>v4r_defaults.json</code>, drapeau LIVE) + entrées <code>simule:true</code>. (état de session, pas livrables).</p>
+<p>3. <b>SOURCE DE VÉRITÉ</b> : la <b>base vivante <code>facts.json</code> reste la source de vérité opérationnelle</b> du cockpit. <code>podcast-looks/&lt;projet&gt;/</code> est l'<b>archive miroir durable</b> (lecture/restauration), tenue à jour à chaque génération via le même mécanisme. <code>facts.snapshot.json</code> dans le dossier = copie de secours pour reconstruire si la base est perdue. <b>Confirmé : base = vérité vivante ; podcast-looks = miroir d'archive.</b></p>
+<p>4. <b>CHEMIN FINAL EXACT</b> : <code>~/Library/Mobile Documents/com~apple~CloudDocs/podcast-looks/projets/&lt;persona&gt;/&lt;projectId&gt;/&lt;SousDossier&gt;/…</code> (ex. <code>…/podcast-looks/projets/imany/imany_2026-06-11-16-19-32/Photos/photo_…jpg</code>).</p>
+<p>5. <b>ARBORESCENCE</b> : celle du §2 (10 sous-dossiers + manifeste + RECAP + snapshot).</p>
+
+<h2>8. COMPORTEMENT FUTUR (B) — « génération → local → podcast-looks → galerie → historique → Telegram »</h2>
+
+<table><thead><tr><th>Type</th><th>Atterrit dans</th><th>Galerie/Historique</th><th>Telegram</th><th>État du câblage</th></tr></thead><tbody>
+<tr><td>Photo</td><td><code>Photos/</code> (+ <code>Exports finaux/</code> si validée)</td><td>galerie images (projet + global)</td><td>bloc + rendu persistant</td><td>✅ câblé (r0CloudCopy photo)</td></tr>
+<tr><td>Vidéo</td><td><code>Vidéos/</code></td><td>historique vidéo (r0RealVideos)</td><td>bloc + rendu persistant</td><td>✅ câblé (r0CloudCopy vidéo)</td></tr>
+<tr><td>Script</td><td><code>Scripts/script.txt</code></td><td>(ressources projet)</td><td>« 📄 Script complet »</td><td>🟡 à câbler dans r0ArchiveProjet</td></tr>
+<tr><td>Légendes</td><td><code>Légendes/legendes.txt</code></td><td>ressources + publication</td><td>« 📄 Texte complet »</td><td>🟡 à câbler</td></tr>
+<tr><td>Prompts</td><td><code>Prompts/prompt.txt</code></td><td>ressources</td><td>aperçu/bloc prompt</td><td>🟡 à câbler</td></tr>
+<tr><td>Références</td><td><code>Références/</code></td><td>bloc Référence</td><td>—</td><td>🟡 à câbler</td></tr>
+<tr><td>Exports finaux</td><td><code>Exports finaux/</code></td><td>écran final</td><td>rendu persistant</td><td>🟡 à câbler (sur « garde »)</td></tr>
+<tr><td>Manifeste</td><td><code>projet.json</code> + <code>RECAP.txt</code> + <code>facts.snapshot.json</code></td><td>—</td><td>—</td><td>🟡 à câbler (r0ArchiveProjet)</td></tr>
+</tbody></table>
+
+<p><b>Honnête</b> : aujourd'hui SEULE la <b>copie média (photo/vidéo) est câblée</b> (<code>r0CloudCopy</code>). L'écriture des <b>textes + manifeste</b> (<code>r0ArchiveProjet</code>) est <b>🟡 à coder</b> (≈30 lignes) — fait <b>après</b> validation de l'arbo. Photo/vidéo : ✅ ; script/légendes/prompts/références/exports/manifeste : 🟡.</p>
+
+<h2>9. COHÉRENCE PROJET (C) — pas qu'une archive de fichiers</h2>
+
+<li>Ouvrir un projet des mois plus tard = retrouver TOUT au même endroit (<code>podcast-looks/projets/&lt;persona&gt;/&lt;projectId&gt;/</code>) + le <b>manifeste de régénération</b> (<code>projet.json</code>) qui suffit à comprendre/reconstruire (cap, prompt complet, tenue, décor, références, durée, format, décisions, moteurs). Pas besoin de la base vivante pour comprendre le projet.</li>
+<li><b>Cas média inter-projets</b> (constat réel : un média peut pointer le <code>file</code> d'un AUTRE projet, ex. choix galerie) : l'archive fait une <b>COPIE PHYSIQUE réelle</b> du fichier dans le <code>Photos/</code> du projet courant (on suit <code>media.file</code> jusqu'au fichier réel et on le duplique). → <b>aucun fichier manquant</b>, chaque dossier projet est <b>autonome</b> même si le projet source disparaît. (C'est la décision #4 recommandée.)</li>
+
+<h2>10. GARDE-FOU CONFORMITÉ CLOUD (permanent) — <code>tools/test_v4r_cloud_chain.js</code></h2>
+
+<p>Test <b>statique</b> (n'écrit rien) ajouté à la batterie : il ÉCHOUE si la chaîne se casse silencieusement. Il vérifie : <code>r0CloudCopy</code> cible <code>getLooksDir()</code> (= podcast-looks) et <b>pas</b> <code>outputs/generations</code> ; range par projet ; est branché sur photo <b>et</b> vidéo ; gardé <code>!R0DRY</code> ; la galerie images agrège (projets_r + generations + looks) ; l'historique vidéo agrège (outputs + generations + projects_r, raws exclus) ; le symlink <code>looks/</code> pointe <code>…/podcast-looks</code>. <b>Résultat actuel : 14/14 ✅.</b> → une future correction qui dévie la cible cloud ou casse un lecteur <b>fera échouer ce test</b> (donc bloquée avant déploiement). À intégrer aussi à la cartographie de pré-déploiement.</p>
+
 <h2>Décisions attendues d'Etoile avant toute écriture</h2>
 <p>1. Nom de dossier : <b>(A) projectId brut</b> [recommandé] ou (B) <code>date_slug</code> ?</p>
 <p>2. Sous-racine <code>podcast-looks/projets/&lt;persona&gt;/</code> OK, ou <code>podcast-looks/&lt;projet&gt;/</code> à plat ?</p>
