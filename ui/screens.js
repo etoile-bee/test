@@ -163,6 +163,7 @@ function videoView(facts) {
     : [[{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }],
        [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]).concat([
       [{ text: '🎬 Créer vidéo', cb: 'R0_VI_CREATE' }, { text: '🛠 Montage', cb: 'R0_VE' }],
+      [{ text: '📸 Outils photo', cb: 'R0_PH_GEN' }],                                          // [NAV BIDIRECTIONNELLE] photo↔vidéo permanente
       [{ text: '🕘 Historique', cb: 'R0_VI_HIST' }, { text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (enfant direct)
     ]);
   return { kind: kind, caption: cap, rows: rows };
@@ -183,8 +184,8 @@ function videoParamsView(facts) {
   let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.';
   // [R6] IMAGE SOURCE (Garder · Remplacer · Générer) PUIS un seul 🛠 Montage (Script·Voix·Musique·Sous-titres·Durée·Mouvement). Format retiré.
   const rows = [
-    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Remplacer', cb: 'R0_VI_PICK' }, { text: '✨ Générer', cb: 'R0_VI_GENPHOTO' }], // IMAGE SOURCE
-    [{ text: '🛠 Montage', cb: 'R0_VE' }],                                                         // tous les outils vidéo regroupés
+    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Remplacer', cb: 'R0_VI_PICK' }, { text: '✨ Autre photo', cb: 'R0_VI_GENPHOTO' }], // [Etoile] libellé clair : génère une AUTRE photo source (≠ générer la vidéo)
+    [{ text: '🛠 Montage', cb: 'R0_VE' }, { text: '📸 Outils photo', cb: 'R0_PH_GEN' }],            // [NAV BIDIRECTIONNELLE] revenir aux outils photo (même image source conservée)
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }],                                                  // PRODUCTION via aperçu obligatoire
     [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],                                                      // NAVIGATION : Retour vers VIDÉO·Choisir (pas de boucle)
   ];
