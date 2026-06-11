@@ -2641,7 +2641,7 @@ function r0Ctx(persona){
   if(r0Screen==='confirm' && r0Pending){
     const {ENG,BUD}=_r0();
     const est=r0EstFor(persona, r0Pending);
-    ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.live(), budget:BUD.state(BASE) };
+    ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };
   }
   return ctx;
 }
@@ -2655,7 +2655,7 @@ async function r0Render(persona, editMid, banner){
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
-  if(kind==='photo'){ media=r0DemoPhoto(); if(!media) kind='text'; }
+  if(kind==='photo'){ const m=C.lastImage(f); media=(m&&m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto(); if(!media) kind='text'; } // photo RÉELLE si dispo, sinon démo
   await r0Paint(kind, media, caption, vw.rows, editMid);
 }
 
@@ -2675,17 +2675,50 @@ async function r0Dispatch(persona, d, editMid){
     await r0Render(persona, editMid, '⛔ <b>Budget de test épuisé ('+b.max+'/'+b.max+')</b> — réautorisation d\'Etoile nécessaire.');
     return;
   }
-  const pendingPaidGo = (d==='R0_GO' && r0Pending) ? r0Pending : null;
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
-  if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now);
-  // ENREGISTREMENT TEST RÉEL : uniquement si une génération payante a réellement été lancée (moteur réel armé).
-  if(pendingPaidGo && ENG.live()){ const est=r0EstFor(persona, pendingPaidGo); const b=BUD.record(BASE, (est&&est.credits)||0); jlog('[v4r] TEST RÉEL n°'+b.tests+'/'+b.max+' (+'+((est&&est.credits)||0)+' cr) — moteur '+(est&&est.moteur)); }
+  // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
+  const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo'));
+  if(realPhoto){
+    await r0Render(persona, editMid, '⏳ <b>Génération réelle en cours…</b> <i>(Seedream — patiente ~30 s à 1 min)</i>'); // reste sur l'écran courant
+    const out=await r0RealPhoto(persona, id); // appelle generateLook, dépose la photo RÉELLE, enregistre le test
+    r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
+    const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
+    const koBanner='⚠️ <b>Génération réelle non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Tu peux réessayer.';
+    await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
+    return;
+  }
+  if(res.op) NAV.applyOp(res.op, S, BASE, persona, id, cur, ctx, now); // simulé (tout le reste : vidéo/texte/etc. reste mock tant que non autorisé)
   r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
   if(res.st.galleryKind!=null) r0GalKind=res.st.galleryKind; if(res.st.galleryAll!=null) r0GalAll=res.st.galleryAll;
   if(r0Screen!=='gallery'){ r0GalKind='image'; r0GalAll=false; } /*réinit hors galerie*/
   if(res.await) r0Await=res.await;
   if(res.toast){ try{ await toast(res.toast); }catch(e){} }
   await r0Render(persona, editMid, res.banner);
+}
+
+// GÉNÉRATION PHOTO RÉELLE (Seedream éco via newlook.generateLook) — appelée UNIQUEMENT depuis le clic « Valider » d'Etoile (LIVE).
+//   Défensive : toute erreur -> aucune photo déposée + message clair, JAMAIS de crash. Enregistre 1 test réel sur succès.
+async function r0RealPhoto(persona, id){
+  const {S,BUD}=_r0(); const ts=Date.now();
+  const draft=S.getDraft(r0Cur(persona),'photo')||{};
+  let localPath=null, err=null;
+  try{
+    const gen=await nlMod().generateLook({mode:'eco', count:1}, (msg)=>{ try{ jlog('[v4r réel] '+msg); }catch(e){} });
+    const url=(gen&&gen.urls&&gen.urls[0])||null;
+    if(!url) throw new Error('aucune image renvoyée');
+    const dir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(dir,{recursive:true}); }catch(e){}
+    localPath=path.join(dir,'photo_'+ts+'.jpg');
+    try{ require('child_process').execSync('curl -s -o "'+localPath+'" "'+url+'"', {timeout:60000}); }catch(e){ localPath=null; throw new Error('téléchargement échoué'); }
+    if(!localPath || !fs.existsSync(localPath) || fs.statSync(localPath).size<2000){ localPath=null; throw new Error('fichier image vide'); }
+  }catch(e){ err=(e&&e.message)||String(e); }
+  if(localPath){
+    S.addCandidate(BASE,persona,id,ts,'image', Object.assign({}, draft, {file:localPath, simule:false, moteur:'seedream-v4', prompt:(draft.prompt||'(éco)')}));
+    const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — 1 test réel consommé
+    jlog('[v4r] TEST RÉEL PHOTO n°'+b.tests+'/'+b.max+' — photo déposée '+localPath);
+    return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
+  }
+  jlog('[v4r] génération réelle échouée : '+err);
+  return {ok:false, err:err};
 }
 
 async function handle(upd){

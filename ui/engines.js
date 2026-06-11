@@ -1,31 +1,35 @@
 // ─────────────────────────────────────────────────────────────────────────────
-// [RÉALISATION /v4r] ADAPTATEUR MOTEURS RÉELS — gating strict, ZÉRO dépense par défaut.
+// [RÉALISATION /v4r] ADAPTATEUR MOTEURS RÉELS — gating strict.
 //   But : connecter /v4r aux MÊMES moteurs que le legacy (Seedream/Higgsfield · Kling · ElevenLabs · Anthropic),
-//   MAIS derrière un drapeau runtime LIVE **OFF par défaut**. Tant que LIVE est OFF -> SIMULATION (aucun appel payant).
-//   Le coût est TOUJOURS calculé et affiché AVANT (voir ui/cockpit_cost). La bascule LIVE = GO explicite d'Etoile
-//   (le 1er appel réel = la 1ʳᵉ dépense ; le dev ne le déclenche jamais).
-//   available() = simple présence des clés (AUCUN appel réseau). Rien ici ne dépense.
+//   derrière un drapeau LIVE PERSISTANT (fichier v4r_live). LIVE OFF -> SIMULATION (zéro dépense).
+//   PERSISTANT (fichier) : survit aux redémarrages ; armé/désarmé explicitement (GO d'Etoile).
+//   PORTÉE ACTUELLE : seul le RÉEL PHOTO est autorisé (liveFor('photo')) — vidéo/voix/texte restent simulés
+//   tant qu'Etoile n'a pas donné un GO dédié. Le coût est TOUJOURS affiché AVANT ; le clic « Valider » = seule dépense.
+//   available() = présence des clés (AUCUN appel réseau). Rien ici ne dépense.
 // ─────────────────────────────────────────────────────────────────────────────
-let LIVE = false; // ⚠️ OFF par défaut : aucune dépense. Bascule UNIQUEMENT sur GO d'Etoile.
-function setLive(on) { LIVE = !!on; return LIVE; }
-function live() { return LIVE; }
+const fs = require('fs');
+const path = require('path');
+const os = require('os');
+const FLAG = path.join(os.homedir(), 'podcast-workflow', 'v4r_live'); // présence du fichier = mode réel armé
 
-// Présence des clés API (noms d'env), sans jamais lire/exposer la valeur ni appeler quoi que ce soit.
+function live() { try { return fs.existsSync(FLAG); } catch (e) { return false; } }
+function setLive(on) { try { if (on) fs.writeFileSync(FLAG, 'on'); else { try { fs.unlinkSync(FLAG); } catch (e) {} } } catch (e) {} return live(); }
+// RÉEL autorisé UNIQUEMENT pour la photo pour l'instant (GO Etoile = 1ère photo éco). Le reste reste simulé.
+function liveFor(kind) { return live() && (kind === 'photo' || kind === 'image'); }
+
 function available() {
   return {
-    higgsfield: !!(process.env.HIGGSFIELD_KEY_ID && process.env.HIGGSFIELD_KEY_SECRET), // Seedream (photo/look) + Kling (vidéo)
+    higgsfield: !!(process.env.HIGGSFIELD_KEY_ID && process.env.HIGGSFIELD_KEY_SECRET), // Seedream (photo) + Kling (vidéo)
     elevenlabs: !!process.env.ELEVENLABS_API_KEY,   // voix
     anthropic: !!process.env.ANTHROPIC_API_KEY,     // scripts + légendes
   };
 }
 
-// Tout ce qui est local/gratuit est « réel » sans GO ; tout ce qui est payant exige LIVE (GO).
-//   Renvoie comment une action sera exécutée, SANS l'exécuter -> permet d'afficher gratuit/payant + simulé/réel.
+// Mode d'exécution d'une action SANS l'exécuter (pour afficher gratuit/payant + simulé/réel).
 function mode(kind) {
-  // kind: 'photo'|'video'|'voix'|'script'|'legende' = PAYANT ; 'soustitres'|'edition'|'apercu'|'publication' = GRATUIT/local
   const paid = ['photo', 'video', 'voix', 'script', 'legende'].indexOf(kind) >= 0;
-  if (!paid) return { paid: false, exec: 'local' };           // gratuit, local, réel
-  return { paid: true, exec: LIVE ? 'real' : 'sim' };          // payant : réel si GO, sinon simulé
+  if (!paid) return { paid: false, exec: 'local' };               // gratuit, local, réel
+  return { paid: true, exec: liveFor(kind) ? 'real' : 'sim' };    // payant : réel SI autorisé (photo + armé), sinon simulé
 }
 
-module.exports = { setLive, live, available, mode };
+module.exports = { setLive, live, liveFor, available, mode, FLAG };
