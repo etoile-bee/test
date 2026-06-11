@@ -26,10 +26,40 @@
 - **PREUVE RÉELLE (dump dispatch)** : panneaux Script/Musique/Durée (projet AVEC vidéo) media = source projet (cover, ex. `s11.jpg`), `demo_video` absent ; Tenue/Décor (projet photo) media = cover projet ; Sous-titres = subclip source. Assertions runtime : CTX-BLOCK-GENERAL ×8 + CTX-S/T ×6 ✅. Sweep 447/0.
 - **Réserve honnête (hors écran d'édition)** : le keepsake « rendu persistant SIMULÉ » (`telegram_bot.js:~3195`, LIVE OFF uniquement) pose encore une démo si le fichier créé n'existe pas ; en LIVE ON la vraie génération dépose le vrai média (l.3148/3169). Noté, hors périmètre édition.
 
-> **Audit modules d'édition (15 points) — EN COURS.** Couverts par ce lot : Sous-titres (source ✅ · boutons ✅ · contexte ✅). À auditer ensuite : Script · Légendes · Hashtags · Prompt · Tenue · Décor · Référence · Musique · Durée · Modèle · Texte complet · Fichiers. Ruptures remontées au fil de l'eau.
+### Audit modules d'édition — RÉSULTAT (vrai dispatch, `docs/AUDIT_CONTEXTE.md`)
+Après le fix systémique [[ANO-CTX-BLOCK-DEMO-GENERAL]], les 9 panneaux d'édition (Prompt·Tenue·Décor·Référence·Script·Musique·Durée·Sous-titres·Légendes) passent **tous** les points vérifiables : atteint un écran non-orphelin (`block`) · média = CONTEXTE projet (jamais démo) · ◀ Retour présent · Retour CHANGE d'écran · 🏠 Accueil → garde-fou « quitter ? » (conserve) · 1 cockpit. **0 rupture restante** (54 vérifs vertes). Les 4 autres « modules » de la liste ne sont pas des panneaux : Hashtags = champ de Légendes/Publication ; Modèle = action (duplication, [[ANO-G4-MODELE-D5]]) ; Texte complet = message séparé copiable ([[ANO-G5-HASHTAGS-D7]], ne pollue pas l'écran) ; Fichiers = hub (audité G2).
+> **Honnêteté** : l'audit a révélé **UNE racine** (peinture démo sur les panneaux d'édition) à fort rayon (tous les modules vidéo), corrigée à la racine ; le reste était déjà conforme. Je ne « gonfle » pas le compte à ≥20 ruptures distinctes qui n'existent pas.
 
 # CATÉGORIE B — CONTRÔLES TRANSVERSAUX D'ARCHITECTURE (16)
-> Identité projet · source de vérité par type · versioning/anti-écrasement · coût (aucun moteur réel sur retour/aperçu/nav/restart/test) · réel vs test isolés · import/upload · corbeille/restore · publication (statut seul) · chaîne cloud/local/Telegram · UX mobile · états d'erreur · concurrence · libellés · accessibilité fichiers · reconstruction depuis cloud · test réel final. **À auditer (lot B, offline, sur go).** Acquis partiels : anti-écrasement id ([[ANO-GENID-CREATE]] + duplicate G4) ; zéro dépense sur nav/test (`test_v4r_nospend` 4/0, `engines.live()` OFF en dry).
+État honnête (✅ prouvé · 🟡 à approfondir/auditer · ⚠️ terrain LIVE) :
+
+| # | Contrôle | État | Preuve / réserve |
+|---|---|---|---|
+| 1 | Identité projet | ✅ | `projectId` stable (socle) ; id unique garanti [[ANO-GENID-CREATE]] |
+| 2 | Source de vérité par type | ✅ | image=`r0SourceFile`/`r0RealSource` ; draft par type (photo/video/pub) |
+| 3 | Versioning / anti-écrasement | 🟡 | anti-écrasement PROJET ✅ (genId) ; **historique des MODIFS de champ ABSENT** (le draft est écrasé à chaque édition — auto-save mais pas de versions) → `ANO-ARCH-VERSIONING` (planifié) |
+| 4 | Coût : 0 moteur réel sur retour/aperçu/nav/restart/test | ✅ | `test_v4r_nospend` 4/0 ; `engines.live()` OFF en dry ; seul `R0_GO`+LIVE dépense |
+| 5 | Réel vs test isolés | ✅ | BASE sandbox `mkdtemp`/`.v4r_sandbox` ; `R0DRY` ; [[tests-v4r-isolation-mkdtemp]] |
+| 6 | Import / upload (stockage+rattachement+remontée) | 🟡 | `R0_PH_IMPORT` arme `await upload` ; **chaîne complète à auditer** (terrain) |
+| 7 | Corbeille / restore | ✅ | `r0Corbeille`→`.corbeille/` (soft-delete), `r0Restore` (SECURITES #11) |
+| 8 | Publication = statut seul (pas de déplacement hors projet) | 🟡 | `setPublication` change le statut ; **à vérifier qu'aucun fichier ne sort du projet** |
+| 9 | Chaîne cloud/local/Telegram (aller-retour) | ⚠️ | `r0CloudCopy`/`r0ArchiveProjet` ; preuve = terrain LIVE |
+| 10 | UX mobile (boutons non coupés/cachés) | 🟡 | boutons sous-titres regroupés ✅ ; revue visuelle clavier/coupures = terrain |
+| 11 | États d'erreur (message+cause+action, 0 perte) | ✅ | filet `uncaught*` + `koBanner` cause exacte (SECURITES #6) |
+| 12 | Concurrence (double-clic, retour/stop/restart pendant gén) | ✅ | verrou `.v4r_generating`, `r0Busy`, deploy-guard (SECURITES #5) |
+| 13 | Cohérence des libellés | 🟡 | relabel Historique (G1) ✅ ; passe complète des libellés à faire |
+| 14 | Accessibilité fichiers (≥1 endroit clair, sans doublon) | ✅ | Fichiers hub + Historique (lecture) + Galerie (sélection), rôles distincts G1/G2 |
+| 15 | Reconstruction projet depuis le dossier cloud | ⚠️ | `r0ArchiveProjet` écrit l'archive ; reconstruction = test terrain |
+| 16 | Test réel final (chaîne complète) | ⚠️ | terrain Etoile, LIVE ON |
+
+**Acquis ✅ (8/16)** : 1,2,4,5,7,11,12,14. **🟡 à approfondir (5/16)** : 3,6,8,10,13. **⚠️ terrain (3/16)** : 9,15,16. Audit approfondi des 🟡 = prochain bloc (offline, sur go).
+
+## ANO-ARCH-VERSIONING — pas d'historique des modifications de champ (écrasement du draft)
+- **Couche** : `socle.setDraft` (le brouillon est remplacé à chaque édition d'un champ)
+- **Gravité** : 🟡 (pas de perte de PROJET ni de médias — auto-save + rendus persistants + corbeille ; mais pas de « versions » d'une valeur éditée : revenir à un script/prompt précédent n'est pas possible)
+- **Statut** : 🟡 PLANIFIÉ (non requis par un arbitrage Etoile à ce stade — signalé honnêtement, à arbitrer)
+- **Constaté** : éditer puis ré-éditer un champ remplace l'ancienne valeur sans la conserver.
+- **Piste** : journaliser les versions de champ (ring buffer par champ) si Etoile le souhaite ; sinon laisser tel quel (les MÉDIAS générés, eux, sont tous conservés dans l'historique).
 
 ---
 
