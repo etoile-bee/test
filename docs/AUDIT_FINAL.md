@@ -1,5 +1,29 @@
 # AUDIT FINAL v4r — honnête (❌ écart · 🟡 partiel · ✅ conforme · ⚠️ non vérifiable)
 
+## TABLEAU DE CONFORMITÉ V2 — build déployé `79eac5f` (markup réel)
+> Bot online · LIVE ON · budget 3/10 · lecteurs **241 img / 239 vid** · sweep **418 OK / 0 KO**.
+
+| Écran | Markup réel (déployé) | Conformité V2 |
+|---|---|---|
+| Accueil | 📸 Photo·🎬 Vidéo·🏛 Studio·🕘 Récents·Stop·Restart | ✅ |
+| Photo·Préparer | Prompt·Tenue·Décor·Référence·👁 Aperçu·🎬 Faire une vidéo·Retour·✅ Valider·✨ Générer·🏠·🛑 | ✅ (D1 sans Montage) |
+| **Photo·Aperçu** | média + Retour·✏️ Modifier·✅ Valider·🏠·🛑 (**aucun coût**) | ✅ **D3** (média seul) |
+| **Validation** | Moteur·Coût·Crédits·budget n/10·durée + Retour·💾 Modèle·✨ Générer maintenant | ✅ **D3** (chiffré distinct) |
+| Vidéo·Montage | Script·Musique·Sous-titres·Durée·👁 Aperçu·✅ Valider·✨ Générer | ✅ |
+| Sous-titres | Mot/**Phrase**/**Paragraphe**·Archivo/Classique·S/M/L·Haut/Milieu/Bas·Blanc/Jaune/Cyan·Défaut·👁 Aperçu·Valider·Retour | ✅ **D2** (paragraphe) |
+| Galerie | ◀ Précédent·✅ Choisir·Suivant ▶·🖼1-6·📁 Ce projet·🗑 Retirer·Retour·🏠 | ✅ **D4** (global+filtre) flèches haut |
+| Fichiers (hub) | Image·Vidéo·Audio·Prompt·Script·Sous-titres·Légendes·Hashtags + Retour contextuel | ✅ |
+| Historique / Publiés / Prêt | journal global / publiés / file | ✅ (D4 rôles) |
+| Sortie 2-confirm | « Oui, générer (n°X) » → seule dépense | ✅ garde-fou |
+
+**Écarts V2 RESTANTS (honnêtes, non bloquants) :**
+- 🟡 **D5** « Modèle » = encore préréglages (pas duplication projet) — `S.duplicateProject` non câblé au bouton. À faire (renommer/recâbler).
+- 🟡 **D7** hashtags : champ séparé encore présent dans le bloc pub ; fusion légende+#tags à la copie pas encore appliquée.
+- 🟡 **« Accueil » vs « Hub »** : libellés UI déjà « Accueil/Mes fichiers » (pas de « Hub » visible) — ✅ de fait ; à reconfirmer terrain.
+- ⚠️ **Génération photo/vidéo réelle** : chemin conservé + améliorations (refOverride/placeholder) ; **à confirmer au test terrain** (clic d'Etoile, dépense).
+
+
+
 > Règle Etoile : « 20 rouges honnêtes plutôt qu'un faux vert ». Preuves : harness no-spend (`R0_DRYRUN`), lecture code réel, mesures disque. État live : `0d9dda5` (FREEZE, non déployé : ce qui est marqué « offline » n'est PAS encore live).
 
 ---
