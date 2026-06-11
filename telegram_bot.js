@@ -3094,6 +3094,10 @@ async function r0Dispatch(persona, d, editMid){
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
+  // [A — REPRISE DE CONTEXTE] ▶️ Reprendre : restaure l'écran/projet/pending EXACTS d'avant le redémarrage. 🏠 Accueil : repart propre.
+  if(d==='R0_RESUME'){ r0PickCurrent(persona); if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Pending=null; }
+    r0Mid=editMid; r0Type='text'; await r0Render(persona, editMid, r0Screen==='home'?null:'↩️ <i>Contexte restauré</i>'); return; }
+  if(d==='R0_RESUME_HOME'){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null; r0Mid=editMid; r0Type='text'; await r0Render(persona, editMid); return; }
   // [LAYOUT GRILLE] « Choisir » au milieu des flèches : guide (la sélection se fait en touchant un NUMÉRO). Commande exacte à figer avec Etoile.
   if(d==='R0_GCHOOSE'){ try{ await toast('👇 Touche le NUMÉRO de la photo voulue'); }catch(e){} return; }
   // [CORBEILLE] bascule mode retrait dans la galerie (récupérable).
@@ -3293,8 +3297,11 @@ async function r0RealVideo(persona, id, onStep){
   const secs=parseInt(String(draft.duree||'30'),10)||30;
   const parts=Math.max(1, Math.round(secs/30));                                    // 30s -> 1 part, 60s -> 2 (aligné Kling)
   const words=Math.max(20, Math.round(secs*2.4));                                  // densité de parole ~ legacy
-  // [SCRIPTS] priorité : script écrit > thème legacy choisi (seed EN) > source > nom. Le thème oriente la génération Anthropic.
-  const topic=(draft.script&&String(draft.script).trim()) || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
+  // [B+ — Etoile] LA CATÉGORIE DOIT GAGNER. Un script « simulé » (placeholder) NE DOIT PAS écraser le thème choisi.
+  //   priorité : script RÉEL écrit par Etoile > thème legacy choisi (seed EN) > source > nom.
+  const _isSim=s=>/simulé|généré — simul|\(simulé/i.test(String(s||''));
+  const userScript=(draft.script&&String(draft.script).trim()&&!_isSim(draft.script))?String(draft.script).trim():null;
+  const topic=userScript || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
   let finalP=null, err=null;
   try{
     if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');
@@ -4597,8 +4604,15 @@ if(R0DRY){
 (async()=>{try{const r=await fetch(`https://api.telegram.org/bot${TOKEN}/getUpdates?offset=-1&timeout=0`);const d=await r.json();if(d&&d.ok&&d.result&&d.result.length)offset=d.result[d.result.length-1].update_id+1;}catch(e){}})().then(()=>{ /*[C3] boot SILENCIEUX — aucun message technique dans le chat utilisateur*/
   loadState();resLoad();genFoldersLoad();setInterval(()=>{try{resSave();}catch(e){}},20000); /*mids des 3 blocs sauvegardés en continu*/
   console.log('Bot running...');poll();
-  /*[Etoile] REDÉMARRAGE : message éphémère « connecté » à chaque démarrage -> elle SAIT que le bot est revenu (sans REOPEN_FLAG = deploy/crash silencieux avant).*/
-  if(!fs.existsSync(REOPEN_FLAG)){ setTimeout(()=>{ send('✅ <b>Connecté</b> — tape /accueil pour reprendre.').catch(()=>{}); },800); }
+  /*[A — Etoile] PERSISTANCE DE CONTEXTE : au boot (TOUT redémarrage : deploy/crash/restart), on RECHARGE en mémoire le dernier
+    écran/projet/pending depuis le disque -> aucune perte de contexte. La reprise exacte se fait via /accueil ou ▶️ Reprendre.*/
+  let _resumeScreen='home'; try{ const p=_persona(); r0PickCurrent(p); if(r0RestoreNav(p)) _resumeScreen=r0Screen; }catch(e){}
+  /*[Etoile] REDÉMARRAGE : message « connecté » + ▶️ Reprendre (restaure l'écran EXACT) si un contexte non-accueil est conservé.*/
+  if(!fs.existsSync(REOPEN_FLAG)){ const hasCtx=_resumeScreen&&_resumeScreen!=='home';
+    setTimeout(()=>{ const body={chat_id:CHAT_ID, text:'✅ <b>Connecté</b> — '+(hasCtx?'ton écran et ton projet sont CONSERVÉS.':'tape /accueil pour reprendre.'), parse_mode:'HTML'};
+      if(hasCtx) body.reply_markup=JSON.stringify({inline_keyboard:[[{text:'▶️ Reprendre où j\'en étais',callback_data:'R0_RESUME'}],[{text:'🏠 Accueil',callback_data:'R0_RESUME_HOME'}]]});
+      try{ fetch('https://api.telegram.org/bot'+TOKEN+'/sendMessage',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)}).catch(()=>{}); }catch(_){}
+    },800); }
   /*[VERROU GÉNÉRATION] flag orphelin au boot = une génération a été TUÉE par un redémarrage -> MESSAGE D'INCIDENT COMPLET (jamais de retour silencieux).*/
   try{ if(fs.existsSync(R0_GENLOCK)){ let info={}; try{ info=JSON.parse(fs.readFileSync(R0_GENLOCK,'utf8')); }catch(e){}
     const kind=info.kind==='video'?'vidéo':'photo'; const when=info.at?new Date(info.at).toISOString().slice(11,16):'?';

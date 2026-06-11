@@ -495,7 +495,11 @@ function blockView(spec) {
   //   L'instruction/aide reste HORS du bloc copiable (ligne <i> séparée). Les blocs à choix gardent l'affichage court.
   let cap;
   if (spec.parentKind === 'text' && spec.current != null && String(spec.current).trim()) {
-    cap = '<b>' + spec.title + '</b>\n<code>' + esc(String(spec.current)) + '</code>'
+    // [C — Etoile] APERÇU COURT (≤ ~180 car / 3 lignes) pour ne pas noyer le workflow ; le TEXTE COMPLET est dispo via le message séparé (📄).
+    const full = String(spec.current).replace(/\s+/g, ' ').trim();
+    const preview = full.length > 180 ? (full.slice(0, 180) + '…') : full;
+    cap = '<b>' + spec.title + '</b>\n<code>' + esc(preview) + '</code>'
+      + (full.length > 180 ? '\n<i>(aperçu — texte complet via 📄)</i>' : '')
       + (spec.hint ? ('\n\n<i>' + esc(spec.hint) + '</i>') : '');
   } else {
     cap = '<b>' + spec.title + '</b>\nActuel : ' + val(spec.current)

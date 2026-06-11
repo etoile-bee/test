@@ -128,10 +128,12 @@ function blockSpec(block, facts, ctx) {
     const ask = FREE[block.key];
     // « Image source » = sélection RÉELLE (Choisir une photo / Importer), pas une saisie libre.
     // [scripts] « 🔄 Régénérer le script » (réutilisable à volonté) ; sinon « ✨ Générer (IA) ».
-    const genLabel = block.key === 'script' ? '🔄 Régénérer le script' : '✨ Générer (IA)';
+    // [B — Etoile] le SCRIPT se régénère IN-SCREEN (reste sur le bloc Script, même thème) -> R0_REGEN_SCRIPT (pas R0_GENTXT qui sortait vers video_params).
     const opts = (block.key === 'source')
       ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
-      : [{ text: genLabel, cb: 'R0_GENTXT_' + ask }];
+      : (block.key === 'script')
+        ? [{ text: '🔄 Régénérer le script', cb: 'R0_REGEN_SCRIPT' }]
+        : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
     // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable. Libellés LISIBLES (non coupés trop court).
     // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
     // [SCRIPTS] CATÉGORIES/THÈMES RÉELS legacy (comme les Tenues) : une puce par thème ; oriente la génération. Marqueur 🔵 sur le thème courant.
@@ -309,6 +311,8 @@ function reduce(action, st0, facts, ctx) {
   if (d.indexOf('R0_ASK_') === 0) { const ak = d.slice(7); const m = ASKMAP[ak] || {};
     return { st: st, await: { ask: ak }, banner: '✍️ <b>' + SC.esc(m.prompt || 'Ta réponse ?') + '</b>\n<i>Envoie-la dans le prochain message — je l\'intègre au bloc.</i>' }; }
   // GÉNÉRATEUR DE TEXTE (Anthropic, PAYANT) -> passe par la CONFIRMATION de coût comme le reste.
+  // [B — Etoile] RÉGÉNÉRER LE SCRIPT IN-SCREEN : reste sur le bloc Script (pas de détour confirm, pas de perte d'écran), nouvelle version DANS le même thème.
+  if (d === 'R0_REGEN_SCRIPT') { return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: 'script' } }), op: { type: 'gentext', ask: 'vi_script' }, toast: '🔄 Nouvelle version (même thème)' }; }
   if (d.indexOf('R0_GENTXT_') === 0) { st.pending = { kind: 'text', mediaKind: 'text', ask: d.slice(10) }; return go('confirm'); }
   // [#12] ACCUEIL : Stop / Restart (répondent toujours, jamais de tap mort).
   if (d === 'R0_STOP') { st.pending = null; st.block = null; st.quitFrom = null; return go('home', '🛑 <b>Interrompu</b> — retour à l\'accueil (rien de perdu)'); } // Stop = sortie propre depuis n'importe quelle étape
@@ -443,7 +447,12 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
       const m = items[op.index]; if (m) S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1) }, ts);
       break; }
     case 'gentext': { // texte généré (simulé tant que LIVE off) -> écrit dans le CHAMP EXISTANT (mappe ASKMAP). Aucun objet nouveau.
-      const m = ASKMAP[op.ask]; if (m) { const txt = SIMTEXT[op.ask] || '✨ (texte généré — simulé, éditable)';
+      const m = ASKMAP[op.ask]; if (m) { let txt = SIMTEXT[op.ask] || '✨ (texte généré — simulé, éditable)';
+        // [B+ — Etoile] le SCRIPT simulé REFLÈTE la catégorie choisie ET VARIE à chaque régénération (même thème, autre version).
+        if (op.ask === 'vi_script') { const dv = (facts && facts.draft && facts.draft.video) || {}; const theme = dv.theme || null;
+          const v = (Math.floor((ts || 0) / 1000) % 3) + 1; // variante 1..3 stable par seconde
+          txt = (theme ? ('🎬 ' + theme + ' — ') : '') + 'version ' + v + ' : accroche (thème ' + (theme || 'libre') + ') · point clé · chute. (simulé — régénère pour varier, ou Générer pour la vraie version IA)';
+        }
         if (m.target === 'pub') S.setPublication(base, persona, id, { [m.field]: txt }, ts);
         else S.setDraft(base, persona, id, m.kind, { [m.field]: txt }, ts); }
       break; }

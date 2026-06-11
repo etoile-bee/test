@@ -33,6 +33,39 @@
 
 ---
 
+## LOT OFFLINE (préparé, testé harness, NON déployé — attente feu vert pour déploiement groupé)
+
+### A — Persistance de contexte à travers un restart
+- **Gravité** : 🔴 BLOQUANTE — 🟢 PRÊTE (offline)
+- **Constaté** : un restart (deploy/crash) renvoyait à un accueil vide (perte d'écran/projet/script). Ex. : restart pendant TEXTE·Aperçu → contexte perdu.
+- **Cause** : l'état r0 est persisté (`r0SaveNav` → `v4r_nav.json`) mais n'était rechargé au boot QUE sur `/restart` (REOPEN_FLAG), pas sur deploy/crash.
+- **Correctif** : au boot, **toujours** recharger l'état (`r0PickCurrent`+`r0RestoreNav`) en mémoire ; message « ✅ Connecté » avec bouton **▶️ Reprendre où j'en étais** (restaure l'écran EXACT) + 🏠 Accueil. Handlers `R0_RESUME`/`R0_RESUME_HOME`.
+- **Artefact** : à valider en réel après déploiement (boot → Reprendre → écran exact).
+
+### B — Régénération script IN-SCREEN
+- **Gravité** : 🔴 — 🟢 PRÊTE (offline)
+- **Constaté** : « Régénérer le script » faisait DISPARAÎTRE l'écran (renvoyait à video_params via confirm).
+- **Cause** : le bouton appelait `R0_GENTXT_vi_script` → confirm → `parentOfAsk` = video_params (sortie du bloc).
+- **Correctif** : nouveau `R0_REGEN_SCRIPT` → reste sur le bloc Script, régénère en place, même thème.
+- **Artefact harness** : régénérer ×2 → `screen=block/script` conservé, script varie (v3→v1), 0 THROW.
+
+### B+ — Le script suit la CATÉGORIE
+- **Gravité** : 🔴 — 🟢 PRÊTE (offline)
+- **Constaté** : « le script ne change pas selon la catégorie ».
+- **Cause RACINE** : (1) le script simulé était un placeholder fixe ignorant le thème ; (2) `r0RealVideo` prenait `draft.script` (le placeholder) en PRIORITÉ sur `theme_seed` → la catégorie était écrasée même en vidéo réelle.
+- **Correctif** : (1) script simulé = **labellisé thème + varie** ; (2) topic vidéo = `script RÉEL d'Etoile > theme_seed > source` (un placeholder « simulé » n'écrase plus le thème) → `WF.generateScript(theme_seed)` produit un script du bon thème.
+- **Artefact harness** : catégorie « Hommes toxiques » → script « ☠️ Hommes toxiques … », régénère → variante même thème.
+- 🟡 *enhancement futur* : génération IA réelle du script DANS le cockpit (coût Anthropic/tap) — aujourd'hui la vraie version IA se fait au moment de la génération vidéo (depuis le thème).
+
+### C — Réduire le texte inline
+- **Gravité** : 🟠 mineure — 🟢 PRÊTE (offline)
+- **Correctif** : blocs texte (prompt/script) = **aperçu court ≤180 car** dans `<code>` + « (aperçu — texte complet via 📄) » ; le texte complet reste en message séparé copiable (brut).
+
+### D — Menus Photo/Vidéo intuitifs (disposition)
+- **Statut** : ⏸ EN ATTENTE — Etoile choisit parmi 3 propositions d'architecture (via Dispatch). **NE PAS FIGER.** Carte de disposition à fournir quand l'architecture cible est tranchée. Voir `docs/DISPOSITION_PROPOSITIONS.md` (analyse).
+
+---
+
 ## Checklist 16 points (à dérouler)
 1) Parcours Photo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie
 2) Parcours Vidéo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie
