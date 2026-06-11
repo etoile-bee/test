@@ -34,7 +34,10 @@ const REACH = {
   video_edit:     async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VE'); },
   block:          async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_look'); },
   resources:      async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_RES'); },
+  photo_montage:  async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_MONTAGE'); },
 };
+// [R3] « Retour partout » : un écran non-racine DOIT avoir un bouton Retour/Annuler (Accueil ≠ Retour pour Etoile).
+function hasRetour(labels) { return labels.some(t => /◀|Retour|Annuler/.test(t)); }
 
 async function reach(scr) { bot.reset(); await bot.open(); await REACH[scr](); }
 
@@ -57,18 +60,20 @@ async function main() {
     }
     // (d) anti-cul-de-sac : tout écran hors Accueil/résultats doit pouvoir CHANGER d'écran (Retour/Accueil/Suivant)
     const exitOK = scr === 'home' ? true : chk(scr + ' : possède une SORTIE (Retour/Accueil/Suivant) qui change d\'écran', hasExit);
+    // (e) [R3] RETOUR EXPLICITE : tout écran non-racine doit avoir un bouton ◀ Retour / Annuler (Accueil ne suffit pas).
+    await reach(scr); const retourOK = scr === 'home' ? true : chk(scr + ' : a un ◀ RETOUR/Annuler (≠ Accueil)', hasRetour(bot.labels()));
     chk(scr + ' : chaque bouton RÉPOND', answeredAll);
     chk(scr + ' : 1 seul COCKPIT après chaque bouton', cockpitAll);
     chk(scr + ' : aucun tap mort / exception', noThrow);
-    rows.push({ scr, n: btns.length, reachedOK, answeredAll, cockpitAll, noThrow, exitOK });
+    rows.push({ scr, n: btns.length, reachedOK, answeredAll, cockpitAll, noThrow, exitOK, retourOK });
   }
 
   // ── TABLEAU écran × sortie ──
   console.log('\n┌─ CARTOGRAPHIE RUNTIME ' + '─'.repeat(40));
-  console.log('│ écran           btns  atteint  répond  1-cockpit  no-throw  sortie');
+  console.log('│ écran           btns  atteint  répond  1-cockpit  no-throw  sortie  retour');
   for (const r of rows) {
     const m = b => b ? ' ✅ ' : ' ❌ ';
-    console.log('│ ' + r.scr.padEnd(15) + ' ' + String(r.n).padStart(3) + '  ' + m(r.reachedOK) + '   ' + m(r.answeredAll) + '  ' + m(r.cockpitAll) + '   ' + m(r.noThrow) + '  ' + m(r.exitOK));
+    console.log('│ ' + r.scr.padEnd(15) + ' ' + String(r.n).padStart(3) + '  ' + m(r.reachedOK) + '   ' + m(r.answeredAll) + '  ' + m(r.cockpitAll) + '   ' + m(r.noThrow) + '  ' + m(r.exitOK) + ' ' + m(r.retourOK));
   }
   console.log('└' + '─'.repeat(62));
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');

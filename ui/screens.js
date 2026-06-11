@@ -53,7 +53,7 @@ function homeView(facts) {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
       [{ text: '🏛 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
-      [{ text: '⏸ Stop', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12] Stop/Restart sur l'Accueil
+      [{ text: '🛑 STOP', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12/#3] Stop/Restart sur l'Accueil
     ],
   };
 }
@@ -69,7 +69,7 @@ function photoView(facts) {
     ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '✏️ Modifier', cb: 'R0_PH_GAL' }]]
     : []).concat([
       [{ text: '✨ Générer', cb: 'R0_PH_GEN' }, { text: '📥 Importer', cb: 'R0_PH_IMPORT' }],
-      [{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, HOME],
+      [{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, { text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (écran enfant direct ; pas de doublon)
     ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
 }
@@ -86,30 +86,45 @@ function photoSourceView(facts) {
   };
 }
 
-// ── ÉCRAN 2.1 — PHOTO / PROMPT (préparation = HUB d'outils, blocs éditables en place) ────────
-//   [#3/#25] Avatar RETIRÉ ; « Référence » (image base, consultable/remplaçable/verrouillable) + « Réf. visuelles » + « Format ».
+// ── ÉCRAN 2.1 — PHOTO / PRÉPARER (cœur métier : Prompt · Tenue · Décor · Référence, + un seul 🛠 Montage) ────────
+//   [R1/R5] Avatar retiré ; UNE seule « Référence » (image base) ; « Réf. visuelles » + « Format » + édition image regroupés dans 🛠 Montage.
 const PH_BLOCKS = [
   { key: 'prompt', icon: '📝', label: 'Prompt' }, { key: 'look', icon: '👗', label: 'Tenue' },
   { key: 'decor', icon: '🏛', label: 'Décor' }, { key: 'reference', icon: '🖼', label: 'Référence' },
-  { key: 'refs', icon: '📎', label: 'Réf. visuelles' }, { key: 'params', icon: '⚙️', label: 'Format' },
+];
+// Outils regroupés sous 🛠 Montage (photo) — plus aucun outil dispersé sur la préparation.
+const PH_MONTAGE = [
+  { key: 'refs', icon: '📎', label: 'Réf. visuelles' }, { key: 'params', icon: '🔲', label: 'Format' },
 ];
 function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
-  // (J) prépa = étape + action seulement (le détail des valeurs va dans l'Aperçu).
+  // (J/R8) prépa = étape + action seulement (le récap complet vit dans l'Aperçu).
   let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.';
   const blockRows = [];
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
   }
-  // Ordre par étape : PRÉPARATION (blocs) → VALIDATION → PRODUCTION → PONT VIDÉO → NAVIGATION.
+  // [R4] « Aperçu » = SEULE entrée de production (ouvre le récap → Valider → Générer maintenant). [R1] plus de double « Générer ».
   const rows = blockRows.concat([
-    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }, { text: '✅ Valider', cb: 'R0_PH_VALID' }],   // VALIDATION (aperçu obligatoire)
-    [{ text: '✨ Générer', cb: 'R0_PH_GENERATE' }],                                              // PRODUCTION (passe par Aperçu→Valider→Générer)
-    [{ text: '🎬 Génère vidéo', cb: 'R0_PH_TOVIDEO' }],                                          // [#16h48] PONT direct vers la VIDÉO avec cette photo en source
-    [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION
+    [{ text: '🛠 Montage', cb: 'R0_PH_MONTAGE' }],                                              // tous les outils d'édition image regroupés
+    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }],                                                // PRODUCTION via aperçu obligatoire
+    [{ text: '🎬 Faire une vidéo', cb: 'R0_PH_TOVIDEO' }],                                       // [R2] pont vidéo : MÊME photo en source (jamais remplacée)
+    [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
   ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
+}
+// ── PHOTO / 🛠 MONTAGE (boîte à outils de la photo, regroupée) ──
+function photoMontageView(facts, ctx) {
+  const d = (facts && facts.draft && facts.draft.photo) || {};
+  const cap = '<b>🛠 PHOTO · Montage</b>\n📎 Réf. visuelles : ' + val(d.refs) + '   🔲 Format : ' + val(d.format, '9:16')
+    + '\n🎨 Édition image : ' + val(d.image_fx ? 'réglée' : null) + '\n<i>Outils de la photo — gratuit (local).</i>';
+  const rows = [
+    PH_MONTAGE.map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })),
+    [{ text: '🎨 Édition image', cb: 'R0_PHB_edition' }],
+    [{ text: '◀ Retour', cb: 'R0_PH_GEN' }],
+  ];
+  return { kind: C.hasImage(facts) ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
 // ── ÉCRAN 2.2 — PHOTO / RÉSULTAT = HUB DES ASSETS ─────────────────────────────
@@ -127,7 +142,8 @@ function photoResultView(facts) {
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
       [{ text: '🎬 Créer vidéo', cb: 'R0_PH_TOVIDEO' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
       [{ text: '📤 Publication', cb: 'R0_PUB' }, { text: '🗂 Ressources', cb: 'R0_RES' }],
-      [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, HOME],
+      [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '◀ Retour', cb: 'R0_PHOTO' }],
+      [HOME],
     ],
   };
 }
@@ -146,8 +162,8 @@ function videoView(facts) {
        [{ text: '📥 Importer', cb: 'R0_VI_IMPORT' }, { text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]
     : [[{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }],
        [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]).concat([
-      [{ text: '🎬 Créer vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
-      [{ text: '🕘 Historique', cb: 'R0_VI_HIST' }, HOME],
+      [{ text: '🎬 Créer vidéo', cb: 'R0_VI_CREATE' }, { text: '🛠 Montage', cb: 'R0_VE' }],
+      [{ text: '🕘 Historique', cb: 'R0_VI_HIST' }, { text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (enfant direct)
     ]);
   return { kind: kind, caption: cap, rows: rows };
 }
@@ -163,19 +179,15 @@ const DUREE_DEFAUT = '30s';
 function videoParamsView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
-  // (J) prépa = étape + action seulement (le détail va dans l'Aperçu).
+  // (J/R8) prépa = étape + action seulement (récap complet à l'Aperçu).
   let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.';
-  // (P3) DEUX GROUPES : IMAGE SOURCE (Garder/Changer/Générer) puis ÉDITION (2 par ligne, libellés courts).
-  const edit = VI_BLOCKS.filter(b => b.key !== 'source'); const editRows = [];
-  for (let i = 0; i < edit.length; i += 2) editRows.push(edit.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
+  // [R6] IMAGE SOURCE (Garder · Remplacer · Générer) PUIS un seul 🛠 Montage (Script·Voix·Musique·Sous-titres·Durée·Mouvement). Format retiré.
   const rows = [
-    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }, { text: '✨ Générer', cb: 'R0_VI_GENPHOTO' }], // IMAGE SOURCE
-  ].concat(editRows).concat([
-    [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],                                              // ÉDITION (sous-titres dédié)
-    [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],     // VALIDATION
-    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }],                                               // PRODUCTION
-    [{ text: '🏠 Accueil', cb: 'R0_HOME' }],                                                       // NAVIGATION (sortie réelle, pas de boucle)
-  ]);
+    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Remplacer', cb: 'R0_VI_PICK' }, { text: '✨ Générer', cb: 'R0_VI_GENPHOTO' }], // IMAGE SOURCE
+    [{ text: '🛠 Montage', cb: 'R0_VE' }],                                                         // tous les outils vidéo regroupés
+    [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }],                                                  // PRODUCTION via aperçu obligatoire
+    [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],                                                      // NAVIGATION : Retour vers VIDÉO·Choisir (pas de boucle)
+  ];
   return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
 }
 
@@ -198,7 +210,8 @@ function videoResultView(facts) {
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
       [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publier', cb: 'R0_PUB' }],
       [{ text: '🗂 Fichiers projet', cb: 'R0_RES' }],
-      [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, HOME],
+      [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '◀ Retour', cb: 'R0_VIDEO' }],
+      [HOME],
     ],
   };
 }
@@ -230,7 +243,7 @@ function studioView(facts, ctx) {
   for (let i = 0; i < secs.length; i += 2) {
     rows.push(secs.slice(i, i + 2).map(s => ({ text: s.icon + ' ' + s.label, cb: 'R0_ST_' + s.key })));
   }
-  rows.push([HOME]);
+  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);   // [R3] Retour -> Accueil (enfant direct, pas de doublon)
   return { kind: 'text', caption: cap, rows: rows };
 }
 function studioSectionView(facts, ctx) {
@@ -259,7 +272,7 @@ function recentsView(facts, ctx) {
   // (E) NUMÉROTATION claire 1..N ; (F) une SEULE action de retrait = « Archiver » (soft : retire de la vue, ne supprime jamais le fichier).
   const rows = gridRows(top, (p, i) => ({ text: (i + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 20), cb: 'R0_RE_OPEN_' + i }), 2);
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]);
-  rows.push([HOME]);
+  rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);   // [R3] Retour -> Accueil (enfant direct, pas de doublon)
   return { kind: 'text', caption: cap, rows: rows };
 }
 
@@ -295,32 +308,37 @@ function confirmView(facts, ctx) {
   const live = !!cf.live;          // moteur réel armé (GO d'Etoile) vs simulation
   const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
   const blocked = paid && live && b.exhausted;
-  const gen = cf.mediaKind === 'video' ? '🎬 Générer' : (cf.mediaKind === 'text' ? '✨ Générer le texte' : '🎨 Générer');
   const titre = cf.mediaKind === 'video' ? titleFor('video_apercu') : (cf.mediaKind === 'text' ? titleFor('texte_apercu') : titleFor('photo_apercu'));
-  // (P8) BLOC COMPACT : titre + infos UTILES seulement.
+  const pr = cf.prep || {};
+  // [R4] APERÇU = ÉCRAN RÉCAP MÉTIER (pas un toast). Infos UTILES à la création, prompt/script EN ENTIER, aucun jargon technique.
   let cap = '<b>' + titre + '</b>';
   if (cf.mediaKind === 'photo') {
-    // (2) Aperçu compact : Format · Tenue · Décor (seulement si définis) — aucun jargon technique.
-    cap += '\n🖼 Format : ' + (cf.prep && cf.prep.format ? esc(cf.prep.format) : '9:16');
-    if (cf.prep && cf.prep.outfit) cap += '\n👗 Tenue : ' + esc(cf.prep.outfit);
-    if (cf.prep && cf.prep.decor) cap += '\n🏛 Décor : ' + esc(cf.prep.decor);
-    if (cf.prep && cf.prep.prompt) cap += '\n📝 ' + esc(short(cf.prep.prompt, 48));
+    cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(pr.promptFull) : '<i>(par défaut)</i>');
+    cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
+    cap += '\n🏛 Décor : ' + val(pr.decor);
+    cap += '\n🖼 Référence : ' + val(pr.reference ? 'définie' + (pr.refLocked ? ' 🔒' : '') : null);
+    cap += '\n🔲 Format : ' + esc(pr.format || '9:16');
   } else if (cf.mediaKind === 'video') {
-    cap += '\n⏱ Durée : ' + (e.duree || '30s') + '\n🖼 Photos nécessaires : ' + nbPhotos(e.duree);
+    cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
+    cap += '\n📝 Script : ' + (pr.scriptFull ? esc(pr.scriptFull) : '<i>(auto)</i>');
+    cap += '\n🎤 Voix : ' + val(pr.voix) + '   🔤 Sous-titres : ' + esc(String(pr.soustitres || 'auto'));
+    cap += '\n⏱ Durée : ' + (e.duree || pr.duree || '30s') + '   🖼 Photos prévues : ' + nbPhotos(e.duree || pr.duree);
   } else {
     cap += '\n📝 Texte (IA)';
   }
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     if (blocked) cap += '\n⛔ <b>Budget épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation requise.';
-    else if (live) cap += '\n🧪 <b>Test réel n°' + b.next + '/' + b.max + '</b> — dépense à ce clic.';
-    else cap += '\n🧪 Tests : ' + b.tests + '/' + b.max + ' · 🟡 Aperçu (simulation)';
+    else if (live) cap += '\n🧪 <b>Test réel n°' + b.next + '/' + b.max + '</b> — dépense au clic « Générer maintenant ».';
+    else cap += '\n🧪 Tests : ' + b.tests + '/' + b.max + ' · 🟡 simulation — aucune dépense';
   } else cap += '\n🟢 Local — gratuit.';
-  // En plein flux : PRODUCTION (Générer) + NAVIGATION (Retour). Pas d'Accueil ici (évite une sortie accidentelle).
-  // (GARDE-FOU) « Générer » N'EFFECTUE PAS la dépense : il ouvre une 2ᵉ confirmation explicite (R0_GO2). « Éditer » = retour prépa.
+  // [R4] Boutons DANS L'ORDRE EXIGÉ : ◀ Retour · ✏️ Éditer · ✅ Valider · ✨ Générer maintenant.
+  //   (GARDE-FOU) « Générer maintenant » N'EFFECTUE PAS la dépense : il ouvre la 2ᵉ confirmation (R0_GO2). Seul « Oui, générer » dépense.
+  const gen = '✨ Générer maintenant';
   const rows = blocked
-    ? [[{ text: '✏️ Éditer', cb: 'R0_GEN_CANCEL' }]]
-    : [[{ text: gen, cb: 'R0_GO2' }, { text: '✏️ Éditer', cb: 'R0_GEN_CANCEL' }]];
+    ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]]
+    : [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }],
+       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -337,7 +355,7 @@ function confirm2View(facts, ctx) {
   else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i>\n🧪 Tests : ' + b.tests + '/' + b.max + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
   const rows = blocked
     ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]]
-    : [[{ text: '✅ Oui, générer (n°' + b.next + ')', cb: 'R0_GO' }], [{ text: '✖️ Annuler', cb: 'R0_GO2_CANCEL' }]];
+    : [[{ text: '✅ Oui, générer (n°' + b.next + ')', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -385,19 +403,19 @@ function resourcesView(facts, ctx) {
 // ── VIDÉO > ÉDITION (post-production regroupée) : Script · Légendes · Sous-titres · Édition image ──
 function videoEditView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
-  const subs = d.legendes || 'auto';
-  let cap = '<b>🎬 Vidéo · Édition</b> <i>(post-production)</i>'
-    + '\n📝 Script : ' + val(d.script)
-    + '\n💬 Légendes : ' + val(d.legendes)
-    + '\n🔤 Sous-titres : ' + esc(String(subs))
-    + '\n🎨 Édition image : ' + val(d.image_fx ? 'réglée' : null)
+  // [R6] 🛠 MONTAGE VIDÉO : tous les outils au même endroit — Script · Voix · Musique · Sous-titres · Durée · Mouvement.
+  let cap = '<b>🛠 VIDÉO · Montage</b>'
+    + '\n📝 Script : ' + val(d.script ? short(d.script, 40) : null)
+    + '\n🎤 Voix : ' + val(d.voix) + '   🎵 Musique : ' + val(d.musique)
+    + '\n🔤 Sous-titres : ' + esc(String(d.soustitres || 'auto'))
+    + '\n⏱ Durée : ' + val(d.duree, '30s') + '   🎞 Mouvement : ' + val(d.mouvement)
     + '\n<i>Tout au même endroit — gratuit (local).</i>';
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
       [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '🎤 Voix', cb: 'R0_VIB_voix' }],
-      [{ text: '💬 Légendes', cb: 'R0_VIB_legendes' }, { text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],
-      [{ text: '🎨 Image', cb: 'R0_VE_IMGFX' }],
-      [{ text: '◀ Vidéo', cb: 'R0_VIDEO' }],
+      [{ text: '🎵 Musique', cb: 'R0_VIB_musique' }, { text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],
+      [{ text: '⏱ Durée', cb: 'R0_VIB_duree' }, { text: '🎞 Mouvement', cb: 'R0_VIB_mouvement' }],
+      [{ text: '◀ Retour', cb: 'R0_VI_CREATE' }],
     ],
   };
 }
@@ -431,6 +449,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, resourcesView, gridRows,
-  PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, photoMontageView, resourcesView, gridRows,
+  PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

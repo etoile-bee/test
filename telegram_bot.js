@@ -2735,9 +2735,13 @@ function r0Ctx(persona){
     const {ENG,BUD}=_r0();
     const est=r0EstFor(persona, r0Pending);
     ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };
-    if(r0Pending.kind==='image'){ const {PO,S:Sx}=_r0(); const f2=r0Cur(persona,true); const dr=Sx.getDraft(f2,'photo')||{};
-      const mp=PO.buildPhotoOpts(dr, _r0Lookbook(), _r0Outfits());
-      ctx.confirm.prep={ prompt:(mp.opts.basePrompt||null), outfit:(mp.opts.extra?'tenue choisie':(mp.opts.category||null)), decor:(mp.opts.env||null), format:(dr.format||'9:16'), unmapped:mp.unmapped }; }
+    const {S:Sx}=_r0(); const f2=r0Cur(persona,true);
+    if(r0Pending.kind==='image'){ const dr=Sx.getDraft(f2,'photo')||{};
+      // [R4] APERÇU PHOTO : champs MÉTIER complets (prompt EN ENTIER, tenue, décor, référence, format).
+      ctx.confirm.prep={ promptFull:(dr.prompt||null), outfit:(dr.look||null), decor:(dr.decor||null), reference:(dr.reference||null), refLocked:!!dr.ref_locked, format:(dr.format||'9:16') }; }
+    else if(r0Pending.kind==='video'){ const dv=Sx.getDraft(f2,'video')||{};
+      // [R4] APERÇU VIDÉO : source, script EN ENTIER, voix, sous-titres, durée.
+      ctx.confirm.prep={ source:(dv.source||null), scriptFull:(dv.script||null), voix:(dv.voix||null), soustitres:(dv.soustitres||null), duree:(dv.duree||'30s') }; }
   }
   return ctx;
 }
@@ -2949,7 +2953,8 @@ async function r0RealPhoto(persona, id){
 async function r0RealVideo(persona, id){
   const {S,C,BUD}=_r0(); const ts=Date.now();
   const facts=r0Cur(persona); const draft=S.getDraft(facts,'video')||{};
-  const src=C.lastImage(facts); const srcPath=src&&src.file;
+  // [R2] CONSERVATION : on utilise la source ÉPINGLÉE au passage photo→vidéo (jamais remplacée) ; repli sur la dernière image.
+  const src=C.lastImage(facts); const srcPath=(draft.source_file && fs.existsSync(draft.source_file)) ? draft.source_file : (src&&src.file);
   const est=r0EstFor(persona, {kind:'video', mediaKind:'video'});                 // coût estimé (cr) AVANT — sert au compteur de test
   const secs=parseInt(String(draft.duree||'30'),10)||30;
   const parts=Math.max(1, Math.round(secs/30));                                    // 30s -> 1 part, 60s -> 2 (aligné Kling)
@@ -4159,6 +4164,9 @@ if(R0DRY){
     buttons:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona());
       const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx);
       return [].concat.apply([], (vw.rows||[])).map(b=>b&&b.cb).filter(Boolean); }catch(e){ return []; } },
+    labels:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona());
+      const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx);
+      return [].concat.apply([], (vw.rows||[])).map(b=>b&&b.text).filter(Boolean); }catch(e){ return []; } }, // textes des boutons (preuve « Retour partout »)
     logs:()=>R0DRY.log.slice(),   // journal interne (THROW:* si une exception a été avalée) — la cartographie échoue si non vide
     draft:(kind)=>{ try{ const {S}=_r0(); return S.getDraft(r0Cur(_persona(),false), kind)||{}; }catch(e){ return {}; } }, // brouillon courant (preuve #17/#18)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)

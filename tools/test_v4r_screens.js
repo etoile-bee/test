@@ -30,8 +30,8 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
-chk('Photo/Prompt : hub d\'outils (Prompt/Tenue/Décor/Référence/Réf.visuelles/Format), Avatar RETIRÉ, + Génère vidéo', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_reference', 'R0_PHB_refs', 'R0_PHB_params', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_avatar'));
-chk('Photo/Prompt : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_PHOTO', 'R0_PH_PREVIEW', 'R0_PH_VALID', 'R0_PH_GENERATE'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
+chk('Photo/Prompt : cœur Prompt/Tenue/Décor/Référence + 🛠 Montage + Faire une vidéo ; Avatar/refs/format hors prépa', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_reference', 'R0_PH_MONTAGE', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_avatar') && !has(php, 'R0_PHB_refs') && !has(php, 'R0_PHB_params'));
+chk('Photo/Prompt : Aperçu (production via aperçu) + Retour, PAS d\'Accueil en flux', ['R0_PHOTO', 'R0_PH_PREVIEW'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──
 const phr = SC.photoResultView(fimg);
@@ -45,8 +45,8 @@ chk('Vidéo : kind = vidéo si vidéo, sinon photo source, sinon texte', viv.kin
 
 // ── ÉCRAN 3.1 VIDÉO/PARAMÈTRES : 7 blocs + commandes ──
 const vip = SC.videoParamsView(fimg);
-chk('Vidéo/Paramètres : SOURCE (Garder/Remplacer/Générer) + ÉDITION (script/voix/musique/sous-titres/durée)', ['R0_VI_KEEPLOOK', 'R0_VI_PICK', 'R0_VI_GENPHOTO', 'R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(vip, c)));
-chk('Vidéo/Paramètres : Aperçu/Valider/Générer + sortie Accueil (hub vidéo)', ['R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE', 'R0_HOME'].every(c => has(vip, c)));
+chk('Vidéo/Paramètres : SOURCE (Garder/Remplacer/Générer) + 🛠 Montage (R0_VE) + Aperçu', ['R0_VI_KEEPLOOK', 'R0_VI_PICK', 'R0_VI_GENPHOTO', 'R0_VE', 'R0_VI_PREVIEW'].every(c => has(vip, c)));
+chk('Vidéo/Paramètres : Aperçu + Retour (R0_VI_BACK), PAS d\'Accueil en flux', ['R0_VI_PREVIEW', 'R0_VI_BACK'].every(c => has(vip, c)) && !has(vip, 'R0_HOME'));
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
 const vir = SC.videoResultView(fvid);
@@ -73,9 +73,9 @@ const sortie = [phr, vir, pub, studio, sect, rec]; // écrans de SORTIE/non-flux
 const _estCv = { moteur: 'Seedream', credits: 1, eur: 0.058, gratuit: false };
 const flux = [php, SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } }), SC.videoEditView(fvid)]; // flux PROFOND (édition/dépense) : Retour, pas d'Accueil ; le hub video_params a une sortie Accueil guardée
 chk('Global : 🏠 Accueil présent sur les écrans de SORTIE/non-flux', sortie.every(v => has(v, 'R0_HOME')));
-chk('point6 : écrans EN FLUX -> Retour, PAS d\'Accueil (sortie non accidentelle)', flux.every(v => !has(v, 'R0_HOME') && cbs(v).some(c => /R0_(PHOTO|VIDEO|GEN_CANCEL)$/.test(c))));
+chk('point6 : écrans EN FLUX -> Retour, PAS d\'Accueil (sortie non accidentelle)', flux.every(v => !has(v, 'R0_HOME') && cbs(v).some(c => /R0_(PHOTO|VIDEO|GEN_CANCEL|VI_CREATE)$/.test(c))));
 chk('Global : Accueil = racine (4 portes, pas de 🏠 vers soi-même)', !has(home, 'R0_HOME') && has(home, 'R0_PHOTO'));
-chk('Global : AUCUN écran orphelin (toujours un retour ◀/🏠)', sortie.concat(flux).every(v => has(v, 'R0_HOME') || cbs(v).some(c => /R0_(PHOTO|VIDEO|STUDIO|VI_RESULT|GEN_CANCEL)$/.test(c))));
+chk('Global : AUCUN écran orphelin (toujours un retour ◀/🏠)', sortie.concat(flux).every(v => has(v, 'R0_HOME') || cbs(v).some(c => /R0_(PHOTO|VIDEO|STUDIO|VI_RESULT|GEN_CANCEL|VI_CREATE)$/.test(c))));
 // les libellés 🏠 portent tous le même texte
 const homeBtns = flat(phr).concat(flat(vir)).filter(b => b.cb === 'R0_HOME');
 chk('Global : libellé 🏠 constant', homeBtns.every(b => b.text === '🏠 Accueil'));
@@ -102,7 +102,7 @@ chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.r
 const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
 const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
 chk('confirm récap : Aperçu + Coût + Générer(->2e confirm R0_GO2) / Éditer ; PAS de dépense directe', /Aperçu/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO2') && !has(cv,'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
-chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /🎨 Générer/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
+chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /Générer maintenant/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
 chk('confirm : éco reste gatée (gratuit=false, donc passe par l\'écran de coût)', estP.gratuit === false);
 // ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
 chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() === false && ENG.mode('photo').exec === 'sim' && ENG.mode('soustitres').exec === 'local' && ENG.mode('photo').paid === true && ENG.mode('soustitres').paid === false);
@@ -110,7 +110,7 @@ chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() 
 const gal = SC.galleryView(fvid, { galleryKind: 'image' });
 chk('galerie : grille (pas de cul-de-sac : ◀ + 🏠)', has(gal, 'R0_PHOTO') && has(gal, 'R0_HOME'));
 const ve = SC.videoEditView(fvid);
-chk('Vidéo>Édition : Script+Légendes+Sous-titres+Édition image regroupés', ['R0_VIB_script', 'R0_VIB_legendes', 'R0_VE_SUBS', 'R0_VE_IMGFX'].every(c => has(ve, c)) && has(ve, 'R0_VIDEO'));
+chk('Vidéo>Montage : Script/Voix/Musique/Sous-titres/Durée/Mouvement regroupés', ['R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree', 'R0_VIB_mouvement'].every(c => has(ve, c)) && has(ve, 'R0_VI_CREATE'));
 chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)', has(SC.videoView(fimg), 'R0_VE'));
 
 // ── LOT STABILISATION : couverture des 10 points ──
@@ -169,7 +169,7 @@ chk('point4 : décor/avatars/prompts -> libellés propres (cleanLabel sur item o
 // ── NO-ORPHAN sur les NOUVEAUX écrans ──
 chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() => {
   const gs = [SC.galleryView(fvid, { galleryKind: 'image' }), SC.photoSourceView(fimg), SC.videoEditView(fvid), SC.quitView(fimg)];
-  return gs.every(v => { const cb = cbs(v); return cb.some(c => /R0_(HOME|PHOTO|VIDEO|QUIT_CANCEL)/.test(c)); });
+  return gs.every(v => { const cb = cbs(v); return cb.some(c => /R0_(HOME|PHOTO|VIDEO|VI_CREATE|QUIT_CANCEL)/.test(c)); });
 })());
 
 // ── LOT raccordement v2 (A→L) ──
@@ -177,7 +177,7 @@ chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() =
 chk('G : titres « PHOTO/VIDÉO · Étape »', /📸 PHOTO · Choisir/.test(SC.photoView(f0).caption) && /📸 PHOTO · Préparer/.test(SC.photoPromptView(fimg, ctx).caption) && /🎬 VIDÉO · Choisir/.test(SC.videoView(f0).caption) && /🎬 VIDÉO · Préparer/.test(SC.videoParamsView(fimg).caption));
 chk('G : titre Aperçu cohérent (📸/🎬 · Aperçu)', /📸 PHOTO · Aperçu/.test(SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, max: 10, next: 1, credits: 0 } } }).caption));
 // (K) durée visible + éditable + défaut
-chk('K : durée éditable (bloc dans la prépa) + visible à l Aperçu', has(SC.videoParamsView(fimg), 'R0_VIB_duree') && /⏱ Durée : 30s/.test(SC.confirmView(fvid,{confirm:{mediaKind:'video',est:{moteur:'x',duree:'30s',gratuit:false},live:false,budget:{tests:0,max:10,next:1}}}).caption));
+chk('K : durée éditable (bloc dans la prépa) + visible à l Aperçu', has(SC.videoEditView(fimg), 'R0_VIB_duree') && /⏱ Durée : 30s/.test(SC.confirmView(fvid,{confirm:{mediaKind:'video',est:{moteur:'x',duree:'30s',gratuit:false},live:false,budget:{tests:0,max:10,next:1}}}).caption));
 chk('K : presets durée 15/30/60', SC.PRESETS.vi_duree.join(',') === '15s,30s,60s' && NAV.resolveSet('viduree', '2', {}).value === '60s');
 // (E) musique OFF/Automatique/Personnalisée
 chk('E : musique off/automatique/personnalisée', SC.PRESETS.vi_musique[0] === 'off' && NAV.resolveSet('vimus', '0', {}).value === 'off');

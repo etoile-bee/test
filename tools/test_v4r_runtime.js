@@ -138,6 +138,26 @@ async function main() {
   const lookBtns = bot.buttons().filter(b => /^R0_SET_phlook_/.test(b));
   chk('#26 : la Tenue propose plusieurs catégories (≥5), pas une seule', lookBtns.length >= 5);
 
+  // ════ R4 APERÇU RÉEL (écran récap, pas un toast) : Préparer → Aperçu → (Valider) → Générer maintenant ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
+  await bot.tap('R0_PH_PREVIEW');
+  chk('R4 : « Aperçu » ouvre un VRAI écran récap (confirm), pas un toast', bot.state().screen === 'confirm');
+  chk('R4 : l\'aperçu propose Valider + Générer maintenant + Retour + Éditer', ['R0_GEN_VALID', 'R0_GO2', 'R0_GEN_CANCEL', 'R0_GEN_EDIT'].every(c => bot.buttons().includes(c)));
+  await bot.tap('R0_GEN_VALID'); chk('R4 : « Valider » reste sur l\'aperçu (rien ne dépense)', bot.state().screen === 'confirm');
+  await bot.tap('R0_GO2'); chk('R4 : « Générer maintenant » -> 2ᵉ confirmation (confirm2)', bot.state().screen === 'confirm2');
+  // vidéo : Aperçu réel aussi
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_PREVIEW');
+  chk('R4 : Aperçu VIDÉO ouvre aussi l\'écran récap', bot.state().screen === 'confirm');
+
+  // ════ R2 CONSERVATION photo→vidéo : la MÊME photo reste la source (fichier épinglé, pas remplacé) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  const photoId = (bot.draft('photo') && 0) || null; // (sim : pas de fichier réel, on pin l'IDENTITÉ source_id)
+  await bot.tap('R0_PH_TOVIDEO');
+  const srcId = bot.draft('video').source_id;
+  chk('R2 : passage à la vidéo PIN l\'identité de la photo source (source_id défini)', srcId != null);
+  await bot.tap('R0_VE'); await bot.tap('R0_VIB_voix'); await bot.tap('R0_SET_vivoix_0'); // on modifie un AUTRE champ
+  chk('R2 : après édition d\'un autre champ, la source vidéo n\'a PAS changé (pas de remplacement silencieux)', bot.draft('video').source_id === srcId);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

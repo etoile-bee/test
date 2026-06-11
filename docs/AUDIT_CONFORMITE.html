@@ -1,0 +1,91 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Audit conformité /v4r</title><style>body{font-family:-apple-system,Segoe UI,Roboto,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;color:#1a1a1a;line-height:1.5}h1{border-bottom:3px solid #333}h2{margin-top:1.6em;border-bottom:1px solid #ccc;padding-bottom:4px}table{border-collapse:collapse;width:100%;margin:12px 0;font-size:14px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px;font-size:13px}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;margin:8px 0;padding:8px 12px}li{margin:2px 0}</style></head><body>
+<h1>AUDIT DE CONFORMITÉ /v4r — état RÉEL (11/06/2026, soir)</h1>
+
+<blockquote>Règle : <b>factuel uniquement</b>. ✅ Conforme · 🟡 Partiel · ❌ Non conforme · ⚠️ Non vérifiable en simulation.</blockquote>
+<blockquote>Preuve = test runtime/carto rejoué sur le VRAI chemin, ou fichier. « non terminé » = marqué non terminé.</blockquote>
+
+<h2>0. RAPPORT D'INCIDENT DÉPENSE (chiffre exact)</h2>
+
+<li><b>11 générations photo réelles</b> déclenchées par MES tests (LIVE laissé armé + porte <code>realPhoto</code> sans garde <code>!R0DRY</code>).</li>
+<li>Fichiers : <code>projects_r/imany/imany_2026-06-11-14-49-52/photo_*.jpg</code>, <b>mtime 17:09→17:13</b> (11 fichiers).</li>
+<li>Coût : <b>11 × 0,48 = 5,28 cr ≈ 0,31 €</b> (le compteur n'en avait plafonné que 10 ; le 11ᵉ a dépensé sans être compté).</li>
+<li>Les « 435 photos » de la galerie = agrégat legacy (anciens projets/générations/looks), <b>distinct</b> de ces 11.</li>
+<li><b>Correctifs en place et PROUVÉS</b> (<code>tools/test_v4r_nospend.js</code>, 4/4) : <code>realPhoto</code>/<code>realVideo</code> gardés par <code>!R0DRY</code> ; <code>engines.live()</code> force <b>OFF</b> sous <code>R0_DRYRUN</code> même si <code>v4r_live</code> existe. <b>Un banc d'essai ne peut plus jamais dépenser.</b></li>
+<li><b>Budget remis à 0/10</b> (mes 11 tests ne grignotent pas les 10 d'Etoile). <b>LIVE désarmé</b> (<code>v4r_live</code> absent).</li>
+
+<h2>1. LES 5 POINTS BLOQUANTS</h2>
+
+<table><thead><tr><th>#</th><th>Point</th><th>État</th><th>Attendu / Réel aujourd'hui / Manque / Preuve</th></tr></thead><tbody>
+<tr><td>1</td><td><b>Aperçu réel</b></td><td>🟡</td><td>Attendu : Préparer→Aperçu(écran récap)→Valider→Générer maintenant. <b>Réel : FAIT</b> — « 👁 Aperçu » ouvre un vrai écran récap (prompt·tenue·décor·référence·format·coût·tests) avec [◀ Retour][✏️ Éditer][✅ Valider][✨ Générer maintenant] ; plus de toast. <b>Manque</b> : sur média photo, le prompt TRÈS long peut être coupé par la limite Telegram 1024 (le prompt entier reste lisible/éditable dans le bloc Prompt). Preuve : <code>test_v4r_runtime</code> R4 (6 assertions).</td></tr>
+<tr><td>2</td><td><b>Conservation données</b></td><td>🟡</td><td>Attendu : aucun champ remplacé silencieusement. <b>Réel</b> : photo→vidéo épingle la source (<code>source_id</code>/<code>source_file</code>) — ne change plus ; un autre réglage n'écrase pas la source. Preuve : <code>test_v4r_runtime</code> R2. <b>Manque</b> : preuve exhaustive par CHAQUE champ avec de VRAIS fichiers = ⚠️ (sim ne pose pas de fichier réel). Voir §2.</td></tr>
+<tr><td>3</td><td><b>Galerie</b></td><td>🟡</td><td><b>Réel</b> : agrège projet courant + <code>projects_r/*/photo_*</code> + <code>outputs/generations/*</code> + <code>looks/gen_*</code> (435 visibles), sélection par numéro OK. <b>Manque</b> : « Suivant »/pagination explicite (<b>D, ❌</b>) ; Vidéo›Historique = projet courant seulement, pas global (<b>G, ❌</b>). Preuve : <code>r0RealImages</code> + carto gallery.</td></tr>
+<tr><td>4</td><td><b>Retour partout</b></td><td>✅</td><td>Chaque écran non-racine a un <b>◀ Retour</b> (≠ Accueil). Carto renforcée : colonne « retour » exigée. Preuve : <code>test_v4r_carto</code> 112/0, 19 écrans, colonne retour ✅ partout (corrige PHOTO·Choisir qui n'en avait pas).</td></tr>
+<tr><td>5</td><td><b>Persistance /v4r·/menu·/restart</b></td><td>🟡</td><td><b>Réel</b> : rendus = messages dédiés jamais supprimés ; <code>/v4r</code> et <code>/v4r new</code> conservent les rendus (preuve <code>test_v4r_runtime</code> RP). <b>Manque</b> : <code>/menu</code> et <code>/restart</code> non rejoués en dry-run — par conception les mids de rendus ne sont jamais dans la file de suppression du cockpit, donc préservés, mais <b>non prouvé par test</b> = à valider on-device.</td></tr>
+</tbody></table>
+
+<h2>2. CONTRÔLE PERSISTANCE PAR CHAMP</h2>
+
+<p>Stockage : <code>projects_r/&lt;persona&gt;/&lt;id&gt;/facts.json</code> → <code>facts.draft.photo</code> / <code>facts.draft.video</code> / <code>facts.publication</code>. Relu à chaque rendu de vue. Écrasable uniquement par un SET/saisie explicite du champ.</p>
+
+<table><thead><tr><th>Média</th><th>Champ</th><th>Stocké</th><th>Relu</th><th>Écrasable</th><th>Statut</th></tr></thead><tbody>
+<tr><td>PHOTO</td><td>prompt</td><td>draft.photo.prompt</td><td>aperçu, résultat, bloc</td><td>saisie/✨/📁 modèle</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>PHOTO</td><td>tenue (look)</td><td>draft.photo.look</td><td>aperçu, résultat, bloc</td><td>SET tenue</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>PHOTO</td><td>décor</td><td>draft.photo.decor</td><td>aperçu, résultat, bloc</td><td>SET décor</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>PHOTO</td><td>référence</td><td>draft.photo.reference(+ref_locked)</td><td>bloc Référence, aperçu</td><td>upload/verrou</td><td>🟡 (verrou prouvé ; persistance fichier réel ⚠️)</td></tr>
+<tr><td>PHOTO</td><td>format</td><td>draft.photo.format</td><td>aperçu, montage</td><td>SET format</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>PHOTO</td><td>source (fichier)</td><td>média candidat (facts.medias)</td><td>partout</td><td>nouvelle génération/import</td><td>⚠️ réel (sim sans fichier)</td></tr>
+<tr><td>VIDÉO</td><td>source</td><td>draft.video.source/source_id/source_file</td><td>aperçu, montage</td><td>photo→vidéo (épinglé)</td><td>✅ identité prouvée ; fichier ⚠️</td></tr>
+<tr><td>VIDÉO</td><td>script</td><td>draft.video.script</td><td>aperçu, montage, résultat</td><td>saisie/✨/📁</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>VIDÉO</td><td>voix</td><td>draft.video.voix</td><td>montage, aperçu</td><td>SET voix</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>VIDÉO</td><td>musique</td><td>draft.video.musique</td><td>montage</td><td>SET musique</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>VIDÉO</td><td>sous-titres (+style)</td><td>draft.video.soustitres/st_*</td><td>montage, aperçu, résultat</td><td>SET sous-titres</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>VIDÉO</td><td>durée</td><td>draft.video.duree</td><td>montage, aperçu</td><td>SET durée</td><td>✅ prouvé (sim)</td></tr>
+<tr><td>VIDÉO</td><td>légendes (courte/longue/hashtags)</td><td>facts.publication</td><td>résultat, ressources, publication</td><td>saisie/✨</td><td>✅ prouvé (sim)</td></tr>
+</tbody></table>
+
+<p><b>Remplacement silencieux détecté ? NON</b> dans les parcours rejoués (photo→vidéo, édition d'un autre champ). ⚠️ La persistance avec de VRAIS fichiers (référence/source réelles) n'est pas couverte par la simulation — à valider on-device.</p>
+
+<h2>3. CONTRÔLE ÉCRAN FINAL</h2>
+
+<p><b>PHOTO · Résultat</b> : image ✅ · prompt ✅ · tenue ✅ · décor ✅ · référence ❌ (visible à l'Aperçu/Montage, pas sur le résultat) · Modifier ✅ · Régénérer ✅ · Créer vidéo ✅ · Historique ✅ · Publication ✅ · Ressources ✅ · Garder ✅ · Retour ✅.</p>
+<p><b>VIDÉO · Résultat</b> : vidéo ✅ · script ✅ · légende courte ✅ · longue ✅ · hashtags ✅ · sous-titres ✅ · Fichiers projet ✅ · Modifier ✅ · Régénérer ✅ · Publier ✅ · Garder ✅ · Retour ✅.</p>
+
+<h2>4. CARTE DES SOURCES GALERIE</h2>
+
+<p><code>r0RealImages()</code> agrège, dédupliqué par nom, le plus récent d'abord :</p>
+<p>1. <b>Projet courant</b> — médias avec fichier réel.</p>
+<p>2. <b><code>projects_r/&lt;persona&gt;/*/photo_*.jpg</code></b> — photos réelles v4r de tous les projets.</p>
+<p>3. <b><code>outputs/generations/*</code></b> (jpg/png/webp) — générations legacy.</p>
+<p>4. <b><code>looks/gen_*</code></b> — looks générés.</p>
+
+<p><b>Ignoré / non remonté</b> : vidéos (la galerie image ne liste que les images) ; Vidéo›Historique ne lit que le projet courant (<b>G ❌ : agrégation vidéo globale à faire</b>) ; imports hors <code>projects_r</code> non balayés. <b>Anciens + générés remontent ✅ ; importés dans le projet ✅ ; vidéos globales ❌.</b></p>
+
+<h2>5. SIM vs RÉEL</h2>
+
+<table><thead><tr><th>Comportement</th><th>Validable en simulation</th><th>Test réel requis</th><th>Jamais validable sans réel</th></tr></thead><tbody>
+<tr><td>Navigation, Retour, aperçu, titres, persistance des blocs</td><td>✅</td><td></td><td></td></tr>
+<tr><td>Conservation des champs (identité)</td><td>✅</td><td></td><td></td></tr>
+<tr><td>Conservation avec VRAIS fichiers (référence/source)</td><td></td><td>✅</td><td></td></tr>
+<tr><td>Photo réelle (Seedream éco)</td><td></td><td>✅ (déjà observé : les 11 de l'incident)</td><td></td></tr>
+<tr><td>Vidéo réelle (Kling+ElevenLabs+script)</td><td></td><td></td><td>⚠️ <b>jamais validée en réel</b> (câblée, dry-run only)</td></tr>
+</tbody></table>
+
+<p><b>Ce qui bloque le test PHOTO réel</b> : rien techniquement (double-confirm OK, anti-spend OK, budget 0/10) — il manque seulement TON go pour réarmer LIVE photo.</p>
+<p><b>Ce qui bloque le test VIDÉO réel</b> : le pipeline <code>r0RealVideo</code> n'a jamais tourné en vrai (coût ~13–26 cr) ; 1er run = ton clic, non pré-testable sans dépense.</p>
+
+<h2>6. MES PROPRES ÉCARTS (constats)</h2>
+
+<li><b>Aperçu</b> : prompt long coupé à 1024 sur média photo (limite Telegram) — acceptable mais signalé.</li>
+<li><b>G (Vidéo›Historique global)</b> : ❌ pas fait.</li>
+<li><b>D (galerie pagination « Suivant »)</b> : ❌ pas fait (sélection par numéro OK).</li>
+<li><b>H (plan réorg fichiers)</b> : ❌ pas rédigé.</li>
+<li><b>Persistance fichiers réels</b> : non couverte par la simulation (⚠️).</li>
+<li><b>/menu·/restart</b> : préservation des rendus par conception, <b>non prouvée par test</b>.</li>
+<li><b>Incident dépense</b> : 0,31 € réels dépensés par mes tests (corrigé, non récidivable).</li>
+
+<h2>Conclusion honnête</h2>
+
+<p>Le système <b>n'est pas « prêt » au sens fort</b> : Aperçu réel ✅ et Retour partout ✅ et incident verrouillé ✅, mais Conservation/Galerie/Persistance-/menu sont 🟡 et la <b>vidéo réelle reste non validée (⚠️)</b>, G/D/H ❌. <b>LIVE reste désarmé</b> — à toi de décider des tests réels ciblés.</p>
+
+
+<hr><p><i>Généré le 11/06/2026 — état réel, LIVE désarmé.</i></p></body></html>

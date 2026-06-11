@@ -199,6 +199,7 @@ function view(state, facts, ctx) {
     case 'video_edit': return SC.videoEditView(facts);
     case 'quit': return SC.quitView(facts);
     case 'photo_source': return SC.photoSourceView(facts);
+    case 'photo_montage': return SC.photoMontageView(facts, ctx);
     case 'resources': return SC.resourcesView(facts, ctx);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
     default: return SC.homeView(facts);
@@ -273,8 +274,11 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
     case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_result'; return go('gallery');   // galerie : choisir -> revue photo
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_result'; return go('gallery');   // historique (versions comprises)
-    case 'R0_PH_PREVIEW': return { st: st, toast: '👁 Aperçu (coût nul)' };
+    // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
+    case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
+    case 'R0_PH_MONTAGE': return go('photo_montage');   // [R5] 🛠 Montage photo (outils regroupés)
+    case 'R0_GEN_VALID': return { st: st, toast: '✅ Validé — clique « Générer maintenant »' }; // [R4] Valider sur l'aperçu (reste sur l'écran)
     // GÉNÉRATION PHOTO -> passe par la CONFIRMATION DE COÛT (jamais de dépense directe)
     case 'R0_PH_GENERATE': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_REGEN': st.pending = { kind: 'image', mediaKind: 'photo', regen: true }; return go('confirm');
@@ -283,15 +287,18 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_EDIT': return Object.assign(go('photo_prompt'), { op: { type: 'loaddraft', kind: 'photo', which: 'lastImage' } });
     case 'R0_PH_USE': return go('photo_prompt', '🛠 <b>Préparation photo</b>');     // (P2) « Utiliser » -> menu de PRÉPARATION (boîte à outils)
     case 'R0_PH_OTHER': return go('photo_source');                                 // « Une autre » -> sources (Galerie/Archives/Récents/Importer)
-    case 'R0_PH_TOVIDEO': return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' } } });
+    // [R2] PHOTO→VIDÉO : la MÊME photo devient la source (on PIN le fichier exact -> jamais remplacée silencieusement).
+    case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: mi.file || null } } }); }
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
+    case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
-    case 'R0_VI_CREATE': return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' }, onlyIfImageAndNoSource: true } });
+    case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: mi.file || null }, onlyIfImageAndNoSource: true } }); }
     case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
-    case 'R0_VI_PREVIEW': return { st: st, toast: '👁 Aperçu vidéo (coût nul)' };
+    // [R4] APERÇU VIDÉO = vrai écran récap (confirm). Production toujours via aperçu.
+    case 'R0_VI_PREVIEW': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');
     case 'R0_VI_VALID': return { st: st, toast: '✅ Paramètres vidéo validés' };
     // GÉNÉRATION VIDÉO -> CONFIRMATION DE COÛT (payant : Anthropic+ElevenLabs+Kling)
     case 'R0_VI_GENERATE': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');
@@ -314,6 +321,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_GO2': return go('confirm2');                                          // (garde-fou) récap -> 2ᵉ confirmation explicite (ne dépense PAS)
     case 'R0_GO2_CANCEL': return go('confirm', '✖️ Annulé — aucune dépense');        // 2ᵉ confirmation annulée -> retour récap
     case 'R0_GEN_CANCEL': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : (p.kind === 'text' ? parentOfAsk(p.ask || 'ph_prompt') : 'photo_prompt'), '✖️ Annulé — aucune dépense'); }
+    case 'R0_GEN_EDIT': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : (p.kind === 'text' ? parentOfAsk(p.ask || 'ph_prompt') : 'photo_prompt'), '✏️ <b>Édition</b>'); } // [R4] Éditer depuis l'aperçu -> retour prépa (cb distinct, pas de doublon)
     // PUBLICATION (gatée)
     case 'R0_PUB_EDIT': return { st: Object.assign(st, { screen: 'block', block: { screen: 'pub', key: 'legende' } }) };
     case 'R0_PUB_SAVE': return Object.assign({ st: st, toast: '💾 Brouillon sauvegardé au dossier' }, { op: { type: 'statut', statut: 'brouillon' } });
