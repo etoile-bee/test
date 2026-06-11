@@ -11,25 +11,42 @@ const C = require('./conscience');
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 function short(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 
-// REPOS : le projet VIVANT — titre = message (identité) ; sous-ligne émotion/objectif ; images si présentes.
+// REPOS : MENÉ PAR LA CRÉATION (Option A). Tant qu'aucun média n'existe -> geste primaire = ✨ Créer,
+//   le cap reste un ancrage LÉGER et optionnel (jamais un passage obligé). Dès qu'un média existe ->
+//   carte média (le câble met l'image/vidéo en GRAND), identité/cap COMPACTS en légende, actions dessous.
 function reposView(facts) {
   const i = (facts && facts.intention) || {};
   const s = C.situation(facts);
-  const g = C.prochainGeste(facts);
-  const nimg = ((facts && facts.medias) || []).length;
-  let cap;
-  if (i.message) {
-    cap = '🎯 <b>' + esc(short(i.message, 70)) + '</b>\n' + s.etat
-      + '\n😊 ' + (i.emotion || 'à définir') + '   📍 ' + (i.objectif || 'à définir')
-      + (nimg ? ('\n🖼 ' + nimg + ' image(s)') : '');
+  const hasImg = C.hasImage(facts), hasVid = C.hasVideo(facts);
+  const nimg = C.medias(facts).filter(function (m) { return !m || m.type !== 'video'; }).length;
+  let cap, rows;
+  if (!hasImg && !hasVid) {
+    // VIDE : on mène par « Créer ». Le cap, s'il est posé, s'affiche en léger ; sinon invite à créer.
+    if (i.message) {
+      cap = '🎯 <b>' + esc(short(i.message, 70)) + '</b>\n' + s.etat
+        + '\n<i>✨ Un tap : ton image apparaît.</i>';
+    } else {
+      cap = '✨ <b>Créer</b>\n<i>Un tap et ton image apparaît. Le cap (optionnel) viendra ancrer le sens.</i>';
+    }
+    rows = [
+      [{ text: '✨ Créer une image', cb: 'R0_IMG' }],                 // geste PRIMAIRE, immédiat
+      [{ text: '✍️ Cap', cb: 'R0_CAP' }, { text: '🗂 Mémoire', cb: 'R0_MEM' }], // ancrage léger
+      [{ text: '🆕 Nouveau', cb: 'R0_NEW' }],
+    ];
   } else {
-    cap = '<b>Nouveau projet</b>\n🕐 <i>cap à définir — commence par dire ton intention</i>';
+    // MÉDIA EXISTE : le contenu domine (image/vidéo en grand via le câble) ; cap = légende compacte.
+    const titre = i.message ? ('🎯 <b>' + esc(short(i.message, 70)) + '</b>') : ('<b>' + (hasVid ? 'Vidéo créée' : 'Image créée') + '</b>');
+    cap = titre + '\n' + s.etat
+      + ((i.emotion || i.objectif) ? ('\n😊 ' + (i.emotion || '—') + '   📍 ' + (i.objectif || '—')) : '')
+      + '\n🖼 ' + nimg + (hasVid ? '   🎬 vidéo' : '');
+    const actions = [{ text: '🔁 Regénérer', cb: 'R0_REGEN' },
+                     { text: hasVid ? '🎬 Refaire la vidéo' : '🎬 Faire une vidéo', cb: 'R0_VID' }];
+    rows = [
+      actions,                                                        // 🔁 Regénérer · 🎬 vidéo (création visible)
+      [{ text: '✍️ Cap', cb: 'R0_CAP' }, { text: '🗂 Mémoire', cb: 'R0_MEM' }],
+      [{ text: '🆕 Nouveau', cb: 'R0_NEW' }],
+    ];
   }
-  const rows = [
-    [{ text: g.label, cb: g.cb }],                                   // LE prochain geste (unique, proposition)
-    [{ text: '✍️ Cap', cb: 'R0_CAP' }, { text: '🗂 Mémoire', cb: 'R0_MEM' }],
-    [{ text: '🆕 Nouveau', cb: 'R0_NEW' }],
-  ];
   return { caption: cap, rows: rows };
 }
 
@@ -55,10 +72,13 @@ function memView(facts) {
   const i = (facts && facts.intention) || {};
   const ds = (facts && facts.decisions) || [];
   const ms = (facts && facts.medias) || [];
+  const nimg = ms.filter(function (m) { return !m || m.type !== 'video'; }).length;
+  const nvid = ms.filter(function (m) { return m && m.type === 'video'; }).length;
   let cap = '<b>Mémoire du projet</b>'
     + '\n🎯 Cap : ' + (i.message ? 'défini' : 'à définir')
     + '\n😊 Émotion : ' + (i.emotion || 'à définir') + '   📍 Objectif : ' + (i.objectif || 'à définir')
-    + '\n🖼 Images : ' + (ms.length ? (ms.length + ' (simulées)') : 'aucune')
+    + '\n🖼 Images : ' + (nimg ? (nimg + ' (simulées)') : 'aucune')
+    + '\n🎬 Vidéos : ' + (nvid ? (nvid + ' (simulées)') : 'aucune')
     + '\n🗂 Décisions : ' + (ds.length ? ds.length : 'aucune');
   if (ds.length) cap += '\n' + ds.slice(-4).map(d => '• ' + esc(d.action) + (d.raison ? (' — ' + esc(d.raison)) : '')).join('\n');
   return { caption: cap, rows: [[{ text: '⬅ Repos', cb: 'R0_REPOS' }]] };

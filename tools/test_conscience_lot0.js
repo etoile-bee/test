@@ -38,14 +38,20 @@ chk('repos sans média : titre = texte, aucun champ média produit', typeof C.ti
 const t = C.titre(pose).toLowerCase();
 chk('Loi II : aucune attribution de sens dans le titre', !/(bon|fort|faible|réussi|sert l'|cohérent au sens)/.test(t));
 
-// ── Focalisation → prochain geste (proposition dérivée, déterministe) ──
-chk('geste : cap vide -> proposer « Poser ton cap »', C.prochainGeste(vide).cb === 'R0_CAP');
+// ── Focalisation → prochain geste : OPTION A, MENÉ PAR LA CRÉATION (déterministe) ──
+chk('geste : aucun média -> ✨ Créer une image (R0_IMG), même sans cap', C.prochainGeste(vide).cb === 'R0_IMG');
 const avecCap = S.defaultFacts('imany', 'imany_z', now); avecCap.intention.message = 'x';
-chk('geste : cap posé, aucune image -> « Convoquer une première image »', C.prochainGeste(avecCap).cb === 'R0_IMG');
-const avecImg = JSON.parse(JSON.stringify(avecCap)); avecImg.medias = [{ id: 'm1', etat: 'candidate', simule: true }];
-chk('geste : image présente -> « Regénérer l\'image »', C.prochainGeste(avecImg).cb === 'R0_REGEN');
+chk('geste : cap posé, aucun média -> ✨ Créer une image (création primaire)', C.prochainGeste(avecCap).cb === 'R0_IMG');
+const avecImg = JSON.parse(JSON.stringify(avecCap)); avecImg.medias = [{ id: 'm1', etat: 'candidate', simule: true, type: 'image' }];
+chk('geste : image présente, pas de vidéo -> 🎬 Faire une vidéo (R0_VID)', C.prochainGeste(avecImg).cb === 'R0_VID');
+const avecVid = JSON.parse(JSON.stringify(avecImg)); avecVid.medias.push({ id: 'm2', etat: 'candidate', simule: true, type: 'video' });
+chk('geste : vidéo présente -> 🔁 Regénérer l\'image (R0_REGEN)', C.prochainGeste(avecVid).cb === 'R0_REGEN');
 chk('geste : déterministe (même faits -> même geste)', C.prochainGeste(avecCap).cb === C.prochainGeste(avecCap).cb);
-chk('situation : compte les images (fait)', C.situation(avecImg).medias === 1);
+// ── Lecture des manifestations par nature (image/vidéo) ──
+chk('médias : hasImage vrai dès une image', C.hasImage(avecImg) && !C.hasVideo(avecImg));
+chk('médias : hasVideo vrai dès une vidéo', C.hasVideo(avecVid) && C.hasImage(avecVid));
+chk('médias : mediaKind = vidéo > image > texte', C.mediaKind(avecVid) === 'video' && C.mediaKind(avecImg) === 'photo' && C.mediaKind(vide) === 'text');
+chk('situation : compte les médias (fait)', C.situation(avecImg).medias === 1);
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
 process.exit(ko ? 1 : 0);

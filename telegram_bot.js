@@ -2568,41 +2568,65 @@ function cockpitV4(){
 // ═══ [RÉALISATION — colonne vertébrale /v4r] UN SEUL bloc vivant : édité en place ; recréé (delete+post) seulement
 //     sur bascule TEXTE↔PHOTO. Vues PURES = ui/spine_view (testées hors Telegram) ; transport ici.
 //     Image affichée UNIQUEMENT si elle existe (jamais de placeholder) ; génération SIMULÉE (zéro dépense). Isolé du legacy/v4. ═══
-function _r0(){ return { S:require('./ui/socle'), V:require('./ui/spine_view') }; }
+function _r0(){ return { S:require('./ui/socle'), V:require('./ui/spine_view'), C:require('./ui/conscience'), SB:require('./ui/spine_block') }; }
 function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,persona);
   if(!cur&&create){ cur=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet cree '+cur.projectId); }
   return cur?S.loadFacts(BASE,persona,cur.projectId):null; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
-function r0Kb(rows){ return (rows||[]).map(r=>r.map(b=>({text:b.text, callback_data:b.cb}))); } /*{cb} -> {callback_data}*/
-// Peindre EN TEXTE (un seul bloc) : édite si le bloc courant est déjà texte, sinon supprime l'ancien + recrée.
-async function r0PaintText(caption, rows, editMid){
-  const kb=r0Kb(rows);
-  if(r0Type==='text' && (editMid||r0Mid)){ const ok=await tgEditText(editMid||r0Mid, caption, kb); if(ok!==false){ r0Mid=editMid||r0Mid; r0Type='text'; return; } }
-  if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null;
-  const r=await send(caption, kb); r0Mid=(r&&r.result&&r.result.message_id)||null; r0Type='text';
+// Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
+let _r0Vid=null;
+function r0DemoVideo(){
+  try{
+    if(_r0Vid && fs.existsSync(_r0Vid)) return _r0Vid;
+    const out=path.join(BASE,'assets_r','demo_video.mp4');
+    if(fs.existsSync(out)){ _r0Vid=out; return out; }
+    const img=r0DemoPhoto(); if(!img) return null;
+    fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true});
+    require('child_process').execFileSync('ffmpeg',['-y','-loop','1','-i',img,'-t','3',
+      '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0015,1.15)\':d=75:s=720x1280:fps=25,format=yuv420p',
+      '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{stdio:'ignore',timeout:60000});
+    if(fs.existsSync(out)){ _r0Vid=out; return out; }
+  }catch(e){ jlog('[v4r] demo video ffmpeg err '+e.message); }
+  return null;
 }
-// Peindre EN PHOTO (un seul bloc) : édite la légende si déjà photo, sinon supprime l'ancien + recrée.
-async function r0PaintPhoto(photo, caption, rows, editMid){
-  const kb=r0Kb(rows); const mid=editMid||r0Mid;
-  if(r0Type==='photo' && mid){ try{ await tg('editMessageCaption',{message_id:mid, caption:cap1024(caption), parse_mode:'HTML', reply_markup:{inline_keyboard:kb}}); r0Mid=mid; r0Type='photo'; return; }catch(e){} }
+function r0Kb(rows){ return (rows||[]).map(r=>r.map(b=>({text:b.text, callback_data:b.cb}))); } /*{cb} -> {callback_data}*/
+function r0MidOf(r){ return (r&&r.result&&r.result.message_id)||(typeof r==='number'?r:null); }
+// PEINTRE du bloc UNIQUE : décide edit / editMedia (swap photo↔vidéo EN PLACE) / recreate via l'oracle SB.plan.
+//   targetKind ∈ {text,photo,video} ; mediaPath = fichier local (image/vidéo) ou null pour texte.
+async function r0Paint(targetKind, mediaPath, caption, rows, editMid){
+  const {SB}=_r0(); const kb=r0Kb(rows); const cur=editMid||r0Mid;
+  const p=SB.plan(r0Type, cur, targetKind);
+  if(p.action==='edit'){
+    if(targetKind==='text'){ const ok=await tgEditText(cur, caption, kb); if(ok!==false){ r0Mid=cur; r0Type='text'; return; } }
+    else { try{ const r=await tg('editMessageCaption',{message_id:cur, caption:cap1024(caption), parse_mode:'HTML', reply_markup:{inline_keyboard:kb}});
+      if(r&&(r.ok||isNotMod(r.description))){ r0Mid=cur; r0Type=targetKind; return; } }catch(e){} }
+  } else if(p.action==='editMedia'){ // image DEVIENT vidéo (ou l'inverse) dans le MÊME message
+    const ok = (targetKind==='video') ? await editVideoKb(cur, mediaPath, cap1024(caption), kb)
+                                       : await editPhotoKb(cur, mediaPath, cap1024(caption), kb);
+    if(ok){ r0Mid=cur; r0Type=targetKind; return; }
+  }
+  // recreate : supprime l'ancien + poste un bloc neuf (1 seul à l'écran)
   if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} } r0Mid=null;
-  const d=await sendPhotoKb(photo, cap1024(caption), kb); r0Mid=(d&&d.result&&d.result.message_id)||null; r0Type='photo';
+  if(targetKind==='text'){ const r=await send(caption, kb); r0Mid=r0MidOf(r); r0Type='text'; }
+  else if(targetKind==='video'){ r0Mid=await sendVideoKb(mediaPath, cap1024(caption), kb)||null; r0Type='video'; }
+  else { const d=await sendPhotoKb(mediaPath, cap1024(caption), kb); r0Mid=r0MidOf(d); r0Type='photo'; }
 }
 // Rendre une VUE (repos/cap/mem/ask_*) dans le bloc unique. banner = bandeau optionnel.
-//   Le KIND est décidé ICI (jamais dans les vues) : photo DÈS qu'une image existe (image en haut),
-//   sinon texte sobre — JAMAIS de placeholder (verrou repos-sans-média). Vues pures = { caption, rows }.
+//   Le KIND est décidé ICI (jamais dans les vues) via la Conscience : vidéo > image > texte sobre.
+//   JAMAIS de placeholder : tant qu'aucun média n'existe, le bloc reste texte (repos mené par « Créer »).
 async function r0Render(persona, view, editMid, banner){
-  const {V}=_r0(); const f=r0Cur(persona,true); let vw;
+  const {V,C}=_r0(); const f=r0Cur(persona,true); let vw;
   if(view==='cap') vw=V.capView(f);
   else if(view==='mem') vw=V.memView(f);
   else if(view==='ask_msg') vw=V.askView('message');
   else if(view==='ask_pub') vw=V.askView('public');
   else vw=V.reposView(f);
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
-  const hasPhoto=((f.medias||[]).length>0)&&!!r0DemoPhoto();
-  if(hasPhoto) await r0PaintPhoto(r0DemoPhoto(), caption, vw.rows, editMid);
-  else await r0PaintText(caption, vw.rows, editMid);
+  let kind=C.mediaKind(f), media=null;
+  if(kind==='video'){ media=r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
+  if(kind==='photo'){ media=r0DemoPhoto(); if(!media) kind='text'; }
+  await r0Paint(kind, media, caption, vw.rows, editMid);
 }
 
 async function handle(upd){
@@ -2627,14 +2651,15 @@ async function handle(upd){
     if(d&&d.indexOf('R0_')===0){ /*[RÉALISATION colonne vertébrale] callbacks isolés (n'altèrent ni le legacy ni /v4). UN bloc, navigation libre, génération simulée.*/
       try{
         const persona=_persona(); const {S}=_r0(); r0Await=null; /*toute navigation annule une saisie en attente*/
-        r0Mid=cb.message.message_id; r0Type=(cb.message&&cb.message.photo)?'photo':'text'; /*sync sur le bloc tapé*/
+        r0Mid=cb.message.message_id; r0Type=(cb.message&&cb.message.video)?'video':((cb.message&&cb.message.photo)?'photo':'text'); /*sync sur le bloc tapé (texte/photo/vidéo)*/
         const editMid=cb.message.message_id;
         if(d==='R0_NEW'){ S.createProject(BASE,persona,{},Date.now()); jlog('[v4r] nouveau'); await r0Render(persona,'repos',editMid,'✨ <b>Nouveau projet</b>'); }
         else if(d==='R0_CAP') await r0Render(persona,'cap',editMid);
         else if(d==='R0_REPOS') await r0Render(persona,'repos',editMid);
         else if(d==='R0_MEM') await r0Render(persona,'mem',editMid);
-        else if(d==='R0_IMG'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now()); jlog('[v4r] image simulée (0 dépense)'); await r0Render(persona,'repos',editMid,'🖼 <b>Image convoquée</b> <i>(simulée — zéro dépense)</i>'); }
-        else if(d==='R0_REGEN'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now()); jlog('[v4r] image regénérée (0 dépense)'); await r0Render(persona,'repos',editMid,'🔄 <b>Image regénérée</b> <i>(simulée — zéro dépense)</i>'); }
+        else if(d==='R0_IMG'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now(),'image'); jlog('[v4r] image simulée (0 dépense)'); await r0Render(persona,'repos',editMid,'✨ <b>Image créée</b> <i>(simulée — zéro dépense)</i>'); }
+        else if(d==='R0_REGEN'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now(),'image'); jlog('[v4r] image regénérée (0 dépense)'); await r0Render(persona,'repos',editMid,'🔁 <b>Image regénérée</b> <i>(simulée — zéro dépense)</i>'); }
+        else if(d==='R0_VID'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now(),'video'); jlog('[v4r] vidéo simulée locale (0 dépense)'); await r0Render(persona,'repos',editMid,'🎬 <b>Vidéo créée</b> <i>(maquette locale — zéro dépense)</i>'); }
         else if(d.indexOf('R0_EMO_')===0){ const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{emotion:d.slice(7)},Date.now()); await r0Render(persona,'cap',editMid); }
         else if(d.indexOf('R0_OBJ_')===0){ const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{objectif:d.slice(7)},Date.now()); await r0Render(persona,'cap',editMid); }
         else if(d==='R0_MSG'){ r0Await={mode:'message'}; await r0Render(persona,'ask_msg',editMid); }

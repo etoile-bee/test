@@ -84,11 +84,14 @@ function recordDecision(base, persona, id, action, raison, auteur, ts) {
   return saveFacts(base, persona, f, ts);
 }
 // Atelier : dépose un fait-média à l'état `candidate` (simulé en V1 — zéro dépense).
-function addCandidate(base, persona, id, ts) {
+//   `type` = nature du média (image|video) — attribut d'un objet EXISTANT (le média = manifestation
+//   du cap), conforme au modèle scellé (MODELE_METIER : prompt rôle image/vidéo ; projet = image/vidéo/les deux).
+//   AUCUN objet ni règle nouveau : on qualifie une manifestation déjà prévue.
+function addCandidate(base, persona, id, ts, type) {
   const f = loadFacts(base, persona, id); if (!f) return null;
   f.medias = f.medias || [];
   const mid = 'm' + (f.medias.length + 1);
-  f.medias.push({ id: mid, etat: 'candidate', simule: true, produit_le: iso(ts) });
+  f.medias.push({ id: mid, etat: 'candidate', simule: true, type: (type === 'video' ? 'video' : 'image'), produit_le: iso(ts) });
   return saveFacts(base, persona, f, ts);
 }
 

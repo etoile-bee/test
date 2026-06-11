@@ -36,13 +36,21 @@ function situation(facts) {
   };
 }
 
-// FOCALISATION → PROCHAIN GESTE : une PROPOSITION dérivée (Loi I — l'auteur décide, peut l'ignorer).
+// Lecture des manifestations (médias) par nature — image/vidéo sont des natures EXISTANTES du modèle.
+function medias(facts) { return (facts && facts.medias) || []; }
+function hasVideo(facts) { return medias(facts).some(function (m) { return m && m.type === 'video'; }); }
+function hasImage(facts) { return medias(facts).some(function (m) { return !m || m.type !== 'video'; }); }
+function lastMedia(facts) { const ms = medias(facts); return ms.length ? ms[ms.length - 1] : null; }
+// KIND à matérialiser : la DERNIÈRE manifestation créée (esprit Option A : « je vois ce que je viens de créer »).
+//   Créer une image -> on voit l'image ; faire une vidéo -> on voit la vidéo ; regénérer l'image -> on revoit l'image.
+function mediaKind(facts) { const m = lastMedia(facts); if (!m) return 'text'; return m.type === 'video' ? 'video' : 'photo'; }
+
+// FOCALISATION → PROCHAIN GESTE : PROPOSITION dérivée, MENÉE PAR LA CRÉATION (Loi I — l'auteur peut l'ignorer).
+//   Esprit du modèle : matérialiser l'intention. Créer est le geste primaire ; le cap est un ancrage optionnel.
 function prochainGeste(facts) {
-  const i = (facts && facts.intention) || {};
-  if (!i.message) return { label: '✍️ Poser ton cap', cb: 'R0_CAP' };
-  const medias = (facts && facts.medias) || [];
-  if (!medias.length) return { label: '🖼 Convoquer une image', cb: 'R0_IMG' };
-  return { label: '🔄 Regénérer l\'image', cb: 'R0_REGEN' };
+  if (!hasImage(facts) && !hasVideo(facts)) return { label: '✨ Créer une image', cb: 'R0_IMG' };
+  if (!hasVideo(facts)) return { label: '🎬 Faire une vidéo', cb: 'R0_VID' };
+  return { label: '🔁 Regénérer l\'image', cb: 'R0_REGEN' };
 }
 
 // TITRE = compression minimale (Lot 0) : cap + état + mémoire. Déterministe.
@@ -51,4 +59,4 @@ function titre(facts) {
   return '🧭 ' + s.cap + '\n📊 ' + s.etat + ' · 🗂 ' + s.decisions + ' décision(s)';
 }
 
-module.exports = { etat, capLine, situation, titre, prochainGeste };
+module.exports = { etat, capLine, situation, titre, prochainGeste, medias, hasImage, hasVideo, mediaKind };
