@@ -115,6 +115,29 @@ async function main() {
   await bot.typed('/v4r new'); // nouveau projet -> doit pré-remplir depuis le défaut
   chk('#18 : nouveau projet pré-rempli depuis le défaut (réutilisé sans rien écraser)', bot.draft('photo').prompt === bot.defaults()['photo.prompt']);
 
+  // ════ #23 PONT PHOTO→VIDÉO : depuis Préparer ET depuis Résultat, « Génère/Créer vidéo » mène au menu VIDÉO, photo en source ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
+  chk('#23 : PHOTO·Préparer expose 🎬 Génère vidéo (pont direct)', bot.buttons().includes('R0_PH_TOVIDEO'));
+  await bot.tap('R0_PH_TOVIDEO'); chk('#23 : Préparer → 🎬 Génère vidéo -> menu VIDÉO (video_params), pas d\'Accueil', bot.state().screen === 'video_params');
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  chk('#23 : PHOTO·Résultat = hub (Créer vidéo + Ressources)', bot.buttons().includes('R0_PH_TOVIDEO') && bot.buttons().includes('R0_RES'));
+  await bot.tap('R0_PH_TOVIDEO'); chk('#23 : Résultat → Créer vidéo -> video_params (source conservée)', bot.state().screen === 'video_params' && !!(bot.draft('video').source));
+
+  // ════ #22 RESSOURCES / FICHIERS DU PROJET : hub de récupération accessible, sans cul-de-sac ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_RES'); chk('#22 : écran Ressources atteint', bot.state().screen === 'resources');
+  await bot.tap('R0_HOME'); chk('#22 : Ressources -> sortie Accueil OK (pas d\'impasse)', bot.state().screen === 'home');
+
+  // ════ #25 RÉFÉRENCE (≠ avatar) : consulter/remplacer/verrouiller ; verrou mémorisé dans le brouillon ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_reference');
+  chk('#25 : bloc Référence expose Consulter/Remplacer/Verrouiller', ['R0_REF_VIEW', 'R0_REF_REPLACE', 'R0_REF_LOCK'].every(c => bot.buttons().includes(c)));
+  await bot.tap('R0_REF_LOCK'); chk('#25 : Verrouiller mémorise l\'état (draft.photo.ref_locked)', bot.draft('photo').ref_locked === true);
+
+  // ════ #26 TENUE : toutes les catégories du catalogue remontent (pas juste Soirée) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_look');
+  const lookBtns = bot.buttons().filter(b => /^R0_SET_phlook_/.test(b));
+  chk('#26 : la Tenue propose plusieurs catégories (≥5), pas une seule', lookBtns.length >= 5);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

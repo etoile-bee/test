@@ -30,12 +30,12 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
-chk('Photo/Prompt : 5 blocs (Prompt/Avatar/Tenue/Décor/Références) + Édition (Paramètres retiré)', ['R0_PHB_prompt', 'R0_PHB_avatar', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_refs', 'R0_PHB_edition'].every(c => has(php, c)) && !has(php,'R0_PHB_params'));
+chk('Photo/Prompt : hub d\'outils (Prompt/Tenue/Décor/Référence/Réf.visuelles/Format), Avatar RETIRÉ, + Génère vidéo', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_reference', 'R0_PHB_refs', 'R0_PHB_params', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_avatar'));
 chk('Photo/Prompt : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_PHOTO', 'R0_PH_PREVIEW', 'R0_PH_VALID', 'R0_PH_GENERATE'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──
 const phr = SC.photoResultView(fimg);
-chk('Photo/Résultat : ✅Garder 🗑Supprimer ✏️Modifier 🔁Régénérer 🎬Vidéo 🏠', ['R0_PH_KEEP', 'R0_PH_DEL', 'R0_PH_EDIT', 'R0_PH_REGEN', 'R0_PH_TOVIDEO', 'R0_HOME'].every(c => has(phr, c)));
+chk('Photo/Résultat = HUB : Modifier/Régénérer/Créer vidéo/Historique/Publication/Ressources/Garder/Accueil', ['R0_PH_EDIT', 'R0_PH_REGEN', 'R0_PH_TOVIDEO', 'R0_PH_HIST', 'R0_PUB', 'R0_RES', 'R0_PH_KEEP', 'R0_HOME'].every(c => has(phr, c)));
 chk('Photo/Résultat : kind photo (on voit la photo)', phr.kind === 'photo');
 
 // ── ÉCRAN 3 VIDÉO : boutons + RÈGLE génération photo source ──
@@ -50,7 +50,7 @@ chk('Vidéo/Paramètres : Aperçu/Valider/Générer + sortie Accueil (hub vidéo
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
 const vir = SC.videoResultView(fvid);
-chk('Vidéo/Résultat : ✅ 🗑 ✏️ 🔁 📤Exporter 🏠', ['R0_VI_KEEP', 'R0_VI_DEL', 'R0_VI_EDIT', 'R0_VI_REGEN', 'R0_PUB', 'R0_HOME'].every(c => has(vir, c)));
+chk('Vidéo/Résultat = HUB : Modifier/Régénérer/Légendes/Publier/Fichiers projet/Garder/Accueil', ['R0_VI_EDIT', 'R0_VI_REGEN', 'R0_PUB_EDIT', 'R0_PUB', 'R0_RES', 'R0_VI_KEEP', 'R0_HOME'].every(c => has(vir, c)));
 chk('Vidéo/Résultat : kind vidéo (on voit la vidéo)', vir.kind === 'video');
 
 // ── ÉCRAN 4 PUBLICATION ──

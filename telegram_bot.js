@@ -2600,6 +2600,13 @@ function _r0Prompts(persona){ const out=[]; try{ const dir=path.join(BASE,'promp
   for(const fn of fs.readdirSync(dir)){ if(!/\.json$/.test(fn)) continue; try{ const j=JSON.parse(fs.readFileSync(path.join(dir,fn),'utf8')); if(j&&j.text) out.push({name:j.name||fn.replace(/\.json$/,''), text:j.text}); }catch(e){} } }catch(e){}
   return out; }
 function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_catalog.json')]; return require('./outfits_catalog.json'); }catch(e){ return null; } }
+// [#26] TENUE : expose TOUTES les catégories du catalogue (1 entrée par catégorie, format « Cat #id » compris par photo_opts).
+function _r0LookCats(){ try{ const list=(_r0Outfits()||{}).outfits||[]; const seen={}, out=[];
+  for(const o of list){ const c=String(o.cat||'').toLowerCase(); if(c&&!seen[c]){ seen[c]=1; out.push(c.charAt(0).toUpperCase()+c.slice(1)+' #'+o.id); } }
+  return out; }catch(e){ return []; } }
+// [#27] SOUS-TITRES : valeurs PAR DÉFAUT du style legacy (lecture seule de subtitle_style — JAMAIS d'écriture, verrou intact).
+function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; const s=require('./subtitle_style')||{};
+  return { font:(s.fontLabel||s.font||'Archivo'), size:(s.size||'M'), pos:(s.position||s.pos||'bas'), display:(s.display||'mot') }; }catch(e){ return {}; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
@@ -2718,7 +2725,10 @@ function r0Ctx(persona){
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
-    ctx.defaults=DEF.load(BASE,persona); }
+    ctx.defaults=DEF.load(BASE,persona);
+    ctx.looks=_r0LookCats();      // [#26] TENUE : toutes les catégories du catalogue (soiree/business/casual/cosy/ete/fete), pas juste la 1ʳᵉ
+    ctx.subStyle=_r0SubStyle();   // [#27] valeurs PAR DÉFAUT des sous-titres (lecture seule du legacy, verrou intact)
+  }
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
   if((r0Screen==='confirm'||r0Screen==='confirm2') && r0Pending){
@@ -2851,8 +2861,9 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='video'){
     try{ const dr=S.getDraft(cur,'video')||{}; const sp=(C.lastImage(cur)||{}).file||'(aucune)'; jlog('[v4r] VIDÉO '+(ENG.liveFor('video')?'RÉEL':'SIMULÉ')+' — source='+sp+' · durée='+(dr.duree||'30s')+' · script='+(dr.script?('"'+String(dr.script).slice(0,40)+'"'):'(auto Anthropic)')); }catch(e){}
   }
-  // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
-  const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo'));
+  // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo + PAS en dry-run. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
+  //   [SÉCURITÉ] !R0DRY OBLIGATOIRE : le banc d'essai ne doit JAMAIS appeler le moteur réel ni dépenser, même si LIVE est armé.
+  const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo') && !R0DRY);
   if(realPhoto){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
     r0Busy=true;
@@ -3737,6 +3748,10 @@ async function handle(upd){
     try{ const persona=_persona(); const cur=r0Cur(persona,true); const id=cur.projectId; const mode=r0Await.upload; r0Await=null;
       const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id); // télécharge l'image de l'utilisateur (gratuit, local)
       const {S}=_r0();
+      if(mode==='reference'){ // [#25] nouvelle image de RÉFÉRENCE (base des générations) — pas un candidat, un réglage du brouillon photo
+        S.setDraft(BASE,persona,id,'photo',{reference:fp},Date.now()); r0Block={screen:'photo',key:'reference'}; r0Screen='block';
+        await r0Render(persona, r0Mid, '🖼 <b>Référence mise à jour</b>'); return;
+      }
       S.addCandidate(BASE,persona,id,Date.now(),'image',{file:fp, simule:false, source:'import', prompt:'(importée)'});
       if(mode==='source'){ S.setDraft(BASE,persona,id,'video',{source:'photo importée'},Date.now()); r0Screen='video_params'; }
       else { r0Screen='photo_result'; }

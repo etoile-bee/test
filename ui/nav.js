@@ -67,17 +67,37 @@ function blockSpec(block, facts, ctx) {
   //   Lit subtitle_style.js (legacy) pour les valeurs PAR DÉFAUT affichées, SANS jamais le modifier (verrou intact).
   if (block.key === 'soustitres') {
     const cur = d.soustitres || 'auto (défaut)';
+    // [#27] STYLE LEGACY réexposé PAR PROJET : affichage · police · taille · position (lecture des défauts subtitle_style, jamais d'écriture du verrou).
+    const sty = (ctx && ctx.subStyle) || {};
+    const cap = (d.soustitres || 'auto') + ' · ' + (d.st_display || sty.display || 'mot') + ' · ' + (d.st_font || sty.font || 'défaut') + ' · ' + (d.st_size || sty.size || 'M') + ' · ' + (d.st_pos || sty.pos || 'bas');
     return {
-      title: '🔤 Sous-titres', current: cur, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VI_CREATE' },
-      hint: 'Réglages pour cette vidéo (l\'incrustation se fait au rendu).',
+      title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_VI_CREATE' },
+      hint: 'Style PAR vidéo (affichage · police · taille · position). Incrustation au rendu.',
       options: [
         { text: (d.soustitres === 'on' ? '🔵 ' : '') + '✅ Activer', cb: 'R0_SET_ston_on' },
         { text: (d.soustitres === 'off' ? '🔵 ' : '') + '🚫 Désactiver', cb: 'R0_SET_ston_off' },
-        { text: (d.st_pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
-        { text: (d.st_pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
+        { text: (d.st_display === 'mot' ? '🔵 ' : '') + '🔠 Mot-à-mot', cb: 'R0_SET_stdisp_mot' },
+        { text: (d.st_display === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
+        { text: (d.st_font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
+        { text: (d.st_font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' },
         { text: (d.st_size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
         { text: (d.st_size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
+        { text: (d.st_pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
+        { text: (d.st_pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
         { text: '💾 Défaut', cb: 'R0_DEFSAVE' }, // [#18] mémorise les réglages sous-titres courants
+      ],
+    };
+  }
+  // [#25/#7] RÉFÉRENCE PHOTO : image FIXE base des générations (≠ avatar). Consulter · Remplacer · Verrouiller · réutiliser.
+  if (block.key === 'reference') {
+    const locked = d.ref_locked ? '🔒 verrouillée' : '🔓 libre';
+    return {
+      title: '🖼 Référence', current: (d.reference || 'image par défaut') + ' · ' + locked, parentKind: pk, back: back,
+      hint: 'Image de base réutilisée à chaque génération (différente de l\'avatar).',
+      options: [
+        { text: '👁 Consulter', cb: 'R0_REF_VIEW' }, { text: '🔄 Remplacer', cb: 'R0_REF_REPLACE' },
+        { text: (d.ref_locked ? '🔓 Déverrouiller' : '🔒 Verrouiller'), cb: 'R0_REF_LOCK' },
+        { text: '💾 Défaut', cb: 'R0_DEFSAVE' },
       ],
     };
   }
@@ -149,6 +169,8 @@ function resolveSet(blk, token, ctx) {
   if (blk === 'ston') { return { target: 'draft', kind: 'video', field: 'soustitres', value: token }; }   // on|off
   if (blk === 'stpos') { return { target: 'draft', kind: 'video', field: 'st_pos', value: token }; }       // haut|bas
   if (blk === 'stsize') { return { target: 'draft', kind: 'video', field: 'st_size', value: token }; }     // S|L
+  if (blk === 'stdisp') { return { target: 'draft', kind: 'video', field: 'st_display', value: token }; }  // mot|phrase [#27]
+  if (blk === 'stfont') { return { target: 'draft', kind: 'video', field: 'st_font', value: token }; }     // archivo|classique [#27]
   const spec = SETMAP[blk]; if (!spec) return null;
   let value;
   if (spec.src === 'list') value = ((ctx && ctx[spec.name]) || [])[+token];
@@ -177,6 +199,7 @@ function view(state, facts, ctx) {
     case 'video_edit': return SC.videoEditView(facts);
     case 'quit': return SC.quitView(facts);
     case 'photo_source': return SC.photoSourceView(facts);
+    case 'resources': return SC.resourcesView(facts, ctx);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
     default: return SC.homeView(facts);
   }
@@ -199,8 +222,8 @@ function reduce(action, st0, facts, ctx) {
 
   // « Enregistrer avant de quitter ? » : 🏠 depuis un flux EN COURS -> écran quit (jamais d'effacement silencieux).
   if (d === 'R0_HOME' && IN_PROGRESS[st.screen]) { st.quitFrom = st.screen; return { st: Object.assign(st, { screen: 'quit' }) }; }
-  if (d === 'R0_QUIT_SAVE') { st.quitFrom = null; return Object.assign(go('home', '💾 <b>Brouillon conservé</b>'), {}); }
-  if (d === 'R0_QUIT_DISCARD') { st.quitFrom = null; return Object.assign(go('home', '🚪 <b>Quitté</b> <i>(brouillon abandonné — la matière produite reste)</i>'), { op: { type: 'cleardraft' } }); }
+  if (d === 'R0_QUIT_SAVE') { st.quitFrom = null; return go('home'); }                                  // [#2] Accueil sobre : pas de bandeau verbeux
+  if (d === 'R0_QUIT_DISCARD') { st.quitFrom = null; return Object.assign(go('home'), { op: { type: 'cleardraft' } }); }
   if (d === 'R0_QUIT_CANCEL') { const back = st.quitFrom || 'home'; st.quitFrom = null; return { st: Object.assign(st, { screen: back }) }; }
 
   if (d.indexOf('R0_SET_') === 0) {
@@ -213,6 +236,15 @@ function reduce(action, st0, facts, ctx) {
     return { st: st, await: { ask: ak }, banner: '✍️ <b>' + SC.esc(m.prompt || 'Ta réponse ?') + '</b>\n<i>Envoie-la dans le prochain message — je l\'intègre au bloc.</i>' }; }
   // GÉNÉRATEUR DE TEXTE (Anthropic, PAYANT) -> passe par la CONFIRMATION de coût comme le reste.
   if (d.indexOf('R0_GENTXT_') === 0) { st.pending = { kind: 'text', mediaKind: 'text', ask: d.slice(10) }; return go('confirm'); }
+  // [#12] ACCUEIL : Stop / Restart (répondent toujours, jamais de tap mort).
+  if (d === 'R0_STOP') { return { st: st, toast: '⏸ En pause — tape /v4r pour reprendre (ou /menu pour le menu)' }; }
+  if (d === 'R0_RESTART') { return go('home', '🔄 <b>Rafraîchi</b>'); }
+  // [#22/#24] RESSOURCES / FICHIERS DU PROJET : hub de récupération de tous les assets.
+  if (d === 'R0_RES') { return go('resources'); }
+  // [#25/#7] RÉFÉRENCE PHOTO : consulter · remplacer (upload) · verrouiller. Reste sur le bloc référence.
+  if (d === 'R0_REF_VIEW') { return { st: st, toast: '👁 Référence courante affichée (image de base)' }; }
+  if (d === 'R0_REF_REPLACE') { return { st: st, await: { upload: 'reference' }, banner: '🖼 <b>Envoie la nouvelle image de référence.</b>\n<i>Elle servira de base à tes prochaines générations (aucune dépense).</i>' }; }
+  if (d === 'R0_REF_LOCK') { const lock = !((facts && facts.draft && facts.draft.photo) || {}).ref_locked; return { st: st, toast: lock ? '🔒 Référence verrouillée' : '🔓 Référence déverrouillée', op: { type: 'draft', kind: 'photo', patch: { ref_locked: lock } } }; }
   if (d === 'R0_PHB_edition') { return { st: st, toast: '🎨 Édition image (local, gratuit)', op: { type: 'draft', kind: 'photo', patch: { image_fx: 'réglée' } } }; } // (P2) Édition dans la prépa photo (local)
   if (d.indexOf('R0_PHB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'photo', key: d.slice(7) } }) }; }
   if (d.indexOf('R0_VIB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: d.slice(7) } }) }; }

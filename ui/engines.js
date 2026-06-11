@@ -13,7 +13,9 @@ const path = require('path');
 const os = require('os');
 const FLAG = path.join(os.homedir(), 'podcast-workflow', 'v4r_live'); // présence du fichier = mode réel armé
 
-function live() { try { return fs.existsSync(FLAG); } catch (e) { return false; } }
+// [SÉCURITÉ] en banc d'essai (R0_DRYRUN) LIVE est TOUJOURS OFF — un test ne doit jamais voir un moteur armé ni dépenser.
+//   (R0_FORCE_LIVE permet à un test dédié d'examiner l'état armé sans toucher le fichier réel.)
+function live() { if (process.env.R0_DRYRUN && !process.env.R0_FORCE_LIVE) return false; try { return fs.existsSync(FLAG); } catch (e) { return false; } }
 function setLive(on) { try { if (on) fs.writeFileSync(FLAG, 'on'); else { try { fs.unlinkSync(FLAG); } catch (e) {} } } catch (e) {} return live(); }
 // RÉEL autorisé quand LIVE armé. PHOTO : Seedream éco. VIDÉO : seulement si les 3 clés moteur sont présentes
 //   (Higgsfield/Kling + ElevenLabs + Anthropic) — garde-fou : armé sans clé -> reste simulé, zéro dépense aveugle.

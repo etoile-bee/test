@@ -33,17 +33,27 @@ function nom(facts) { return (facts && facts.intention && facts.intention.messag
 function capLigne(facts) { const i = (facts && facts.intention) || {}; return i.message ? ('🎯 ' + esc(short(i.message, 60))) : '🎯 <i>cap à définir</i>'; }
 const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
 
+// [TITRES VERROUILLÉS] format FIGÉ, identique quels que soient les réglages. Aucune feature ne doit le recomposer.
+//   Source unique de vérité des titres d'écran photo/vidéo : « 📸 PHOTO · Préparer/Aperçu/Résultat » · « 🎬 VIDÉO · … ».
+const TITLES = {
+  photo_prepare: '📸 PHOTO · Préparer', photo_apercu: '📸 PHOTO · Aperçu', photo_resultat: '📸 PHOTO · Résultat',
+  video_prepare: '🎬 VIDÉO · Préparer', video_apercu: '🎬 VIDÉO · Aperçu', video_resultat: '🎬 VIDÉO · Résultat',
+  texte_apercu: '✨ TEXTE · Aperçu',
+};
+function titleFor(key) { return TITLES[key] || ''; }
+
 // ── ÉCRAN 1 — ACCUEIL (jamais vide : COUVERTURE = dernière image du projet ; sinon sobre, sans placeholder) ──
 function homeView(facts) {
   const hasImg = C.hasImage(facts);
   // (I) Accueil sobre : nom du projet + statut dérivé + 4 portes. (plus de « cap à définir » ni « couverture : … »)
   const cap = '<b>🎬 Studio</b> · ' + esc(nom(facts))
     + '\n📍 <b>' + esc(C.statutProjet(facts)) + '</b>'
-    + '\n\n<i>Choisis où aller :</i>';
+    + '\n\n<i>Choisis où aller :</i> · <code>/menu</code> pour le menu principal';
   return {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
       [{ text: '🏛 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
+      [{ text: '⏸ Stop', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12] Stop/Restart sur l'Accueil
     ],
   };
 }
@@ -76,43 +86,48 @@ function photoSourceView(facts) {
   };
 }
 
-// ── ÉCRAN 2.1 — PHOTO / PROMPT (préparation, blocs éditables en place) ────────
+// ── ÉCRAN 2.1 — PHOTO / PROMPT (préparation = HUB d'outils, blocs éditables en place) ────────
+//   [#3/#25] Avatar RETIRÉ ; « Référence » (image base, consultable/remplaçable/verrouillable) + « Réf. visuelles » + « Format ».
 const PH_BLOCKS = [
-  { key: 'prompt', icon: '📝', label: 'Prompt' }, { key: 'avatar', icon: '👤', label: 'Avatar' },
-  { key: 'look', icon: '👗', label: 'Tenue' }, { key: 'decor', icon: '🏛', label: 'Décor' },
-  { key: 'refs', icon: '📎', label: 'Références' },
+  { key: 'prompt', icon: '📝', label: 'Prompt' }, { key: 'look', icon: '👗', label: 'Tenue' },
+  { key: 'decor', icon: '🏛', label: 'Décor' }, { key: 'reference', icon: '🖼', label: 'Référence' },
+  { key: 'refs', icon: '📎', label: 'Réf. visuelles' }, { key: 'params', icon: '⚙️', label: 'Format' },
 ];
 function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
   // (J) prépa = étape + action seulement (le détail des valeurs va dans l'Aperçu).
-  let cap = '<b>📸 PHOTO · Préparer</b>\nChoisissez l\'action suivante.';
+  let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.';
   const blockRows = [];
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
   }
-  blockRows.push([{ text: '🎨 Édition', cb: 'R0_PHB_edition' }]);  // (P2) boîte à outils Édition dans la préparation
-  // Ordre par étape : PRÉPARATION (blocs) → VALIDATION → PRODUCTION → NAVIGATION (Retour ; pas d'Accueil en plein flux).
+  // Ordre par étape : PRÉPARATION (blocs) → VALIDATION → PRODUCTION → PONT VIDÉO → NAVIGATION.
   const rows = blockRows.concat([
-    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }, { text: '✅ Valider', cb: 'R0_PH_VALID' }],   // VALIDATION
-    [{ text: '✨ Générer', cb: 'R0_PH_GENERATE' }],                                              // PRODUCTION (= Suivant)
-    [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION (Accueil réservé aux sorties)
+    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }, { text: '✅ Valider', cb: 'R0_PH_VALID' }],   // VALIDATION (aperçu obligatoire)
+    [{ text: '✨ Générer', cb: 'R0_PH_GENERATE' }],                                              // PRODUCTION (passe par Aperçu→Valider→Générer)
+    [{ text: '🎬 Génère vidéo', cb: 'R0_PH_TOVIDEO' }],                                          // [#16h48] PONT direct vers la VIDÉO avec cette photo en source
+    [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION
   ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
-// ── ÉCRAN 2.2 — PHOTO / RÉSULTAT ─────────────────────────────────────────────
+// ── ÉCRAN 2.2 — PHOTO / RÉSULTAT = HUB DES ASSETS ─────────────────────────────
+//   [#22] image finale + prompt/tenue/décor + Modifier·Régénérer·Créer vidéo·Historique·Publication·Ressources du projet.
 function photoResultView(facts) {
   const m = C.lastImage(facts) || {};
-  const cap = '<b>📸 PHOTO · Résultat</b>'
-    + '\n📝 ' + val(m.prompt, '<i>(prompt simulé)</i>')
+  const dr = (facts && facts.draft && facts.draft.photo) || {};
+  const cap = '<b>' + titleFor('photo_resultat') + '</b>'
+    + '\n📝 ' + val(m.prompt || dr.prompt, '<i>(prompt simulé)</i>')
+    + '\n👗 Tenue : ' + val(cleanLabel(m.look || dr.look))
+    + '\n🏛 Décor : ' + val(m.decor || dr.decor)
     + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(simulée)</i>' : ' <i>(réelle)</i>');
   return {
     kind: 'photo', caption: cap, rows: [
-      [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_PH_DEL' }],
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
-      [{ text: '🎬 Créer vidéo', cb: 'R0_PH_TOVIDEO' }],
-      [HOME],
+      [{ text: '🎬 Créer vidéo', cb: 'R0_PH_TOVIDEO' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
+      [{ text: '📤 Publication', cb: 'R0_PUB' }, { text: '🗂 Ressources', cb: 'R0_RES' }],
+      [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, HOME],
     ],
   };
 }
@@ -149,7 +164,7 @@ function videoParamsView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
   // (J) prépa = étape + action seulement (le détail va dans l'Aperçu).
-  let cap = '<b>🎬 VIDÉO · Préparer</b>\nChoisissez l\'action suivante.';
+  let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.';
   // (P3) DEUX GROUPES : IMAGE SOURCE (Garder/Changer/Générer) puis ÉDITION (2 par ligne, libellés courts).
   const edit = VI_BLOCKS.filter(b => b.key !== 'source'); const editRows = [];
   for (let i = 0; i < edit.length; i += 2) editRows.push(edit.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
@@ -168,19 +183,22 @@ function videoParamsView(facts) {
 function videoResultView(facts) {
   const m = C.lastVideo(facts) || {};
   const p = (facts && facts.publication) || {};
-  // (P5) RÉSULTAT FINAL : regroupe les légendes (courte/longue/hashtags) — visibles, copiables, rééditables.
-  const cap = '<b>🎬 VIDÉO · Résultat</b>'
-    + '\n🖼 source : ' + val(m.source, 'photo du projet') + '   ⏱ ' + val(m.duree, '30s')
+  const dv = (facts && facts.draft && facts.draft.video) || {};
+  // [#22/#5] RÉSULTAT FINAL = HUB : vidéo + script + légendes (courte/longue/hashtags) + sous-titres — tout visible/récupérable.
+  const cap = '<b>' + titleFor('video_resultat') + '</b>'
+    + '\n🖼 source : ' + val(m.source || dv.source, 'photo du projet') + '   ⏱ ' + val(m.duree || dv.duree, '30s')
+    + '\n📝 Script : ' + val(dv.script ? short(dv.script, 50) : null)
     + '\n✏️ Courte : ' + val(p.legende_courte)
-    + '\n📄 Longue : ' + val(p.legende_longue ? short(p.legende_longue, 60) : null)
+    + '\n📄 Longue : ' + val(p.legende_longue ? short(p.legende_longue, 50) : null)
     + '\n#️⃣ Hashtags : ' + val(p.hashtags)
+    + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'))
     + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(maquette locale)</i>' : '');
   return {
     kind: 'video', caption: cap, rows: [
-      [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_VI_DEL' }],
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
       [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publier', cb: 'R0_PUB' }],
-      [HOME],
+      [{ text: '🗂 Fichiers projet', cb: 'R0_RES' }],
+      [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, HOME],
     ],
   };
 }
@@ -278,7 +296,7 @@ function confirmView(facts, ctx) {
   const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
   const blocked = paid && live && b.exhausted;
   const gen = cf.mediaKind === 'video' ? '🎬 Générer' : (cf.mediaKind === 'text' ? '✨ Générer le texte' : '🎨 Générer');
-  const titre = cf.mediaKind === 'video' ? '🎬 VIDÉO · Aperçu' : (cf.mediaKind === 'text' ? '✨ TEXTE · Aperçu' : '📸 PHOTO · Aperçu');
+  const titre = cf.mediaKind === 'video' ? titleFor('video_apercu') : (cf.mediaKind === 'text' ? titleFor('texte_apercu') : titleFor('photo_apercu'));
   // (P8) BLOC COMPACT : titre + infos UTILES seulement.
   let cap = '<b>' + titre + '</b>';
   if (cf.mediaKind === 'photo') {
@@ -339,6 +357,31 @@ function galleryView(facts, ctx) {
   return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
+// ── RESSOURCES / FICHIERS DU PROJET (hub de récupération de TOUS les assets) ──────────────────
+//   [#22/#24] tout au même endroit : photos · vidéos · prompt · tenue · décor · script · légendes · hashtags · sous-titres.
+function resourcesView(facts, ctx) {
+  const imgs = C.visibles(facts).filter(m => m.type !== 'video');
+  const vids = C.visibles(facts).filter(m => m.type === 'video');
+  const dp = (facts && facts.draft && facts.draft.photo) || {};
+  const dv = (facts && facts.draft && facts.draft.video) || {};
+  const p = (facts && facts.publication) || {};
+  const cap = '<b>🗂 Ressources du projet</b> · ' + esc(nom(facts))
+    + '\n🖼 Photos : ' + imgs.length + '   🎬 Vidéos : ' + vids.length
+    + '\n📝 Prompt : ' + val(dp.prompt ? short(dp.prompt, 40) : null)
+    + '\n👗 Tenue : ' + val(cleanLabel(dp.look)) + '   🏛 Décor : ' + val(dp.decor)
+    + '\n🎬 Script : ' + val(dv.script ? short(dv.script, 40) : null)
+    + '\n✏️ Légende courte : ' + val(p.legende_courte)
+    + '\n📄 Légende longue : ' + val(p.legende_longue ? short(p.legende_longue, 40) : null)
+    + '\n#️⃣ Hashtags : ' + val(p.hashtags)
+    + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'));
+  const rows = [
+    [{ text: '🖼 Galerie photos', cb: 'R0_PH_HIST' }, { text: '🎬 Vidéos', cb: 'R0_VI_HIST' }],
+    [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
+    [{ text: '◀ Retour', cb: C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO' }, HOME],
+  ];
+  return { kind: C.mediaKind(facts), caption: cap, rows: rows };
+}
+
 // ── VIDÉO > ÉDITION (post-production regroupée) : Script · Légendes · Sous-titres · Édition image ──
 function videoEditView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
@@ -388,6 +431,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, gridRows,
-  PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel,
+  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, resourcesView, gridRows,
+  PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };
