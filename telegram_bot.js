@@ -2776,7 +2776,7 @@ async function r0Dispatch(persona, d, editMid){
   const {S,NAV}=_r0(); const now=Date.now();
   const cur=r0Cur(persona,true); const id=cur.projectId; r0Await=null;
   const ctx=r0Ctx(persona);
-  const {ENG,BUD}=_r0();
+  const {ENG,BUD,C}=_r0();
   // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
   if(d==='R0_GO' && r0Pending && ENG.live() && BUD.state(BASE).exhausted){
     const b=BUD.state(BASE); jlog('[v4r] GO bloqué : budget tests réels épuisé '+b.max+'/'+b.max);
@@ -2787,6 +2787,9 @@ async function r0Dispatch(persona, d, editMid){
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
   if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image'){
     try{ const {PO}=_r0(); jlog('[v4r] PHOTO '+(ENG.liveFor('photo')?'RÉEL':'SIMULÉ')+' — '+PO.trace(S.getDraft(cur,'photo'), _r0Lookbook(), _r0Outfits())); }catch(e){}
+  }
+  if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='video'){
+    try{ const dr=S.getDraft(cur,'video')||{}; const sp=(C.lastImage(cur)||{}).file||'(aucune)'; jlog('[v4r] VIDÉO '+(ENG.liveFor('video')?'RÉEL':'SIMULÉ')+' — source='+sp+' · durée='+(dr.duree||'30s')+' · script='+(dr.script?('"'+String(dr.script).slice(0,40)+'"'):'(auto Anthropic)')); }catch(e){}
   }
   // ── GÉNÉRATION PHOTO RÉELLE (Seedream éco) : SEULEMENT sur GO + LIVE + photo. C'est la SEULE dépense, déclenchée par le clic d'Etoile. ──
   const realPhoto = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image' && ENG.liveFor('photo'));
@@ -2799,6 +2802,22 @@ async function r0Dispatch(persona, d, editMid){
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Génération non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour puis réessaie.';
+      await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
+    } finally { r0Busy=false; }
+    return;
+  }
+  // ── GÉNÉRATION VIDÉO RÉELLE (script Anthropic + voix ElevenLabs + lipsync Kling) : SEULEMENT sur GO + LIVE + vidéo + 3 clés présentes. ──
+  //    Même double-confirmation, même plafond budget. JAMAIS en dry-run (R0DRY). C'est la SEULE dépense vidéo, déclenchée par le clic d'Etoile.
+  const realVideo = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='video' && ENG.liveFor('video') && !R0DRY);
+  if(realVideo){
+    if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
+    r0Busy=true;
+    try{
+      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(script + voix + lipsync Kling, ~3 à 10 min — ne reclique pas)</i>');
+      const out=await r0RealVideo(persona, id); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
+      r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
+      const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
+      const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } finally { r0Busy=false; }
     return;
@@ -2840,6 +2859,59 @@ async function r0RealPhoto(persona, id){
     return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
   }
   jlog('[v4r] génération réelle échouée : '+err);
+  return {ok:false, err:err};
+}
+
+// GÉNÉRATION VIDÉO RÉELLE (script Anthropic + voix ElevenLabs + lipsync Kling, rendu sous-titres LOCAL gratuit) —
+//   appelée UNIQUEMENT depuis le clic « Oui, générer » d'Etoile (LIVE + clés présentes). La SOURCE = la dernière photo
+//   validée du projet (devient l'avatar Higgsfield). Défensive : toute erreur -> aucune vidéo déposée + message clair,
+//   JAMAIS de crash. Enregistre 1 test réel (au coût estimé) sur succès seulement. Timeout dur (anti-blocage).
+async function r0RealVideo(persona, id){
+  const {S,C,BUD}=_r0(); const ts=Date.now();
+  const facts=r0Cur(persona); const draft=S.getDraft(facts,'video')||{};
+  const src=C.lastImage(facts); const srcPath=src&&src.file;
+  const est=r0EstFor(persona, {kind:'video', mediaKind:'video'});                 // coût estimé (cr) AVANT — sert au compteur de test
+  const secs=parseInt(String(draft.duree||'30'),10)||30;
+  const parts=Math.max(1, Math.round(secs/30));                                    // 30s -> 1 part, 60s -> 2 (aligné Kling)
+  const words=Math.max(20, Math.round(secs*2.4));                                  // densité de parole ~ legacy
+  const topic=(draft.script&&String(draft.script).trim()) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
+  let finalP=null, err=null;
+  try{
+    if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');
+    process.env.HIGGS_AVATAR_URL=srcPath;                                          // la source v4r devient l'avatar (prepareImage gère un chemin local)
+    const tsStr=new Date(ts).toISOString().slice(0,16).replace(/[:T]/g,'-');
+    const outDir=path.join(BASE,'projects_r',persona,id); try{ fs.mkdirSync(outDir,{recursive:true}); }catch(e){}
+    const run=(async()=>{
+      const imageUrl=await WF.prepareImage();                                      // upload avatar (depuis la photo locale)
+      const clips=[]; const prevScripts=[];
+      for(let i=1;i<=parts;i++){
+        const c=await WF.generateScript(i===1?topic:WF.partPrompt(topic,i,parts,prevScripts), words); // script Anthropic
+        prevScripts.push(c.script);
+        const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
+        const lip=await WF.generateLipsync(imageUrl, audio.audioUrl, i);           // lipsync Kling
+        const rawi=await WF.saveLipsyncRaw(lip, i, tsStr, outDir);
+        const vid=await WF.renderVideo(lip, audio.wordTimings, c.keywords, audio.duration, i, c.reactions, rawi); // sous-titres LOCAL (gratuit)
+        const p=await WF.saveOpen(vid, c, tsStr, i, outDir);
+        clips.push(p);
+      }
+      const ok=clips.filter(Boolean);
+      let fp=ok[0];
+      if(ok.length>1){ fp=path.join(outDir, tsStr+'_v4r_FINAL.mp4'); WF.concatClips(ok, fp); }
+      return fp;
+    })();
+    finalP=await Promise.race([ run,
+      new Promise((_,rej)=>setTimeout(()=>rej(new Error('délai dépassé (15 min) — réessaie')), 900000)), // garde-fou : ne reste JAMAIS bloqué
+    ]);
+    if(!finalP || !fs.existsSync(finalP) || fs.statSync(finalP).size<5000){ finalP=null; throw new Error('vidéo vide'); }
+  }catch(e){ err=(e&&e.message)||String(e); finalP=null; }
+  if(finalP){
+    S.addCandidate(BASE,persona,id,ts,'video', Object.assign({}, draft, {file:finalP, simule:false, moteur:'kling+elevenlabs', script:(draft.script||topic)}));
+    const cr=(est&&est.credits!=null)?est.credits:26; // coût réel estimé (cr) — 1 test réel consommé
+    const b=BUD.record(BASE, cr);
+    jlog('[v4r] TEST RÉEL VIDÉO n°'+b.tests+'/'+b.max+' — vidéo déposée '+finalP);
+    return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
+  }
+  jlog('[v4r] génération vidéo réelle échouée : '+err);
   return {ok:false, err:err};
 }
 

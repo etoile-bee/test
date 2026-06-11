@@ -78,6 +78,18 @@ async function main() {
   chk('B : /v4r reprise -> projet courant AVEC médias (pas le vide)', sB.curImg >= 1);
   chk('B : Accueil affiche la COUVERTURE (bloc photo, pas texte)', sB.screen === 'home' && sB.type === 'photo');
 
+  // ════ K : VIDÉO branchée derrière la MÊME double-confirmation (ici SIMULÉE — LIVE OFF, zéro dépense, aucun appel Kling) ════
+  const ENG = require('../ui/engines');
+  chk('K : LIVE OFF -> liveFor(video)=false ET liveFor(photo)=false (rien n\'est armé)', ENG.liveFor('video') === false && ENG.liveFor('photo') === false);
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // une photo source existe
+  await bot.tap('R0_VIDEO'); chk('K : Vidéo (source dispo) -> menu video_params', bot.state().screen === 'video_params');
+  await bot.tap('R0_VI_GENERATE'); chk('K : « Générer » (vidéo) -> RÉCAP (confirm), pas de dépense', bot.state().screen === 'confirm');
+  const vidBefore = bot.state().curVid;
+  await bot.tap('R0_GO2'); chk('K : récap vidéo -> 2ᵉ CONFIRMATION (confirm2), toujours 0 vidéo créée', bot.state().screen === 'confirm2' && bot.state().curVid === vidBefore);
+  await bot.tap('R0_GO2_CANCEL'); chk('K : Annuler -> retour récap, aucune vidéo créée', bot.state().screen === 'confirm' && bot.state().curVid === vidBefore);
+  await bot.tap('R0_GO2'); await bot.tap('R0_GO'); chk('K : seul « Oui » crée la vidéo (simulée ici) après 2 confirmations', bot.state().curVid === vidBefore + 1);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }
