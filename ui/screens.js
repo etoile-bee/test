@@ -92,8 +92,8 @@ function videoView(facts) {
     kind: kind, caption: cap, rows: [
       [{ text: '📥 Importer source', cb: 'R0_VI_IMPORT' }, { text: '🖼 Choisir photo existante', cb: 'R0_VI_PICK' }],
       [{ text: '✨ Générer photo source', cb: 'R0_VI_GENPHOTO' }],
-      [{ text: '🎬 Créer une vidéo', cb: 'R0_VI_CREATE' }, { text: '🕘 Historique vidéo', cb: 'R0_VI_HIST' }],
-      [HOME],
+      [{ text: '🎬 Créer une vidéo', cb: 'R0_VI_CREATE' }, { text: '✂️ Édition', cb: 'R0_VE' }],
+      [{ text: '🕘 Historique vidéo', cb: 'R0_VI_HIST' }, HOME],
     ],
   };
 }
@@ -173,16 +173,17 @@ function studioView(facts, ctx) {
 }
 function studioSectionView(facts, ctx) {
   const s = (ctx && ctx.section) || { icon: '🏛', label: 'Section', count: 0, items: [], source: '' };
-  let cap = '<b>' + s.icon + ' ' + esc(s.label) + '</b> · ' + s.count + ' élément(s)\n'
-    + (s.items && s.items.length ? s.items.map(it => '• ' + esc(short(String(it), 40))).join('\n') : '<i>section présente — vide pour l\'instant</i>')
+  const items = (s.items || []).slice(0, 9);
+  let cap = '<b>' + s.icon + ' ' + esc(s.label) + '</b> · ' + s.count + ' élément(s)'
+    + (items.length ? '' : '\n<i>section présente — vide pour l\'instant</i>')
     + '\n<i>source : ' + esc(s.source || '—') + '</i>';
-  return {
-    kind: 'text', caption: cap, rows: [
-      [{ text: '➕ Ajouter', cb: 'R0_STA_add' }, { text: '✏️ Modifier', cb: 'R0_STA_edit' }, { text: '📋 Dupliquer', cb: 'R0_STA_dup' }],
-      [{ text: '🗑 Supprimer', cb: 'R0_STA_del' }, { text: '✅ Sélectionner', cb: 'R0_STA_sel' }],
-      [{ text: '◀ Retour', cb: 'R0_STUDIO' }, HOME],
-    ],
-  };
+  // GRILLE des éléments (parcours facile), puis actions de section, puis retour.
+  const rows = gridRows(items, (it, i) => ({ text: short(String(it), 14), cb: 'R0_STI_' + i }), 3).concat([
+    [{ text: '➕ Ajouter', cb: 'R0_STA_add' }, { text: '✏️ Modifier', cb: 'R0_STA_edit' }, { text: '📋 Dupliquer', cb: 'R0_STA_dup' }],
+    [{ text: '🗑 Supprimer', cb: 'R0_STA_del' }, { text: '✅ Sélectionner', cb: 'R0_STA_sel' }],
+    [{ text: '◀ Retour', cb: 'R0_STUDIO' }, HOME],
+  ]);
+  return { kind: 'text', caption: cap, rows: rows };
 }
 
 // ── ÉCRAN 6 — RÉCENTS / ARCHIVES ─────────────────────────────────────────────
@@ -197,6 +198,70 @@ function recentsView(facts, ctx) {
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }, { text: '🗑 Supprimer', cb: 'R0_RE_DEL' }]);
   rows.push([HOME]);
   return { kind: 'text', caption: cap, rows: rows };
+}
+
+// ── GRILLE générique : éléments parcourables en lignes de `cols` (galeries/looks/réf/historiques) ──
+function gridRows(items, mkBtn, cols) {
+  cols = cols || 3; const rows = [];
+  for (let i = 0; i < items.length; i += cols) rows.push(items.slice(i, i + cols).map((it, j) => mkBtn(it, i + j)));
+  return rows;
+}
+
+// ── CONFIRMATION DE DÉPENSE (Aperçu→Récap→Coût→Validation) : AVANT toute génération payante (photo ET vidéo) ──
+//   ctx.confirm = { mediaKind:'photo'|'video', est:{moteur,credits,eur,gratuit,...}, credits, regen }
+function confirmView(facts, ctx) {
+  const cf = (ctx && ctx.confirm) || {};
+  const e = cf.est || {};
+  const paid = !e.gratuit;
+  const recap = (cf.mediaKind === 'video')
+    ? ('🎬 Vidéo' + (e.duree ? ' · ' + e.duree : '') + ' · ' + (e.nb || 1) + ' plan(s)')
+    : ('📸 Photo' + ' · ' + (e.nb || 1) + ' img · ' + (e.format || '9:16'));
+  let cap = '<b>' + (paid ? '💳 Confirmer la génération' : '✅ Confirmer') + '</b>'
+    + '\n' + recap
+    + '\n⚙️ Moteur : ' + esc(e.moteur || '—')
+    + '\n' + (paid
+      ? ('🔴 <b>PAYANT</b> — ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?') + (ctx && ctx.credits != null ? ('\n🔋 Crédits restants : ' + ctx.credits) : ''))
+      : '🟢 <b>GRATUIT</b> (traitement local)')
+    + '\n\n<i>' + (paid ? 'Rien n\'est dépensé sans ton clic ci-dessous.' : 'Aucune dépense.') + '</i>';
+  return {
+    kind: C.mediaKind(facts), caption: cap, rows: [
+      [{ text: (paid ? '💲 Valider et générer' : '✅ Générer'), cb: 'R0_GO' }, { text: '✖️ Annuler', cb: 'R0_GEN_CANCEL' }],
+      [{ text: '🏠 Accueil', cb: 'R0_HOME' }],
+    ],
+  };
+}
+
+// ── GALERIE / HISTORIQUE (grille) : parcourir les médias du projet sans cul-de-sac ──
+function galleryView(facts, ctx) {
+  const kindWanted = (ctx && ctx.galleryKind) || 'image';
+  const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
+  const items = all.filter(m => (kindWanted === 'video' ? m.type === 'video' : m.type !== 'video'));
+  const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + (ctx && ctx.galleryAll ? ' (historique)' : '');
+  let cap = '<b>' + titre + '</b> · ' + items.length + ' élément(s)'
+    + (items.length ? '' : '\n<i>rien pour l\'instant — crée un média</i>');
+  const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
+  const rows = gridRows(items, (m, i) => ({ text: (m.etat === 'garde' ? '✅' : (m.etat === 'supprime' ? '🗑' : '•')) + ' ' + (i + 1), cb: 'R0_GITEM_' + i }), 4)
+    .concat([[{ text: '◀ Retour', cb: back }, HOME]]);
+  return { kind: C.hasImage(facts) || C.hasVideo(facts) ? (kindWanted === 'video' && C.hasVideo(facts) ? 'video' : 'photo') : 'text', caption: cap, rows: rows };
+}
+
+// ── VIDÉO > ÉDITION (post-production regroupée) : Script · Légendes · Sous-titres · Édition image ──
+function videoEditView(facts) {
+  const d = (facts && facts.draft && facts.draft.video) || {};
+  const subs = d.legendes || 'auto';
+  let cap = '<b>🎬 Vidéo · Édition</b> <i>(post-production)</i>'
+    + '\n📝 Script : ' + val(d.script)
+    + '\n💬 Légendes : ' + val(d.legendes)
+    + '\n🔤 Sous-titres : ' + esc(String(subs))
+    + '\n🎨 Édition image : ' + val(d.image_fx ? 'réglée' : null)
+    + '\n<i>Tout au même endroit — gratuit (local).</i>';
+  return {
+    kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
+      [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '💬 Légendes', cb: 'R0_VIB_legendes' }],
+      [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }, { text: '🎨 Édition image', cb: 'R0_VE_IMGFX' }],
+      [{ text: '◀ Vidéo', cb: 'R0_VIDEO' }, HOME],
+    ],
+  };
 }
 
 // ── BLOC SUB-VIEW générique (T1, édité en place) : valeur courante + puces/saisie + ◀ retour parent ──
@@ -227,5 +292,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
+  confirmView, galleryView, videoEditView, gridRows,
   PH_BLOCKS, VI_BLOCKS, PRESETS, esc,
 };

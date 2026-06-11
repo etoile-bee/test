@@ -61,7 +61,8 @@ tap('R0_PH_GEN'); // → photo_prompt
 tap('R0_PHB_prompt'); // → bloc prompt
 typeText('ph_prompt', 'portrait studio chaleureux'); chk('1. prompt saisi et intégré au brouillon', S.getDraft(facts(), 'photo').prompt === 'portrait studio chaleureux');
 tap('R0_SET_phlook_0'); chk('1. look choisi via puce (depuis l\'existant)', S.getDraft(facts(), 'photo').look === 'Look A');
-tap('R0_PH_GENERATE'); chk('1. ✨ Générer : on VOIT la photo (carte photo)', type === 'photo' && C.hasImage(facts()) && alive.size === 1);
+const rGen = tap('R0_PH_GENERATE'); chk('1. ✨ Générer -> CONFIRMATION de coût (AUCUNE dépense directe)', st.screen === 'confirm' && !rGen.op && !C.hasImage(facts()));
+tap('R0_GO'); chk('1. ✅ Validé : on VOIT la photo (carte photo)', type === 'photo' && C.hasImage(facts()) && alive.size === 1);
 chk('1. la photo porte le prompt + le look (matière reliée au dossier)', (C.lastImage(facts()).prompt === 'portrait studio chaleureux') && (C.lastImage(facts()).look === 'Look A'));
 tap('R0_PH_KEEP'); chk('1. ✅ Garder : photo validée, même bloc', C.lastImage(facts()).etat === 'garde' && mid !== midOpen);
 
@@ -71,7 +72,8 @@ const midPhoto2 = mid;
 tap('R0_VIDEO'); chk('2. Photo→Vidéo : photo source visible (même bloc, édité)', type === 'photo' && mid === midPhoto2);
 tap('R0_VI_PICK'); chk('2. 🖼 Choisir photo existante : source posée', S.getDraft(facts(), 'video').source === 'photo du projet');
 tap('R0_VIB_mouvement'); tap('R0_SET_vimouv_0'); chk('2. mouvement choisi', S.getDraft(facts(), 'video').mouvement === 'zoom lent');
-tap('R0_VI_GENERATE'); chk('2. 🎬 Générer vidéo : on la VOIT, MÊME message_id (swap en place)', type === 'video' && mid === midPhoto2 && C.hasVideo(facts()));
+const rVgen = tap('R0_VI_GENERATE'); chk('2. 🎬 Générer vidéo -> CONFIRMATION de coût (payant, gaté)', st.screen === 'confirm' && !rVgen.op && !C.hasVideo(facts()));
+tap('R0_GO'); chk('2. ✅ Validé : on VOIT la vidéo, MÊME message_id (swap en place)', type === 'video' && mid === midPhoto2 && C.hasVideo(facts()));
 tap('R0_VI_KEEP'); chk('2. vidéo gardée + image conservée (rien perdu)', C.lastVideo(facts()).etat === 'garde' && C.hasImage(facts()));
 tap('R0_PUB'); chk('2. → Publication (même bloc vidéo)', st.screen === 'publication' && type === 'video');
 const before = JSON.stringify(facts().publication);
@@ -84,10 +86,11 @@ curId = S.createProject(base, persona, {}, tick()).facts.projectId; // nouveau p
 st = { screen: 'home', section: null, block: null, ret: null }; paint('text', 'home(P2)');
 tap('R0_VIDEO'); chk('3. Vidéo sans média : bloc texte sobre (pas de placeholder)', type === 'text');
 tap('R0_VI_GENPHOTO'); chk('3. ✨ Générer photo source : va en Photo/Prompt + retour armé', st.screen === 'photo_prompt' && st.ret === 'video');
-tap('R0_PH_GENERATE'); // produit la photo PUIS revient AUTO à Vidéo, source posée
+tap('R0_PH_GENERATE'); chk('3. confirmation de coût avant la photo source', st.screen === 'confirm');
+tap('R0_GO'); // produit la photo PUIS revient AUTO à Vidéo, source posée
 chk('3. RETOUR AUTO à VIDÉO avec la photo comme source', st.screen === 'video' && st.ret == null && S.getDraft(facts(), 'video').source === 'photo générée');
 chk('3. la photo source est VISIBLE (carte photo)', type === 'photo' && C.hasImage(facts()));
-tap('R0_VI_CREATE'); tap('R0_VI_GENERATE'); chk('3. vidéo générée et VISIBLE (swap en place)', type === 'video' && C.hasVideo(facts()) && alive.size === 1);
+tap('R0_VI_CREATE'); tap('R0_VI_GENERATE'); tap('R0_GO'); chk('3. vidéo générée et VISIBLE (swap en place)', type === 'video' && C.hasVideo(facts()) && alive.size === 1);
 
 // ═══════════ INVARIANTS GLOBAUX ═══════════
 console.log('\n━━ Invariants globaux ━━');

@@ -123,6 +123,9 @@ function view(state, facts, ctx) {
     case 'studio': return SC.studioView(facts, ctx);
     case 'studio_section': return SC.studioSectionView(facts, ctx);
     case 'recents': return SC.recentsView(facts, ctx);
+    case 'confirm': return SC.confirmView(facts, ctx);
+    case 'gallery': return SC.galleryView(facts, ctx);
+    case 'video_edit': return SC.videoEditView(facts);
     case 'block': return SC.blockView(blockSpec(state.block, facts, ctx));
     default: return SC.homeView(facts);
   }
@@ -136,7 +139,7 @@ function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (
 //   Partagé par le câble Telegram ET la preuve de scénario -> garantit que le test exécute la VRAIE logique.
 //   op.type ∈ create|etat|draft|pub|loaddraft|statut|duplicate|openrecent|decision|none
 function reduce(action, st0, facts, ctx) {
-  const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null };
+  const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null, pending: st0.pending || null };
   const go = (screen, banner) => ({ st: Object.assign(st, { screen: screen, block: null }), banner: banner });
   const d = action;
 
@@ -169,31 +172,44 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return Object.assign(go('photo_result', '📥 <b>Photo importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import', prompt: '(importée)' } } });
-    case 'R0_PH_GAL': return { st: st, toast: '🖼 Galerie' };
-    case 'R0_PH_HIST': return { st: st, toast: '🕘 Historique' };
+    case 'R0_PH_GAL': return go('gallery');                       // galerie en GRILLE (médias visibles)
+    case 'R0_PH_HIST': st.galleryAll = true; return go('gallery');// historique en GRILLE (versions comprises)
     case 'R0_PH_PREVIEW': return { st: st, toast: '👁 Aperçu (coût nul)' };
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
-    case 'R0_PH_GENERATE':
-      if (st.ret === 'video') { st.ret = null; return Object.assign(go('video', '✨ <b>Photo créée</b> → source vidéo prête'), { op: { type: 'create', kind: 'image', useDraft: true, then: { type: 'draft', kind: 'video', patch: { source: 'photo générée' } } } }); }
-      return Object.assign(go('photo_result', '✨ <b>Image créée</b> <i>(simulée — zéro dépense)</i>'), { op: { type: 'create', kind: 'image', useDraft: true } });
+    // GÉNÉRATION PHOTO -> passe par la CONFIRMATION DE COÛT (jamais de dépense directe)
+    case 'R0_PH_GENERATE': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
+    case 'R0_PH_REGEN': st.pending = { kind: 'image', mediaKind: 'photo', regen: true }; return go('confirm');
     case 'R0_PH_KEEP': return Object.assign(go('photo_result', '✅ <b>Photo gardée</b>'), { op: { type: 'etat', which: 'lastImage', etat: 'garde' } });
     case 'R0_PH_DEL': return Object.assign(go('photo', '🗑 <b>Photo retirée</b> <i>(historique conservé)</i>'), { op: { type: 'etat', which: 'lastImage', etat: 'supprime' } });
     case 'R0_PH_EDIT': return Object.assign(go('photo_prompt'), { op: { type: 'loaddraft', kind: 'photo', which: 'lastImage' } });
-    case 'R0_PH_REGEN': return Object.assign(go('photo_result', '🔁 <b>Image régénérée</b> <i>(simulée)</i>'), { op: { type: 'create', kind: 'image', useDraft: true } });
     case 'R0_PH_TOVIDEO': return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' } } });
     // VIDÉO
     case 'R0_VI_IMPORT': return Object.assign(go('video', '📥 <b>Source importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import' }, then: { type: 'draft', kind: 'video', patch: { source: 'photo importée' } } } });
     case 'R0_VI_PICK': return Object.assign(go('video_params', '🖼 <b>Photo choisie comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' }, onlyIfImage: true } });
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_CREATE': return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' }, onlyIfImageAndNoSource: true } });
-    case 'R0_VI_HIST': return { st: st, toast: '🕘 Historique vidéo' };
+    case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; return go('gallery');
     case 'R0_VI_PREVIEW': return { st: st, toast: '👁 Aperçu vidéo (coût nul)' };
     case 'R0_VI_VALID': return { st: st, toast: '✅ Paramètres vidéo validés' };
-    case 'R0_VI_GENERATE': return Object.assign(go('video_result', '🎬 <b>Vidéo créée</b> <i>(maquette locale — zéro dépense)</i>'), { op: { type: 'create', kind: 'video', useDraft: true } });
+    // GÉNÉRATION VIDÉO -> CONFIRMATION DE COÛT (payant : Anthropic+ElevenLabs+Kling)
+    case 'R0_VI_GENERATE': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');
+    case 'R0_VI_REGEN': st.pending = { kind: 'video', mediaKind: 'video', regen: true }; return go('confirm');
     case 'R0_VI_KEEP': return Object.assign(go('video_result', '✅ <b>Vidéo gardée</b>'), { op: { type: 'etat', which: 'lastVideo', etat: 'garde' } });
     case 'R0_VI_DEL': return Object.assign(go('video', '🗑 <b>Vidéo retirée</b> <i>(historique conservé)</i>'), { op: { type: 'etat', which: 'lastVideo', etat: 'supprime' } });
     case 'R0_VI_EDIT': return Object.assign(go('video_params'), { op: { type: 'loaddraft', kind: 'video', which: 'lastVideo' } });
-    case 'R0_VI_REGEN': return Object.assign(go('video_result', '🔁 <b>Vidéo régénérée</b> <i>(maquette locale)</i>'), { op: { type: 'create', kind: 'video', useDraft: true } });
+    // VIDÉO > ÉDITION (post-production regroupée, gratuit/local)
+    case 'R0_VE': return go('video_edit');
+    case 'R0_VE_SUBS': return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: 'legendes' } }) };
+    case 'R0_VE_IMGFX': return Object.assign({ st: st, toast: '🎨 Édition image (local, gratuit)' }, { op: { type: 'draft', kind: 'video', patch: { image_fx: 'réglée' } } });
+    // CONFIRMATION DE DÉPENSE
+    case 'R0_GO': {
+      const p = st.pending || { kind: 'image' }; st.pending = null;
+      if (p.kind === 'video') return Object.assign(go('video_result', '🎬 <b>Vidéo générée</b>'), { op: { type: 'create', kind: 'video', useDraft: true } });
+      if (st.ret === 'video') { st.ret = null; return Object.assign(go('video', '✨ <b>Photo créée</b> → source vidéo prête'), { op: { type: 'create', kind: 'image', useDraft: true, then: { type: 'draft', kind: 'video', patch: { source: 'photo générée' } } } }); }
+      return Object.assign(go('photo_result', '✨ <b>Photo générée</b>'), { op: { type: 'create', kind: 'image', useDraft: true } });
+    }
+    case 'R0_GEN_CANCEL': { const p = st.pending || {}; st.pending = null; return go(p.kind === 'video' ? 'video_params' : 'photo_prompt', '✖️ Annulé — aucune dépense'); }
+    case 'R0_GITEM': return { st: st, toast: 'média' };
     // PUBLICATION (gatée)
     case 'R0_PUB_EDIT': return { st: Object.assign(st, { screen: 'block', block: { screen: 'pub', key: 'legende' } }) };
     case 'R0_PUB_SAVE': return Object.assign({ st: st, toast: '💾 Brouillon sauvegardé au dossier' }, { op: { type: 'statut', statut: 'brouillon' } });

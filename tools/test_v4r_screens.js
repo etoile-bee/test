@@ -81,10 +81,32 @@ let st = { screen: 'home' };
 chk('reduce : R0_VIDEO -> video', NAV.reduce('R0_VIDEO', st, f0, ctx).st.screen === 'video');
 let r = NAV.reduce('R0_VI_GENPHOTO', { screen: 'video' }, f0, ctx);
 chk('reduce : R0_VI_GENPHOTO -> photo_prompt + ret=video (retour armé)', r.st.screen === 'photo_prompt' && r.st.ret === 'video');
-let r2 = NAV.reduce('R0_PH_GENERATE', { screen: 'photo_prompt', ret: 'video' }, f0, ctx);
-chk('reduce : R0_PH_GENERATE (ret=video) -> retour AUTO video + op crée image + source', r2.st.screen === 'video' && r2.st.ret == null && r2.op && r2.op.then);
+chk('reduce : R0_VI_GENPHOTO -> confirmation puis R0_GO (ret=video) -> retour AUTO video + op crée image + source', (() => {
+  const c = NAV.reduce('R0_PH_GENERATE', { screen: 'photo_prompt', ret: 'video' }, f0, ctx); // -> confirm, ret préservé
+  const g = NAV.reduce('R0_GO', c.st, f0, ctx); // valide -> auto video + op image + then(source)
+  return c.st.screen === 'confirm' && g.st.screen === 'video' && g.st.ret == null && g.op && g.op.then;
+})());
 chk('reduce : R0_PUB_DO -> publication + op decision (GATÉ, pas de publish)', (() => { const x = NAV.reduce('R0_PUB_DO', { screen: 'publication' }, fvid, ctx); return x.st.screen === 'publication' && x.op.type === 'decision'; })());
 chk('reduce : suppression = op etat supprime (DOUX, pas de hard delete)', NAV.reduce('R0_PH_DEL', { screen: 'photo_result' }, fimg, ctx).op.etat === 'supprime');
+
+// ── COST GATE : génération -> confirmation AVANT dépense (jamais d'op directe) ──
+const COST = require('../ui/cockpit_cost'); const ENG = require('../ui/engines');
+chk('gate : R0_PH_GENERATE -> écran confirm, AUCUNE op (aucune dépense directe)', (() => { const r = NAV.reduce('R0_PH_GENERATE', { screen: 'photo_prompt' }, fimg, ctx); return r.st.screen === 'confirm' && !r.op && r.st.pending; })());
+chk('gate : R0_VI_GENERATE -> écran confirm, AUCUNE op', (() => { const r = NAV.reduce('R0_VI_GENERATE', { screen: 'video_params' }, fimg, ctx); return r.st.screen === 'confirm' && !r.op; })());
+chk('gate : R0_GO -> op create (la seule porte de dépense, après confirmation)', (() => { const r = NAV.reduce('R0_GO', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.op && r.op.type === 'create'; })());
+chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.reduce('R0_GEN_CANCEL', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.st.screen === 'photo_prompt' && !r.op; })());
+const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
+const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, credits: 500 } });
+chk('confirm : affiche PAYANT + moteur + coût + 💲Valider / ✖️Annuler', /PAYANT/.test(cv.caption) && /Seedream/.test(cv.caption) && has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
+chk('confirm : éco bien marqué PAYANT (gratuit=false)', estP.gratuit === false);
+// ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
+chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() === false && ENG.mode('photo').exec === 'sim' && ENG.mode('soustitres').exec === 'local' && ENG.mode('photo').paid === true && ENG.mode('soustitres').paid === false);
+// ── GRILLE : galerie + section Studio en grille ; Vidéo>Édition regroupe la post-prod ──
+const gal = SC.galleryView(fvid, { galleryKind: 'image' });
+chk('galerie : grille (pas de cul-de-sac : ◀ + 🏠)', has(gal, 'R0_PHOTO') && has(gal, 'R0_HOME'));
+const ve = SC.videoEditView(fvid);
+chk('Vidéo>Édition : Script+Légendes+Sous-titres+Édition image regroupés', ['R0_VIB_script', 'R0_VIB_legendes', 'R0_VE_SUBS', 'R0_VE_IMGFX'].every(c => has(ve, c)) && has(ve, 'R0_VIDEO'));
+chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)', has(SC.videoView(fimg), 'R0_VE'));
 
 // sobriété : aucun jargon dev visible
 const allcap = [home].concat(nonHome).map(v => v.caption).join(' ').toLowerCase();
