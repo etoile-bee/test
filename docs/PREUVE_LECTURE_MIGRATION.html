@@ -1,0 +1,57 @@
+<!doctype html><meta charset=utf-8><title>Preuve lecture migration</title><style>body{font-family:-apple-system,sans-serif;max-width:1100px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.4em}</style>
+<h1>Preuve de lecture migration — 4 niveaux par lecteur (avant/après) + convergence globale</h1>
+
+<blockquote><b>Read-only. Aucune écriture/copie/suppression.</b> Chiffres simulés sur la VRAIE base (<code>tools/preuve_lecture_finale.js</code>).</blockquote>
+<blockquote>4 niveaux : <b>Trouvé physique</b> (fichiers disque) ≥ <b>Lisible</b> (le lecteur sait le lire) ≥ <b>Affichable</b> (passe filtres : dédup/raw/sim/taille) = <b>Affiché</b> (avec pagination : plus de plafond à 9).</blockquote>
+<blockquote>Décisions Etoile (provisoires) appliquées : projectId brut · <code>podcast-looks/projets/&lt;persona&gt;/&lt;projet&gt;</code> · vidéos legacy laissées dans podcast-outputs · <b>copie physique</b>.</blockquote>
+
+<h2>Tableau par lecteur</h2>
+
+<table><thead><tr><th>Lecteur</th><th>Sources lues</th><th>Trouvé physique</th><th>Lisible</th><th>Affichable</th><th>Affiché (paginé)</th><th>Raison des écarts</th><th>Statut</th></tr></thead><tbody>
+<tr><td><b>Galerie AVANT</b></td><td>projects_r/*/photo_* · outputs/generations · looks <b>gen_</b>*</td><td>168</td><td>100</td><td>100</td><td><b>100</b></td><td>trouvé→lisible : <code>looks</code> limité à <code>gen_*</code> (patrimoine <code>IMG_*</code> NON lu = invisible) ; lisible→affichable : dédup basename + taille&gt;1 Ko ; affichable=affiché (pagination)</td><td>🟡 patrimoine invisible</td></tr>
+<tr><td><b>Galerie APRÈS</b></td><td>+ <b>looks (TOUTES images)</b> + <b>podcast-looks/projets/</b>/Photos**</td><td>168</td><td><b>162</b></td><td><b>162</b></td><td><b>162</b></td><td><code>looks</code> élargi → +62 images patrimoine deviennent lisibles ; dédup ; pagination atteint tout</td><td>✅</td></tr>
+<tr><td><b>Historique vidéo AVANT</b></td><td>outputs/*.mp4 · outputs/generations/** · projects_r/*/*.mp4</td><td>514</td><td>211</td><td>117</td><td><b>117</b></td><td>lisible = extension vidéo ; <b>86 raws</b> (<code>_raw_</code>) filtrés (intermédiaires) + ~8 doublons → 117</td><td>✅</td></tr>
+<tr><td><b>Historique vidéo APRÈS</b></td><td>+ <b>podcast-looks/projets/</b>/Vidéos**</td><td>514</td><td>211</td><td>117</td><td><b>117</b></td><td>identique (0 vidéo v4r aujourd'hui ; legacy 117 intactes)</td><td>✅ 117=117</td></tr>
+<tr><td><b>Récents</b></td><td>projects_r/&lt;persona&gt;/* (base vivante)</td><td>112</td><td>112</td><td>112</td><td><b>112</b> (paginé)</td><td>base = source de vérité ; pagination 13 pages</td><td>✅</td></tr>
+<tr><td><b>Archives</b></td><td>projects_r (statut archivé)</td><td>1</td><td>1</td><td>1</td><td><b>1</b></td><td>—</td><td>✅</td></tr>
+<tr><td><b>Recherche projet</b></td><td>projects_r (id/nom) + dossier podcast-looks/projets/&lt;id&gt;</td><td>112</td><td>112</td><td>112</td><td><b>112</b></td><td>—</td><td>✅</td></tr>
+<tr><td><b>Fichiers du projet</b></td><td>médias du projet courant + (après) podcast-looks/projets/&lt;id&gt;/**</td><td>par projet</td><td>=</td><td>=</td><td>=</td><td>per-projet : tous ses fichiers copiés physiquement (autonome)</td><td>✅ après copie</td></tr>
+</tbody></table>
+
+<p><b>Avant ≤ après pour CHAQUE lecteur</b> : Galerie 100 → <b>162</b> (+62) ; Vidéo 117 = <b>117</b> ; Récents/Archives/Recherche inchangés (base). → <b>aucun média perdu, aucun rendu invisible</b> ; gain net de visibilité (+62 patrimoine).</p>
+
+<h2>Pagination : « Affiché » = « Affichable » (plus de plafond 9)</h2>
+<p>La pagination (◀ Précédent / Suivant ▶) rend <b>tout</b> atteignable : les <b>162</b> images, les <b>117</b> vidéos, les <b>112</b> projets sont accessibles page par page (≈ 18 pages images, 13 pages vidéos, 13 pages projets). Aucun élément bloqué au-delà de la 9ᵉ vignette.</p>
+
+<h2>Les 318 médias inter-projets → copie physique par projet</h2>
+<p>Sur 619 références réelles : <b>own 14 · cross 318 · externe 287</b>. Beaucoup pointent un fichier hébergé dans un AUTRE projet (réutilisation galerie). <b>Règle</b> : on suit <code>media.file</code> jusqu'au fichier réel et on le <b>copie physiquement</b> dans <code>podcast-looks/projets/&lt;persona&gt;/&lt;projet-utilisateur&gt;/Photos|Vidéos</code>. → chaque projet est <b>autonome</b> (aucune dépendance à un autre).</p>
+<p><b>Total de copies physiques (dédup par projet) : 279.</b> Une source réutilisée par N projets est dupliquée N fois (duplication assumée pour la durabilité). 0 fichier manquant.</p>
+
+<h2>Résultat global + CONVERGENCE (écarts expliqués)</h2>
+
+<table><thead><tr><th>Indicateur</th><th>Valeur</th><th>Note</th></tr></thead><tbody>
+<tr><td>Projets (base vivante)</td><td><b>112</b> (23 avec média)</td><td>source de vérité</td></tr>
+<tr><td>Photos — références (base)</td><td><b>618</b></td><td>beaucoup réfèrent le même fichier (choix galerie)</td></tr>
+<tr><td>Photos — distinct visible (galerie)</td><td><b>162</b></td><td>dédup par nom → écart 618 vs 162 = doublons de référence (expliqué)</td></tr>
+<tr><td>Photos — copies physiques (archive)</td><td><b>279</b></td><td>dédup PAR projet, duplication inter-projets (expliqué)</td></tr>
+<tr><td>Vidéos visibles (historique)</td><td><b>117</b></td><td>legacy iCloud (86 raws exclus)</td></tr>
+<tr><td>Scripts (projets)</td><td><b>2</b></td><td><code>draft.video.script</code></td></tr>
+<tr><td>Références</td><td><b>1</b></td><td><code>imany_reference</code></td></tr>
+<tr><td>Fichiers VISIBLES cockpit</td><td><b>162 img + 117 vid + 112 projets</b></td><td>tout atteignable par pagination</td></tr>
+</tbody></table>
+
+<p><b>Chaîne de convergence</b> : base vivante (112 projets / 618 refs) → podcast-looks (279 copies physiques, par projet) → galerie (162 distinct) → historique (117 vidéos) → Telegram (rendus persistants par génération). Les écarts 618↔162↔279 sont <b>uniquement</b> des effets de <b>déduplication</b> (galerie : par nom ; archive : par projet) et de <b>références partagées</b> — <b>aucun fichier perdu</b> (0 manquant à tous les niveaux).</p>
+
+<h2>VERDICT (par ligne ci-dessus + global)</h2>
+<li>Aucun média perdu : ✅ (trouvé après ≥ avant partout)</li>
+<li>Aucun média invisible : ✅ (+62 patrimoine rendu visible ; pagination atteint tout)</li>
+<li>Vidéos legacy intactes : ✅ (<b>117 = 117</b>)</li>
+<li>Pagination complète : ✅ (affiché = affichable)</li>
+<li>Regroupement par projet : ✅ (copie physique par projet, autonome)</li>
+<li>318 inter-projets rattachés : ✅ (<b>279 copies physiques</b>, chaque projet utilisateur a la sienne)</li>
+<li><b>GLOBAL : ✅ migration sécurisée</b> — chiffres convergents, écarts expliqués (dédup/refs partagées/raws), zéro perte.</li>
+
+<blockquote>⚠️ Le seul point qui exige la migration pour passer à ✅ : <b>Galerie « patrimoine <code>IMG_*</code> »</b> (aujourd'hui 🟡 invisible car <code>looks</code> lit <code>gen_*</code>). L'élargissement du glob (partie de la migration, même mécanisme) le résout → +62 visibles. Tout le reste est déjà ✅ aujourd'hui.</blockquote>
+
+<p><b>Rien n'est copié/écrit. En attente du GO d'Etoile sur ce tableau.</b></p>
+
