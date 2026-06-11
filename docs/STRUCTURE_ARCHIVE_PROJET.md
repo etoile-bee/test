@@ -131,6 +131,58 @@ La copie rétroactive des médias EXISTANTS utilisera **exactement le même code
 
 Test **statique** (n'écrit rien) ajouté à la batterie : il ÉCHOUE si la chaîne se casse silencieusement. Il vérifie : `r0CloudCopy` cible `getLooksDir()` (= podcast-looks) et **pas** `outputs/generations` ; range par projet ; est branché sur photo **et** vidéo ; gardé `!R0DRY` ; la galerie images agrège (projets_r + generations + looks) ; l'historique vidéo agrège (outputs + generations + projects_r, raws exclus) ; le symlink `looks/` pointe `…/podcast-looks`. **Résultat actuel : 14/14 ✅.** → une future correction qui dévie la cible cloud ou casse un lecteur **fera échouer ce test** (donc bloquée avant déploiement). À intégrer aussi à la cartographie de pré-déploiement.
 
+## 11. PROPOSITION FINALE — 5 sections explicites
+
+### 11.1 ARBORESCENCE
+`…/podcast-looks/projets/<persona>/<projectId>/` avec : `Photos/ Vidéos/ Références/ Looks/ Scripts/ Légendes/ Prompts/ Audio/ Sous-titres/ Exports finaux/` + `projet.json` + `RECAP.txt` + `facts.snapshot.json` (cf. §2).
+
+### 11.2 MANIFESTE `projet.json` — champs EXACTS
+`projectId` · `persona` · `titre` · `cree_le` · `modifie_le` · `statut` · `intention{cap,objectif,public}` · `regeneration{prompt(complet), tenue, decor, reference, format, duree, voix, sous_titres{actif,police,taille,position}, moteurs{photo,video}}` · `decisions[]` · `publication{legende_courte,legende_longue,hashtags,plateforme}` · `fichiers{photos[],videos[],scripts[],prompts[],legendes[],references[],audio[],soustitres[],exports[]}` · `archive{genere_le, version_schema:1}`.
+
+### 11.3 STRATÉGIE DE STOCKAGE
+- 1 dossier par projet, autonome. **Copie PHYSIQUE** des fichiers (pas de raccourci) → le dossier survit même si `projects_r` disparaît.
+- On suit toujours le `media.file` RÉEL (cf. §12) → le bon fichier est rattaché au bon projet.
+- Textes (prompt/script/légendes/sous-titres) écrits en `.txt` lisibles ; paramètres dans `projet.json`.
+
+### 11.4 STRATÉGIE DE SYNCHRONISATION (podcast-looks toujours à jour)
+- **À chaque génération réelle** : `r0CloudCopy` (média) + `r0ArchiveProjet` (textes + manifeste) écrivent dans le dossier projet — MÊME code que le rétroactif (§6).
+- **iCloud auto-sync** : `podcast-looks` est dans `com~apple~CloudDocs` → macOS synchronise tout seul vers le cloud + l'app Fichiers (iPhone). Aucun connecteur.
+- **Garde-fou permanent** : `tools/test_v4r_cloud_chain.js` (14/14) échoue si la cible/lecture dévie (§10).
+
+### 11.5 STRATÉGIE DE RÉCUPÉRATION (reconstruire depuis le seul dossier)
+Si la base (`facts.json`) est perdue : le dossier projet suffit. `projet.json.regeneration` rejoue le rendu (prompt complet + tenue + décor + référence + durée + format + moteurs) ; `facts.snapshot.json` réimporte l'état brut dans la base ; les `Photos/Vidéos/Exports finaux` fournissent les livrables ; `RECAP.txt` donne la lecture humaine. → **projet compréhensible et reconstructible** sans la base.
+
+## 12. AUDIT médias inter-projets (vraie base, read-only) + RÈGLE D'ATTRIBUTION
+
+**Audit (619 médias réels, fichier présent) :**
+| Catégorie | Compte |
+|---|---|
+| Dans LEUR propre projet | 14 |
+| Pointant un AUTRE projet (choix galerie) | **318** |
+| Hors `projects_r` (looks/outputs/import) | **287** |
+| Fichier manquant | **0** ✅ |
+
+Constat : la majorité des références **ne vivent pas dans le dossier du projet** qui les utilise (réutilisation de quelques sources via la galerie). **0 fichier manquant** → tout est copiable.
+
+**RÈGLE D'ATTRIBUTION (à appliquer à l'archivage) :** pour chaque média d'un projet, **résoudre `media.file` jusqu'au fichier réel** puis le **COPIER PHYSIQUEMENT** dans `…/<projectId>/Photos/` (ou `Vidéos/`) du **projet qui l'utilise**. Conséquences :
+- chaque dossier projet est **autonome** et contient ses propres fichiers → **aucun fichier manquant, aucune mauvaise attribution**.
+- une même source réutilisée par N projets sera **dupliquée** dans N dossiers (coût disque accepté pour la durabilité — c'est le prix de l'autonomie). *(Option alternative possible : un dossier `_sources/` partagé + manifeste qui référence — mais ça casse l'autonomie ; non recommandé.)*
+- on **n'écrit jamais** dans le projet source ni dans `projects_r` (lecture seule de la base ; écriture uniquement dans `podcast-looks`).
+
+## 13. STATUT DE CÂBLAGE PAR TYPE (chaîne génération→local→podcast-looks→galerie→historique→Telegram)
+
+| Type | Atterrit (arbo) | Câblage chaîne | Manque si partiel |
+|---|---|---|---|
+| Photos | `Photos/` | ✅ média câblé (r0CloudCopy) ; galerie+Telegram OK | manifeste/textes via r0ArchiveProjet (🟡) |
+| Vidéos | `Vidéos/` | ✅ média câblé ; historique vidéo lu ; Telegram OK | idem manifeste (🟡) |
+| Scripts | `Scripts/script.txt` | 🟡 | écriture fichier + manifeste à coder (r0ArchiveProjet) |
+| Légendes | `Légendes/legendes.txt` | 🟡 | écriture fichier + manifeste à coder |
+| Prompts | `Prompts/prompt.txt` | 🟡 | écriture fichier + manifeste à coder |
+| Références | `Références/` | 🟡 | copie du fichier référence + manifeste à coder |
+| Exports finaux | `Exports finaux/` | 🟡 | copie sur passage en état « garde » à coder |
+
+**Honnête** : seuls **Photos & Vidéos** ont la copie média câblée aujourd'hui (`r0CloudCopy`). Les **textes + références + exports + manifeste** = `r0ArchiveProjet` **à coder** (≈30–40 lignes, même mécanisme, après validation). Aucun type n'est « cassé » — les 🟡 sont **non encore câblés**, pas défaillants.
+
 ## Décisions attendues d'Etoile avant toute écriture
 1. Nom de dossier : **(A) projectId brut** [recommandé] ou (B) `date_slug` ?
 2. Sous-racine `podcast-looks/projets/<persona>/` OK, ou `podcast-looks/<projet>/` à plat ?
