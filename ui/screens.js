@@ -90,10 +90,11 @@ function photoPromptView(facts, ctx) {
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
   }
+  // Ordre par étape : PRÉPARATION (blocs) → VALIDATION → PRODUCTION → NAVIGATION (Retour ; pas d'Accueil en plein flux).
   const rows = blockRows.concat([
-    [{ text: '◀ Retour', cb: 'R0_PHOTO' }, { text: '❌ Annuler', cb: 'R0_PH_CANCEL' }],
-    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }, { text: '✅ Valider', cb: 'R0_PH_VALID' }],
-    [{ text: '✨ Générer', cb: 'R0_PH_GENERATE' }, HOME],
+    [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }, { text: '✅ Valider', cb: 'R0_PH_VALID' }],   // VALIDATION
+    [{ text: '✨ Générer', cb: 'R0_PH_GENERATE' }],                                              // PRODUCTION (= Suivant)
+    [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION (Accueil réservé aux sorties)
   ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
 }
@@ -151,10 +152,11 @@ function videoParamsView(facts) {
   for (let i = 0; i < VI_BLOCKS.length; i += 2) {
     blockRows.push(VI_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
   }
+  // Ordre par étape : PRÉPARATION (blocs) → VALIDATION → PRODUCTION → NAVIGATION (Retour ; Accueil réservé aux sorties).
   const rows = blockRows.concat([
-    [{ text: '◀ Retour', cb: 'R0_VIDEO' }, { text: '❌ Annuler', cb: 'R0_VI_CANCEL' }],
-    [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],
-    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }, HOME],
+    [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }, { text: '✅ Valider', cb: 'R0_VI_VALID' }],   // VALIDATION
+    [{ text: '🎬 Générer', cb: 'R0_VI_GENERATE' }],                                              // PRODUCTION (= Suivant)
+    [{ text: '◀ Retour', cb: 'R0_VIDEO' }],                                                      // NAVIGATION
   ]);
   return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
 }
@@ -292,10 +294,10 @@ function confirmView(facts, ctx) {
   } else {
     cap += '\n🟢 Traitement local — aucune dépense.';
   }
+  // En plein flux : PRODUCTION (Générer) + NAVIGATION (Retour). Pas d'Accueil ici (évite une sortie accidentelle).
   const rows = blocked
-    ? [[{ text: '⛔ Budget épuisé', cb: 'R0_GEN_CANCEL' }], [{ text: '🏠 Accueil', cb: 'R0_HOME' }]]
-    : [[{ text: (paid && live ? gen + ' (test n°' + b.next + ')' : gen), cb: 'R0_GO' }, { text: '◀ Revenir', cb: 'R0_GEN_CANCEL' }],
-       [{ text: '🏠 Accueil', cb: 'R0_HOME' }]];
+    ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]]
+    : [[{ text: (paid && live ? gen + ' (test n°' + b.next + ')' : gen), cb: 'R0_GO' }], [{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -325,9 +327,10 @@ function videoEditView(facts) {
     + '\n<i>Tout au même endroit — gratuit (local).</i>';
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
-      [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '💬 Légendes', cb: 'R0_VIB_legendes' }],
-      [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }, { text: '🎨 Image', cb: 'R0_VE_IMGFX' }],
-      [{ text: '◀ Vidéo', cb: 'R0_VIDEO' }, HOME],
+      [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '🎤 Voix', cb: 'R0_VIB_voix' }],
+      [{ text: '💬 Légendes', cb: 'R0_VIB_legendes' }, { text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],
+      [{ text: '🎨 Image', cb: 'R0_VE_IMGFX' }],
+      [{ text: '◀ Vidéo', cb: 'R0_VIDEO' }],
     ],
   };
 }

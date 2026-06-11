@@ -30,7 +30,7 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
 chk('Photo/Prompt : 6 blocs (Prompt/Avatar/Look/Décor/Références/Paramètres)', ['R0_PHB_prompt', 'R0_PHB_avatar', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_refs', 'R0_PHB_params'].every(c => has(php, c)));
-chk('Photo/Prompt : ◀Retour ❌Annuler 👁Aperçu ✅Valider ✨Générer 🏠', ['R0_PHOTO', 'R0_PH_CANCEL', 'R0_PH_PREVIEW', 'R0_PH_VALID', 'R0_PH_GENERATE', 'R0_HOME'].every(c => has(php, c)));
+chk('Photo/Prompt : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_PHOTO', 'R0_PH_PREVIEW', 'R0_PH_VALID', 'R0_PH_GENERATE'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──
 const phr = SC.photoResultView(fimg);
@@ -45,7 +45,7 @@ chk('Vidéo : kind = vidéo si vidéo, sinon photo source, sinon texte', viv.kin
 // ── ÉCRAN 3.1 VIDÉO/PARAMÈTRES : 7 blocs + commandes ──
 const vip = SC.videoParamsView(fimg);
 chk('Vidéo/Paramètres : 7 blocs (source/mouvement/script/voix/musique/légendes/params)', ['R0_VIB_source', 'R0_VIB_mouvement', 'R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VIB_legendes', 'R0_VIB_params'].every(c => has(vip, c)));
-chk('Vidéo/Paramètres : ◀ ❌ 👁 ✅ 🎬Générer 🏠', ['R0_VIDEO', 'R0_VI_CANCEL', 'R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE', 'R0_HOME'].every(c => has(vip, c)));
+chk('Vidéo/Paramètres : VALIDATION→PRODUCTION→Retour (Aperçu/Valider/Générer/Retour, PAS d\'Accueil en flux)', ['R0_VIDEO', 'R0_VI_PREVIEW', 'R0_VI_VALID', 'R0_VI_GENERATE'].every(c => has(vip, c)) && !has(vip, 'R0_HOME'));
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
 const vir = SC.videoResultView(fvid);
@@ -67,11 +67,14 @@ chk('Studio/Section : ➕✏️📋🗑✅ + ◀ 🏠', ['R0_STA_add', 'R0_STA_e
 const rec = SC.recentsView(f0, ctx);
 chk('Récents : ▶Ouvrir(0) 📋Dup 📦Arch 🗑Suppr 🏠', has(rec, 'R0_RE_OPEN_0') && ['R0_RE_DUP', 'R0_RE_ARCH', 'R0_RE_DEL', 'R0_HOME'].every(c => has(rec, c)));
 
-// ── COMMANDES GLOBALES : 🏠 = R0_HOME PARTOUT (sauf l'Accueil lui-même), aucun écran orphelin ──
-const nonHome = [ph0, php, phr, vi0, vip, vir, pub, studio, sect, rec]; // l'Accueil EST la maison (4 portes, pas de 🏠)
-chk('Global : 🏠 Accueil présent et = R0_HOME sur tous les écrans non-Accueil', nonHome.every(v => has(v, 'R0_HOME')));
+// ── COMMANDES GLOBALES (point 6) : Accueil RÉSERVÉ aux écrans non-flux ; les flux ont Retour, pas Accueil ──
+const sortie = [phr, vir, pub, studio, sect, rec]; // écrans de SORTIE/non-flux : gardent 🏠 Accueil
+const _estCv = { moteur: 'Seedream', credits: 1, eur: 0.058, gratuit: false };
+const flux = [php, vip, SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } }), SC.videoEditView(fvid)]; // EN COURS : Retour, pas d'Accueil
+chk('Global : 🏠 Accueil présent sur les écrans de SORTIE/non-flux', sortie.every(v => has(v, 'R0_HOME')));
+chk('point6 : écrans EN FLUX -> Retour, PAS d\'Accueil (sortie non accidentelle)', flux.every(v => !has(v, 'R0_HOME') && cbs(v).some(c => /R0_(PHOTO|VIDEO|GEN_CANCEL)$/.test(c))));
 chk('Global : Accueil = racine (4 portes, pas de 🏠 vers soi-même)', !has(home, 'R0_HOME') && has(home, 'R0_PHOTO'));
-chk('Global : AUCUN écran orphelin (toujours un retour ◀/🏠)', nonHome.every(v => has(v, 'R0_HOME') || cbs(v).some(c => /R0_(PHOTO|VIDEO|STUDIO|VI_RESULT)$/.test(c))));
+chk('Global : AUCUN écran orphelin (toujours un retour ◀/🏠)', sortie.concat(flux).every(v => has(v, 'R0_HOME') || cbs(v).some(c => /R0_(PHOTO|VIDEO|STUDIO|VI_RESULT|GEN_CANCEL)$/.test(c))));
 // les libellés 🏠 portent tous le même texte
 const homeBtns = flat(phr).concat(flat(vir)).filter(b => b.cb === 'R0_HOME');
 chk('Global : libellé 🏠 constant', homeBtns.every(b => b.text === '🏠 Accueil'));
@@ -169,7 +172,7 @@ chk('no-orphan : gallery/photo_source/video_edit/quit ont tous un retour', (() =
 })());
 
 // sobriété : aucun jargon dev visible
-const allcap = [home].concat(nonHome).map(v => v.caption).join(' ').toLowerCase();
+const allcap = [home].concat(sortie).concat(flux).map(v => v.caption).join(' ').toLowerCase();
 chk('sobriété : aucun jargon dev', !/(socle|dérivation|placeholder|message_id|reducer|ffmpeg|callback)/.test(allcap));
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
