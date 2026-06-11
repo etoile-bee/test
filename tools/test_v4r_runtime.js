@@ -169,6 +169,19 @@ async function main() {
   await bot.tap('R0_PH_PREVIEW');
   chk('texte entier : l\'aperçu propose 📄 Texte complet', bot.buttons().includes('R0_FULLTEXT_prompt'));
 
+  // ════ PERSISTANCE RÉELLE : générer → /menu → /restart → la génération/le projet/le média sont TOUJOURS là ════
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  const before = { curImg: bot.state().curImg, renders: bot.state().renders, mid: bot.state().mid };
+  chk('PERSIST : après génération -> média + rendu présents', before.curImg >= 1 && before.renders >= 1);
+  await bot.menu();    // /menu (legacy) ne doit RIEN effacer
+  chk('PERSIST : après /menu -> média + rendus TOUJOURS là', bot.state().curImg >= 1 && bot.state().renders === before.renders);
+  await bot.restart(); // /restart rejoue le vrai chemin -> reprend le projet AVEC médias, rendus conservés
+  const after = bot.state();
+  chk('PERSIST : après /restart -> projet restauré AVEC média (curImg ≥ 1)', after.curImg >= 1);
+  chk('PERSIST : après /restart -> rendus persistants TOUJOURS dans le fil (jamais supprimés)', after.renders === before.renders);
+  chk('PERSIST : après /restart -> 1 seul cockpit (pas d\'empilement)', after.cockpit === 1);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

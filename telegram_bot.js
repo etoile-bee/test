@@ -2633,6 +2633,12 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
   if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
+// [CLOUD] Reconnexion au mécanisme iCloud EXISTANT (outputs = symlink iCloud) : copie le rendu final dans outputs/generations
+//   -> resync auto iCloud + visible dans l'app Fichiers + remonte dans la galerie globale. AUCUN nouveau connecteur. Pas en dry-run.
+function r0CloudCopy(file){ try{ if(!file || (typeof R0DRY!=='undefined'&&R0DRY)) return null;
+  const dir=path.join(BASE,'outputs','generations'); fs.mkdirSync(dir,{recursive:true});
+  const dest=path.join(dir,'v4r_'+path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
+  jlog('[v4r] rendu copié vers iCloud: '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
 let _r0Vid=null;
@@ -2663,6 +2669,21 @@ function r0RealImages(persona, max){
   try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(/^photo_.*\.(jpg|jpeg|png)$/i.test(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
   try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(g,x)); }catch(e){}
   try{ const ld=fs.realpathSync(path.join(BASE,'looks')); for(const x of fs.readdirSync(ld)) if(/^gen_.*\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ld,x)); }catch(e){}
+  out.sort((a,b)=>b.m-a.m);
+  return out.slice(0,max).map(o=>o.p);
+}
+// [VIDÉOS — lecture de l'EXISTANT] agrège les VRAIES vidéos de TOUS les emplacements, le plus récent d'abord. Lecture seule.
+//   Corrige le « 0 vidéo » : avant, rien ne scannait les .mp4 (ni outputs racine iCloud, ni projects_r, ni generations).
+function r0RealVideos(persona, max){
+  max=max||9; const out=[]; const seen={};
+  const add=(p)=>{ try{ if(p&&fs.existsSync(p)&&fs.statSync(p).size>5000){ const k=path.basename(p); if(!seen[k]){ seen[k]=1; out.push({p:p,m:fs.statSync(p).mtimeMs}); } } }catch(e){} };
+  const isV=x=>/\.(mp4|mov|m4v|webm)$/i.test(x) && !/_raw_|_raw\./i.test(x); // on exclut les raws bruts intermédiaires
+  // 1) vidéos finales legacy (outputs/ racine = iCloud) — les 199
+  try{ const o=path.join(BASE,'outputs'); for(const x of fs.readdirSync(o)) if(isV(x)) add(path.join(o,x)); }catch(e){}
+  // 2) générations (outputs/generations + sous-dossiers de génération)
+  try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)){ const fp=path.join(g,x); try{ if(fs.statSync(fp).isDirectory()){ for(const y of fs.readdirSync(fp)) if(isV(y)) add(path.join(fp,y)); } else if(isV(x)) add(fp); }catch(e){} } }catch(e){}
+  // 3) vidéos v4r dans les projets
+  try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(isV(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
@@ -2730,7 +2751,12 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
-  if(r0Screen==='gallery' && r0GalKind!=='video'){ const allImg=r0RealImages(persona,9999); ctx.galleryFiles=allImg.slice(0,9); ctx.galleryTotal=allImg.length; } // [DATA] compteur = VRAI total ; affichage = 9 vignettes
+  // [GALERIE — comportement unique + compteur EXACT] projet = médias du projet ; global (historique) = TOUT. Le total = la liste affichée.
+  if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
+    if(r0GalKind==='video'){ const projV=(C.visibles(f)||[]).filter(m=>m.type==='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+      const list=r0GalAll? r0RealVideos(persona,9999) : projV; ctx.galleryFiles=list.slice(0,9); ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; }
+    else { const projI=(C.visibles(f)||[]).filter(m=>m.type!=='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+      const list=r0GalAll? r0RealImages(persona,9999) : projI; ctx.galleryFiles=list.slice(0,9); ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; } }
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
     ctx.presets={ scripts:(_r0Library().scripts||[]).slice(-12).reverse(), prompts:_r0Prompts(persona) };
@@ -2769,12 +2795,13 @@ async function r0Render(persona, editMid, banner){
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
   let _galFiles=null;
-  if(r0Screen==='gallery' || r0Screen==='recents'){
+  // La planche-contact ne vaut que pour des IMAGES : la galerie VIDÉO reste une liste texte (numéros sélectionnables), pas de mosaïque de .mp4.
+  if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents'){
     let files=[];
     if(r0Screen==='gallery'){
-      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,9); } // [P1.1] VRAIES images (projet+global)
-      else { const want=r0GalKind==='video'?'video':'image'; const all=r0GalAll?C.medias(f):C.visibles(f);
-        files=all.filter(m=>want==='video'?m.type==='video':m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,9); } // VRAIES images (projet ou global selon le scope)
+      else { const all=r0GalAll?C.medias(f):C.visibles(f);
+        files=all.filter(m=>m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
     }
     else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
     files=files.filter(Boolean);
@@ -2912,7 +2939,7 @@ async function r0Dispatch(persona, d, editMid){
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
       const koBanner='⚠️ <b>Vidéo non aboutie</b>'+(out.err?(' — <i>'+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour puis réessaie.';
-      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file) await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } // [RENDU PERSISTANT] keepsake séparé
+      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } } // [CLOUD]+[RENDU PERSISTANT]
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } finally { r0Busy=false; }
     return;
@@ -2956,6 +2983,7 @@ async function r0RealPhoto(persona, id){
   }catch(e){ err=(e&&e.message)||String(e); }
   if(localPath){
     S.addCandidate(BASE,persona,id,ts,'image', Object.assign({}, draft, {file:localPath, simule:false, moteur:'seedream-v4', prompt:(draft.prompt||'(éco)')}));
+    r0CloudCopy(localPath); // [CLOUD] reconnecte au schéma legacy : dépôt aussi dans outputs/generations (= iCloud) -> resync + galerie
     const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — 1 test réel consommé
     jlog('[v4r] TEST RÉEL PHOTO n°'+b.tests+'/'+b.max+' — photo déposée '+localPath);
     return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
@@ -4184,6 +4212,12 @@ if(R0DRY){
       try{ fs.unlinkSync(path.join(BASE,'v4r_budget.json')); }catch(e){} try{ fs.unlinkSync(path.join(BASE,'v4r_nav.json')); }catch(e){} },
     open:async()=>{ await r0TypedV4r('/v4r'); },                  // simule un /v4r
     typed:async(t)=>{ await r0TypedV4r(t); },
+    // [PERSISTANCE] rejoue le VRAI chemin /restart (mêmes actions r0 que le handler REOPEN_FLAG) — ne touche PAS aux rendus persistants.
+    restart:async()=>{ const persona=_persona(); r0Mid=null; r0Type=null; r0MediaPath=null; r0Await=null; r0PickCurrent(persona);
+      if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null; }
+      await r0Render(persona, null, '↩️ <i>Contexte restauré</i>'); },
+    // [PERSISTANCE] /menu : bascule legacy — n'efface NI les projets NI les messages de rendus (no-op côté r0).
+    menu:async()=>{ /* aucun effet sur projects_r ni sur r0RenderMids (les rendus restent dans le fil) */ },
     // simule un TAP de bouton sur le bloc courant (= branche R0_ du vrai handler : sync mid/type + dispatch + answerCB TOUJOURS)
     tap:async(d)=>{ const mid=r0Mid||[...R0DRY.alive].slice(-1)[0]||null; const cur=mid&&R0DRY.msgs[mid];
       r0Mid=mid; r0Type=(cur&&cur.kind==='media')?'photo':'text';

@@ -366,19 +366,20 @@ function confirm2View(facts, ctx) {
 // ── GALERIE / HISTORIQUE (grille) : parcourir les médias du projet sans cul-de-sac ──
 function galleryView(facts, ctx) {
   const kindWanted = (ctx && ctx.galleryKind) || 'image';
-  // [P1.1] si l'inventaire fournit les VRAIES images (projet+global), on les liste ; sinon repli sur les médias du projet.
-  const realFiles = (kindWanted !== 'video' && ctx && ctx.galleryFiles) ? ctx.galleryFiles : null;
-  const all = (ctx && ctx.galleryAll) ? C.medias(facts) : C.visibles(facts);
-  const items = realFiles || all.filter(m => (kindWanted === 'video' ? m.type === 'video' : m.type !== 'video'));
-  const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + (ctx && ctx.galleryAll ? ' (historique)' : '');
-  // [DATA] compteur cohérent : TOTAL réel disponible + nombre affiché (vignettes). Plus de chiffre ambigu.
+  // [GALERIE] l'inventaire fournit la liste EXACTE (projet OU global) pour images ET vidéos. Le compteur = cette liste.
+  const items = (ctx && ctx.galleryFiles) ? ctx.galleryFiles
+    : ((ctx && ctx.galleryAll ? C.medias(facts) : C.visibles(facts)).filter(m => (kindWanted === 'video' ? m.type === 'video' : m.type !== 'video')));
+  const scope = (ctx && ctx.galleryScope === 'global') ? ' globale' : ' du projet';
+  const titre = (kindWanted === 'video' ? '🎬 Vidéos' : '🖼 Galerie') + scope;
   const total = (ctx && ctx.galleryTotal != null) ? ctx.galleryTotal : items.length;
-  let cap = '<b>' + titre + '</b> · ' + total + ' média(s) · ' + Math.min(items.length, 9) + ' affiché(s)'
-    + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>aucune image — génère ou importe</i>');
+  const ic = kindWanted === 'video' ? '🎬 ' : '🖼 ';
+  let cap = '<b>' + titre + '</b> · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)') + ' · ' + Math.min(items.length, 9) + ' affiché(s)'
+    + (items.length ? '\n<i>touche un numéro pour l\'utiliser</i>' : '\n<i>rien ici — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
-  const rows = gridRows(items, (m, i) => ({ text: '🖼 ' + (i + 1), cb: 'R0_GITEM_' + i }), 3)
+  const rows = gridRows(items, (m, i) => ({ text: ic + (i + 1), cb: 'R0_GITEM_' + i }), 3)
     .concat([[{ text: '◀ Retour', cb: back }, HOME]]);
-  return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
+  // image -> aperçu mosaïque (photo) ; vidéo -> liste texte (pas de planche d'images possible)
+  return { kind: (items.length && kindWanted !== 'video') ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
 // ── VIDÉO / REMPLACER LA SOURCE : Choisir (galerie) · Importer photo · Importer vidéo ──
