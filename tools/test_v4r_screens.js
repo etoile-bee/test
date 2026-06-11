@@ -41,7 +41,7 @@ chk('Photo/Résultat : kind photo (on voit la photo)', phr.kind === 'photo');
 // ── ÉCRAN 3 VIDÉO : boutons + RÈGLE génération photo source ──
 const vi0 = SC.videoView(f0), vii = SC.videoView(fimg), viv = SC.videoView(fvid);
 chk('Vidéo : 📥Source 🖼Choisir ✨GénérerPhoto 🎬Créer 🕘Historique 🏠', ['R0_VI_IMPORT', 'R0_VI_PICK', 'R0_VI_GENPHOTO', 'R0_VI_CREATE', 'R0_VI_HIST', 'R0_HOME'].every(c => has(vi0, c)));
-chk('Vidéo : kind = vidéo si vidéo, sinon photo source, sinon texte', viv.kind === 'video' && vii.kind === 'photo' && vi0.kind === 'text');
+chk('Vidéo : prép montre la PHOTO SOURCE (kind photo si image, sinon texte) — [P2] cohérence image', vii.kind === 'photo' && viv.kind === 'photo' && vi0.kind === 'text');
 
 // ── ÉCRAN 3.1 VIDÉO/PARAMÈTRES : 7 blocs + commandes ──
 const vip = SC.videoParamsView(fimg);
@@ -110,7 +110,7 @@ chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() 
 const gal = SC.galleryView(fvid, { galleryKind: 'image' });
 chk('galerie : grille (pas de cul-de-sac : ◀ + 🏠)', has(gal, 'R0_PHOTO') && has(gal, 'R0_HOME'));
 const ve = SC.videoEditView(fvid);
-chk('Vidéo>Montage : Script/Voix/Musique/Sous-titres/Durée (Mouvement/Anim RETIRÉ)', ['R0_VIB_script', 'R0_VIB_voix', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(ve, c)) && !has(ve, 'R0_VIB_mouvement') && has(ve, 'R0_VI_CREATE'));
+chk('Vidéo>Montage : Script/Musique/Sous-titres/Durée (Voix ET Mouvement/Anim RETIRÉS, Kling gère)', ['R0_VIB_script', 'R0_VIB_musique', 'R0_VE_SUBS', 'R0_VIB_duree'].every(c => has(ve, c)) && !has(ve, 'R0_VIB_voix') && !has(ve, 'R0_VIB_mouvement') && has(ve, 'R0_VI_CREATE'));
 chk('Vidéo : bouton ✂️ Édition mène à la post-prod (pas de cul-de-sac)', has(SC.videoView(fimg), 'R0_VE'));
 
 // ── LOT STABILISATION : couverture des 10 points ──

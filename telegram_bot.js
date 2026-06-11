@@ -2764,6 +2764,7 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll,
   };
+  ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
     if(r0GalKind==='video'){ const projV=(C.visibles(f)||[]).filter(m=>m.type==='video'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
@@ -2821,7 +2822,11 @@ async function r0Render(persona, editMid, banner){
   const caption=(banner?(banner+'\n\n'):'')+vw.caption;
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
-  if(kind==='photo'){ media=r0CoverFile(f); if(!media) kind='text'; } // [FIX réel] dernière image AVEC fichier existant ; démo seulement si AUCUN fichier réel
+  if(kind==='photo'){
+    // [P2] Sur les écrans VIDÉO (prép/montage), on affiche la SOURCE ÉPINGLÉE (la photo validée), identique partout — jamais recalculée.
+    let pinned=null; if(/^video/.test(r0Screen) || (r0Block&&r0Block.screen==='video')){ try{ const dv=_r0().S.getDraft(f,'video')||{}; if(dv.source_file&&fs.existsSync(dv.source_file)) pinned=dv.source_file; }catch(e){} }
+    media=pinned||r0CoverFile(f); if(!media) kind='text';
+  }
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
@@ -4275,6 +4280,8 @@ if(R0DRY){
       return [].concat.apply([], (vw.rows||[])).map(b=>b&&b.text).filter(Boolean); }catch(e){ return []; } }, // textes des boutons (preuve « Retour partout »)
     logs:()=>R0DRY.log.slice(),   // journal interne (THROW:* si une exception a été avalée) — la cartographie échoue si non vide
     draft:(kind)=>{ try{ const {S}=_r0(); return S.getDraft(r0Cur(_persona(),false), kind)||{}; }catch(e){ return {}; } }, // brouillon courant (preuve #17/#18)
+    cover:()=>{ try{ return r0CoverFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // image AFFICHÉE (couverture réelle) — preuve conservation source
+    media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
   };
 } else

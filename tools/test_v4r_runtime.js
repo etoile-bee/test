@@ -211,6 +211,23 @@ async function main() {
   chk('/v4r-fix : projet courant TOUJOURS là (média conservé), 1 cockpit', s.curImg >= 1 && s.cockpit === 1);
   chk('/v4r-fix : rendus précédents TOUJOURS dans le fil (jamais supprimés)', s.renders >= projRenders);
 
+  // ════ P1 CHAÎNE PHOTO : sélection galerie -> PRÉPARER (Aperçu/Valider/Générer accessibles, pas de cul-de-sac) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); // une image existe
+  await bot.tap('R0_PH_GAL'); chk('P1 : Modifier/Galerie -> écran galerie', bot.state().screen === 'gallery');
+  await bot.tap('R0_GITEM_0'); chk('P1 : sélection -> PRÉPARER (pas photo_result cul-de-sac)', bot.state().screen === 'photo_prompt');
+  chk('P1 : depuis Préparer, Aperçu accessible', bot.buttons().includes('R0_PH_PREVIEW'));
+  await bot.tap('R0_PH_PREVIEW'); chk('P1 : Aperçu (récap) atteint', bot.state().screen === 'confirm');
+  await bot.tap('R0_GO2'); chk('P1 : -> garde-fou (confirm2)', bot.state().screen === 'confirm2');
+  await bot.tap('R0_GO'); chk('P1 : Générer -> écran final (photo_result)', bot.state().screen === 'photo_result');
+
+  // ════ P2 CONSERVATION SOURCE : la photo AFFICHÉE = la source vidéo épinglée = ce qui est peint (même fichier) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  const coverA = bot.cover();
+  await bot.tap('R0_PH_TOVIDEO');
+  chk('P2 : source vidéo épinglée = l\'image AFFICHÉE (même fichier)', bot.draft('video').source_file === coverA && !!coverA);
+  chk('P2 : la prép vidéo PEINT cette même image (cohérence)', bot.media() === coverA);
+  await bot.tap('R0_VE'); chk('P2 : montage vidéo -> source toujours la même (peinte)', bot.media() === coverA);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

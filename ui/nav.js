@@ -283,8 +283,8 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
-    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_result'; return go('gallery');   // galerie : choisir -> revue photo
-    case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_result'; return go('gallery');   // historique (versions comprises)
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_prompt'; return go('gallery');   // [P1] choisir -> PRÉPARER (chaîne complète : modifier/aperçu/valider/générer)
+    case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // historique -> PRÉPARER aussi
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
@@ -299,7 +299,8 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_USE': return go('photo_prompt', '🛠 <b>Préparation photo</b>');     // (P2) « Utiliser » -> menu de PRÉPARATION (boîte à outils)
     case 'R0_PH_OTHER': return go('photo_source');                                 // « Une autre » -> sources (Galerie/Archives/Récents/Importer)
     // [R2] PHOTO→VIDÉO : la MÊME photo devient la source (on PIN le fichier exact -> jamais remplacée silencieusement).
-    case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: mi.file || null } } }); }
+    // [P2] On épingle EXACTEMENT l'image AFFICHÉE (couverture réelle = ctx.coverFile), pas un « dernier média » qui peut différer.
+    case 'R0_PH_TOVIDEO': { const mi = C.lastImage(facts) || {}; const cf = (ctx && ctx.coverFile) || mi.file || null; return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf } } }); }
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
@@ -308,7 +309,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_BACK': return go('video');                                            // [R3] Retour depuis Préparer -> VIDÉO·Choisir (jamais de self-loop)
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
-    case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: mi.file || null }, onlyIfImageAndNoSource: true } }); }
+    case 'R0_VI_CREATE': { const mi = C.lastImage(facts) || {}; const cf = (ctx && ctx.coverFile) || mi.file || null; return Object.assign(go('video_params'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet', source_id: mi.id || null, source_file: cf }, onlyIfImageAndNoSource: true } }); }
     case 'R0_VI_HIST': st.galleryKind = 'video'; st.galleryAll = true; st.srcReturn = 'video'; return go('gallery');
     // [R4] APERÇU VIDÉO = vrai écran récap (confirm). Production toujours via aperçu.
     case 'R0_VI_PREVIEW': st.pending = { kind: 'video', mediaKind: 'video', regen: false }; return go('confirm');

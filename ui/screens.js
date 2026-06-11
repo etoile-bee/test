@@ -152,7 +152,7 @@ function photoResultView(facts) {
 // ── ÉCRAN 3 — VIDÉO ──────────────────────────────────────────────────────────
 function videoView(facts) {
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
-  const kind = hasV ? 'video' : (hasI ? 'photo' : 'text');
+  const kind = hasI ? 'photo' : 'text';   // [P2] la prép vidéo montre la PHOTO SOURCE (pas une vidéo démo) -> image cohérente
   const cap = '<b>🎬 VIDÉO · Choisir</b>'
     + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source dispo — conserver ?</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
   // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
@@ -189,7 +189,7 @@ function videoParamsView(facts) {
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }],                                                  // PRODUCTION via aperçu obligatoire
     [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],                                                      // NAVIGATION : Retour vers VIDÉO·Choisir (pas de boucle)
   ];
-  return { kind: hasV ? 'video' : (hasI ? 'photo' : 'text'), caption: cap, rows: rows };
+  return { kind: hasI ? 'photo' : 'text', caption: cap, rows: rows };   // [P2] prép vidéo = aperçu de la PHOTO SOURCE (cohérence image)
 }
 
 // ── ÉCRAN 3.2 — VIDÉO / RÉSULTAT ─────────────────────────────────────────────
@@ -455,18 +455,17 @@ function resourcesView(facts, ctx) {
 // ── VIDÉO > ÉDITION (post-production regroupée) : Script · Légendes · Sous-titres · Édition image ──
 function videoEditView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
-  // [R6] 🛠 MONTAGE VIDÉO : Script · Voix · Musique · Sous-titres · Durée. (Mouvement/Anim RETIRÉ : géré dans le prompt Kling, pas de contrôle séparé qui interfère.)
+  // [R6] 🛠 MONTAGE VIDÉO : Script · Musique · Sous-titres · Durée. (Voix ET Mouvement/Anim RETIRÉS : gérés par Kling, pas de contrôle séparé qui interfère.)
   let cap = '<b>🛠 VIDÉO · Montage</b>'
     + '\n📝 Script : ' + val(d.script ? short(d.script, 40) : null)
-    + '\n🎤 Voix : ' + val(d.voix) + '   🎵 Musique : ' + val(d.musique)
+    + '\n🎵 Musique : ' + val(d.musique)
     + '\n🔤 Sous-titres : ' + esc(String(d.soustitres || 'auto'))
     + '\n⏱ Durée : ' + val(d.duree, '30s')
-    + '\n<i>Tout au même endroit — gratuit (local).</i>';
+    + '\n<i>Voix & animation gérées par Kling. Reste = gratuit (local).</i>';
   return {
-    kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
-      [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '🎤 Voix', cb: 'R0_VIB_voix' }],
-      [{ text: '🎵 Musique', cb: 'R0_VIB_musique' }, { text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }],
-      [{ text: '⏱ Durée', cb: 'R0_VIB_duree' }],
+    kind: C.hasImage(facts) ? 'photo' : 'text', caption: cap, rows: [   // prep : on montre la source PHOTO, pas une vidéo
+      [{ text: '📝 Script', cb: 'R0_VIB_script' }, { text: '🎵 Musique', cb: 'R0_VIB_musique' }],
+      [{ text: '🔤 Sous-titres', cb: 'R0_VE_SUBS' }, { text: '⏱ Durée', cb: 'R0_VIB_duree' }],
       [{ text: '◀ Retour', cb: 'R0_VI_CREATE' }],
     ],
   };
