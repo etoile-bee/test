@@ -3088,6 +3088,8 @@ async function r0Dispatch(persona, d, editMid){
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
+  // [LAYOUT GRILLE] « Choisir » au milieu des flèches : guide (la sélection se fait en touchant un NUMÉRO). Commande exacte à figer avec Etoile.
+  if(d==='R0_GCHOOSE'){ try{ await toast('👇 Touche le NUMÉRO de la photo voulue'); }catch(e){} return; }
   // [CORBEILLE] bascule mode retrait dans la galerie (récupérable).
   if(d==='R0_GALDEL'){ r0GalDel=!r0GalDel; await r0Render(persona, editMid); return; }
   // [CORBEILLE] SOFT-DELETE : déplace la photo choisie vers .corbeille (JAMAIS de suppression réelle). Récupérable.

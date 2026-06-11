@@ -366,16 +366,18 @@ function confirmView(facts, ctx) {
   //   (GARDE-FOU) « Générer maintenant » N'EFFECTUE PAS la dépense : il ouvre la 2ᵉ confirmation (R0_GO2). Seul « Oui, générer » dépense.
   const gen = '✨ Générer maintenant';
   // [texte entier] si prompt/script présent : bouton pour recevoir le TEXTE COMPLET en message séparé (hors limite média 1024).
-  const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? [{ text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }]
-    : (cf.mediaKind === 'video' && pr.scriptFull) ? [{ text: '📄 Script complet', cb: 'R0_FULLTEXT_script' }] : null;
-  const rows = (blocked
-    ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]]
-    : [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }],
-       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }],
-       [{ text: '💾 Modèle', cb: 'R0_SAVEMODEL' }]]);  // [P6] mémorise la config courante comme modèle réutilisable
-  if (fullBtn) rows.splice(1, 0, fullBtn);
-  // [APERÇU VIDÉO] éditer l'APPARENCE des sous-titres DANS l'aperçu (revient à l'aperçu, qui se re-rend avec le nouveau style).
-  if (cf.mediaKind === 'video' && !blocked) rows.splice(1, 0, [{ text: '🔤 Sous-titres', cb: 'R0_STEDIT' }]);
+  const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? { text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }
+    : (cf.mediaKind === 'video' && pr.scriptFull) ? { text: '📄 Script complet', cb: 'R0_FULLTEXT_script' } : null;
+  // [LAYOUT — Etoile] ORDRE LOGIQUE : 1) navigation/édition  2) utilitaires (texte/sous-titres/modèle)  3) ACTION PRINCIPALE en DERNIER (étape finale)  4) sorties (wrapper Accueil/Stop).
+  //   -> « ✨ Générer maintenant » n'est plus enterré au milieu ; c'est la dernière action, juste au-dessus des sorties.
+  let rows = [];
+  rows.push([{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]);   // 1. navigation/édition
+  const utils = [];                                                                                    // 2. utilitaires regroupés
+  if (cf.mediaKind === 'video' && !blocked) utils.push({ text: '🔤 Sous-titres', cb: 'R0_STEDIT' });
+  if (fullBtn) utils.push(fullBtn);
+  if (!blocked) utils.push({ text: '💾 Modèle', cb: 'R0_SAVEMODEL' });
+  for (let i = 0; i < utils.length; i += 3) rows.push(utils.slice(i, i + 3));
+  if (!blocked) rows.push([{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]);   // 3. ACTION PRINCIPALE en dernier
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -413,9 +415,11 @@ function galleryView(facts, ctx) {
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
   const del = !!(ctx && ctx.galDel);
   if (del) cap = '<b>🗑 ' + titre + ' — RETRAIT</b> · ' + total + '\n<i>Touche un numéro pour le mettre à la 🗑 corbeille (récupérable, AUCUNE suppression réelle).</i>';
+  // [LAYOUT GRILLE — Etoile] DISPOSITION : flèches EN HAUT (juste sous la photo), avec « Choisir » au MILIEU ; les NUMÉROS viennent EN DESSOUS.
+  const rows = [];
+  rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: '✅ Choisir', cb: 'R0_GCHOOSE' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]); // navigation page en haut
   // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page. En mode RETRAIT : R0_GDEL_ (soft-delete) au lieu de sélection.
-  const rows = gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: (del ? 'R0_GDEL_' : 'R0_GITEM_') + i }), 3);
-  if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
+  gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: (del ? 'R0_GDEL_' : 'R0_GITEM_') + i }), 3).forEach(r => rows.push(r));
   // [VISIBILITÉ] bascule scope + [CORBEILLE] bascule retrait soft-delete (récupérable)
   rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }, { text: del ? '✖️ Quitter retrait' : '🗑 Retirer', cb: 'R0_GALDEL' }]);
   rows.push([{ text: '◀ Retour', cb: back }, HOME]);
