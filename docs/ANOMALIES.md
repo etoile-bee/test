@@ -50,7 +50,7 @@
 - **Constaté** : un restart (deploy/crash) renvoyait à un accueil vide (perte d'écran/projet/script). Ex. : restart pendant TEXTE·Aperçu → contexte perdu.
 - **Cause** : l'état r0 est persisté (`r0SaveNav` → `v4r_nav.json`) mais n'était rechargé au boot QUE sur `/restart` (REOPEN_FLAG), pas sur deploy/crash.
 - **Correctif** : au boot, **toujours** recharger l'état (`r0PickCurrent`+`r0RestoreNav`) en mémoire ; message « ✅ Connecté » avec bouton **▶️ Reprendre où j'en étais** (restaure l'écran EXACT) + 🏠 Accueil. Handlers `R0_RESUME`/`R0_RESUME_HOME`.
-- **Artefact** : à valider en réel après déploiement (boot → Reprendre → écran exact).
+- **Artefact harness** : à travers **/menu→/v4r** + **/restart** → image source, thème catégorie (🔗 Attachement), script et source vidéo épinglée **tous conservés** ; `v4r_nav.json` écrit ; 0 THROW. Restauration écran-exact au reboot = via ▶️ Reprendre (à valider en réel après déploiement).
 
 ### B — Régénération script IN-SCREEN
 - **Gravité** : 🔴 — 🟢 PRÊTE (offline)
