@@ -12,8 +12,9 @@
 - **Constaté (Etoile)** : « je n'ai toujours pas l'aperçu des sous-titres avant génération ». L'aperçu montre une image fixe (recap), pas le clip.
 - **Cause RACINE (confirmée, artefact)** : le code peint bien le clip (`r0Render` confirm+video → `r0SubClip`), MAIS `r0SubClip` échoue à l'exécution quand la photo source est un **placeholder iCloud non téléchargé** (`blocks=0`). Le déclencheur de téléchargement `fs.statSync(img).size<30000` ne se déclenche pas (un dataless rapporte sa taille LOGIQUE complète, ex. 3,4 Mo). ffmpeg lit 0 octet → échec → **repli sur image statique**. Mesure réelle : **140/471 images podcast-looks sont dataless**.
 - **Correctif** : helper `r0EnsureLocal(file)` qui détecte un dataless (`stat -f%b` = 0 blocs) et force `brctl download` (await + polling jusqu'à matérialisation), utilisé par `r0SubClip` ET `r0SubSample` avant ffmpeg ; repli aperçu = **PNG sous-titré** (`r0SubSample`), jamais l'image statique silencieuse ; log `[v4r]` succès/échec.
-- **Statut** : 🟡 EN COURS
-- **Artefact** : (à compléter après fix) subclip*.mp4 avant/après + markup aperçu.
+- **Statut** : ✅ CORRIGÉE & VALIDÉE (re-vérif Dispatch en attente)
+- **Note** : l'aperçu vidéo (r0Render, telegram_bot.js:2934) peint DÉJÀ le clip auto (le « 2 taps » était une lecture de confirmView seul, sans l'override du peintre) — le vrai blocage était l'échec ffmpeg sur source dataless → repli statique.
+- **Artefact réel** : placeholder `IMG_2047.PNG` blocs=0 → `brctl download` → blocs=37144 → **clip sous-titré 315 KB produit** ; harness aperçu = `type bloc=video` + bouton 🔤 Sous-titres ; commit `0d9dda5`.
 
 ---
 
@@ -25,9 +26,16 @@
 
 ---
 
+## ANO-FLUX-VALIDER — Valider ne doit jamais reculer
+- **Gravité** : 🔴 BLOQUANTE — **CLÔTURÉE ✅**
+- **Attendu** : le parcours AVANCE ; `✅ Valider` ne ramène pas en arrière.
+- **Artefact (trace réelle des transitions)** : PHOTO `Accueil→Photo→Préparer→Aperçu(confirm) ; Valider→confirm (reste) ; Éditer→photo_prompt (voulu) ; Générer→confirm→GO2→confirm2→Oui→photo_result (curImg=1)`. VIDÉO `Résultat→video_params→Montage→Aperçu→Valider(reste)→GO2→confirm2→Oui→video_result (curVid=1)`. **0 anomalie, 0 THROW.** Seul `✏️ Éditer` revient en prépa (intentionnel).
+
+---
+
 ## Checklist 16 points (à dérouler)
-1) Parcours Photo bout en bout — 🟡 à auditer
-2) Parcours Vidéo bout en bout — 🟡 à auditer
+1) Parcours Photo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie
+2) Parcours Vidéo bout en bout — ✅ tracé (ANO-FLUX-VALIDER), 0 anomalie
 3) Conservation des données — ✅ (migration, .prepurge, source unique)
 4) Galeries — ✅ (239/239, walk récursif) — re-auditer affichage
 5) Historique — 🟡
