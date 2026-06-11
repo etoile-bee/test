@@ -101,8 +101,10 @@ chk('gate : R0_GO -> op create (la seule porte de dépense, après confirmation)
 chk('gate : R0_GEN_CANCEL -> retour params, AUCUNE op', (() => { const r = NAV.reduce('R0_GEN_CANCEL', { screen: 'confirm', pending: { kind: 'image' } }, fimg, ctx); return r.st.screen === 'photo_prompt' && !r.op; })());
 const estP = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
 const cv = SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
-chk('confirm récap : Aperçu + Coût + Générer(->2e confirm R0_GO2) / Éditer ; PAS de dépense directe', /Aperçu/.test(cv.caption) && /Coût/.test(cv.caption) && has(cv, 'R0_GO2') && !has(cv,'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
-chk('confirm : plus de vocabulaire « Gratuit/Payant » (intention Aperçu/Générer)', !/PAYANT|GRATUIT/.test(cv.caption) && /Générer maintenant/.test([].concat.apply([], cv.rows).map(b => b.text).join(' ')));
+// [D3] APERÇU = média + récap SANS coût ; ✅ Valider mène à la VALIDATION chiffrée
+chk('D3 Aperçu : média + Valider, AUCUN coût, AUCUNE dépense directe', /Aperçu/.test(cv.caption) && !/Coût/.test(cv.caption) && has(cv, 'R0_GEN_VALID') && !has(cv, 'R0_GO2') && !has(cv, 'R0_GO') && has(cv, 'R0_GEN_CANCEL'));
+const vva = SC.validationView(fimg, { confirm: { mediaKind: 'photo', est: estP, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
+chk('D3 Validation : écran chiffré (Coût + Générer maintenant -> R0_GO2), Retour à l\'aperçu', /Coût/.test(vva.caption) && /Moteur/.test(vva.caption) && has(vva, 'R0_GO2') && !has(vva, 'R0_GO') && has(vva, 'R0_VALID_BACK'));
 chk('confirm : éco reste gatée (gratuit=false, donc passe par l\'écran de coût)', estP.gratuit === false);
 // ── ENGINES : LIVE OFF par défaut (zéro dépense), gratuit/local distinct du payant ──
 chk('engines : LIVE off par défaut -> payant simulé, local réel', ENG.live() === false && ENG.mode('photo').exec === 'sim' && ENG.mode('soustitres').exec === 'local' && ENG.mode('photo').paid === true && ENG.mode('soustitres').paid === false);
@@ -143,7 +145,7 @@ chk('point7 : 🏠 depuis un écran NON en cours (photo) -> home direct (pas de 
 chk('point4 : ✨ Générer (IA) dans un bloc texte -> confirm (gaté), aucune dépense directe', (() => { const r = NAV.reduce('R0_GENTXT_ph_prompt', { screen: 'block', block: { screen: 'photo', key: 'prompt' } }, fimg, ctx); return r.st.screen === 'confirm' && !r.op && r.st.pending.kind === 'text'; })());
 chk('point4 : GO texte -> op gentext (remplit un champ EXISTANT), retour au bloc', (() => { const r = NAV.reduce('R0_GO', { screen: 'confirm', pending: { kind: 'text', ask: 'ph_prompt' } }, fimg, ctx); return r.op && r.op.type === 'gentext' && r.st.screen === 'photo_prompt'; })());
 const cvT = SC.confirmView(f0, { confirm: { mediaKind: 'text', est: { moteur: 'Anthropic (claude-sonnet-4-6)', credits: null, eur: 0.01, gratuit: false }, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } });
-chk('point4 : confirm texte compact (Texte IA + coût, payant gaté)', /Texte/.test(cvT.caption) && /Coût/.test(cvT.caption));
+chk('point4 : Aperçu texte (Texte IA) ; coût sur la Validation', /Texte/.test(cvT.caption) && /Coût/.test(SC.validationView(f0, { confirm: { mediaKind: 'text', est: { moteur: 'Anthropic', credits: null, eur: 0.01, gratuit: false }, live: false, budget: { tests: 0, credits: 0, max: 10, next: 1, exhausted: false } } }).caption));
 // (9) grilles : récents jusqu'à 9 en grille
 chk('point9 : Récents en grille (≥1 ligne de projets) + actions + home', (() => { const v = SC.recentsView(f0, { recents: { projets: [f0, fimg], brouillons: [], archives: [], legacy: 0 } }); return has(v, 'R0_RE_OPEN_0') && has(v, 'R0_RE_OPEN_1') && has(v, 'R0_HOME'); })());
 
@@ -210,7 +212,7 @@ chk('SELECT : R0_GITEM_1 -> picksrc index 1 + retour au flux', (() => { const r 
 chk('SELECT : picksrc applique le fichier choisi (média + source vidéo)', (() => { const base = require('os').tmpdir() + '/v4rsel_' + Math.floor(Date.now() / 1) + '_' + (sel_n = (typeof sel_n === 'undefined' ? 0 : sel_n) + 1); try { require('fs').mkdirSync(base, { recursive: true }); } catch (e) {} const id = S.createProject(base, 'imany', { facts: { medias: [] } }, now).projectId; const f = S.loadFacts(base, 'imany', id); NAV.applyOp({ type: 'picksrc', index: 0 }, S, base, 'imany', id, f, { galleryFiles: ['/tmp/pick_a.jpg'] }, now); const f2 = S.loadFacts(base, 'imany', id); const hasMedia = (f2.medias || []).some(m => m.file === '/tmp/pick_a.jpg' && !m.simule); const dv = (f2.draft && f2.draft.video) || {}; return hasMedia && /Photo #1/.test(dv.source || ''); })());
 // [VISIBILITÉ] galerie par défaut GLOBALE (tout le patrimoine) + bascule de scope présente
 // [D4] GALERIE = SÉLECTION scope PROJET par défaut (bascule 🌍 Tout dispo) ; le patrimoine GLOBAL = Historique (R0_PH_HIST)
-chk('D4 : R0_PH_GAL = scope PROJET (sélection)', NAV.reduce('R0_PH_GAL', { screen: 'photo_prompt' }, fimg, ctx).st.galleryAll === false);
+chk('D4 : R0_PH_GAL = défaut GLOBAL (patrimoine) + filtre projet', NAV.reduce('R0_PH_GAL', { screen: 'photo_prompt' }, fimg, ctx).st.galleryAll === true);
 chk('D4 : R0_PH_HIST = scope GLOBAL (journal)', NAV.reduce('R0_PH_HIST', { screen: 'photo_prompt' }, fimg, ctx).st.galleryAll === true);
 chk('VISIBILITÉ : bascule de scope R0_GALSCOPE inverse le scope', NAV.reduce('R0_GALSCOPE', { screen: 'gallery' }, fimg, { galleryAll: true }).st.galleryAll === false);
 // (J) import = demande d'envoi (instruction claire), pas de dépôt simulé direct

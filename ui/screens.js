@@ -331,54 +331,55 @@ function gridRows(items, mkBtn, cols) {
 //   ctx.confirm = { mediaKind, est:{moteur,credits,eur,gratuit,...}, credits, live:bool, budget:{tests,credits,max,next,remaining,exhausted} }
 //   Affiche : (1) moteur · (2) coût · (3) crédits déjà consommés (cumul tests réels) + « test réel n°X/10 » · (4) validation.
 //   En SIMULATION (live=false) : aucune dépense, le compteur n'avance pas. À 10/10 réel : BLOQUE.
+// [D3 — V2] APERÇU = MÉDIA SEUL (récap métier, AUCUN coût/crédit). On VOIT le média ; on Valide pour passer à la Validation chiffrée.
 function confirmView(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
-  const e = cf.est || {};
-  const paid = !e.gratuit;
-  const live = !!cf.live;          // moteur réel armé (GO d'Etoile) vs simulation
-  const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
-  const blocked = paid && live && b.exhausted;
   const titre = cf.mediaKind === 'video' ? titleFor('video_apercu') : (cf.mediaKind === 'text' ? titleFor('texte_apercu') : titleFor('photo_apercu'));
   const pr = cf.prep || {};
-  // [R4] APERÇU = ÉCRAN RÉCAP MÉTIER (pas un toast). Infos UTILES à la création, prompt/script EN ENTIER, aucun jargon technique.
   let cap = '<b>' + titre + '</b>';
   if (cf.mediaKind === 'photo') {
-    cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(pr.promptFull) : '<i>(par défaut)</i>');
+    cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(short(pr.promptFull, 160)) : '<i>(par défaut)</i>');
     cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
     cap += '\n🏛 Décor : ' + val(pr.decor);
     cap += '\n🖼 Référence : ' + val(pr.reference ? 'définie' + (pr.refLocked ? ' 🔒' : '') : null);
-    cap += '\n🔲 Format : ' + esc(pr.format || '9:16');
   } else if (cf.mediaKind === 'video') {
     cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
-    cap += '\n📝 Script : ' + (pr.scriptFull ? esc(pr.scriptFull) : '<i>(auto)</i>');
-    cap += '\n🎤 Voix : ' + val(pr.voix) + '   🔤 Sous-titres : ' + esc(String(pr.soustitres || 'auto'));
-    cap += '\n⏱ Durée : ' + (e.duree || pr.duree || '30s') + '   🖼 Photos prévues : ' + nbPhotos(e.duree || pr.duree);
-  } else {
-    cap += '\n📝 Texte (IA)';
-  }
+    cap += '\n📝 Script : ' + (pr.scriptFull ? esc(short(pr.scriptFull, 160)) : '<i>(auto)</i>');
+    cap += '\n🔤 Sous-titres : ' + esc(String(pr.soustitres || 'auto')) + '   ⏱ Durée : ' + ((cf.est || {}).duree || pr.duree || '30s');
+  } else { cap += '\n📝 Texte (IA)'; }
+  cap += '\n<i>Vérifie l\'aperçu, puis ✅ Valider pour la validation finale.</i>';
+  const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? { text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }
+    : (cf.mediaKind === 'video' && pr.scriptFull) ? { text: '📄 Script complet', cb: 'R0_FULLTEXT_script' } : null;
+  let rows = [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]];
+  const utils = [];
+  if (cf.mediaKind === 'video') utils.push({ text: '🔤 Sous-titres', cb: 'R0_STEDIT' });
+  if (fullBtn) utils.push(fullBtn);
+  if (utils.length) rows.push(utils);
+  rows.push([{ text: '✅ Valider', cb: 'R0_GEN_VALID' }]); // -> écran VALIDATION (chiffré)
+  return { kind: C.mediaKind(facts), caption: cap, rows: rows };
+}
+// [D3 — V2] VALIDATION = GARDE-FOU CHIFFRÉ (moteur·coût·crédits·budget n/10·nb médias·durée) -> ✨ Générer maintenant -> double confirmation.
+function validationView(facts, ctx) {
+  const cf = (ctx && ctx.confirm) || {};
+  const e = cf.est || {}; const paid = !e.gratuit; const live = !!cf.live;
+  const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
+  const blocked = paid && live && b.exhausted;
+  const pr = cf.prep || {};
+  let cap = '<b>✅ Validation — ' + (cf.mediaKind === 'video' ? '🎬 Vidéo' : (cf.mediaKind === 'text' ? '✨ Texte' : '📸 Photo')) + '</b>';
+  cap += '\n⚙️ Moteur : ' + esc(e.moteur || (cf.mediaKind === 'video' ? 'Kling+ElevenLabs+Anthropic' : 'Seedream'));
+  if (cf.mediaKind === 'video') cap += '\n⏱ Durée : ' + (e.duree || pr.duree || '30s') + '   🖼 Médias prévus : ' + nbPhotos(e.duree || pr.duree);
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
+    cap += '\n💰 Crédits cumulés : ' + (b.credits != null ? b.credits + ' cr' : '—');
     if (blocked) cap += '\n⛔ <b>Budget épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation requise.';
     else if (live) cap += '\n🧪 <b>Test réel n°' + b.next + '/' + b.max + '</b> — dépense au clic « Générer maintenant ».';
     else cap += '\n🧪 Tests : ' + b.tests + '/' + b.max + ' · 🟡 simulation — aucune dépense';
   } else cap += '\n🟢 Local — gratuit.';
-  // [R4] Boutons DANS L'ORDRE EXIGÉ : ◀ Retour · ✏️ Éditer · ✅ Valider · ✨ Générer maintenant.
-  //   (GARDE-FOU) « Générer maintenant » N'EFFECTUE PAS la dépense : il ouvre la 2ᵉ confirmation (R0_GO2). Seul « Oui, générer » dépense.
-  const gen = '✨ Générer maintenant';
-  // [texte entier] si prompt/script présent : bouton pour recevoir le TEXTE COMPLET en message séparé (hors limite média 1024).
-  const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? { text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }
-    : (cf.mediaKind === 'video' && pr.scriptFull) ? { text: '📄 Script complet', cb: 'R0_FULLTEXT_script' } : null;
-  // [LAYOUT — Etoile] ORDRE LOGIQUE : 1) navigation/édition  2) utilitaires (texte/sous-titres/modèle)  3) ACTION PRINCIPALE en DERNIER (étape finale)  4) sorties (wrapper Accueil/Stop).
-  //   -> « ✨ Générer maintenant » n'est plus enterré au milieu ; c'est la dernière action, juste au-dessus des sorties.
-  let rows = [];
-  rows.push([{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]);   // 1. navigation/édition
-  const utils = [];                                                                                    // 2. utilitaires regroupés
-  if (cf.mediaKind === 'video' && !blocked) utils.push({ text: '🔤 Sous-titres', cb: 'R0_STEDIT' });
-  if (fullBtn) utils.push(fullBtn);
-  if (!blocked) utils.push({ text: '💾 Modèle', cb: 'R0_SAVEMODEL' });
-  for (let i = 0; i < utils.length; i += 3) rows.push(utils.slice(i, i + 3));
-  if (!blocked) rows.push([{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]);   // 3. ACTION PRINCIPALE en dernier
-  return { kind: C.mediaKind(facts), caption: cap, rows: rows };
+  const rows = blocked
+    ? [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
+    : [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
+       [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
+  return { kind: 'text', caption: cap, rows: rows };
 }
 
 // ── 2ᵉ CONFIRMATION (garde-fou dépense) : SEUL « Oui, générer » déclenche l'appel réel. ──
@@ -533,6 +534,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, publiesView, gridRows,
+  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, photoMontageView, resourcesView, pretView, publiesView, gridRows,
   PH_BLOCKS, PH_MONTAGE, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

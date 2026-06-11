@@ -10,7 +10,7 @@ const bot = require('../telegram_bot.js');
 let ok = 0, ko = 0;
 function chk(l, c) { if (c) { ok++; console.log('✅ ' + l); } else { ko++; console.log('❌ ' + l); } }
 // flux RÉEL de génération photo = récap -> Générer(R0_GO2) -> 2e confirmation -> Oui(R0_GO)
-async function genPhotoFull() { await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); }
+async function genPhotoFull() { await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); }
 
 async function main() {
   // ════ A : DOUBLE-CONFIRMATION (aucune dépense sans 2 clics explicites) ════
@@ -141,10 +141,10 @@ async function main() {
   // ════ R4 APERÇU RÉEL (écran récap, pas un toast) : Préparer → Aperçu → (Valider) → Générer maintenant ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
   await bot.tap('R0_PH_PREVIEW');
-  chk('R4 : « Aperçu » ouvre un VRAI écran récap (confirm), pas un toast', bot.state().screen === 'confirm');
-  chk('R4 : l\'aperçu propose Valider + Générer maintenant + Retour + Éditer', ['R0_GEN_VALID', 'R0_GO2', 'R0_GEN_CANCEL', 'R0_GEN_EDIT'].every(c => bot.buttons().includes(c)));
-  await bot.tap('R0_GEN_VALID'); chk('R4 : « Valider » reste sur l\'aperçu (rien ne dépense)', bot.state().screen === 'confirm');
-  await bot.tap('R0_GO2'); chk('R4 : « Générer maintenant » -> 2ᵉ confirmation (confirm2)', bot.state().screen === 'confirm2');
+  chk('R4/D3 : « Aperçu » ouvre l\'écran média (confirm), pas un toast', bot.state().screen === 'confirm');
+  chk('R4/D3 : l\'Aperçu propose ✅ Valider + Retour + Modifier (PAS de Générer ni dépense ici)', ['R0_GEN_VALID', 'R0_GEN_CANCEL', 'R0_GEN_EDIT'].every(c => bot.buttons().includes(c)) && !bot.buttons().includes('R0_GO2'));
+  await bot.tap('R0_GEN_VALID'); chk('R4/D3 : ✅ Valider -> écran VALIDATION (chiffré), rien ne dépense', bot.state().screen === 'validation' && bot.buttons().includes('R0_GO2'));
+  await bot.tap('R0_GO2'); chk('R4/D3 : « Générer maintenant » -> 2ᵉ confirmation (confirm2)', bot.state().screen === 'confirm2');
   // vidéo : Aperçu réel aussi
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_PREVIEW');
   chk('R4 : Aperçu VIDÉO ouvre aussi l\'écran récap', bot.state().screen === 'confirm');
@@ -235,8 +235,8 @@ async function main() {
   await bot.tap('R0_STOP'); chk('P3 : Stop -> retour ACCUEIL propre, 1 cockpit', bot.state().screen === 'home' && bot.state().cockpit === 1);
 
   // ════ P6 ENREGISTRER MODÈLE : depuis l'aperçu, mémorise la config comme modèle réutilisable ════
-  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); await bot.tap('R0_LOADP_0'); await bot.tap('R0_GEN_CANCEL'); await bot.tap('R0_PH_PREVIEW');
-  chk('P6 : aperçu propose 💾 Modèle', bot.buttons().includes('R0_SAVEMODEL'));
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); await bot.tap('R0_LOADP_0'); await bot.tap('R0_GEN_CANCEL'); await bot.tap('R0_PH_PREVIEW'); await bot.tap('R0_GEN_VALID');
+  chk('P6/D3 : la VALIDATION propose 💾 Modèle', bot.buttons().includes('R0_SAVEMODEL'));
   await bot.tap('R0_SAVEMODEL'); chk('P6 : enregistre la config (photo.prompt en défaut)', !!bot.defaults()['photo.prompt']);
 
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');

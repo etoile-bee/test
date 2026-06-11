@@ -2909,7 +2909,7 @@ function r0Ctx(persona){
   }
   // ÉCRAN CONFIRMATION : calcule le COÛT réel AVANT toute dépense (cockpit_cost + lookbook), affiche gratuit/payant,
   //   + crédits déjà consommés (tests réels cumulés) + compteur « test réel n°X/10 » + moteur réel ON/OFF.
-  if((r0Screen==='confirm'||r0Screen==='confirm2') && r0Pending){
+  if((r0Screen==='confirm'||r0Screen==='validation'||r0Screen==='confirm2') && r0Pending){ // [D3] validation = écran chiffré (mêmes données ctx.confirm)
     const {ENG,BUD}=_r0();
     const est=r0EstFor(persona, r0Pending);
     ctx.confirm={ mediaKind:r0Pending.mediaKind, est:est, live:ENG.liveFor(r0Pending.mediaKind), budget:BUD.state(BASE) };

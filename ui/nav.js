@@ -81,6 +81,7 @@ function blockSpec(block, facts, ctx) {
       options: [
         { text: (disp === 'mot' ? '🔵 ' : '') + '🔠 Mot-à-mot', cb: 'R0_SET_stdisp_mot' },
         { text: (disp === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
+        { text: (disp === 'paragraphe' ? '🔵 ' : '') + '📄 Paragraphe', cb: 'R0_SET_stdisp_paragraphe' }, // [D2] disposition paragraphe (~2 lignes/segment ; affinage rendu ultérieur)
         { text: (font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
         { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' },
         { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
@@ -258,6 +259,7 @@ function _view(state, facts, ctx) {
     case 'studio_section': return SC.studioSectionView(facts, ctx);
     case 'recents': return SC.recentsView(facts, ctx);
     case 'confirm': return SC.confirmView(facts, ctx);
+    case 'validation': return SC.validationView(facts, ctx); // [D3] écran chiffré distinct de l'Aperçu
     case 'confirm2': return SC.confirm2View(facts, ctx);
     case 'gallery': return SC.galleryView(facts, ctx);
     case 'video_edit': return SC.videoEditView(facts);
@@ -281,7 +283,7 @@ function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (
 //   Partagé par le câble Telegram ET la preuve de scénario -> garantit que le test exécute la VRAIE logique.
 //   op.type ∈ create|etat|draft|pub|loaddraft|statut|duplicate|openrecent|decision|none
 // Écrans « flux en cours » : quitter vers l'Accueil demande d'abord « Enregistrer avant de quitter ? » (point 7).
-const IN_PROGRESS = { photo_prompt: 1, video_params: 1, block: 1, confirm: 1, confirm2: 1, video_edit: 1 };
+const IN_PROGRESS = { photo_prompt: 1, video_params: 1, block: 1, confirm: 1, validation: 1, confirm2: 1, video_edit: 1 };
 
 function reduce(action, st0, facts, ctx) {
   const st = { screen: st0.screen, section: st0.section || null, block: st0.block || null, ret: st0.ret || null, pending: st0.pending || null, quitFrom: st0.quitFrom || null, srcReturn: st0.srcReturn || null };
@@ -354,13 +356,14 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
     case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
-    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_prompt'; return go('gallery');   // [D4] GALERIE = SÉLECTION (scope PROJET par défaut, bascule 🌍 Tout dispo) ; le patrimoine global = Historique (R0_PH_HIST)
+    case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // [D4 arbitrage] GALERIE = défaut GLOBAL (tout le patrimoine, plainte récurrente réglée) + filtre 📁 Ce projet ; Fichiers·Projet reste projet-only
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_prompt'; return go('gallery');   // historique -> PRÉPARER aussi
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
     case 'R0_PH_MONTAGE': return go('photo_montage');   // [R5] 🛠 Montage photo (outils regroupés)
-    case 'R0_GEN_VALID': return { st: st, toast: '✅ Validé — clique « Générer maintenant »' }; // [R4] Valider sur l'aperçu (reste sur l'écran)
+    case 'R0_GEN_VALID': return go('validation'); // [D3] Aperçu -> ✅ Valider -> écran VALIDATION chiffré (garde-fou)
+    case 'R0_VALID_BACK': return go('confirm', '↩️ <i>Retour à l\'aperçu</i>'); // [D3] Validation -> Retour -> Aperçu (média)
     // GÉNÉRATION PHOTO -> passe par la CONFIRMATION DE COÛT (jamais de dépense directe)
     case 'R0_PH_GENERATE': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_REGEN': st.pending = { kind: 'image', mediaKind: 'photo', regen: true }; return go('confirm');
@@ -376,7 +379,7 @@ function reduce(action, st0, facts, ctx) {
     // VIDÉO
     case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': return go('video_source');   // [Remplacer] -> choix : galerie · importer photo · importer vidéo
-    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // [D4] SÉLECTION source vidéo (scope PROJET par défaut, bascule 🌍 Tout) ; patrimoine global = Historique
+    case 'R0_VI_GAL': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'video_params'; return go('gallery'); // [D4 arbitrage] source vidéo : défaut GLOBAL + filtre 📁 Ce projet
     case 'R0_GALSCOPE': { const ns = !((ctx && ctx.galleryAll)); st.galleryAll = ns; return { st: Object.assign(st, { screen: 'gallery' }), toast: ns ? '🌍 Tout le patrimoine' : '📁 Ce projet seulement' }; } // bascule projet/global (lit le scope courant via ctx)
     case 'R0_VI_IMPORTVID': return { st: st, await: { upload: 'sourcevid' }, banner: '🎬 <b>Envoie ta vidéo dans le prochain message.</b>\n<i>Elle deviendra la source (aucune dépense).</i>' };
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');

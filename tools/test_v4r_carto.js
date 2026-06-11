@@ -14,7 +14,7 @@ let ok = 0, ko = 0; const rows = [];
 function chk(l, c) { if (c) { ok++; } else { ko++; console.log('❌ ' + l); } return c; }
 
 // Séquences pour ATTEINDRE chaque écran depuis une session neuve.
-async function genPhoto() { await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); }
+async function genPhoto() { await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); }
 const REACH = {
   home:           async () => {},
   photo:          async () => { await bot.tap('R0_PHOTO'); },
@@ -23,20 +23,21 @@ const REACH = {
   photo_result:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); },
   video:          async () => { await bot.typed('/v4r new'); await bot.tap('R0_VIDEO'); }, // projet VIDE -> écran Vidéo (sans source)
   video_params:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); },
-  video_result:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); },
-  publication:    async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_PUB'); },
+  video_result:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); },
+  publication:    async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_PUB'); },
   studio:         async () => { await bot.tap('R0_STUDIO'); },
   studio_section: async () => { await bot.tap('R0_STUDIO'); await bot.tap('R0_ST_looks'); },
   recents:        async () => { await bot.tap('R0_RECENTS'); },
   gallery:        async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_PH_GAL'); },
   confirm:        async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); },
-  confirm2:       async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GO2'); },
+  validation:     async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GEN_VALID'); },
+  confirm2:       async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); },
   video_edit:     async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VE'); },
   block:          async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_look'); },
   resources:      async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_RES'); },
   photo_montage:  async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_MONTAGE'); },
   video_source:   async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_PICK'); },
-  pret:           async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_READY'); },
+  pret:           async () => { await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhoto(); await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_READY'); },
   publies:        async () => { await bot.tap('R0_STUDIO'); await bot.tap('R0_PUBLISHED'); },
 };
 // [R3] « Retour partout » : un écran non-racine DOIT avoir un bouton Retour/Annuler (Accueil ≠ Retour pour Etoile).

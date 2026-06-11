@@ -1,0 +1,264 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Architecture Produit — Référence Unique</title><style>body{font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;max-width:940px;margin:0 auto;padding:28px 20px;color:#1c2330;line-height:1.55;background:#fafbfc}h1{border-bottom:3px solid #2d6cdf;padding-bottom:8px;color:#16213e}h2{border-bottom:1px solid #d8dee9;padding-bottom:5px;margin-top:1.6em;color:#21304d}h3{color:#2d3f5e;margin-top:1.2em}table{border-collapse:collapse;width:100%;margin:14px 0;font-size:14px}th,td{border:1px solid #d0d7e2;padding:7px 10px;text-align:left;vertical-align:top}th{background:#eef3fb;font-weight:600}tr:nth-child(even) td{background:#f6f8fb}code{background:#eef1f6;padding:1.5px 5px;border-radius:4px;font-size:0.9em;font-family:SFMono-Regular,Consolas,monospace}pre{background:#1c2330;color:#e6edf3;padding:14px 16px;border-radius:8px;overflow:auto}pre code{background:none;color:inherit;padding:0}blockquote{border-left:4px solid #2d6cdf;margin:12px 0;padding:8px 14px;background:#eef3fb;color:#234;border-radius:0 6px 6px 0}hr{border:none;border-top:1px solid #d8dee9;margin:24px 0}ul{margin:8px 0 8px 4px}li{margin:3px 0}strong{color:#16213e}</style></head><body><h1>ARCHITECTURE PRODUIT — RÉFÉRENCE UNIQUE (navigation écran par écran)</h1>
+<blockquote><strong>EN-TÊTE DE GOUVERNANCE (E131)</strong></blockquote>
+<blockquote>- <strong>Statut</strong> : <strong>B — Formalisation</strong> pour l'acte de ce document (il <strong>restitue fidèlement</strong> une architecture</blockquote>
+<blockquote>  fournie par Etoile et la fige comme <strong>référence unique</strong> ; il <strong>n'écrit AUCUN code</strong>).</blockquote>
+<blockquote>- <strong>MAIS</strong> : le <strong>contenu</strong> décrit introduit des points de catégorie <strong>C (évolution d'une UX non verrouillée)</strong></blockquote>
+<blockquote>  et <strong>D (touche un élément verrouillé)</strong>. Ces points sont <strong>listés en §3</strong> et <strong>NE sont PAS intégrés</strong> tant</blockquote>
+<blockquote>  qu'Etoile ne les a pas tranchés. Rien n'est intégré « en douce ».</blockquote>
+<blockquote>- <strong>Acquis-source(s)</strong> : fondation close (5 espaces · Conscience · Lois I/II · INV-1→15 · E128–E131) +</blockquote>
+<blockquote>  modèle 6 piliers (E127) + <strong>Option A déjà tranchée</strong> (projet = dossier vivant ; cap = ancrage compact ;</blockquote>
+<blockquote>  média = manifestation visible) + modules réalisation existants <code>ui/socle.js</code>, <code>ui/conscience.js</code>.</blockquote>
+<blockquote>- <strong>Modifie un élément déjà verrouillé</strong> : <strong>OUI, potentiellement</strong> — voir §2(b) et §3. À <strong>valider avant tout code</strong>.</blockquote>
+<blockquote></blockquote>
+<blockquote><strong>Objet</strong> : fixer <strong>LA référence de navigation produit</strong> (écrans, sous-sections, boutons exacts, comportement</blockquote>
+<blockquote>de chaque bouton), puis lister <strong>écarts</strong> et <strong>décisions</strong>. <strong>Aucune intégration avant validation d'Etoile.</strong></blockquote>
+<blockquote><strong>Live intact · /v4 intact · zéro dépense · génération réelle et publication GATÉES.</strong></blockquote>
+<hr>
+<h2>⚠️ CE QUE CE DOCUMENT SUPERSÈDE ET CE QU'IL CONSERVE</h2>
+<p><strong>SUPERSÈDE</strong> (remplace, dès validation) :</p>
+<ul><li>L'UX <strong>« repos + conscience + prochain geste unique »</strong> construite dans <code>/v4r</code> (bloc repos mené par un</li></ul>
+<p>  geste proposé). → Remplacée par une <strong>navigation par ÉCRANS</strong> : <code>ACCUEIL → PHOTO / VIDÉO / STUDIO / RÉCENTS</code>.</p>
+<ul><li>Le <strong>bloc unique vivant unique-pour-tout</strong> comme seul paradigme d'affichage. → Conservé comme **technique</li></ul>
+<p>  d'affichage par écran<strong> (un message-bloc édité en place </strong>par écran actif<strong>), mais la </strong>structure mentale**</p>
+<p>  devient « écrans », plus « repos↔travail ».</p>
+<ul><li>La <strong>focalisation/prochain-geste</strong> comme moteur de l'expérience (la Conscience <strong>proposait</strong> le geste</li></ul>
+<p>  suivant). → La <strong>navigation explicite</strong> devient le moteur. *(La Conscience reste utilisable en lecture</p>
+<p>  dérivée — situation/titre/mémoire — mais ne pilote plus l'entrée.)* <strong>C'est un point C/D — voir §3.</strong></p>
+<p><strong>CONSERVE</strong> (Option A déjà tranchée + fondation) :</p>
+<ul><li><strong>Projet = dossier vivant unique</strong> contenant TOUT : photos, vidéos, prompts, scripts, légendes, looks,</li></ul>
+<p>  décors, avatars, références, <strong>historique</strong>, <strong>versions</strong>, <strong>éléments validés</strong>. Un seul projet du début à la fin.</p>
+<ul><li><strong>Cap = ancrage compact</strong> (identité/intention), affiché en légende, <strong>jamais un passage obligé</strong>.</li><li><strong>Mémoire / continuité</strong> : décisions + raisons + tout l'historique, <strong>rien ne se perd</strong>.</li><li><strong>Média = manifestation visible</strong> du projet (esprit Option A : « je vois ce que je crée »).</li><li><strong>Socle = source unique de vérité</strong> ; <strong>Conscience = dérivations recalculables, non stockées</strong> ;</li></ul>
+<p>  <strong>Univers = capital amorcé par copie</strong> ; <strong>pas de placeholder</strong> ; <strong>publier = seul irréversible, confirmé</strong>.</p>
+<hr>
+<h1>SECTION 1 — SCHÉMA FINAL ÉCRAN PAR ÉCRAN</h1>
+<blockquote>Restitution <strong>fidèle, à la lettre</strong>, de l'architecture fournie. Les libellés de boutons sont <strong>exacts</strong>.</blockquote>
+<blockquote>Chaque écran : <strong>contenu affiché</strong> · <strong>boutons</strong> · <strong>comportement de chaque bouton</strong>.</blockquote>
+<h2>ÉCRAN 1 — 🏠 ACCUEIL</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li>Point d'entrée global. Présente les 4 grandes portes du produit + accès rapide à ce qui est en cours.</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>📸 PHOTO</code> · <code>🎬 VIDÉO</code> · <code>🏛 STUDIO</code> · <code>🕘 RÉCENTS / ARCHIVES</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>📸 PHOTO</code> → ouvre <strong>Écran 2 PHOTO</strong> (sur le projet courant, ou crée/ouvre un dossier projet).</li><li><code>🎬 VIDÉO</code> → ouvre <strong>Écran 3 VIDÉO</strong> (même projet courant).</li><li><code>🏛 STUDIO</code> → ouvre <strong>Écran 5 STUDIO</strong> (bibliothèques de l'Univers : avatars, looks, décors, voix, prompts, templates, références, paramètres).</li><li><code>🕘 RÉCENTS / ARCHIVES</code> → ouvre <strong>Écran 6 RÉCENTS</strong> (projets récents, brouillons, archivés, générations en cours/terminées).</li></ul>
+<hr>
+<h2>ÉCRAN 2 — 📸 PHOTO</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Aperçu photo en haut</strong> si une photo existe dans le projet ; sinon <strong>état sobre</strong> (« aucune photo — à créer », <strong>sans cadre média vide / sans placeholder</strong>).</li><li><strong>Nom du projet</strong> (lisible).</li><li><strong>Cap compact</strong> (intention/identité en une ligne ou deux).</li><li>Zone d'actions.</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>✨ Générer</code> · <code>📥 Importer</code> · <code>🖼 Galerie</code> · <code>🕘 Historique</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>✨ Générer</code> → ouvre <strong>Écran 2.1 PHOTO/PROMPT</strong> (préparation des paramètres avant génération).</li><li><code>📥 Importer</code> → importe une photo (depuis l'appareil/Telegram) <strong>dans le dossier projet</strong> comme matière photo. <em>(Voir §3 : import arbitraire vs persona.)</em></li><li><code>🖼 Galerie</code> → affiche les <strong>photos existantes du projet</strong> (matière déjà produite/importée), sélection possible.</li><li><code>🕘 Historique</code> → affiche l'<strong>historique des photos</strong> du projet (versions, validées, supprimées-soft).</li><li><code>🏠 Accueil</code> → retour <strong>Écran 1 ACCUEIL</strong> (le dossier projet reste intact).</li></ul>
+<hr>
+<h2>ÉCRAN 2.1 — 📸 PHOTO / PROMPT (préparation)</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Aperçu en haut</strong> (dernière photo du projet si elle existe, sinon état sobre).</li><li><strong>Blocs de paramètres éditables</strong> :</li><li><strong>Prompt</strong> (texte d'instruction image)</li><li><strong>Avatar</strong> (personnage)</li><li><strong>Look</strong> (tenue/style)</li><li><strong>Décor</strong> (environnement)</li><li><strong>Références</strong> (images de référence)</li><li><strong>Paramètres image</strong> (format, qualité, options avancées)</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>◀ Retour</code> · <code>❌ Annuler</code> · <code>👁 Aperçu</code> · <code>✅ Valider</code> · <code>✨ Générer</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>◀ Retour</code> → revient à <strong>Écran 2 PHOTO</strong> (paramètres conservés en brouillon dans le dossier).</li><li><code>❌ Annuler</code> → abandonne la préparation en cours (revient à Écran 2 PHOTO ; aucun fait écrit hors brouillon).</li><li><code>👁 Aperçu</code> → montre un <strong>aperçu</strong> de ce qui serait produit/du rendu des paramètres (sans dépense réelle).</li><li><code>✅ Valider</code> → fige les paramètres (prompt/avatar/look/décor/références/params) <strong>dans le dossier projet</strong> (mémoire), sans générer.</li><li><code>✨ Générer</code> → <strong>lance la génération réelle</strong> → <strong>GATE COÛT/CONFIRMATION obligatoire</strong> (jamais auto) → produit la photo → <strong>Écran 2.2 PHOTO/RÉSULTAT</strong>.</li><li><code>🏠 Accueil</code> → retour Écran 1 (brouillon conservé).</li></ul>
+<hr>
+<h2>ÉCRAN 2.2 — 📸 PHOTO / RÉSULTAT</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Photo en grand</strong>.</li><li><strong>Nom</strong> du projet.</li><li><strong>Prompt</strong> ayant produit la photo.</li><li><strong>Statut</strong> (candidate / validée / etc.).</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>✅ Garder</code> · <code>🗑 Supprimer</code> · <code>✏️ Modifier</code> · <code>🔁 Régénérer</code> · <code>🎬 Faire une vidéo avec cette photo</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>✅ Garder</code> → marque la photo <strong>validée/gardée</strong> dans le dossier (devient matière retenue + entre en historique/versions).</li><li><code>🗑 Supprimer</code> → retire la photo. <em>(Voir §3 : soft = versions/historique conservés, ou hard.)</em></li><li><code>✏️ Modifier</code> → revient à <strong>Écran 2.1 PHOTO/PROMPT</strong> avec les paramètres de cette photo préremplis.</li><li><code>🔁 Régénérer</code> → relance une génération <strong>avec les mêmes paramètres</strong> → <strong>GATE COÛT</strong> → nouvelle photo (nouvelle version, l'ancienne reste en historique).</li><li><code>🎬 Faire une vidéo avec cette photo</code> → ouvre <strong>Écran 3.1 VIDÉO/PARAMÈTRES</strong> avec <strong>cette photo comme image source</strong>.</li><li><code>🏠 Accueil</code> → retour Écran 1.</li></ul>
+<hr>
+<h2>ÉCRAN 3 — 🎬 VIDÉO</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Aperçu vidéo</strong> si une vidéo existe dans le projet ; <strong>sinon l'image source</strong> (photo retenue) ; sinon état sobre (pas de placeholder).</li><li>Nom du projet · cap compact.</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>📥 Importer source</code> · <code>🖼 Choisir photo existante</code> · <code>✨ Générer photo source</code> · <code>🎬 Créer une vidéo</code> · <code>🕘 Historique vidéo</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>📥 Importer source</code> → importe une image <strong>dans le dossier</strong> comme <strong>source vidéo</strong>.</li><li><code>🖼 Choisir photo existante</code> → sélectionne une <strong>photo déjà dans le projet</strong> comme <strong>source vidéo</strong>.</li><li><code>✨ Générer photo source</code> → <strong>RÈGLE DE NAVIGATION (à la lettre)</strong> : renvoie vers <strong>Écran 2.1 PHOTO/PROMPT</strong>, et <strong>APRÈS validation de la photo, REVIENT AUTOMATIQUEMENT à l'Écran 3 VIDÉO</strong> avec <strong>la photo validée posée comme source</strong>. <em>(Boucle aller-retour automatique, sans perdre le contexte vidéo.)</em></li><li><code>🎬 Créer une vidéo</code> → ouvre <strong>Écran 3.1 VIDÉO/PARAMÈTRES</strong> (nécessite une image source ; si aucune, propose d'abord d'en poser une via les boutons ci-dessus).</li><li><code>🕘 Historique vidéo</code> → historique des vidéos du projet (versions, validées, supprimées-soft).</li><li><code>🏠 Accueil</code> → retour Écran 1.</li></ul>
+<hr>
+<h2>ÉCRAN 3.1 — 🎬 VIDÉO / PARAMÈTRES</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Image source en haut</strong> (ou la <strong>vidéo</strong> si une vidéo existe déjà).</li><li><strong>Blocs de paramètres éditables</strong> :</li><li><strong>Image source</strong></li><li><strong>Mouvement</strong> (type d'animation/caméra)</li><li><strong>Script</strong> (texte parlé / déroulé)</li><li><strong>Voix</strong> (synthèse/choix de voix)</li><li><strong>Musique</strong></li><li><strong>Légendes</strong> (sous-titres)</li><li><strong>Paramètres vidéo</strong> (format, durée, options)</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>◀ Retour</code> · <code>❌ Annuler</code> · <code>👁 Aperçu</code> · <code>✅ Valider</code> · <code>🎬 Générer vidéo</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>◀ Retour</code> → revient à <strong>Écran 3 VIDÉO</strong> (paramètres conservés en brouillon).</li><li><code>❌ Annuler</code> → abandonne la préparation vidéo (revient Écran 3 ; aucun fait écrit hors brouillon).</li><li><code>👁 Aperçu</code> → aperçu du rendu des paramètres (sans dépense réelle).</li><li><code>✅ Valider</code> → fige les paramètres vidéo <strong>dans le dossier projet</strong> (mémoire), sans générer.</li><li><code>🎬 Générer vidéo</code> → <strong>génération réelle</strong> → <strong>GATE COÛT/CONFIRMATION</strong> → produit la vidéo → <strong>Écran 3.2 VIDÉO/RÉSULTAT</strong>.</li><li><code>🏠 Accueil</code> → retour Écran 1 (brouillon conservé).</li></ul>
+<hr>
+<h2>ÉCRAN 3.2 — 🎬 VIDÉO / RÉSULTAT</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Vidéo en grand</strong>.</li><li><strong>Image source</strong> · <strong>Script</strong> · <strong>Légendes</strong> · <strong>Paramètres</strong>.</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>✅ Garder</code> · <code>🗑 Supprimer</code> · <code>✏️ Modifier</code> · <code>🔁 Régénérer</code> · <code>📤 Exporter / Publier</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>✅ Garder</code> → marque la vidéo <strong>validée/gardée</strong> (matière retenue + historique/versions).</li><li><code>🗑 Supprimer</code> → retire la vidéo. <em>(Voir §3 : soft/hard.)</em></li><li><code>✏️ Modifier</code> → revient à <strong>Écran 3.1 VIDÉO/PARAMÈTRES</strong> avec les paramètres préremplis.</li><li><code>🔁 Régénérer</code> → relance la génération vidéo (mêmes paramètres) → <strong>GATE COÛT</strong> → nouvelle version (ancienne conservée).</li><li><code>📤 Exporter / Publier</code> → ouvre <strong>Écran 4 PUBLICATION</strong>.</li><li><code>🏠 Accueil</code> → retour Écran 1.</li></ul>
+<hr>
+<h2>ÉCRAN 4 — 📤 PUBLICATION</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Vidéo finale</strong>.</li><li><strong>Légende courte</strong> · <strong>Légende longue</strong> · <strong>Hashtags</strong> · <strong>Script</strong> · <strong>Plateforme</strong> (cible).</li><li><em>Note : les légendes <strong>arrivent en fin de parcours</strong> mais sont <strong>enregistrées dans le dossier projet</strong> dès leur saisie.</em></li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>◀ Retour</code> · <code>✏️ Modifier légende</code> · <code>💾 Sauvegarder brouillon</code> · <code>📤 Publier</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>◀ Retour</code> → revient à <strong>Écran 3.2 VIDÉO/RÉSULTAT</strong>.</li><li><code>✏️ Modifier légende</code> → édite légende courte/longue/hashtags (enregistré au dossier).</li><li><code>💾 Sauvegarder brouillon</code> → enregistre l'ensemble (vidéo + légendes + plateforme) comme <strong>brouillon</strong> dans le dossier (apparaît dans RÉCENTS).</li><li><code>📤 Publier</code> → <strong>ACTION RÉELLE IRRÉVERSIBLE</strong> → <strong>CONFIRMATION explicite obligatoire</strong> + <strong>connecteur plateforme</strong> → publie. <em>(Seul acte irréversible du système ; jamais automatique.)</em></li><li><code>🏠 Accueil</code> → retour Écran 1.</li></ul>
+<hr>
+<h2>ÉCRAN 5 — 🏛 STUDIO (bibliothèques de l'Univers)</h2>
+<p><strong>Sections</strong></p>
+<ul><li><code>👤 Avatars</code> · <code>👗 Looks</code> · <code>🏛 Décors</code> · <code>🎤 Voix</code> · <code>📝 Prompts</code> · <code>🎞 Templates</code> · <code>📎 Références</code> · <code>⚙️ Paramètres</code></li></ul>
+<p><strong>Boutons par section</strong></p>
+<ul><li><code>➕ Ajouter</code> · <code>✏️ Modifier</code> · <code>📋 Dupliquer</code> · <code>🗑 Supprimer</code> · <code>✅ Valider/Sélectionner</code> · <code>◀ Retour</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement (générique à chaque section)</strong></p>
+<ul><li><code>➕ Ajouter</code> → crée une nouvelle brique-modèle dans la bibliothèque de l'Univers (avatar/look/décor/voix/prompt/template/référence/paramètre).</li><li><code>✏️ Modifier</code> → édite une brique existante.</li><li><code>📋 Dupliquer</code> → copie une brique (capital réutilisable).</li><li><code>🗑 Supprimer</code> → retire une brique. <em>(Voir §3 : soft/hard ; impact sur projets qui l'ont copiée = aucun, car amorçage <strong>par copie</strong> — INV-12/M12.)</em></li><li><code>✅ Valider/Sélectionner</code> → marque/sélectionne la brique (pour usage ou comme défaut).</li><li><code>◀ Retour</code> → section précédente / liste des sections.</li><li><code>🏠 Accueil</code> → retour Écran 1.</li><li><strong>Principe d'étanchéité</strong> : le Studio édite le <strong>capital Univers</strong> ; un projet n'en reçoit que des <strong>copies</strong> (jamais de lien vivant). <em>(Voir §3 : Prompts/Templates comme objets de bibliothèque — mapping vs nouveau.)</em></li></ul>
+<hr>
+<h2>ÉCRAN 6 — 🕘 RÉCENTS / ARCHIVES</h2>
+<p><strong>Contenu affiché</strong></p>
+<ul><li><strong>Projets récents</strong> · <strong>Brouillons</strong> · <strong>Archivés</strong> · <strong>Générations en cours</strong> · <strong>Générations terminées</strong>.</li></ul>
+<p><strong>Boutons</strong></p>
+<ul><li><code>▶ Ouvrir</code> · <code>📋 Dupliquer</code> · <code>📦 Archiver</code> · <code>🗑 Supprimer</code> · <code>🏠 Accueil</code></li></ul>
+<p><strong>Comportement</strong></p>
+<ul><li><code>▶ Ouvrir</code> → ouvre le dossier projet sélectionné (reprend exactement où il en était).</li><li><code>📋 Dupliquer</code> → crée un nouveau projet à partir d'un existant (copie d'amorce).</li><li><code>📦 Archiver</code> → déplace le projet en archivé (conservé, sorti de la liste active).</li><li><code>🗑 Supprimer</code> → retire le projet. <em>(Voir §3 : soft/hard ; règle « rien ne se perd ».)</em></li><li><code>🏠 Accueil</code> → retour Écran 1.</li></ul>
+<hr>
+<h2>COMMANDES GLOBALES (comportement CONSTANT partout)</h2>
+<table><thead><tr><th>Commande</th><th>Comportement constant</th></tr></thead><tbody><tr><td><code>🏠 Accueil</code></td><td>Retour Écran 1, sans rien perdre (dossier projet intact).</td></tr><tr><td><code>◀ Retour</code></td><td>Remonte d'un niveau dans l'écran courant ; brouillon conservé.</td></tr><tr><td><code>❌ Annuler</code></td><td>Abandonne l'action/préparation en cours ; aucun fait écrit hors brouillon.</td></tr><tr><td><code>✅ Valider</code></td><td>Fige l'état courant dans le dossier projet (mémoire), sans générer ni publier.</td></tr><tr><td><code>👁 Aperçu</code></td><td>Montre un aperçu/rendu <strong>sans dépense réelle</strong>.</td></tr><tr><td><code>✨</code> (photo)</td><td>Génère une <strong>photo</strong> → <strong>GATE COÛT/CONFIRMATION</strong>.</td></tr><tr><td><code>🎬</code> (vidéo)</td><td>Génère une <strong>vidéo</strong> → <strong>GATE COÛT/CONFIRMATION</strong>.</td></tr><tr><td><code>🛑 Stop</code></td><td>Interrompt une génération en cours.</td></tr><tr><td><code>💾</code></td><td>Sauvegarde un brouillon dans le dossier.</td></tr><tr><td><code>📤</code></td><td>Exporter/Publier → <strong>CONFIRMATION explicite</strong> (Publier = irréversible).</td></tr></tbody></table>
+<hr>
+<h2>LES 3 PARCOURS TYPE</h2>
+<p><strong>Parcours A — Photo seule</strong></p>
+<p><code>ACCUEIL → 📸 PHOTO → ✨ Générer → 2.1 PROMPT (paramètres) → ✨ Générer [GATE] → 2.2 RÉSULTAT → ✅ Garder</code></p>
+<p>→ photo gardée dans le dossier (fin, ou continuer).</p>
+<p><strong>Parcours B — Vidéo avec photo existante</strong></p>
+<p><code>ACCUEIL → 🎬 VIDÉO → 🖼 Choisir photo existante → 🎬 Créer une vidéo → 3.1 PARAMÈTRES → 🎬 Générer vidéo [GATE] → 3.2 RÉSULTAT → ✅ Garder → 📤 Exporter/Publier → 4 PUBLICATION → 📤 Publier [CONFIRMATION]</code></p>
+<p><strong>Parcours C — Vidéo sans photo existante</strong></p>
+<p><code>ACCUEIL → 🎬 VIDÉO → ✨ Générer photo source → 2.1 PROMPT → ✨ Générer [GATE] → (photo validée) → RETOUR AUTOMATIQUE à 🎬 VIDÉO (photo posée comme source) → 🎬 Créer une vidéo → 3.1 PARAMÈTRES → 🎬 Générer vidéo [GATE] → 3.2 RÉSULTAT → 📤 Publier</code></p>
+<hr>
+<h2>MAPPING — chaque écran/élément → fait Socle ou référence Univers</h2>
+<blockquote>Le <strong>dossier vivant</strong> (Socle, <code>projects_r/&lt;persona&gt;/&lt;id&gt;/facts.json</code> aujourd'hui) contient : photos, vidéos,</blockquote>
+<blockquote>prompts, scripts, légendes, looks, décors, avatars, références, historique, versions, éléments validés.</blockquote>
+<table><thead><tr><th>Écran / élément</th><th>Mappe sur (Socle = fait durable · Univers = capital copié · Conscience = dérivé)</th></tr></thead><tbody><tr><td>Nom du projet</td><td><strong>Conscience</strong> (dérivé du cap/message ou <code>friendlyName</code>) — <em>non stocké</em></td></tr><tr><td>Cap compact</td><td><strong>Socle</strong> : <code>intention</code> (message/émotion/public/objectif/déclencheur)</td></tr><tr><td>Photo (aperçu/résultat)</td><td><strong>Socle</strong> : <code>medias[]</code> <code>type:image</code> (état candidate/gardée, versions)</td></tr><tr><td>Vidéo (aperçu/résultat)</td><td><strong>Socle</strong> : <code>medias[]</code> <code>type:video</code> (état, versions, image source liée)</td></tr><tr><td>Prompt (image)</td><td><strong>Socle</strong> : paramètre de la matière (prompt) — <em>aujourd'hui à AJOUTER au fait, voir §3</em></td></tr><tr><td>Avatar / Look / Décor</td><td><strong>Univers</strong> (brique-modèle) <strong>copiée</strong> dans le dossier au moment de l'usage</td></tr><tr><td>Références</td><td><strong>Socle</strong> (copies des images de référence) ou <strong>Univers</strong> (bibliothèque)</td></tr><tr><td>Paramètres image/vidéo</td><td><strong>Socle</strong> : paramètres de la matière — <em>à AJOUTER au fait, voir §3</em></td></tr><tr><td>Script / Voix / Musique / Légendes</td><td><strong>Socle</strong> : champs du dossier — <em>à AJOUTER au fait, voir §3</em></td></tr><tr><td>Plateforme / hashtags</td><td><strong>Socle</strong> : champs publication du dossier</td></tr><tr><td>Statut (candidate/validée)</td><td><strong>Socle</strong> : <code>medias[].etat</code> (déjà présent)</td></tr><tr><td>Historique / versions</td><td><strong>Socle</strong> : <code>decisions[]</code> + historisation des <code>medias[]</code></td></tr><tr><td>Validés (gardés)</td><td><strong>Socle</strong> : marqueur d'état sur la matière</td></tr><tr><td>Générations en cours/terminées</td><td><strong>Conscience/Pilotage</strong> (état transitoire) — <em>non critique, recalculable</em></td></tr><tr><td>STUDIO (Avatars/Looks/Décors/Voix/Prompts/Templates/Références/Paramètres)</td><td><strong>Univers</strong> : bibliothèques de briques-modèles</td></tr><tr><td>RÉCENTS / brouillons / archivés</td><td><strong>Socle</strong> : <code>listProjects</code> + marqueurs brouillon/archivé</td></tr></tbody></table>
+<blockquote><strong>Constat de mapping</strong> : la <strong>navigation</strong> se pose sans casser le Socle ; en revanche **plusieurs champs</blockquote>
+<blockquote>de matière<strong> (prompt, script, voix, musique, légendes, paramètres, image-source liée) </strong>n'existent pas</blockquote>
+<blockquote>encore<strong> comme attributs du fait-média/du dossier. Les </strong>ajouter<strong> = attributs sur objets </strong>existants**</blockquote>
+<blockquote>(média = manifestation ; dossier = Socle), conformes au modèle (<code>MODELE_METIER</code> prévoit Prompt/Script/</blockquote>
+<blockquote>Légende/RAW). <strong>À confirmer en §3</strong> pour éviter toute introduction silencieuse.</blockquote>
+<hr>
+<h1>SECTION 2 — ÉCARTS IDENTIFIÉS</h1>
+<h2>2(a) — ÉCARTS TECHNIQUES TELEGRAM</h2>
+<p><strong>Le nœud</strong> : l'architecture demande, simultanément :</p>
+<p>1. <strong>aperçu média visible en haut tout au long</strong>,</p>
+<p>2. <strong>aucun empilement de cartes</strong> (un seul bloc vivant),</p>
+<p>3. des <strong>écrans riches multi-blocs éditables</strong> :</p>
+<ul><li>PHOTO/PROMPT : Prompt + Avatar + Look + Décor + Références + Paramètres image,</li><li>VIDÉO/PARAMÈTRES : Image source + Mouvement + Script + Voix + Musique + Légendes + Paramètres vidéo.</li></ul>
+<p><strong>La contrainte dure</strong> : un message Telegram <strong>photo/vidéo</strong> porte une <strong>légende ≤ ~1024 caractères</strong> et</p>
+<p><strong>ne peut pas</strong> contenir un <strong>long formulaire éditable</strong> sous l'image. On ne « tape » pas du texte multi-champs</p>
+<p><strong>dans</strong> une légende ; on n'a que : la <strong>légende</strong> (courte) + un <strong>clavier de boutons</strong> (<code>inline_keyboard</code>).</p>
+<p>Donc « aperçu TOUJOURS en haut » <strong>et</strong> « édition profonde de 6–7 blocs » <strong>dans le même message</strong> sont en</p>
+<p><strong>tension directe</strong>.</p>
+<p><strong>Options pour tenir « un seul bloc + aperçu en haut + édition des blocs »</strong> (à trancher — §3) :</p>
+<ul><li><strong>Option T1 — Sous-vues éditées EN PLACE (recommandée).</strong> Le bloc média reste affiché (aperçu en haut) ;</li></ul>
+<p>  les blocs (Prompt/Avatar/Look/…) sont des <strong>sous-vues</strong> atteintes par boutons, chacune <strong>éditée en place</strong></p>
+<p>  dans le <strong>même message</strong> (légende = résumé compact du bloc courant + clavier d'options). L'aperçu reste</p>
+<p>  visible <strong>sur l'écran média</strong> ; pendant l'édition fine d'un bloc, la légende montre <strong>ce bloc</strong> (l'aperçu</p>
+<p>  image peut rester en haut tant qu'on édite via boutons/puces, <strong>pas</strong> quand il faut <strong>saisir du texte libre long</strong>).</p>
+<ul><li><em>Limite assumée</em> : la <strong>saisie de texte libre long</strong> (prompt détaillé, script) ne peut pas se faire « dans »</li></ul>
+<p>    la légende. Deux sous-options :</p>
+<ul><li><strong>T1a</strong> : saisie par <strong>court message</strong> de l'utilisateur (il tape, on capte, on réinjecte dans le bloc, on</li></ul>
+<p>      réédite la carte en place). C'est le mécanisme déjà utilisé en <code>/v4r</code> (<code>r0Await</code>).</p>
+<ul><li><strong>T1b</strong> : <strong>options prédéfinies</strong> (puces/presets de prompt, scripts gabarits) tant que possible, saisie</li></ul>
+<p>      libre réservée aux cas nécessaires.</p>
+<ul><li><strong>Option T2 — Caption compacte + édition par courts messages.</strong> La carte média garde une <strong>légende compacte</strong></li></ul>
+<p>  (cap + bloc courant) ; toute édition fine passe par de <strong>brefs échanges texte</strong> réinjectés. Aperçu toujours</p>
+<p>  en haut. <em>Coût</em> : plus de va-et-vient de saisie.</p>
+<ul><li><strong>Option T3 — Options avancées en sous-bloc séparé temporaire.</strong> Pour les écrans très riches, ouvrir un</li></ul>
+<p>  <strong>sous-bloc dédié</strong> (un second message <strong>temporaire</strong>) le temps de l'édition avancée, <strong>refermé</strong> (supprimé)</p>
+<p>  au retour → on <strong>retrouve le bloc unique</strong>. <em>Coût</em> : viole transitoirement « un seul bloc » (1 bloc d'édition</p>
+<p>  éphémère), à assumer ou refuser. <strong>C'est un point D</strong> (touche « aucun empilement »).</p>
+<p><strong>Tension résiduelle à arbitrer</strong> : « <strong>aperçu TOUJOURS en haut</strong> » est tenable pour la <strong>navigation</strong> et</p>
+<p>l'<strong>édition par boutons/puces</strong> ; il <strong>ne l'est pas</strong> pendant une <strong>saisie de texte libre long</strong> (le clavier</p>
+<p>natif occupe l'écran, et l'aperçu image n'est pas re-affichable au-dessus du champ de saisie). → <strong>À trancher</strong> :</p>
+<p>accepte-t-on que, <strong>pendant la frappe d'un texte long</strong>, l'aperçu ne soit pas à l'écran (il revient juste après) ?</p>
+<p><strong>Autres écarts techniques mineurs</strong> :</p>
+<ul><li><strong>Aperçu vidéo</strong> : Telegram joue une vidéo dans un message ; le <strong>swap photo↔vidéo en place</strong> (même</li></ul>
+<p>  <code>message_id</code>) est <strong>déjà prouvé</strong> (editMessageMedia). OK.</p>
+<ul><li><strong>Texte→média</strong> : passer d'un écran <strong>texte</strong> à un écran <strong>média</strong> impose <strong>une</strong> recréation de bloc (nuance</li></ul>
+<p>  Telegram déjà connue). Acceptable (1 fois).</p>
+<ul><li><strong><code>👁 Aperçu</code> sans dépense</strong> : faisable pour un <strong>rendu de paramètres</strong> ou un <strong>échantillon local</strong> ; un</li></ul>
+<p>  « aperçu » fidèle d'une génération réelle <strong>sans la lancer</strong> n'existe pas → l'aperçu sera une **maquette/</p>
+<p>  résumé<strong>, pas le rendu final. </strong>À clarifier** (§3).</p>
+<h2>2(b) — ÉCARTS FONDATION / E131</h2>
+<p><strong>Confirmation : les NON-NÉGOCIABLES tiennent sous cette navigation.</strong></p>
+<ul><li><strong>Source unique de vérité</strong> : OUI — tout reste dans le dossier Socle ; la navigation ne stocke rien de critique.</li><li><strong>Dérivations recalculables non stockées</strong> : OUI — nom/situation/titre restent dérivés (Conscience).</li><li><strong>Étanchéité par copie (Univers→projet)</strong> : OUI — le Studio édite le capital, le projet reçoit des <strong>copies</strong>.</li><li><strong>PAS de placeholder</strong> : OUI — états sobres quand aucun média (pas de cadre média vide).</li><li><strong>Publier = seul irréversible + confirmé</strong> : OUI — <code>📤 Publier</code> exige confirmation explicite + connecteur.</li><li><strong>Génération réelle = coût SOUS confirmation/GO</strong> : OUI — <code>✨</code>/<code>🎬</code> derrière GATE COÛT ; <strong>zéro dépense</strong> par défaut (simulé) jusqu'au GO d'Etoile.</li><li><strong>L'UI ne tient aucun état critique</strong> : OUI — l'écran courant/brouillon est reconstructible depuis le Socle.</li></ul>
+<p><strong>Signalements (à trancher — détaillés en §3)</strong> :</p>
+<p>1. <strong>La navigation supersède-t-elle l'UX repos/conscience/prochain-geste ?</strong> → OUI selon ce document. C'est un</p>
+<p>   changement de <strong>paradigme d'entrée</strong> (de « prochain geste proposé » à « écrans choisis »). La Conscience</p>
+<p>   <strong>reste</strong> en lecture (situation/mémoire) mais <strong>ne pilote plus</strong> l'entrée. <strong>= Décision (C/D).</strong></p>
+<p>2. <strong><code>🗑 Supprimer</code> = soft ou hard ?</strong> Le verrou « rien ne se perd / historique conservé » (INV mémoire)</p>
+<p>   impose <strong>soft</strong> (la matière sort de la vue active mais <strong>versions/historique restent</strong>). Un hard delete qui</p>
+<p>   perd l'historique <strong>violerait</strong> la fondation. <strong>= Décision D</strong> (par défaut : <strong>soft</strong>).</p>
+<p>3. <strong><code>📤 Publier</code> réel</strong> = action réelle + <strong>connecteur plateforme</strong> + <strong>confirmation</strong> (jamais auto). Le</p>
+<p>   connecteur réel n'existe pas encore → <strong>gaté</strong>, simulé jusqu'au GO. <strong>= Décision</strong> (quand/quelle plateforme).</p>
+<p>4. <strong><code>Templates</code> et <code>Prompts</code> comme objets de bibliothèque</strong> : le modèle prévoit <strong>Prompt</strong> (objet) et des</p>
+<p>   <strong>briques-modèles</strong> ; <strong>Template</strong> n'est <strong>pas</strong> un objet nommé du modèle scellé. → <strong>Prompts = mapping</strong></p>
+<p>   sur l'existant (OK) ; <strong>Templates = potentiellement NOUVEL objet (D)</strong> s'il ne se réduit pas à une</p>
+<p>   brique-modèle/gabarit existant. <strong>À trancher.</strong></p>
+<p>5. <strong>Import de photo arbitraire vs persona</strong> : importer une image quelconque comme matière/source peut entrer</p>
+<p>   en tension avec la <strong>cohérence persona/identité</strong> (INV cohérence, polarité protégée). <strong>= Décision D</strong></p>
+<p>   (autorisé librement ? cadré au persona ? toléré mais signalé par la Conscience ?).</p>
+<p>6. <strong>Champs de matière manquants</strong> (prompt, script, voix, musique, légendes, paramètres, image-source liée,</p>
+<p>   plateforme/hashtags) : à <strong>ajouter comme attributs d'objets existants</strong> (média/dossier). Conforme au modèle</p>
+<p>   (Prompt/Script/Légende/RAW prévus), <strong>mais</strong> à <strong>valider explicitement</strong> pour ne rien introduire en douce.</p>
+<p>   <strong>= Décision</strong> (lot d'attributs, statut C).</p>
+<p>7. <strong>Générations « en cours »</strong> (Écran 6) : un <strong>état transitoire</strong> observable ; doit rester **dérivé/non</p>
+<p>   critique<strong> (si perdu au redémarrage, reconstructible). </strong>= À confirmer** (pas de nouvel état durable).</p>
+<hr>
+<h1>SECTION 3 — POINTS QUI NÉCESSITENT UNE DÉCISION D'ETOILE</h1>
+<blockquote>Chaque point = une <strong>question nette</strong>. Rien n'est intégré tant qu'Etoile n'a pas répondu.</blockquote>
+<p>1. <strong>Supersession du paradigme</strong> — Valides-tu que la <strong>navigation par écrans</strong> (Accueil→Photo/Vidéo/Studio/</p>
+<p>   Récents) <strong>remplace</strong> l'UX « repos + conscience + prochain geste » dans <code>/v4r</code> ? *(La Conscience reste en</p>
+<p>   lecture mémoire/situation, mais ne pilote plus l'entrée.)* <strong>[C/D]</strong></p>
+<p>2. <strong>Suppression (<code>🗑</code>)</strong> — Confirmes-tu <strong>soft delete partout</strong> (matière/projet/brique sortent de la vue active</p>
+<p>   mais <strong>versions + historique conservés</strong>, rien ne se perd) ? Un <strong>hard delete</strong> est-il interdit (recommandé :</p>
+<p>   oui, interdit) ? <strong>[D]</strong></p>
+<p>3. <strong>Templates</strong> — <code>🎞 Templates</code> est-il <strong>un gabarit = brique-modèle existante</strong> (mapping, pas de nouvel objet)</p>
+<p>   ou un <strong>objet nouveau</strong> à part entière ? Si nouveau → <strong>D</strong>, on <strong>n'intègre pas</strong> sans ta validation. <strong>[D]</strong></p>
+<p>4. <strong>Prompts en bibliothèque</strong> — OK pour mapper <code>📝 Prompts</code> (Studio) sur l'objet <strong>Prompt</strong> déjà prévu par le</p>
+<p>   modèle (bibliothèque de prompts réutilisables, copiés au projet) ? <strong>[C]</strong></p>
+<p>5. <strong>Import de photo arbitraire</strong> — <code>📥 Importer</code> autorise-t-il <strong>n'importe quelle image</strong> comme matière/source,</p>
+<p>   ou doit-il être <strong>cadré au persona</strong> (et/ou la Conscience <strong>signale</strong> une incohérence sans bloquer) ? <strong>[D]</strong></p>
+<p>6. <strong>Champs de matière à ajouter</strong> — Autorises-tu l'ajout, <strong>comme attributs d'objets existants</strong> (média/dossier),</p>
+<p>   de : **prompt, paramètres image, image-source liée, mouvement, script, voix, musique, légendes, paramètres</p>
+<p>   vidéo, plateforme, légende courte/longue, hashtags** ? <em>(Conforme au modèle ; statut C ; aucun nouvel objet.)</em> <strong>[C]</strong></p>
+<p>7. <strong>Aperçu pendant saisie de texte long</strong> — Acceptes-tu que, <strong>pendant la frappe d'un texte libre long</strong></p>
+<p>   (prompt détaillé, script), l'<strong>aperçu média ne soit pas affiché</strong> (il revient juste après la saisie) ?</p>
+<p>   Sinon, on <strong>limite la saisie libre</strong> au profit de <strong>presets/puces</strong> (option T1b). <strong>[Décision UX]</strong></p>
+<p>8. <strong>Édition riche multi-blocs</strong> — Quelle option de rendu retiens-tu pour les écrans riches : **T1 sous-vues en</p>
+<p>   place<strong> (recommandée), </strong>T2 caption compacte + courts messages<strong>, ou </strong>T3 sous-bloc temporaire** (qui viole</p>
+<p>   transitoirement « un seul bloc ») ? <strong>[Décision UX ; T3 = D]</strong></p>
+<p>9. <strong><code>👁 Aperçu</code></strong> — L'aperçu est une <strong>maquette/résumé sans dépense</strong> (pas le rendu réel d'une génération non</p>
+<p>   lancée). OK ? Ou attends-tu un aperçu d'un autre type ? <strong>[Décision]</strong></p>
+<p>10. <strong>Publication réelle</strong> — <code>📤 Publier</code> : quelle(s) <strong>plateforme(s)</strong> cible(s) et <strong>quel connecteur</strong> ? Reste</p>
+<p>    <strong>gaté/simulé</strong> jusqu'à ton GO explicite (zéro dépense, jamais auto). <strong>[Décision + GO]</strong></p>
+<p>11. <strong>Génération réelle (coût)</strong> — <code>✨</code>/<code>🎬</code> restent <strong>simulés (zéro dépense)</strong> par défaut ; le backend réel</p>
+<p>    (image/vidéo/lip-sync) est <strong>débranché</strong> jusqu'à ton <strong>GO explicite par écran</strong>. Confirmes-tu ce gating ? <strong>[Décision + GO]</strong></p>
+<hr>
+<h1>SECTION 4 — PLAN D'INTÉGRATION (sans coder — exécuté APRÈS validation)</h1>
+<blockquote><strong>Aucune ligne de code avant ta validation du schéma et des décisions §3.</strong> Tout derrière <code>/v4r</code>, **live +</blockquote>
+<blockquote>/v4 intacts<strong>, </strong>zéro dépense<strong>, génération réelle + publication </strong>gatées**.</blockquote>
+<p><strong>Étape 0 — Validation</strong> : tu valides §1 (schéma), tranches §3 (décisions), et fixes les options T (2a). Ce</p>
+<p>document devient <strong>la référence unique</strong> ; je classe chaque point retenu (C/D) avant tout code.</p>
+<p><strong>Étape 1 — Socle (attributs, si §3.6 validé)</strong> : étendre le <strong>fait dossier/média</strong> avec les champs de matière</p>
+<p>validés (prompt, params, source liée, script, voix, musique, légendes, plateforme, hashtags) — **attributs sur</p>
+<p>objets existants**, historisés (versions). Aucune dérivation stockée. Tests Socle verts + reconstruction.</p>
+<p><strong>Étape 2 — Conscience (lecture)</strong> : réutiliser <code>ui/conscience.js</code> pour situation/nom/mémoire/compteurs ;</p>
+<p><strong>retirer</strong> le pilotage par « prochain geste » comme moteur d'entrée (si §3.1 validé), le conserver comme</p>
+<p>lecture facultative. Tests verts.</p>
+<p><strong>Étape 3 — Navigation &amp; vues (pur, testable hors Telegram)</strong> : un module de <strong>vues par écran</strong> (Accueil, Photo,</p>
+<p>Photo/Prompt, Photo/Résultat, Vidéo, Vidéo/Paramètres, Vidéo/Résultat, Publication, Studio, Récents) renvoyant</p>
+<p><code>{kind, caption, rows}</code> — <strong>boutons exacts</strong> de §1, <strong>comportements</strong> de §1. Un <strong>routeur d'écrans</strong> + l'**oracle</p>
+<p>de transport** (bloc unique, swap média en place, recréation seulement texte↔média) déjà éprouvé. Tests de vues</p>
+<p>+ tests de navigation (chaque bouton → bon écran/comportement) <strong>avant</strong> câblage.</p>
+<p><strong>Étape 4 — Câblage Telegram</strong> derrière <code>/v4r</code> : brancher le routeur sur le bloc vivant, selon l'option T</p>
+<p>retenue. <strong>Gates</strong> : <code>✨</code>/<code>🎬</code> simulés (zéro dépense) ; <code>📤 Publier</code> confirmé + gaté. <code>🗑</code> soft.</p>
+<p><strong>Étape 5 — TEST BOUT-EN-BOUT réalisé PAR MOI (auto-preuve)</strong> des <strong>3 scénarios</strong> :</p>
+<ul><li><strong>A</strong> : photo seule.</li><li><strong>B</strong> : vidéo depuis photo existante.</li><li><strong>C</strong> : vidéo en générant d'abord une photo (avec <strong>retour automatique</strong> à VIDÉO, source posée).</li></ul>
+<p>Je fournirai, comme pour les livraisons précédentes, une <strong>trace imprimée</strong> (étape → écran → action →</p>
+<p><code>message_id</code> → blocs visibles) prouvant <strong>mécaniquement</strong> :</p>
+<ul><li><strong>aucun état perdu</strong> (cap + matière + paramètres persistent, re-ouverture identique) ;</li><li><strong>aucun écran orphelin</strong> (tout écran a un retour ◀/🏠 cohérent) ;</li><li><strong>aucun bouton qui change de comportement</strong> (comportement constant des commandes globales) ;</li><li><strong>aucun doublon</strong> ;</li><li><strong>aucune carte empilée</strong> (1 bloc visible à tout instant ; média swap en place ; 1 seule recréation texte→média) ;</li><li><strong>aperçu visible tout du long</strong> (selon l'option T tranchée, hors saisie de texte long si §3.7 l'accepte) ;</li><li><strong>projet unique du début à la fin</strong> (un seul dossier vivant).</li></ul>
+<p><strong>Garanties permanentes</strong> : tests verts, aucune régression legacy, <strong>live + /v4 intacts</strong>, <strong>zéro dépense</strong>,</p>
+<p>génération réelle + publication <strong>sous confirmation/GO</strong>, fichiers verrouillés (<code>subtitle_style.js</code>,</p>
+<p><code>color_style.js</code>) intacts.</p>
+<hr>
+<p><em>Fin du document. Référence unique de navigation produit. En attente de validation §1 + décisions §3 avant tout code.</em></p></body></html>
