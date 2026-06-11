@@ -511,10 +511,9 @@ function blockView(spec) {
   for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3));
   if (spec.askCb) rows.push([{ text: '✍️ Saisir', cb: spec.askCb }]);
   if (spec.previewCb) rows.push([{ text: '👁 Aperçu', cb: spec.previewCb }]); // [SOUS-TITRES] incruste un échantillon dans le style courant
-  // [VALIDER + RETOUR À CHAQUE ÉTAPE] tout bloc expose ✅ Valider ET ◀ Retour (le brouillon est déjà sauvegardé : les deux ramènent au parent).
+  // [A1 — Etoile] SOURCE UNIQUE : le bloc pose SEULEMENT ◀ Retour ; le ✅ Valider universel est posé par le WRAPPER (cb distinct R0_BLOCK_OK) -> 0 doublon.
   const backBtn = spec.back || { text: '◀ Retour', cb: 'R0_HOME' };
-  const validBtn = { text: spec.validateLabel || '✅ Valider', cb: spec.validateCb || backBtn.cb };
-  rows.push([validBtn, backBtn]);
+  rows.push([backBtn]);
   return { kind: spec.parentKind || 'text', caption: cap, rows: rows, await: spec.await || null };
 }
 

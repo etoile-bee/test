@@ -113,3 +113,9 @@
 14) Cas d'erreur — ✅ (messages incident, filet global)
 15) Redémarrages — ✅ (verrou + messages)
 16) Générations réelles — 🟡 (à relancer après 1-5 validés)
+
+## QA BOUCLE (sondage Dispatch sur 79eac5f) — A1-A4
+- **A1 🔴→✅** boutons d'action dupliqués (~13 écrans, 19 DUP audit) : CAUSE = wrapper Valider réutilisait `req.prod`(=Aperçu) et blockView Valider réutilisait le cb du Retour. FIX = source unique : wrapper dédup par cb (`pushU`), 'gen' n'ajoute que 👁 Aperçu (D3), 'edit' ajoute ✅ Valider en cb DISTINCT `R0_BLOCK_OK` ; blockView ne pose plus que ◀ Retour. PREUVE : `audit_cockpit` ANOMALIES STRUCTURELLES **0** (0 DUP).
+- **A2 🔴→✅** suite runtime : assertions D3 mises à jour (Aperçu média/Validation chiffré, Modèle/Texte sur les bons écrans, P2/P6). PREUVE : runtime **83 OK / 0 KO** ; sweep global **0 KO** (8 suites) ; carto NAVREQ adapté D3 (gen→Aperçu, edit→Valider).
+- **A3 🟡→✅** « 💾 Défaut » : TOUJOURS présent sur les blocs (preuve dump : `💾 Défaut` sur block look + tous blocs choix/sous-titres) — non perdu.
+- **A4 🟡→✅** label long block/script : « 🔄 Régénérer le script » → « 🔄 Régénérer » (≤18) ; audit ⚠️long disparu.

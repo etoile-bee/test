@@ -133,7 +133,7 @@ function blockSpec(block, facts, ctx) {
     const opts = (block.key === 'source')
       ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
       : (block.key === 'script')
-        ? [{ text: '🔄 Régénérer le script', cb: 'R0_REGEN_SCRIPT' }]
+        ? [{ text: '🔄 Régénérer', cb: 'R0_REGEN_SCRIPT' }]
         : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
     // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable. Libellés LISIBLES (non coupés trop court).
     // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
@@ -202,40 +202,40 @@ function resolveSet(blk, token, ctx) {
 
 // ═══ [FIX STRUCTUREL DÉFINITIF — Etoile] EXIGENCES DE NAVIGATION PAR ÉCRAN ═══
 //   Plus jamais d'ajout au cas par cas : le WRAPPER garantit, de façon centralisée, les boutons requis selon la CLASSE de l'écran.
-//   cls 'gen'  = écran de préparation MENANT À UNE GÉNÉRATION  -> exige 👁 Aperçu + ✅ Valider + ✨ Générer (+ ◀ Retour + 🏠 + 🛑)
-//   cls 'edit' = sous-vue d'édition / réglage                  -> exige ✅ Valider (+ ◀ Retour + 🏠 + 🛑)
-//   prod = cb de l'entrée de production (ouvre le récap/Aperçu) ; gen = cb « Générer » ; back = cb retour parent.
+//   cls 'gen'  = écran de préparation MENANT À UNE GÉNÉRATION  -> exige 👁 Aperçu (D3 : Aperçu -> Validation -> Générer, en aval) + ◀ Retour + 🏠 + 🛑
+//   cls 'edit' = sous-vue d'édition / réglage                  -> exige ✅ Valider (cb DISTINCT R0_BLOCK_OK) + ◀ Retour + 🏠 + 🛑
+//   prod = cb de l'entrée de production (Aperçu) ; back = cb retour parent.
+//   [A1 — Etoile] SOURCE UNIQUE : le wrapper N'AJOUTE JAMAIS un cb déjà présent dans le corps (zéro doublon de callback_data).
 //   La cartographie ÉCHOUE le déploiement si un écran requis n'a pas ses boutons (voir NAVREQ + test_v4r_carto).
 const NAVREQ = {
-  photo_prompt: { cls: 'gen', prod: 'R0_PH_PREVIEW', gen: 'R0_PH_GENERATE', back: 'R0_PHOTO' },
-  video_params: { cls: 'gen', prod: 'R0_VI_PREVIEW', gen: 'R0_VI_GENERATE', back: 'R0_VI_BACK' },
+  photo_prompt: { cls: 'gen', prod: 'R0_PH_PREVIEW', back: 'R0_PHOTO' },
+  video_params: { cls: 'gen', prod: 'R0_VI_PREVIEW', back: 'R0_VI_BACK' },
   photo_montage: { cls: 'edit', back: 'R0_PH_GEN' },
-  video_edit: { cls: 'gen', prod: 'R0_VI_PREVIEW', gen: 'R0_VI_GENERATE', back: 'R0_VI_CREATE' }, // [APERÇU SOUS-TITRES] Montage expose 👁 Aperçu (clip sous-titré) + Valider + Générer
-  block: { cls: 'edit' }, // blockView fournit déjà ✅ Valider + ◀ Retour (et 👁 Aperçu pour les sous-titres)
+  video_edit: { cls: 'gen', prod: 'R0_VI_PREVIEW', back: 'R0_VI_CREATE' }, // Montage : 👁 Aperçu (clip sous-titré) ; Validation/Générer en aval (D3)
+  block: { cls: 'edit' }, // blockView pose ◀ Retour (+ 👁 Aperçu sous-titres) ; le wrapper pose le ✅ Valider unique (R0_BLOCK_OK)
 };
 function _btxt(rows) { return [].concat.apply([], rows).map(b => (b && b.text) || ''); }
 function _bcb(rows) { return [].concat.apply([], rows).map(b => b && b.cb).filter(Boolean); }
 // Rendu d'un état de navigation -> vue pure. state = { screen, section?, block? }
-//   [Etoile] WRAPPER : tout écran NON-RACINE garantit ◀ Retour + (✅ Valider | 👁 Aperçu | ✨ Générer selon la classe) + 🏠 Accueil + 🛑 Stop.
+//   WRAPPER : garantit ◀ Retour + (👁 Aperçu sur 'gen' | ✅ Valider sur 'edit') + 🏠 Accueil + 🛑 Stop, SANS jamais dupliquer un cb existant.
 function view(state, facts, ctx) {
   const v = _view(state, facts, ctx);
   if (state.screen === 'home' || !v || !Array.isArray(v.rows)) return v;
   const req = NAVREQ[state.screen] || null;
   const texts = _btxt(v.rows);
+  const present = new Set(_bcb(v.rows));   // [A1] cbs DÉJÀ présents -> on n'en ré-ajoute aucun
   const hasTxt = re => texts.some(t => re.test(t));
   const RETOUR = /◀|Retour|Annuler|↩/;
   const APERCU = /👁|Aperçu/;
   const VALID = /✅\s*Valider/;
-  const GENER = /✨\s*Génér/;
   const add = [];
+  const pushU = b => { if (b && b.cb && !present.has(b.cb)) { add.push(b); present.add(b.cb); } }; // ajout UNIQUE (anti-doublon)
   if (req && req.cls === 'gen') {
-    if (!hasTxt(APERCU)) add.push({ text: '👁 Aperçu', cb: req.prod });
-    if (!hasTxt(VALID)) add.push({ text: '✅ Valider', cb: req.prod });
-    if (!hasTxt(GENER)) add.push({ text: '✨ Générer', cb: req.gen || req.prod });
+    if (!hasTxt(APERCU)) pushU({ text: '👁 Aperçu', cb: req.prod }); // D3 : seule entrée de production sur l'écran de prépa
   } else if (req && req.cls === 'edit') {
-    if (!hasTxt(VALID) && req.back) add.push({ text: '✅ Valider', cb: req.back });
+    if (!hasTxt(VALID)) pushU({ text: '✅ Valider', cb: 'R0_BLOCK_OK' }); // cb DISTINCT du Retour -> 0 doublon
   }
-  if (!hasTxt(RETOUR) && req && req.back) add.push({ text: '◀ Retour', cb: req.back });
+  if (!hasTxt(RETOUR) && req && req.back) pushU({ text: '◀ Retour', cb: req.back });
   if (add.length) v.rows = v.rows.concat([add]);
   // 🏠 Accueil + 🛑 Stop garantis en dernier (sortie possible à TOUTE étape).
   const cb = _bcb(v.rows);
@@ -362,6 +362,11 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
     case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
     case 'R0_PH_MONTAGE': return go('photo_montage');   // [R5] 🛠 Montage photo (outils regroupés)
+    case 'R0_BLOCK_OK': { // [A1] ✅ Valider d'un bloc (cb UNIQUE) -> revient au parent (brouillon déjà sauvegardé), sans dupliquer le cb du Retour
+      const blk = st.block || {};
+      if (blk.key === 'soustitres' && ctx && ctx.subReturn) return reduce(ctx.subReturn, Object.assign(st, { block: null }), facts, ctx); // sous-titres ouverts depuis l'aperçu -> y revient (re-rend le clip)
+      const scr = blk.screen === 'photo' ? 'photo_prompt' : (blk.screen === 'video' ? (blk.key === 'soustitres' ? 'video_edit' : 'video_params') : 'publication');
+      return go(scr, '✅ <b>Validé</b>'); }
     case 'R0_GEN_VALID': return go('validation'); // [D3] Aperçu -> ✅ Valider -> écran VALIDATION chiffré (garde-fou)
     case 'R0_VALID_BACK': return go('confirm', '↩️ <i>Retour à l\'aperçu</i>'); // [D3] Validation -> Retour -> Aperçu (média)
     // GÉNÉRATION PHOTO -> passe par la CONFIRMATION DE COÛT (jamais de dépense directe)

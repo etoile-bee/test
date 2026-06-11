@@ -79,7 +79,8 @@ async function main() {
   for (const scr of Object.keys(NAVREQ)) {
     if (!REACH[scr]) { chk('NAVREQ : ' + scr + ' a une route REACH', false); continue; }
     await reach(scr); const L = bot.labels(); const cls = NAVREQ[scr].cls;
-    const need = cls === 'gen' ? ['apercu', 'valider', 'generer', 'retour', 'accueil', 'stop'] : ['valider', 'retour', 'accueil', 'stop'];
+    // [D3] 'gen' (prépa) = 👁 Aperçu seule entrée production (Validation/Générer en aval) ; 'edit' = ✅ Valider. Toujours Retour/Accueil/Stop.
+    const need = cls === 'gen' ? ['apercu', 'retour', 'accueil', 'stop'] : ['valider', 'retour', 'accueil', 'stop'];
     for (const k of need) chk('NAVREQ[' + cls + '] ' + scr + ' a ' + k, L.some(t => reM[k].test(t)));
   }
 
