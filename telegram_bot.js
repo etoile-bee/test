@@ -2521,6 +2521,7 @@ function switchChat(id){ if(id===activeChat)return; _ssave(activeChat); activeCh
 //   sera branchée derrière le gate QC au moment de la bascule. Tout requis en LAZY (n'impacte pas le boot).
 // ═════════════════════════════════════════════════════════════════════════════
 let v4active=false, _v4=null;
+let r0Mid=null, r0Await=null; /*[RÉALISATION] pointeurs transitoires reconstructibles (E122) : bloc /v4r courant + mode de saisie texte du cap*/
 function v4Placeholder(){ try{ const l=looksList(); if(l.length) return path.join(getLooksDir(), l[0]); }catch(e){} try{ return nlRefFile(); }catch(e){} return null; }
 function v4Generate(flow, m){ // (legacy stub gratuit — conservé en secours, non utilisé quand imageBackend est branché)
   try{ const PS=require('./ui/project_store'); const looks=looksList().slice(0, (m.parametres&&m.parametres.nb_images)||1);
@@ -2564,18 +2565,44 @@ function cockpitV4(){
   return _v4;
 }
 
-// [RÉALISATION Lot 0] helpers /v4r — repos SOBRE (sans média) + création robuste par BOUTON. Isolé du legacy et de /v4.
+// ═══ [RÉALISATION — colonne vertébrale /v4r] UN SEUL bloc édité en place. Repos sobre, prochain geste proposé,
+//     navigation libre (cap/mémoire/retour), génération SIMULÉE (zéro dépense). Isolé du legacy et de /v4. ═══
 function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience') }; }
 function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
-function r0Block(persona, mode){ /*mode: 'open' (courant ou crée si aucun) | 'new' (force un nouveau)*/
-  const {S,C}=_r0();
-  let cur=(mode==='new')?null:S.currentProject(BASE,persona); let created=false;
-  if(!cur){ cur=S.createProject(BASE,persona,{},Date.now()).facts; created=true; jlog('[v4r] projet de test cree '+cur.projectId); }
-  const facts=S.loadFacts(BASE,persona,cur.projectId); /*reprise = relecture du Socle*/
-  const s=C.situation(facts); /*dérivation Conscience, recalculée, jamais stockée*/
-  const caption=(created?'✨ <b>Nouveau projet créé</b>\n':'')+'📁 <b>'+_r0esc(s.nom)+'</b> · '+s.etat+'\n🧭 '+_r0esc(s.cap)+'\n🗂 '+s.decisions+' décision(s)';
-  const rows=[[{text:'🆕 Nouveau projet',callback_data:'R0_NEW'},{text:'🔄 Reprendre',callback_data:'R0_REPOS'}]];
-  return { caption, rows, projectId: cur.projectId };
+function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,persona);
+  if(!cur&&create){ cur=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet cree '+cur.projectId); }
+  return cur?S.loadFacts(BASE,persona,cur.projectId):null; }
+// REPOS : où j'en suis (cap+état+mémoire) + UN prochain geste proposé + navigation libre.
+function r0Repos(persona, banner){ const {C}=_r0(); const f=r0Cur(persona,true); const s=C.situation(f); const g=C.prochainGeste(f);
+  let cap=(banner?(banner+'\n'):'')+'📁 <b>'+_r0esc(s.nom)+'</b> · '+s.etat
+    +'\n🧭 '+_r0esc(s.cap)
+    +'\n🗂 '+s.decisions+' décision(s) · 🖼 '+s.medias+' image(s)'
+    +'\n\n➡️ <b>Prochain geste</b> : '+_r0esc(g.label.replace(/^[^ ]+ /,''));
+  const rows=[[{text:g.label,callback_data:g.cb}],
+              [{text:'✍️ Cap',callback_data:'R0_CAP'},{text:'🗂 Mémoire',callback_data:'R0_MEM'}],
+              [{text:'🆕 Nouveau projet',callback_data:'R0_NEW'}]];
+  return { caption:cap, rows }; }
+// CAP : préciser message (texte) · émotion/objectif (au tap) · public (texte). Retour repos quand on veut.
+function r0Cap(persona){ const {C}=_r0(); const f=r0Cur(persona,true); const i=f.intention||{};
+  let cap='✍️ <b>Ton cap</b>\n🎯 Message : '+(i.message?_r0esc(i.message):'<i>(à poser)</i>')
+    +'\n😊 Émotion : '+(i.emotion?_r0esc(i.emotion):'—')
+    +'\n👥 Public : '+(i.public?_r0esc(i.public):'—')
+    +'\n📍 Objectif : '+(i.objectif?_r0esc(i.objectif):'—')
+    +'\n\n<i>Touche pour préciser ; reviens au repos quand tu veux.</i>';
+  const emo=['douceur','punch','luxe','fun'].map(v=>({text:(i.emotion===v?'🔵 ':'')+v,callback_data:'R0_EMO_'+v}));
+  const obj=['court','story','long'].map(v=>({text:(i.objectif===v?'🔵 ':'')+v,callback_data:'R0_OBJ_'+v}));
+  const rows=[[{text:'🎯 Message',callback_data:'R0_MSG'},{text:'👥 Public',callback_data:'R0_PUB'}], emo, obj, [{text:'⬅ Repos',callback_data:'R0_REPOS'}]];
+  return { caption:cap, rows }; }
+// MÉMOIRE : décisions (action+raison) + images (faits) ; relisible, rien d'effacé.
+function r0Mem(persona){ const f=r0Cur(persona,true); const ds=(f.decisions||[]), ms=(f.medias||[]);
+  let cap='🗂 <b>Mémoire</b> · '+ds.length+' décision(s) · 🖼 '+ms.length+' image(s)';
+  cap+= ds.length ? ('\n'+ds.slice(-6).map(d=>'• '+_r0esc(d.action)+(d.raison?(' — '+_r0esc(d.raison)):'')).join('\n')) : '\n<i>Aucune décision encore.</i>';
+  if(ms.length) cap+='\n'+ms.slice(-6).map(m=>'🖼 '+m.id+' · '+m.etat+(m.simule?' (simulée)':'')).join('\n');
+  return { caption:cap, rows:[[{text:'⬅ Repos',callback_data:'R0_REPOS'}]] }; }
+// Peindre le bloc UNIQUE : édite r0Mid en place si possible, sinon (re)crée et mémorise le message_id.
+async function r0Paint(b, mid){
+  if(mid){ const ok=await tgEditText(mid,b.caption,b.rows); if(ok!==false){ r0Mid=mid; return mid; } }
+  const r=await send(b.caption,b.rows); r0Mid=(r&&r.result&&r.result.message_id)||r0Mid; return r0Mid;
 }
 
 async function handle(upd){
@@ -2597,11 +2624,21 @@ async function handle(upd){
     cbAnswered=false;{const _id=cb.id;setTimeout(()=>{if(!cbAnswered&&lastCbId===_id)answerCB(_id).catch(()=>{});},2500);}
     uiLog({dir:'in',type:'callback',screen:'',user_action:d,caption_len:0,buttons:[],edited_in_place:false});
     // [cockpit-v4] INTERCEPT : si le nouveau cockpit est actif (/v4), il prend la main sur TOUS les callbacks.
-    if(d&&d.indexOf('R0_')===0){ /*[RÉALISATION Lot 0] callbacks isolés (n'altèrent ni le legacy ni /v4) : création robuste par bouton + reprise*/
-      try{ const persona=_persona(); const b=r0Block(persona, d==='R0_NEW'?'new':'open');
-        const okE=await tgEditText(cb.message.message_id, b.caption, b.rows);
-        if(okE===false){ await send(b.caption, b.rows); } }
-      catch(e){ jlog('R0 cb err '+e.message); }
+    if(d&&d.indexOf('R0_')===0){ /*[RÉALISATION colonne vertébrale] callbacks isolés (n'altèrent ni le legacy ni /v4). Tout en place, navigation libre, génération simulée.*/
+      try{
+        const persona=_persona(); const {S}=_r0(); r0Await=null; /*toute navigation annule une saisie en attente*/
+        let b;
+        if(d==='R0_NEW'){ const f=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] nouveau '+f.projectId); b=r0Repos(persona,'✨ <b>Nouveau projet créé</b>'); }
+        else if(d==='R0_CAP'){ b=r0Cap(persona); }
+        else if(d==='R0_MEM'){ b=r0Mem(persona); }
+        else if(d==='R0_IMG'){ const cur=r0Cur(persona,true); S.addCandidate(BASE,persona,cur.projectId,Date.now()); jlog('[v4r] image simulée (0 dépense)'); b=r0Repos(persona,'🖼 <b>Image convoquée</b> <i>(simulée — zéro dépense)</i>'); }
+        else if(d.indexOf('R0_EMO_')===0){ const v=d.slice(7); const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{emotion:v},Date.now()); b=r0Cap(persona); }
+        else if(d.indexOf('R0_OBJ_')===0){ const v=d.slice(7); const cur=r0Cur(persona,true); S.setIntention(BASE,persona,cur.projectId,{objectif:v},Date.now()); b=r0Cap(persona); }
+        else if(d==='R0_MSG'){ r0Await={mode:'message'}; b={caption:'🎯 <b>Ton message</b>\nÉcris-le en une phrase (réponse courte). Ou ⬅ Repos.', rows:[[{text:'⬅ Repos',callback_data:'R0_REPOS'}]]}; }
+        else if(d==='R0_PUB'){ r0Await={mode:'public'}; b={caption:'👥 <b>Ton public</b>\nÀ qui t\'adresses-tu ? (réponse courte). Ou ⬅ Repos.', rows:[[{text:'⬅ Repos',callback_data:'R0_REPOS'}]]}; }
+        else { b=r0Repos(persona); }
+        await r0Paint(b, cb.message.message_id); /*édition EN PLACE du bloc tapé*/
+      }catch(e){ jlog('R0 cb err '+e.message); }
       cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return;
     }
     if(v4active){ try{ await cockpitV4().handle(d); }catch(e){ jlog('v4 handle err '+e.message); } cbAnswered=true; try{await answerCB(cb.id);}catch(e){} return; }
@@ -3468,6 +3505,15 @@ async function handle(upd){
   if(!txt)return;
   // [cockpit-v4] SAISIE TEXTE : si le cockpit attend une valeur (renommer projet, créer une zone), capter le texte (jamais un message technique).
   if(v4active && !txt.startsWith('/') && cockpitV4().awaiting()){ try{ await cockpitV4().handleText(txt); }catch(e){ jlog('v4 text err '+e.message); } return; }
+  // [RÉALISATION /v4r] SAISIE TEXTE du cap (message/public) : réponse courte captée, réintégrée EN PLACE dans le bloc /v4r.
+  if(r0Await && !txt.startsWith('/')){
+    try{ const persona=_persona(); const {S}=_r0(); const cur=r0Cur(persona,true);
+      const patch = r0Await.mode==='public' ? {public:txt} : {message:txt};
+      S.setIntention(BASE,persona,cur.projectId,patch,Date.now()); r0Await=null;
+      await r0Paint(r0Repos(persona), r0Mid); /*édite le bloc existant si possible, sinon en recrée un*/
+    }catch(e){ jlog('v4r text err '+e.message); r0Await=null; }
+    return;
+  }
   // menu principal automatique à la 1ère interaction de la journée
   {const _t=new Date().toISOString().slice(0,10);if(_t!==lastMenuDay){lastMenuDay=_t;if(!txt.startsWith('/'))await openCard().catch(()=>{});}} /*fix : le menu auto ne s'invite plus par-dessus les commandes (/newlook etc.)*/
 
@@ -3482,14 +3528,13 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
-  if(txt.startsWith('/v4r')){ /*[RÉALISATION Lot 0] repos sobre (sans média) ; création robuste par bouton ; AUCUNE retombée silencieuse sur /menu*/
+  if(txt.startsWith('/v4r')){ /*[RÉALISATION colonne vertébrale] entrée = nouveau bloc /v4r ; ensuite tout se passe EN PLACE (taps). AUCUNE retombée silencieuse.*/
     try{
-      const persona=_persona();
-      if(txt==='/v4r'){ const b=r0Block(persona,'open'); await send(b.caption,b.rows); return; }
-      if(txt==='/v4r new'){ const b=r0Block(persona,'new'); await send(b.caption,b.rows); return; }
+      const persona=_persona(); r0Await=null;
+      if(txt==='/v4r'){ r0Mid=null; await r0Paint(r0Repos(persona), null); return; }
+      if(txt==='/v4r new'){ const {S}=_r0(); S.createProject(BASE,persona,{},Date.now()); r0Mid=null; await r0Paint(r0Repos(persona,'✨ <b>Nouveau projet créé</b>'), null); return; }
       /*toute autre forme « /v4r… » = NON reconnue : on le DIT, on reste dans /v4r, on ne crée rien, on ne bascule pas sur le legacy*/
-      const b=r0Block(persona,'open');
-      await send('⚠️ Commande « '+_r0esc(txt)+' » non reconnue — rien créé. Touche 🆕 ci-dessous pour un nouveau projet, ou tape /v4r.\n\n'+b.caption,b.rows);
+      r0Mid=null; const b=r0Repos(persona); b.caption='⚠️ « '+_r0esc(txt)+' » non reconnue — rien créé. Touche un bouton ci-dessous, ou tape /v4r.\n\n'+b.caption; await r0Paint(b, null);
     }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indisponible.'); }
     return;
   }

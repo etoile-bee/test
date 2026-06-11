@@ -30,7 +30,8 @@ function defaultFacts(persona, id, ts) {
     projectId: id, persona: persona || 'default',
     cree_le: t, modifie_le: t,
     intention: { message: null, emotion: null, public: null, objectif: null, declencheur: null },
-    decisions: [],   // mémoire (action + raison) — vide en Lot 0
+    decisions: [],   // mémoire (action + raison)
+    medias: [],      // Média produit (faits déposés par l'Atelier : candidate + RAW) — simulés en V1
   };
 }
 
@@ -68,6 +69,29 @@ function listProjects(base, persona) {
 
 function currentProject(base, persona) { return listProjects(base, persona)[0] || null; }
 
+// ── ÉCRITURES DE FAITS (le Pilotage écrit ; l'Atelier dépose) — toujours dans le Socle (INV-10) ──
+// Cap : précise une/des composantes de l'intention (fait durable).
+function setIntention(base, persona, id, patch, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.intention = Object.assign({}, f.intention, patch || {});
+  return saveFacts(base, persona, f, ts);
+}
+// Mémoire : enregistre une Décision (action + raison) — jamais effacée.
+function recordDecision(base, persona, id, action, raison, auteur, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.decisions = f.decisions || [];
+  f.decisions.push({ ts: iso(ts), action: action, raison: raison || null, auteur: auteur || 'Etoile' });
+  return saveFacts(base, persona, f, ts);
+}
+// Atelier : dépose un fait-média à l'état `candidate` (simulé en V1 — zéro dépense).
+function addCandidate(base, persona, id, ts) {
+  const f = loadFacts(base, persona, id); if (!f) return null;
+  f.medias = f.medias || [];
+  const mid = 'm' + (f.medias.length + 1);
+  f.medias.push({ id: mid, etat: 'candidate', simule: true, produit_le: iso(ts) });
+  return saveFacts(base, persona, f, ts);
+}
+
 // Libellé lisible par défaut (jamais d'ID technique) — utilisé par la Conscience si pas de message.
 function friendlyName(creeLe) {
   try { const d = new Date(creeLe); return 'Projet · ' + d.getDate() + ' ' + _MOIS[d.getMonth()] + ' ' + String(d.getHours()).padStart(2, '0') + 'h' + String(d.getMinutes()).padStart(2, '0'); }
@@ -77,4 +101,5 @@ function friendlyName(creeLe) {
 module.exports = {
   rroot, personaDir, pdir, fpath, genId, defaultFacts,
   createProject, loadFacts, saveFacts, listProjects, currentProject, friendlyName,
+  setIntention, recordDecision, addCandidate,
 };

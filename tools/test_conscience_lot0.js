@@ -38,5 +38,14 @@ chk('repos sans média : titre = texte, aucun champ média produit', typeof C.ti
 const t = C.titre(pose).toLowerCase();
 chk('Loi II : aucune attribution de sens dans le titre', !/(bon|fort|faible|réussi|sert l'|cohérent au sens)/.test(t));
 
+// ── Focalisation → prochain geste (proposition dérivée, déterministe) ──
+chk('geste : cap vide -> proposer « Poser ton cap »', C.prochainGeste(vide).cb === 'R0_CAP');
+const avecCap = S.defaultFacts('imany', 'imany_z', now); avecCap.intention.message = 'x';
+chk('geste : cap posé, aucune image -> « Convoquer une première image »', C.prochainGeste(avecCap).cb === 'R0_IMG');
+const avecImg = JSON.parse(JSON.stringify(avecCap)); avecImg.medias = [{ id: 'm1', etat: 'candidate', simule: true }];
+chk('geste : image présente -> « Revoir ta matière »', C.prochainGeste(avecImg).cb === 'R0_MEM');
+chk('geste : déterministe (même faits -> même geste)', C.prochainGeste(avecCap).cb === C.prochainGeste(avecCap).cb);
+chk('situation : compte les images (fait)', C.situation(avecImg).medias === 1);
+
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
 process.exit(ko ? 1 : 0);
