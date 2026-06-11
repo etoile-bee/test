@@ -2649,6 +2649,37 @@ function r0CloudCopy(file, projId){ try{ if(!file || (typeof R0DRY!=='undefined'
   const dest=path.join(dir, path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
   jlog('[v4r] rendu déposé dans podcast-looks/'+(projId||'v4r')+': '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
+// [ARCHIVE] Écrit l'ARCHIVE DE RÉFÉRENCE d'un projet dans podcast-looks/projets/<persona>/<id>/ (copie physique + manifeste).
+//   MÊME mécanisme pour le rétroactif ET le futur. Lecture seule de la base ; écriture UNIQUEMENT dans podcast-looks. Jamais en dry-run.
+function r0ArchiveProjet(persona, id){
+  try{ if(typeof R0DRY!=='undefined'&&R0DRY) return null; const {S,C}=_r0(); const f=S.loadFacts(BASE,persona,id); if(!f) return null;
+    let root; try{ root=getLooksDir(); }catch(e){ root=path.join(BASE,'looks'); }
+    const dir=path.join(root,'projets',persona,id);
+    const sub=n=>{ const d=path.join(dir,n); try{ fs.mkdirSync(d,{recursive:true}); }catch(e){} return d; };
+    ['Photos','Vidéos','Références','Looks','Scripts','Légendes','Prompts','Audio','Sous-titres','Exports finaux'].forEach(sub);
+    let nImg=0,nVid=0; const vis=C.visibles(f)||[];
+    for(const m of vis){ if(!m.file||m.simule||!fs.existsSync(m.file)) continue; // [318 inter-projets] on suit le fichier RÉEL et on le copie DANS ce projet -> autonome
+      const isV=m.type==='video'; const dest=path.join(dir,isV?'Vidéos':'Photos',path.basename(m.file));
+      try{ if(!fs.existsSync(dest)) fs.copyFileSync(m.file,dest); isV?nVid++:nImg++; }catch(e){} }
+    const dp=(f.draft&&f.draft.photo)||{}, dv=(f.draft&&f.draft.video)||{}, pub=f.publication||{};
+    const W=(folder,name,txt)=>{ if(txt!=null&&String(txt).trim()) try{ fs.writeFileSync(path.join(dir,folder,name),String(txt)); }catch(e){} };
+    W('Prompts','prompt.txt',dp.prompt); W('Scripts','script.txt',dv.script);
+    W('Légendes','legendes.txt',[pub.legende_courte&&('COURTE:\n'+pub.legende_courte),pub.legende_longue&&('LONGUE:\n'+pub.legende_longue),pub.hashtags&&('HASHTAGS:\n'+pub.hashtags)].filter(Boolean).join('\n\n'));
+    W('Sous-titres','soustitres.txt',['actif: '+(dv.soustitres||'auto'),'police: '+(dv.st_font||'-'),'taille: '+(dv.st_size||'-'),'position: '+(dv.st_pos||'-'),'affichage: '+(dv.st_display||'-')].join('\n'));
+    if(dp.reference&&fs.existsSync(dp.reference)){ try{ fs.copyFileSync(dp.reference,path.join(dir,'Références',path.basename(dp.reference))); }catch(e){} }
+    if(dp.look){ W('Looks','look.txt',String(dp.look)); }
+    const manifest={ projectId:id, persona:persona, titre:(f.intention&&f.intention.message)||id, cree_le:f.cree_le, modifie_le:f.modifie_le, statut:f.statut,
+      intention:f.intention||{}, regeneration:{ prompt:dp.prompt||null, tenue:dp.look||null, decor:dp.decor||null, reference:dp.reference||null, format:dp.format||'9:16', duree:dv.duree||null, voix:dv.voix||null, sous_titres:{actif:dv.soustitres||'auto',police:dv.st_font||null,taille:dv.st_size||null,position:dv.st_pos||null}, moteurs:{photo:'seedream-v4',video:'kling+elevenlabs'} },
+      decisions:f.decisions||[], publication:pub, fichiers:{photos:nImg,videos:nVid}, archive:{version_schema:1} };
+    try{ fs.writeFileSync(path.join(dir,'projet.json'),JSON.stringify(manifest,null,2)); }catch(e){}
+    try{ fs.writeFileSync(path.join(dir,'facts.snapshot.json'),JSON.stringify(f,null,2)); }catch(e){}
+    try{ fs.writeFileSync(path.join(dir,'RECAP.txt'),'PROJET '+id+'\nstatut: '+(f.statut||'-')+'\nprompt: '+(dp.prompt||'-')+'\ntenue: '+(dp.look||'-')+'\ndécor: '+(dp.decor||'-')+'\ndurée: '+(dv.duree||'-')+'\nphotos: '+nImg+' · vidéos: '+nVid+'\n'); }catch(e){}
+    return { id:id, photos:nImg, videos:nVid }; }catch(e){ try{ jlog('[archive] err '+id+' '+e.message); }catch(_){} return null; }
+}
+// [MIGRATION] rétroactif = MÊME mécanisme : pour chaque projet AVEC média, on écrit l'archive. Aucune suppression.
+function r0MigrateAll(persona){ const {S,C}=_r0(); const list=S.listProjects(BASE,persona)||[]; let projets=0,photos=0,videos=0;
+  for(const p of list){ if((C.visibles(p)||[]).filter(m=>m.file&&!m.simule).length===0) continue; const r=r0ArchiveProjet(persona,p.projectId); if(r){ projets++; photos+=r.photos; videos+=r.videos; } }
+  return { projets, photos, videos }; }
 // Vidéo de démo LOCALE : générée UNE fois depuis l'image-look via ffmpeg (zoom lent 3s, 9:16). ZÉRO dépense (CPU local, aucune API).
 let _r0Vid=null;
 async function r0DemoVideo(){
@@ -2677,7 +2708,11 @@ function r0RealImages(persona, max){
   // 2) global : photos réelles générées (v4r), générations legacy, looks générés
   try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(/^photo_.*\.(jpg|jpeg|png)$/i.test(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
   try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(g,x)); }catch(e){}
-  try{ const ld=fs.realpathSync(path.join(BASE,'looks')); for(const x of fs.readdirSync(ld)) if(/^gen_.*\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ld,x)); }catch(e){}
+  // [migration] podcast-looks racine : TOUTES les images (incl. patrimoine IMG_*), plus seulement gen_*
+  let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); }
+  try{ for(const x of fs.readdirSync(ld)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ld,x)); }catch(e){}
+  // [migration] archives par projet : podcast-looks/projets/<persona>/*/Photos/*
+  try{ const pr=path.join(ld,'projets',persona); for(const d of fs.readdirSync(pr)){ const ph=path.join(pr,d,'Photos'); try{ for(const x of fs.readdirSync(ph)) if(/\.(jpg|jpeg|png|webp)$/i.test(x)) add(path.join(ph,x)); }catch(e){} } }catch(e){}
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
@@ -2693,6 +2728,8 @@ function r0RealVideos(persona, max){
   try{ const g=path.join(BASE,'outputs','generations'); for(const x of fs.readdirSync(g)){ const fp=path.join(g,x); try{ if(fs.statSync(fp).isDirectory()){ for(const y of fs.readdirSync(fp)) if(isV(y)) add(path.join(fp,y)); } else if(isV(x)) add(fp); }catch(e){} } }catch(e){}
   // 3) vidéos v4r dans les projets
   try{ const pr=path.join(BASE,'projects_r',persona); for(const d of fs.readdirSync(pr)){ const pd=path.join(pr,d); try{ for(const x of fs.readdirSync(pd)) if(isV(x)) add(path.join(pd,x)); }catch(e){} } }catch(e){}
+  // 4) [migration] archives par projet : podcast-looks/projets/<persona>/*/Vidéos/*
+  try{ let ld; try{ ld=fs.realpathSync(path.join(BASE,'looks')); }catch(e){ ld=path.join(BASE,'looks'); } const pr=path.join(ld,'projets',persona); for(const d of fs.readdirSync(pr)){ const vd=path.join(pr,d,'Vidéos'); try{ for(const x of fs.readdirSync(vd)) if(isV(x)) add(path.join(vd,x)); }catch(e){} } }catch(e){}
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
@@ -4052,7 +4089,7 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
-  if(txt.startsWith('/v4r')){ try{ await r0TypedV4r(txt); }catch(e){ jlog('v4r err '+e.message); try{ await send('⚠️ /v4r indisponible.'); }catch(_){} } return; }
+  if(txt==='/accueil'||txt.startsWith('/v4r')){ try{ await r0TypedV4r(txt==='/accueil'?'/v4r':txt); }catch(e){ jlog('v4r err '+e.message); try{ await send('⚠️ cockpit indisponible.'); }catch(_){} } return; } // [Etoile] /accueil = entrée principale du nouveau cockpit ; /v4r = alias ; /menu legacy inchangé
   if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
@@ -4231,6 +4268,30 @@ async function poll(){
   setTimeout(poll,1000);
 }
 
+// ── [MIGRATION] gate CLI : `node telegram_bot.js --migrate` — copie rétroactive (MÊME mécanisme que le futur),
+//   ne démarre NI le lock NI le polling, n'écrit QUE dans podcast-looks/projets, NE SUPPRIME RIEN. Sûr à côté du bot live.
+if(process.argv.includes('--migrate')){ (function(){
+  try{
+    const {S,C}=_r0(); const root=path.join(BASE,'projects_r');
+    let personas=[]; try{ personas=fs.readdirSync(root).filter(x=>{try{return fs.statSync(path.join(root,x)).isDirectory();}catch(e){return false;}}); }catch(e){}
+    let dest; try{ dest=path.join(getLooksDir(),'projets'); }catch(e){ dest=path.join(BASE,'looks','projets'); }
+    console.log('=== MIGRATION RÉTROACTIVE ===');
+    console.log('base   : '+BASE);
+    console.log('cible  : '+dest);
+    console.log('personas: '+(personas.join(', ')||'(aucun)'));
+    let tot={projets:0,photos:0,videos:0};
+    for(const pers of personas){
+      const all=S.listProjects(BASE,pers)||[];
+      const withMedia=all.filter(p=>(C.visibles(p)||[]).filter(m=>m.file&&!m.simule).length>0);
+      const r=r0MigrateAll(pers);
+      tot.projets+=r.projets; tot.photos+=r.photos; tot.videos+=r.videos;
+      console.log('— '+pers+': '+all.length+' projet(s) au total, '+withMedia.length+' avec média réel → '+r.projets+' archivé(s), '+r.photos+' photo(s), '+r.videos+' vidéo(s)');
+    }
+    console.log('=== TOTAL : '+tot.projets+' projet(s) archivé(s) · '+tot.photos+' photo(s) · '+tot.videos+' vidéo(s) copiée(s) ===');
+    process.exit(0);
+  }catch(e){ console.error('MIGRATION ERR: '+(e&&e.stack||e)); process.exit(1); }
+})(); }
+
 // ── Single-instance lock + capture d'erreurs ────────────────────────────────
 const LOCK_FILE='/tmp/telegram_bot.lock';
 if(!R0DRY) try{
@@ -4254,8 +4315,9 @@ process.on('unhandledRejection', (e)=>{ console.error('unhandledRejection:', e &
 
 setInterval(()=>{},1<<30);
 tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne garder que les points d'entrée MÉTIER.*/
-  {command:'v4r',description:'🎬 Studio (Accueil)'},
-  {command:'menu',description:'🏠 Menu'},
+  {command:'accueil',description:'🎬 Cockpit — Accueil du projet'},  // [Etoile] entrée principale du nouveau cockpit
+  {command:'v4r',description:'🎬 Cockpit (alias)'},
+  {command:'menu',description:'🏠 Menu (legacy)'},
   {command:'creer',description:'🚀 Créer une vidéo'},
   {command:'newlook',description:'🎨 Nouveau look'},
   {command:'restart',description:'🔄 Redémarrer'},
