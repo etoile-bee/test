@@ -49,8 +49,8 @@ function homeView(facts) {
 function photoView(facts) {
   const has = C.hasImage(facts);
   const n = C.visibles(facts).filter(m => m.type !== 'video').length;
-  const cap = '<b>📸 Photo</b> · ' + nom(facts) + '\n' + capLigne(facts)
-    + (has ? ('\n🖼 ' + n + ' photo(s) — <i>Utiliser la photo actuelle ?</i>') : '\n<i>aucune photo — à créer</i>');
+  const cap = '<b>📸 PHOTO · Choisir</b>'
+    + (has ? ('\n🖼 ' + n + ' photo(s) — <i>utiliser l\'actuelle ?</i>') : '\n<i>aucune photo — à créer</i>');
   // Arbre de décision (point 5) : si une photo existe -> « Utiliser / Une autre » en tête.
   const rows = (has
     ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '🔄 Changer', cb: 'R0_PH_OTHER' }]]
@@ -83,9 +83,8 @@ const PH_BLOCKS = [
 function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
-  let cap = '<b>📸 Photo · préparation</b>\n'
-    + PH_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + val(d[b.key])).join('\n')
-    + '\n<i>Touche un bloc pour l\'éditer (ici même).</i>';
+  let cap = '<b>📸 PHOTO · Préparer</b>\n'
+    + PH_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + val(d[b.key])).join('\n');
   const blockRows = [];
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
@@ -102,9 +101,9 @@ function photoPromptView(facts, ctx) {
 // ── ÉCRAN 2.2 — PHOTO / RÉSULTAT ─────────────────────────────────────────────
 function photoResultView(facts) {
   const m = C.lastImage(facts) || {};
-  const cap = '<b>📸 Photo — résultat</b> · ' + nom(facts)
+  const cap = '<b>📸 PHOTO · Résultat</b>'
     + '\n📝 ' + val(m.prompt, '<i>(prompt simulé)</i>')
-    + '\n📌 statut : ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(simulée)</i>' : '');
+    + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(simulée)</i>' : ' <i>(réelle)</i>');
   return {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_PH_DEL' }],
@@ -119,8 +118,8 @@ function photoResultView(facts) {
 function videoView(facts) {
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
   const kind = hasV ? 'video' : (hasI ? 'photo' : 'text');
-  const cap = '<b>🎬 Vidéo</b> · ' + nom(facts) + '\n' + capLigne(facts)
-    + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source disponible</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
+  const cap = '<b>🎬 VIDÉO · Choisir</b>'
+    + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source dispo — conserver ?</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
   // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
   const hasSource = hasI || hasV;
   const rows = (hasSource
@@ -139,15 +138,20 @@ const VI_BLOCKS = [
   { key: 'source', icon: '🖼', label: 'Image source' }, { key: 'mouvement', icon: '🎞', label: 'Mouvement' },
   { key: 'script', icon: '📝', label: 'Script' }, { key: 'voix', icon: '🎤', label: 'Voix' },
   { key: 'musique', icon: '🎵', label: 'Musique' }, { key: 'legendes', icon: '💬', label: 'Légendes' },
-  { key: 'params', icon: '⚙️', label: 'Paramètres' },
+  { key: 'duree', icon: '⏱', label: 'Durée' }, { key: 'params', icon: '⚙️', label: 'Format' },
 ];
+const DUREE_DEFAUT = '30s';
 function videoParamsView(facts) {
   const d = (facts && facts.draft && facts.draft.video) || {};
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
   const srcLabel = d.source || (hasI ? 'photo du projet' : null);
-  let cap = '<b>🎬 Vidéo · préparation</b>\n'
-    + VI_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + (b.key === 'source' ? val(srcLabel) : val(d[b.key]))).join('\n')
-    + '\n<i>Touche un bloc pour l\'éditer (ici même).</i>';
+  // Durée TOUJOURS visible (défaut explicite) — répond à « ça génère quoi ? ».
+  const shown = (b) => b.key === 'source' ? val(srcLabel)
+    : b.key === 'duree' ? (d.duree ? esc(d.duree) : (DUREE_DEFAUT + ' <i>(défaut)</i>'))
+    : b.key === 'params' ? (d.format ? esc(d.format) : '9:16 <i>(défaut)</i>')
+    : val(d[b.key]);
+  let cap = '<b>🎬 VIDÉO · Préparer</b>\n'
+    + VI_BLOCKS.map(b => b.icon + ' ' + b.label + ' : ' + shown(b)).join('\n');
   const blockRows = [];
   for (let i = 0; i < VI_BLOCKS.length; i += 2) {
     blockRows.push(VI_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_VIB_' + b.key })));
@@ -164,10 +168,10 @@ function videoParamsView(facts) {
 // ── ÉCRAN 3.2 — VIDÉO / RÉSULTAT ─────────────────────────────────────────────
 function videoResultView(facts) {
   const m = C.lastVideo(facts) || {};
-  const cap = '<b>🎬 Vidéo — résultat</b> · ' + nom(facts)
+  const cap = '<b>🎬 VIDÉO · Résultat</b>'
     + '\n🖼 source : ' + val(m.source, 'photo du projet')
-    + '\n📝 script : ' + val(m.script, '<i>(simulé)</i>')
-    + '\n💬 légendes : ' + val(m.legendes, 'auto') + '\n📌 statut : ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(maquette locale)</i>' : '');
+    + '\n⏱ ' + val(m.duree, '30s') + '   📝 ' + val(m.script, '<i>(simulé)</i>')
+    + '\n📌 ' + esc(m.etat || 'candidate') + (m.simule ? ' <i>(maquette locale)</i>' : '');
   return {
     kind: 'video', caption: cap, rows: [
       [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '🗑 Supprimer', cb: 'R0_VI_DEL' }],
@@ -277,8 +281,8 @@ function confirmView(facts, ctx) {
       : ('📸 Photo' + ' · ' + (e.nb || 1) + ' img · ' + (e.format || '9:16'));
   // TERMINOLOGIE « Aperçu → Générer » : l'écran EST le récapitulatif avant de générer ; le coût reste visible.
   const gen = cf.mediaKind === 'video' ? '🎬 Générer' : (cf.mediaKind === 'text' ? '✨ Générer le texte' : '🎨 Générer');
-  const quoi = cf.mediaKind === 'video' ? 'la vidéo' : (cf.mediaKind === 'text' ? 'le texte' : 'la photo');
-  let cap = '<b>👁 Aperçu — récap avant ' + quoi + '</b>'
+  const titre = cf.mediaKind === 'video' ? '🎬 VIDÉO · Aperçu' : (cf.mediaKind === 'text' ? '✨ TEXTE · Aperçu' : '📸 PHOTO · Aperçu');
+  let cap = '<b>' + titre + '</b>'
     + '\n' + recap
     + '\n⚙️ Moteur : ' + esc(e.moteur || '—');
   if (paid) {
@@ -353,9 +357,10 @@ const PRESETS = {
   ph_params: ['9:16', '1:1', '16:9'],
   vi_mouvement: ['zoom lent', 'panoramique', 'fixe', 'dynamique'],
   vi_voix: ['douce', 'énergique', 'posée', 'off'],
-  vi_musique: ['aucune', 'douce', 'punchy', 'luxe'],
+  vi_musique: ['off', 'automatique', 'personnalisée'],   // (E) permettre une vidéo SANS musique
   vi_legendes: ['oui', 'non'],
-  vi_params: ['9:16 · 15s', '9:16 · 30s', '1:1 · 30s'],
+  vi_duree: ['15s', '30s', '60s'],                       // (K) durée explicite et éditable
+  vi_params: ['9:16', '1:1'],                            // format
   pub_plateforme: ['TikTok', 'Instagram', 'YouTube'],
 };
 

@@ -25,7 +25,8 @@ const SETMAP = {
   vivoix: { kind: 'video', field: 'voix', src: 'preset', name: 'vi_voix' },
   vimus: { kind: 'video', field: 'musique', src: 'preset', name: 'vi_musique' },
   vileg: { kind: 'video', field: 'legendes', src: 'preset', name: 'vi_legendes' },
-  viparams: { kind: 'video', field: 'params', src: 'preset', name: 'vi_params' },
+  viduree: { kind: 'video', field: 'duree', src: 'preset', name: 'vi_duree' },
+  viparams: { kind: 'video', field: 'format', src: 'preset', name: 'vi_params' },
 };
 
 // Textes SIMULÉS (tant que le moteur réel Anthropic est OFF) — placeholders éditables, mappés sur les champs existants.
@@ -62,6 +63,23 @@ function blockSpec(block, facts, ctx) {
       : { text: '◀ Retour', cb: 'R0_PUB' };
   const pk = parentKind(block.screen === 'photo' ? 'photo_prompt' : block.screen === 'video' ? 'video_params' : 'publication', facts);
 
+  // SOUS-TITRES (D) : activer/désactiver · position · taille — réglages PAR PROJET (draft.video), retour à Vidéo>Édition.
+  //   Lit subtitle_style.js (legacy) pour les valeurs PAR DÉFAUT affichées, SANS jamais le modifier (verrou intact).
+  if (block.key === 'soustitres') {
+    const cur = d.soustitres || 'auto (défaut)';
+    return {
+      title: '🔤 Sous-titres', current: cur, parentKind: pk, back: { text: '◀ Édition', cb: 'R0_VE' },
+      hint: 'Réglages pour cette vidéo (l\'incrustation se fait au rendu).',
+      options: [
+        { text: (d.soustitres === 'on' ? '🔵 ' : '') + '✅ Activer', cb: 'R0_SET_ston_on' },
+        { text: (d.soustitres === 'off' ? '🔵 ' : '') + '🚫 Désactiver', cb: 'R0_SET_ston_off' },
+        { text: (d.st_pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
+        { text: (d.st_pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
+        { text: (d.st_size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
+        { text: (d.st_size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
+      ],
+    };
+  }
   // PUBLICATION : édition légendes/plateforme
   if (block.screen === 'pub') {
     const p = (facts && facts.publication) || {};
@@ -113,12 +131,15 @@ function optionsFor(block, ctx, d) {
   return ['aucune', '1', '2'].map((v) => ({ text: (d[spec.field] === v ? '🔵 ' : '') + v, cb: 'R0_SET_' + blk + '_' + v }));
 }
 
-// le champ du draft porte parfois un nom différent de la clé d'affichage (params->format pour la PHOTO seulement)
-function fieldAlias(block) { return (block.screen === 'photo' && block.key === 'params') ? 'format' : block.key; }
+// le champ du draft porte parfois un nom différent de la clé d'affichage (params -> format)
+function fieldAlias(block) { return block.key === 'params' ? 'format' : block.key; }
 
 // Résout une valeur SET : (blk, token, ctx) -> { kind, field, value }
 function resolveSet(blk, token, ctx) {
   if (blk === 'pubplat') { return { target: 'pub', field: 'plateforme', value: SC.PRESETS.pub_plateforme[+token] }; }
+  if (blk === 'ston') { return { target: 'draft', kind: 'video', field: 'soustitres', value: token }; }   // on|off
+  if (blk === 'stpos') { return { target: 'draft', kind: 'video', field: 'st_pos', value: token }; }       // haut|bas
+  if (blk === 'stsize') { return { target: 'draft', kind: 'video', field: 'st_size', value: token }; }     // S|L
   const spec = SETMAP[blk]; if (!spec) return null;
   let value;
   if (spec.src === 'list') value = ((ctx && ctx[spec.name]) || [])[+token];
@@ -151,7 +172,7 @@ function view(state, facts, ctx) {
   }
 }
 
-function parentOf(blk) { return blk === 'pubplat' ? 'publication' : (blk.indexOf('ph') === 0 ? 'photo_prompt' : 'video_params'); }
+function parentOf(blk) { return blk === 'pubplat' ? 'publication' : (blk.indexOf('st') === 0 ? 'video_edit' : (blk.indexOf('ph') === 0 ? 'photo_prompt' : 'video_params')); }
 function parentOfAsk(ask) { return ask.indexOf('ph_') === 0 ? 'photo_prompt' : (ask.indexOf('vi_') === 0 ? 'video_params' : 'publication'); }
 
 // ═══ REDUCER PUR : (action, état, faits, ctx) -> { st, op?, banner?, toast?, await? } ═══
@@ -178,7 +199,8 @@ function reduce(action, st0, facts, ctx) {
     const op = r ? (r.target === 'pub' ? { type: 'pub', patch: { [r.field]: r.value } } : { type: 'draft', kind: r.kind, patch: { [r.field]: r.value } }) : { type: 'none' };
     return { st: Object.assign(st, { screen: parentOf(blk), block: null }), op: op };
   }
-  if (d.indexOf('R0_ASK_') === 0) { return { st: st, await: { ask: d.slice(7) }, banner: '✍️ <i>Écris ta réponse, je l\'intègre au bloc.</i>' }; }
+  if (d.indexOf('R0_ASK_') === 0) { const ak = d.slice(7); const m = ASKMAP[ak] || {};
+    return { st: st, await: { ask: ak }, banner: '✍️ <b>' + SC.esc(m.prompt || 'Ta réponse ?') + '</b>\n<i>Envoie-la dans le prochain message — je l\'intègre au bloc.</i>' }; }
   // GÉNÉRATEUR DE TEXTE (Anthropic, PAYANT) -> passe par la CONFIRMATION de coût comme le reste.
   if (d.indexOf('R0_GENTXT_') === 0) { st.pending = { kind: 'text', mediaKind: 'text', ask: d.slice(10) }; return go('confirm'); }
   if (d.indexOf('R0_PHB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'photo', key: d.slice(7) } }) }; }
@@ -205,7 +227,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_RE_ARCH': return Object.assign(go('recents', '📦 <b>Projet archivé</b>'), { op: { type: 'statut', statut: 'archive' } });
     case 'R0_RE_DEL': return Object.assign(go('recents', '🗑 <b>Déplacé en archives</b> <i>(rien n\'est perdu)</i>'), { op: { type: 'statut', statut: 'archive' } });
     // PHOTO
-    case 'R0_PH_IMPORT': return Object.assign(go('photo_result', '📥 <b>Photo importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import', prompt: '(importée)' } } });
+    case 'R0_PH_IMPORT': return { st: st, await: { upload: 'photo' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle deviendra une photo du projet (aucune dépense).</i>' };
     case 'R0_PH_GAL': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'photo_result'; return go('gallery');   // galerie : choisir -> revue photo
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.srcReturn = 'photo_result'; return go('gallery');   // historique (versions comprises)
     case 'R0_PH_PREVIEW': return { st: st, toast: '👁 Aperçu (coût nul)' };
@@ -220,7 +242,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_OTHER': return go('photo_source');                                 // « Une autre » -> sources (Galerie/Archives/Récents/Importer)
     case 'R0_PH_TOVIDEO': return Object.assign(go('video_params', '🎬 <b>Photo posée comme source</b>'), { op: { type: 'draft', kind: 'video', patch: { source: 'photo du projet' } } });
     // VIDÉO
-    case 'R0_VI_IMPORT': return Object.assign(go('video', '📥 <b>Source importée</b>'), { op: { type: 'create', kind: 'image', attrs: { source: 'import' }, then: { type: 'draft', kind: 'video', patch: { source: 'photo importée' } } } });
+    case 'R0_VI_IMPORT': return { st: st, await: { upload: 'source' }, banner: '📥 <b>Envoie ton image dans le prochain message.</b>\n<i>Elle sera la source de la vidéo (aucune dépense).</i>' };
     case 'R0_VI_PICK': st.galleryKind = 'image'; st.galleryAll = false; st.srcReturn = 'video_params'; return go('gallery'); // choisir QUELLE photo -> pose source -> retour prépa
     case 'R0_VI_GENPHOTO': st.ret = 'video'; return go('photo_prompt', '✨ <i>Génère la photo source — retour auto à la Vidéo</i>');
     case 'R0_VI_KEEPLOOK': return go('video_params', '✅ <b>Look conservé</b>');     // « Conserver ce look » -> paramètres -> aperçu -> générer
@@ -236,7 +258,7 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_VI_EDIT': return Object.assign(go('video_params'), { op: { type: 'loaddraft', kind: 'video', which: 'lastVideo' } });
     // VIDÉO > ÉDITION (post-production regroupée, gratuit/local)
     case 'R0_VE': return go('video_edit');
-    case 'R0_VE_SUBS': return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: 'legendes' } }) };
+    case 'R0_VE_SUBS': return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: 'soustitres' } }) }; // (D) sous-titres dédiés
     case 'R0_VE_IMGFX': return Object.assign({ st: st, toast: '🎨 Édition image (local, gratuit)' }, { op: { type: 'draft', kind: 'video', patch: { image_fx: 'réglée' } } });
     // CONFIRMATION DE DÉPENSE
     case 'R0_GO': {

@@ -2575,7 +2575,7 @@ function _r0(){ return { S:require('./ui/socle'), C:require('./ui/conscience'), 
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
-  const params = pending.kind==='video' ? Object.assign({duree:'23s'}, S.getDraft(f,'video')) : Object.assign({nb_images:1, mode:'eco'}, S.getDraft(f,'photo'));
+  const params = pending.kind==='video' ? Object.assign({duree:'30s'}, S.getDraft(f,'video')) : Object.assign({nb_images:1, mode:'eco'}, S.getDraft(f,'photo'));
   return COST.estimate(pending.kind==='video'?'video':'image', params, lb); }
 function _r0Lookbook(){ try{ delete require.cache[require.resolve('./lookbook.json')]; return require('./lookbook.json'); }catch(e){ return null; } }
 function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
@@ -2600,6 +2600,27 @@ function r0DemoVideo(){
   return null;
 }
 function r0Kb(rows){ return (rows||[]).map(r=>r.map(b=>({text:b.text, callback_data:b.cb}))); } /*{cb} -> {callback_data}*/
+// [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
+//   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
+function r0Mosaic(files){
+  try{
+    files=(files||[]).filter(Boolean).slice(0,9);
+    if(!files.length) return null;
+    if(files.length===1) return files[0]; // une seule vignette -> l'image telle quelle
+    const n=files.length, cols=(n<=2?2:(n<=4?2:3)), cell=300;
+    const args=['-y']; files.forEach(f=>args.push('-i',f));
+    let fc=''; const labels=[];
+    files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1[v'+i+'];'; labels.push('[v'+i+']'); });
+    const layout=files.map((f,i)=>((i%cols)*cell)+'_'+(Math.floor(i/cols)*cell)).join('|');
+    fc+=labels.join('')+'xstack=inputs='+n+':layout='+layout+':fill=black[out]';
+    const out=path.join(BASE,'assets_r','_mosaic.jpg');
+    try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
+    args.push('-filter_complex',fc,'-map','[out]','-frames:v','1',out);
+    require('child_process').execFileSync('ffmpeg',args,{stdio:'ignore',timeout:30000});
+    if(fs.existsSync(out)) return out;
+  }catch(e){ jlog('[v4r] mosaic err '+e.message); }
+  return null;
+}
 function r0MidOf(r){ return (r&&r.result&&r.result.message_id)||(typeof r==='number'?r:null); }
 // PEINTRE du bloc UNIQUE : décide edit / editMedia (swap photo↔vidéo EN PLACE) / recreate via l'oracle SB.plan.
 //   targetKind ∈ {text,photo,video} ; mediaPath = fichier local (image/vidéo) ou null pour texte.
@@ -2662,10 +2683,28 @@ async function r0Render(persona, editMid, banner){
   let kind=vw.kind||'text', media=null;
   if(kind==='video'){ media=r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
   if(kind==='photo'){ const m=C.lastImage(f); media=(m&&m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto(); if(!media) kind='text'; } // photo RÉELLE si dispo, sinon démo
+  // [F] GALERIE/HISTORIQUE/RÉCENTS : afficher une vraie MOSAÏQUE (planche-contact) comme média du bloc.
+  if(r0Screen==='gallery' || r0Screen==='recents'){
+    let files=[];
+    if(r0Screen==='gallery'){ const want=r0GalKind==='video'?'video':'image'; const all=r0GalAll?C.medias(f):C.visibles(f);
+      files=all.filter(m=>want==='video'?m.type==='video':m.type!=='video').slice(0,9).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+    else { const r=ctx.recents||{projets:[]}; files=(r.projets||[]).slice(0,9).map(p=>{ const mi=C.lastImage(p); return (mi&&mi.file&&fs.existsSync(mi.file))?mi.file:r0DemoPhoto(); }); }
+    files=files.filter(Boolean);
+    if(files.length){ const mo=r0Mosaic(files); if(mo){ kind='photo'; media=mo; } }
+  }
   await r0Paint(kind, media, caption, vw.rows, editMid);
+  r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
 }
 
 function r0ParentOfAsk(ask){ return ask.indexOf('ph_')===0?'photo_prompt':(ask.indexOf('vi_')===0?'video_params':'publication'); }
+// [A] CONSERVATION D'ÉTAT : persiste/restaure le contexte de navigation du projet courant (hint, hors Socle).
+const R0_NAV_FILE=()=>path.join(BASE,'v4r_nav.json');
+function r0SaveNav(persona){ try{ const cur=_r0().S.currentProject(BASE,persona);
+  fs.writeFileSync(R0_NAV_FILE(), JSON.stringify({ persona:persona, projectId:cur&&cur.projectId, screen:r0Screen, section:r0Section, block:r0Block, ret:r0Ret, pending:r0Pending, quitFrom:r0QuitFrom, srcReturn:r0SrcReturn, galKind:r0GalKind, galAll:r0GalAll })); }catch(e){} }
+function r0RestoreNav(persona){ try{ const s=JSON.parse(fs.readFileSync(R0_NAV_FILE(),'utf8')); const cur=_r0().S.currentProject(BASE,persona);
+  if(!s || s.persona!==persona || !cur || s.projectId!==cur.projectId) return false; // ne restaure que le contexte DU projet courant
+  r0Screen=s.screen||'home'; r0Section=s.section||null; r0Block=s.block||null; r0Ret=s.ret||null; r0Pending=s.pending||null;
+  r0QuitFrom=s.quitFrom||null; r0SrcReturn=s.srcReturn||null; r0GalKind=s.galKind||'image'; r0GalAll=!!s.galAll; return true; }catch(e){ return false; } }
 
 // ═══ DISPATCHER : délègue la DÉCISION au reducer PUR (ui/nav.reduce) puis applique l'OP au Socle (nav.applyOp). ═══
 //   Une seule source de vérité (partagée avec la preuve de scénario). Génération SIMULÉE (zéro dépense),
@@ -3482,6 +3521,19 @@ async function handle(upd){
   switchChat(String(msg.chat.id)); // no-op en mono-chat
   uiLog({dir:'in',type:msg.photo?'photo':'msg',screen:'',user_action:(msg.text||(msg.photo?'[photo]':'[media]')).slice(0,80),caption_len:(msg.text||'').length,buttons:[],edited_in_place:false});
 
+  // [J/B] IMPORT /v4r : capture la photo envoyée par l'utilisateur -> source RÉELLE du projet (zéro dépense), retour au flux.
+  if(r0Await && r0Await.upload && msg.photo){
+    try{ const persona=_persona(); const cur=r0Cur(persona,true); const id=cur.projectId; const mode=r0Await.upload; r0Await=null;
+      const fp=await dlPhoto(msg.photo[msg.photo.length-1].file_id); // télécharge l'image de l'utilisateur (gratuit, local)
+      const {S}=_r0();
+      S.addCandidate(BASE,persona,id,Date.now(),'image',{file:fp, simule:false, source:'import', prompt:'(importée)'});
+      if(mode==='source'){ S.setDraft(BASE,persona,id,'video',{source:'photo importée'},Date.now()); r0Screen='video_params'; }
+      else { r0Screen='photo_result'; }
+      r0Block=null; r0Pending=null;
+      await r0Render(persona, r0Mid, '📥 <b>Image importée</b>');
+    }catch(e){ jlog('v4r import err '+e.message); r0Await=null; try{ await r0Render(_persona(), r0Mid, '⚠️ Import échoué — réessaie.'); }catch(_){} }
+    return;
+  }
   // Photo upload
   if(state==='m_upload_wait'&&msg.photo){
     await system('⏳ Enregistrement...');
@@ -3651,13 +3703,20 @@ async function handle(upd){
     return;
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
-  if(txt.startsWith('/v4r')){ /*[RÉALISATION référence produit] PAS d'empilement : on retire l'ancien bloc, puis on pose UN seul écran ACCUEIL.*/
+  if(txt.startsWith('/v4r')){ /*[A] /v4r RESTAURE le contexte du projet en cours (dernier écran), au lieu de réinitialiser à blanc.*/
     try{
-      const persona=_persona(); r0Await=null; r0Block=null; r0Section=null; r0Ret=null;
-      if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} r0Mid=null; r0Type=null; } /*supprime l'ancien bloc -> le fil ne s'empile pas*/
-      if(txt==='/v4r new'){ const {S}=_r0(); S.createProject(BASE,persona,{},Date.now()); r0Screen='home'; await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); return; }
-      if(txt==='/v4r'){ r0Screen='home'; await r0Render(persona,null); return; }
-      r0Screen='home'; await r0Render(persona,null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.');
+      const persona=_persona(); r0Await=null;
+      if(txt==='/v4r new'){ /*nouveau projet explicite = repart à l'Accueil (mais l'ancien projet n'est pas effacé)*/
+        const {S}=_r0(); S.createProject(BASE,persona,{},Date.now());
+        r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0SrcReturn=null;
+        if(r0Mid){ try{ await delMsg(r0Mid); }catch(e){} r0Mid=null; r0Type=null; r0MediaPath=null; }
+        await r0Render(persona,null,'✨ <b>Nouveau projet</b>'); return;
+      }
+      if(txt==='/v4r'){ /*reprend où on en était (contexte restauré) ; édite le bloc courant en place s'il existe*/
+        if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; }
+        await r0Render(persona, r0Mid||null, r0Screen==='home'?null:'↩️ <i>Reprise de ton projet</i>'); return;
+      }
+      r0Screen='home'; await r0Render(persona, r0Mid||null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.');
     }catch(e){ jlog('v4r err '+e.message); await send('⚠️ /v4r indisponible.'); }
     return;
   }
@@ -3876,9 +3935,10 @@ tg('setMyCommands',{commands:[ /*[stabilisation] MÉNAGE du menu déroulant : ne
   /*[fix/restart-feedback] après un /restart demandé par l'utilisateur, RÉAFFICHER le cockpit (accueil) — sans message technique.
     Seul un /restart pose le drapeau ; un reboot involontaire (crash/deploy) reste silencieux.*/
   setTimeout(async ()=>{ try{ if(fs.existsSync(REOPEN_FLAG)){ try{fs.unlinkSync(REOPEN_FLAG);}catch(e){}
-    /*[stabilisation point 1] /restart -> atterrissage AUTO sur l'Accueil /v4r + message système PERSISTANT avec accès /menu.*/
-    try{ const persona=_persona(); r0Mid=null; r0Type=null; r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0Await=null; r0QuitFrom=null;
-      await r0Render(persona, null); }catch(e){ jlog('restart v4r err '+e.message); }
-    await send('🔄 <b>Redémarré</b> — tu es sur l\'Accueil du studio. Tape /menu pour le menu, /v4r pour revenir ici.').catch(()=>{});
+    /*[A] /restart -> RESTAURE le contexte du projet en cours (dernier écran), pas un retour à blanc. Message système persistant.*/
+    try{ const persona=_persona(); r0Mid=null; r0Type=null; r0MediaPath=null; r0Await=null;
+      if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null; }
+      await r0Render(persona, null, r0Screen==='home'?null:'↩️ <i>Contexte restauré</i>'); }catch(e){ jlog('restart v4r err '+e.message); }
+    await send('🔄 <b>Redémarré</b> — contexte restauré. /menu pour le menu, /v4r pour reprendre.').catch(()=>{});
   } }catch(e){} },1500);
 }).catch(e=>{console.error(e.message);process.exit(1);});
