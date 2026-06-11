@@ -98,12 +98,13 @@ function optionsFor(block, ctx, d) {
   const blk = Object.keys(SETMAP).find(k => SETMAP[k].kind === block.screen && SETMAP[k].field === fieldAlias(block));
   if (!blk) return [];
   const spec = SETMAP[blk];
+  const cur = SC.cleanLabel(d[spec.field]);   // valeur courante NETTOYÉE (auto-répare un ancien stockage JSON)
   if (spec.src === 'list') {
     const list = ((ctx && ctx[spec.name]) || []).slice(0, 6);
-    return list.map((it, i) => ({ text: (d[spec.field] === it ? '🔵 ' : '') + String(it).slice(0, 16), cb: 'R0_SET_' + blk + '_' + i }));
+    return list.map((it, i) => ({ text: (String(cur) === String(it) ? '🔵 ' : '') + String(it).slice(0, 16), cb: 'R0_SET_' + blk + '_' + i }));
   }
   if (spec.src === 'preset') {
-    return (SC.PRESETS[spec.name] || []).map((v, i) => ({ text: (d[spec.field] === v ? '🔵 ' : '') + v, cb: 'R0_SET_' + blk + '_' + i }));
+    return (SC.PRESETS[spec.name] || []).map((v, i) => ({ text: (String(cur) === String(v) ? '🔵 ' : '') + v, cb: 'R0_SET_' + blk + '_' + i }));
   }
   // literal (refs)
   return ['aucune', '1', '2'].map((v) => ({ text: (d[spec.field] === v ? '🔵 ' : '') + v, cb: 'R0_SET_' + blk + '_' + v }));

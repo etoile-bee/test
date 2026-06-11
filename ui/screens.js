@@ -10,8 +10,23 @@
 const C = require('./conscience');
 
 function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+function _cap(s) { s = String(s || ''); return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+// NETTOIE une valeur affichée : si c'est un objet « tenue » ou un JSON (même TRONQUÉ) hérité d'un ancien stockage,
+//   en extrait un LIBELLÉ LISIBLE (catégorie #id) au lieu d'afficher du JSON brut. (Auto-réparation, non destructif.)
+function cleanLabel(v) {
+  if (v == null || v === '') return v;
+  if (typeof v === 'object') { if (v.label) return v.label; if (v.name) return v.name; if (v.cat) return _cap(v.cat) + (v.id != null ? ' #' + v.id : ''); return 'Look' + (v.id != null ? ' #' + v.id : ''); }
+  const s = String(v);
+  if (s.charAt(0) === '{') {                                  // JSON (objet sérialisé), éventuellement tronqué
+    try { return cleanLabel(JSON.parse(s)); } catch (e) {
+      const c = s.match(/"cat"\s*:\s*"([^"]+)"/); const id = s.match(/"id"\s*:\s*(\d+)/);
+      if (c) return _cap(c[1]) + (id ? ' #' + id[1] : ''); return s.replace(/[{}"]/g, '').slice(0, 24);
+    }
+  }
+  return s;
+}
 function short(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
-function val(v, d) { return (v == null || v === '') ? (d || '<i>à définir</i>') : esc(v); }
+function val(v, d) { return (v == null || v === '') ? (d || '<i>à définir</i>') : esc(cleanLabel(v)); }
 function nom(facts) { return (facts && facts.intention && facts.intention.message) ? short(facts.intention.message, 48) : C.situation(facts).nom; }
 function capLigne(facts) { const i = (facts && facts.intention) || {}; return i.message ? ('🎯 ' + esc(short(i.message, 60))) : '🎯 <i>cap à définir</i>'; }
 const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
@@ -346,5 +361,5 @@ module.exports = {
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
   confirmView, galleryView, videoEditView, quitView, photoSourceView, gridRows,
-  PH_BLOCKS, VI_BLOCKS, PRESETS, esc,
+  PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel,
 };

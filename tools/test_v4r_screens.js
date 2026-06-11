@@ -116,6 +116,14 @@ chk('point2 : Accueil = couverture photo si image, sobre (texte) sinon — jamai
 chk('point5 : Photo demande « Utiliser / Une autre » si une photo existe', has(SC.photoView(fimg), 'R0_PH_USE') && has(SC.photoView(fimg), 'R0_PH_OTHER'));
 chk('point5 : « Une autre » -> sources Galerie/Archives/Récents/Importer', (() => { const v = SC.photoSourceView(fimg); return ['R0_PH_GAL', 'R0_PH_HIST', 'R0_RECENTS', 'R0_PH_IMPORT'].every(c => has(v, c)); })());
 chk('point5 : sélecteur Look = libellés propres (pas de JSON brut)', (() => { const sp = NAV.blockSpec({ screen: 'photo', key: 'look' }, fimg, ctx); return sp.options.every(o => !/[{}\[\]]/.test(o.text)); })());
+// point5 : AUTO-RÉPARATION d'une valeur héritée (JSON, même tronqué) -> libellé lisible, jamais de JSON affiché
+chk('point5 : cleanLabel répare objet / JSON / JSON tronqué -> « Soiree #6 »', SC.cleanLabel({ id: 6, cat: 'soiree' }) === 'Soiree #6' && SC.cleanLabel('{"id":6,"cat":"soiree","prompt') === 'Soiree #6');
+chk('point5 : un look hérité (JSON tronqué) s\'affiche propre dans « Actuel » + chip', (() => {
+  const fstale = JSON.parse(JSON.stringify(fimg)); fstale.draft = { photo: { look: '{"id":6,"cat":"soiree","prompt' } };
+  const ctx2 = { looks: ['Soiree #1', 'Soiree #2', 'Soiree #3', 'Soiree #4', 'Soiree #5', 'Soiree #6'], decors: [], avatars: [] };
+  const v = NAV.view({ screen: 'block', block: { screen: 'photo', key: 'look' } }, fstale, ctx2);
+  return /Actuel : Soiree #6/.test(v.caption) && !/[{}]/.test(v.caption) && flat(v).some(b => /🔵 Soiree #6/.test(b.text));
+})());
 // (6) video decision tree
 chk('point6 : Vidéo demande « Conserver ce look ? » si source/look', has(SC.videoView(fimg), 'R0_VI_KEEPLOOK'));
 // (7) save before quit : 🏠 depuis un flux en cours -> quit (jamais d'effacement)
