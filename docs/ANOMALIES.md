@@ -5,6 +5,33 @@
 
 ---
 
+# CATÉGORIE A — RUPTURES DE CONTEXTE / SOUS-ÉCRANS / MODULES ISOLÉS
+> Un module d'édition ne doit JAMAIS devenir une sous-app isolée : même projet, même source (photo/vidéo), retour à l'écran d'où il vient, aperçu au bon endroit, aucun média étranger. Audit en cours (≥15 points/module). Lot B = offline, déploiement sur go explicite.
+
+## ANO-CTX-SOUSTITRES-DEMO — le panneau Sous-titres affiche une AUTRE photo (démo) que le projet
+- **Écran** : `block` `soustitres` (ouvert via 🔤 `R0_STEDIT` depuis l'aperçu, ou `R0_VE_SUBS` depuis Vidéo·Édition)
+- **Gravité** : 🔴 RUPTURE DE CONTEXTE (capture Etoile 00:37 : aperçu = robe blanche du projet ; panneau S/T = fille au manteau cuir = média ÉTRANGER)
+- **Constaté** : le panneau peint un clip DÉMO générique au lieu de la source projet.
+- **Cause RACINE (diagnostic Dispatch, confirmé)** : dans `r0Render`, la branche qui peint le clip sous-titré depuis la source projet (`r0SubClip`/`r0SourceFile`) était gardée par `r0Screen==='confirm'` UNIQUEMENT. Pour un `block` (parentKind=`video` quand le projet a déjà une vidéo), on tombait dans `else if(kind==='video') → r0DemoVideo()` = clip démo (manteau cuir). Ce n'est pas la source qui dérive — c'est le PANNEAU qui peignait une démo.
+- **Correctif** : la branche clip-sous-titré couvre AUSSI `r0Screen==='block' && r0Block.key==='soustitres'` → peint `r0SubClip(persona)` (source projet `r0SourceFile` + sous-titres incrustés), repli PNG `r0SubSample`, JAMAIS `r0DemoVideo`. + boutons regroupés par dimension (`optionRows` : Disposition·Police·Taille·Position·Couleur), plus de « mur ». + reste dans le contexte (Retour/Valider → aperçu via `subReturn`). `telegram_bot.js:r0Render` · `ui/nav.js` (soustitres) · `ui/screens.js:blockView`.
+- **Statut** : ✅ CORRIGÉE (offline, non déployé)
+- **PREUVE RÉELLE (dump dispatch)** : aperçu vidéo media = `subclip_uhoilb.mp4` (source `s11.jpg`) ; panneau S/T media = **`subclip_uhoilb.mp4`** (MÊME fichier, `subclip_`, pas `demo_video`) ; markup groupé `[Mot|Phrase|Paragraphe] [Archivo|Classique] [Petit|Moyen|Grand] [Haut|Milieu|Bas] [Blanc|Jaune|Cyan] [Défaut] [Aperçu] [Retour] [Valider]…`. Assertions runtime CTX-S/T ×6 ✅.
+
+## ANO-CTX-BLOCK-DEMO — classe de bug : tout écran d'édition `block` peignait une démo (parentKind=video)
+- **Écran** : tous les `block` vidéo (script · voix · musique · durée · source · soustitres) quand `C.hasVideo` (parentKind=`video`)
+- **Gravité** : 🔴 (même racine que ci-dessus, généralisée)
+- **Cause** : `blockView` renvoie `kind=parentKind` ; `parentKind('video')='video'` si le projet a une vidéo → `r0Render` peignait `r0DemoVideo()`.
+- **Correctif** : `r0Render` — `kind==='video' && r0Screen==='block'` → peint `r0SourceFile(f)` (source projet), JAMAIS une démo. La démo ne subsiste que pour les écrans NON-édition sans clip réel (dégradé propre).
+- **Statut** : ✅ CORRIGÉE (offline) — fix générique couvrant tous les modules d'édition.
+- **PREUVE RÉELLE** : block réel (Vidéo·Édition) media = source projet `s11.jpg`, `demo_video` absent. Assertion runtime CTX-BLOCK ✅.
+
+> **Audit modules d'édition (15 points) — EN COURS.** Couverts par ce lot : Sous-titres (source ✅ · boutons ✅ · contexte ✅). À auditer ensuite : Script · Légendes · Hashtags · Prompt · Tenue · Décor · Référence · Musique · Durée · Modèle · Texte complet · Fichiers. Ruptures remontées au fil de l'eau.
+
+# CATÉGORIE B — CONTRÔLES TRANSVERSAUX D'ARCHITECTURE (16)
+> Identité projet · source de vérité par type · versioning/anti-écrasement · coût (aucun moteur réel sur retour/aperçu/nav/restart/test) · réel vs test isolés · import/upload · corbeille/restore · publication (statut seul) · chaîne cloud/local/Telegram · UX mobile · états d'erreur · concurrence · libellés · accessibilité fichiers · reconstruction depuis cloud · test réel final. **À auditer (lot B, offline, sur go).** Acquis partiels : anti-écrasement id ([[ANO-GENID-CREATE]] + duplicate G4) ; zéro dépense sur nav/test (`test_v4r_nospend` 4/0, `engines.live()` OFF en dry).
+
+---
+
 ## ANO-GENID-CREATE — collision d'id à la création (résolution seconde) = perte silencieuse de projet
 - **Couche** : `ui/socle.js` `createProject` (et `duplicateProject`, cf [ANO-G4-MODELE-D5])
 - **Gravité** : 🔴 DATA-SAFETY (cause historique du « la vidéo revient sur une ancienne photo » : deux projets écrits sur le même id à la même seconde)

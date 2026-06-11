@@ -498,7 +498,10 @@ function blockView(spec) {
   }
   const rows = [];
   const opts = spec.options || [];
-  for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3));
+  // [ANO-CTX-SOUSTITRES-MUR] si la vue fournit des LIGNES déjà groupées (optionRows), on les respecte (regroupement logique, lisible mobile) ;
+  //   sinon découpage générique par 3 (comportement par défaut des autres blocs).
+  if (spec.optionRows && spec.optionRows.length) { spec.optionRows.forEach(r => rows.push(r)); }
+  else { for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3)); }
   if (spec.askCb) rows.push([{ text: '✍️ Saisir', cb: spec.askCb }]);
   if (spec.previewCb) rows.push([{ text: '👁 Aperçu', cb: spec.previewCb }]); // [SOUS-TITRES] incruste un échantillon dans le style courant
   // [A1 — Etoile] SOURCE UNIQUE : le bloc pose SEULEMENT ◀ Retour ; le ✅ Valider universel est posé par le WRAPPER (cb distinct R0_BLOCK_OK) -> 0 doublon.

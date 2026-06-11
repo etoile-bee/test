@@ -2936,13 +2936,20 @@ async function r0Render(persona, editMid, banner){
   let kind=vw.kind||'text', media=null;
   // [APERÇU VIDÉO RÉEL] sur l'aperçu vidéo (confirm + pending vidéo), on peint un VRAI CLIP échantillon avec sous-titres incrustés
   //   dans le style courant -> elle VOIT la forme (hauteur/taille/police/couleur) AVANT de générer, et peut l'ajuster (🔤 Sous-titres).
-  if(r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video'){
+  // [ANO-CTX-SOUSTITRES-DEMO] APERÇU VIDÉO (confirm) **ET** panneau SOUS-TITRES (block soustitres) peignent le CLIP de LA SOURCE PROJET
+  //   (r0SubClip = r0SourceFile + sous-titres incrustés), repli PNG sous-titré (r0SubSample). JAMAIS une démo générique (manteau cuir).
+  const _isSubPanel = (r0Screen==='block' && r0Block && r0Block.key==='soustitres');
+  const _isVideoApercu = (r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video');
+  if(_isVideoApercu || _isSubPanel){
     const clip=await r0SubClip(persona);                       // CLIP sous-titré (matérialise la source iCloud avant ffmpeg)
     if(clip){ media=clip; kind='video'; }
     else { const png=await r0SubSample(persona);               // repli : PNG AVEC sous-titres incrustés (jamais l'image nue silencieuse)
       if(png){ media=png; kind='photo'; } else { media=r0SourceFile(f); kind=media?'photo':'text'; } }
   }
-  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo
+  // [ANO-CTX-BLOCK-DEMO] un écran d'ÉDITION (block : script/voix/musique/durée/source…) ne peint JAMAIS une démo générique :
+  //   il montre la SOURCE projet (cohérence « même source » exigée par Etoile), pas un clip d'illustration étranger au projet.
+  else if(kind==='video' && r0Screen==='block'){ media=r0SourceFile(f); kind=media?'photo':'text'; }
+  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } } // dégradé propre si ffmpeg indispo (écrans NON-édition)
   if(kind==='photo'){
     // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
     //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).

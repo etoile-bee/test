@@ -77,23 +77,25 @@ function blockSpec(block, facts, ctx) {
       title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: (ctx && ctx.subReturn) || 'R0_VE' },
       validateCb: (ctx && ctx.subReturn) || 'R0_VE', validateLabel: '✅ Valider', // [APERÇU] revient à l'aperçu si ouvert depuis là (re-rend le clip)
       previewCb: 'R0_STPREV', // 👁 Aperçu : incruste un échantillon du script dans CE style (même moteur que le rendu)
-      hint: 'Incrustés automatiquement. Tu règles l\'apparence ; l\'aperçu et la vidéo finale utilisent ces réglages.',
-      options: [
-        { text: (disp === 'mot' ? '🔵 ' : '') + '🔠 Mot-à-mot', cb: 'R0_SET_stdisp_mot' },
-        { text: (disp === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
-        { text: (disp === 'paragraphe' ? '🔵 ' : '') + '📄 Paragraphe', cb: 'R0_SET_stdisp_paragraphe' }, // [D2] disposition paragraphe (~2 lignes/segment ; affinage rendu ultérieur)
-        { text: (font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
-        { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' },
-        { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
-        { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
-        { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' },
-        { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
-        { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
-        { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
-        { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
-        { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
-        { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' },
-        { text: '💾 Défaut', cb: 'R0_DEFSAVE' }, // [#18] mémorise les réglages sous-titres courants
+      hint: 'Apparence — chaque ligne = un réglage. Aperçu/vidéo finale utilisent ces valeurs.',
+      // [ANO-CTX-SOUSTITRES-MUR] regroupement LOGIQUE : 1 ligne par dimension (Disposition · Police · Taille · Position · Couleur),
+      //   plus de mur de boutons mélangés. Lisible sur mobile. (Aperçu/Valider/Retour ajoutés par blockView+wrapper.)
+      optionRows: [
+        [ { text: (disp === 'mot' ? '🔵 ' : '') + '🔠 Mot', cb: 'R0_SET_stdisp_mot' },
+          { text: (disp === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
+          { text: (disp === 'paragraphe' ? '🔵 ' : '') + '📄 Paragraphe', cb: 'R0_SET_stdisp_paragraphe' } ], // Disposition [D2]
+        [ { text: (font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
+          { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' } ], // Police
+        [ { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
+          { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
+          { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' } ], // Taille
+        [ { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
+          { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
+          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' } ], // Position
+        [ { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
+          { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
+          { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' } ], // Couleur
+        [ { text: '💾 Défaut', cb: 'R0_DEFSAVE' } ], // [#18] mémorise les réglages sous-titres courants
       ],
     };
   }

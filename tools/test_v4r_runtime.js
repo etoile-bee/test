@@ -305,6 +305,24 @@ async function main() {
   chk('G5 : la COPIE de la légende longue INCLUT les hashtags', /#a #b #c/.test(bot.fullText('legl')));
   chk('G5 : le champ #️⃣ Hashtags reste SÉPARÉ (récupérable seul)', bot.fullText('tags').trim() === '#a #b #c');
 
+  // ════ [ANO-CTX-SOUSTITRES-DEMO] le panneau Sous-titres peint le CLIP de la SOURCE PROJET (jamais une démo générique) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // hasVideo=true = condition du bug (parentKind video)
+  await bot.tap('R0_VI_PREVIEW'); const _apM = bot.media();
+  chk('CTX-S/T : aperçu vidéo peint un subclip de la SOURCE projet', /subclip_/.test(_apM || ''));
+  await bot.tap('R0_STEDIT');
+  chk('CTX-S/T : 🔤 ouvre le panneau Sous-titres (block soustitres)', bot.state().screen === 'block' && bot.state().block === 'soustitres');
+  chk('CTX-S/T : le panneau peint LE MÊME subclip que l\'aperçu (source projet), PAS une démo', bot.media() === _apM && /subclip_/.test(bot.media() || '') && !/demo_video/.test(bot.media() || ''));
+  const _stM = bot.markup();
+  chk('CTX-S/T : boutons GROUPÉS par dimension (Disposition 3 · Police 2 · Taille 3 · Position 3 · Couleur 3)',
+    _stM.rows[0].length === 3 && _stM.rows[1].length === 2 && _stM.rows[2].length === 3 && _stM.rows[3].length === 3 && _stM.rows[4].length === 3);
+  chk('CTX-S/T : reste DANS le contexte (◀ Retour -> aperçu vidéo R0_VI_PREVIEW, pas un écran orphelin)', bot.buttons().includes('R0_VI_PREVIEW'));
+  await bot.tap('R0_BLOCK_OK'); chk('CTX-S/T : ✅ Valider revient à l\'aperçu vidéo (confirm), 1 cockpit', bot.state().screen === 'confirm' && bot.state().cockpit === 1);
+  // un AUTRE écran d'édition vidéo ne peint pas de démo non plus (classe de bug)
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); await bot.tap('R0_VE');
+  chk('CTX-BLOCK : un écran d\'édition vidéo ne peint JAMAIS une démo (source projet, pas demo_video)', !/demo_video/.test(bot.media() || ''));
+
   // ════ [ANO-GENID-CREATE] DATA-SAFETY : 2+ créations de projet dans la MÊME seconde -> ids DISTINCTS (jamais d'écrasement silencieux) ════
   //   genId a une résolution à la seconde ; createProject DOIT suffixer (-2,-3…) si l'id existe déjà. Cause historique de perte de projet.
   {
