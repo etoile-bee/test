@@ -3,9 +3,9 @@
 > **Méthode** : chaque ligne est vérifiée par **preuve observable** (cartographie écran×bouton, runtime via le vrai chemin du bot, trace de migration, sortie ffmpeg réelle) — **pas** par relecture de code.
 > Légende : ✅ fait & prouvé · 🟡 partiel / dépend d'un clic d'Etoile · ❌ non fait.
 >
-> **Build déployé** : commit `e6dfba7` · pm2 `podcast-bot` relancé le 11/06 20:45:47 (boot propre, aucune erreur).
-> **Tests** : `screens 99 · carto 130 · runtime 83 · nav 28 · budget 10 · nospend 4 · cloud_chain 14 · soustitres 12` = **380 OK / 0 KO**.
-> **Sécurité dépense** : `LIVE OFF` (photo=false, video=false) · budget `0/10` au moment de ce rapport.
+> **Build déployé** : commit `502658f` · pm2 `podcast-bot` relancé le 11/06 21:24:32 (boot propre, aucune erreur).
+> **Tests** : `screens 103 · carto 154 · runtime 83 · nav 28 · budget 10 · nospend 4 · cloud_chain 14 · soustitres 12` = **408 OK / 0 KO**.
+> **Sécurité dépense** : `LIVE ARMÉ` (photo=true, video=true, autorisé par Etoile) · budget `0/10` · garde-fous actifs (double-confirm, plafond 10, !R0DRY) · 1ʳᵉ dépense = clic d'Etoile.
 
 ---
 
@@ -86,16 +86,56 @@
 | Grilles : numéros incrustés + régénérées par page | ✅ | mosaïque : nom unique par hash de contenu + `drawtext` numéros absolus |
 | Rendus finaux persistants vs cockpit éphémère | ✅ | `r0PostFinal`/`r0RenderMids` séparés du cockpit (r0Mid) |
 
+## 10. Déblocage génération PHOTO + wrapper structurel (fix définitif)
+
+| Demande | État | Preuve observable |
+|---|---|---|
+| PHOTO·Préparer a 👁 Aperçu + ✅ Valider + ✨ Générer (symétrie vidéo) | ✅ | rendu réel harness : `📝 Prompt · 👗 Tenue · 🏛 Décor · 🖼 Référence · 🛠 Montage · 👁 Aperçu · 🎬 Faire une vidéo · ◀ Retour · ✅ Valider · ✨ Générer · 🏠 · 🛑` ; ✨ Générer → confirm (récap) |
+| Wrapper GARANTIT Retour+Valider+Aperçu+Générer+Accueil+Stop (centralisé) | ✅ | `nav.view()` class-driven `NAVREQ` ; ajoute les boutons manquants selon la classe d'écran |
+| Carto ÉCHOUE le déploiement si un bouton requis manque | ✅ | `test_v4r_carto` lit `NAVREQ` exporté : 24 assertions (gen→Aperçu/Valider/Générer/Retour ; edit→Valider/Retour) ; KO bloquant |
+
+## 11. Grilles par 6 partout
+
+| Demande | État | Preuve observable |
+|---|---|---|
+| 6 vignettes/projets par page, pagination Préc/Suiv, partout | ✅ | `R0_PAGE=6` (galerie/historique/récents/prêt/publiés), mosaïque `slice(0,6)`, studio/section/récents alignés 6 ; harness galerie « Page 1/28 » à 6/page |
+
+## 12. Visibilité : tout le patrimoine au même endroit (urgence data)
+
+| Demande | État | Preuve observable |
+|---|---|---|
+| Fichiers physiques intacts (pas de perte) | ✅ | comptage disque : photos **90 (podcast-looks) + 59 (generations) + 14 (projects_r) + 279 (projets/Photos)** ; vidéos **199 (outputs) + 113 (podcast-outputs)** ; backups `.prepurge` présents |
+| Galerie/Historique agrègent TOUT (legacy + migré + nouveau) | ✅ | readers `r0RealImages`/`r0RealVideos` scannent looks + generations + projects_r + podcast-looks/projets ; galerie défaut **GLOBAL** (`R0_PH_GAL`/`R0_VI_GAL` → galleryAll=true) + bascule scope |
+| Couverture d'accueil = vraie image | ✅ | `r0CoverFile` → image globale réelle la plus récente avant toute démo |
+
+## 13. Sélection / remplacement photo qui PREND
+
+| Demande | État | Preuve observable |
+|---|---|---|
+| Choisir un numéro / Remplacer applique réellement la photo | ✅ | runtime : 🖼 2 → curImg 3→4, cover = fichier choisi, `draft.video.source = "Photo #2"`, 0 THROW ; unitaire `picksrc` (média non-simulé + source) |
+
+## 14. Écran final + Historique = hub de récupération par asset
+
+| Demande | État | Preuve observable |
+|---|---|---|
+| Un bouton par fichier de la version | ✅ | hub `resources` : `🖼 Image · 🎬 Vidéo · 🎙 Voix/Audio · 📝 Prompt · 🎬 Script · 🔤 Sous-titres · ✏️ Lég. courte · 📄 Lég. longue · #️⃣ Hashtags` (runtime, 0 THROW) |
+| Accessible depuis écran final + Studio + Récents | ✅ | `R0_RES` depuis photo/vidéo résultat + `🗂 Fichiers` sur Studio et Récents |
+| Texte en entier (copiable) + fichiers envoyés | ✅ | textes via `R0_FULLTEXT_*` (découpe >limite) ; image/vidéo/audio via `R0_GETIMG/VID/AUDIO` (`sendPhotoKb`/`sendVideoKb`/`r0SendDoc`) |
+| Publier → Studio>Publiés | ✅ | runtime : `R0_PUB` → publication, `R0_PUB_DO` → `publies` (état publié) |
+| Historique = TOUT (publiés + non publiés) | ✅ | Studio : 🕘 Historique (galerie globale = tout) + 📤 Publiés (publiés seuls) |
+| Voix/Audio réellement récupérable | 🟡 | bouton + recherche `r0FindAudio` (projets_r + archive Audio) prêts ; le fichier audio n'est persisté qu'aux **vraies** générations (LIVE) — sinon message honnête « aucun audio » |
+
 ---
 
-## Armement du réel — dernière étape (gated)
+## Armement du réel
 
-- État actuel : **LIVE OFF** (photo=false, video=false), budget **0/10**.
-- Garde-fous prouvés actifs : double-confirmation, plafond 10, `!R0DRY`, blocage budget épuisé, cloud-copy gardé `!R0DRY`.
-- **L'assistant ne déclenche aucune dépense.** Une fois armé (`setLive(true)`), la **première dépense reste le clic « Oui, générer » d'Etoile** sur l'écran de 2ᵉ confirmation.
+- État actuel : **LIVE ARMÉ** (`v4r_live` présent ; photo=true, video=true — autorisé explicitement par Etoile), budget **0/10**.
+- Garde-fous prouvés actifs : double-confirmation, plafond 10, `!R0DRY` (dry-run forcé OFF : nospend 4/4), blocage budget épuisé, cloud-copy gardé `!R0DRY`.
+- **L'assistant ne déclenche aucune dépense.** La **première dépense reste le clic « Oui, générer » d'Etoile** sur l'écran de 2ᵉ confirmation.
 
 ## Réserves honnêtes (🟡 / limites)
 
-- **Vidéo réelle bout-en-bout** : la chaîne Kling+ElevenLabs+Anthropic est câblée et l'incrustation sous-titres est prouvée localement (ffmpeg), mais un rendu vidéo réel complet n'a **jamais** été exécuté (LIVE OFF) — il ne le sera qu'au 1ᵉʳ clic d'Etoile. Prouvé en dry-run/local uniquement.
+- **Vidéo réelle bout-en-bout** : la chaîne Kling+ElevenLabs+Anthropic est câblée et l'incrustation sous-titres est prouvée localement (ffmpeg), mais un rendu vidéo réel complet n'a **jamais** été exécuté — il ne le sera qu'au 1ᵉʳ clic d'Etoile. Prouvé en dry-run/local uniquement.
 - **Disposition mot-à-mot vs phrase** : exposée et mémorisée ; l'effet sur le découpage du rendu suit le timing de mots existant (non re-vérifié image par image).
+- **Voix/Audio dans le hub** : le bouton existe ; le fichier audio n'est récupérable qu'après une vraie génération (LIVE) qui le dépose dans le projet. Avant, message honnête.
 - **Backup « chaîne simple plus tard »** : noté, non fait (différé à ta demande).
