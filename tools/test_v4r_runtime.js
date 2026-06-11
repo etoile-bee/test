@@ -228,6 +228,17 @@ async function main() {
   chk('P2 : la prép vidéo PEINT cette même image (cohérence)', bot.media() === coverA);
   await bot.tap('R0_VE'); chk('P2 : montage vidéo -> source toujours la même (peinte)', bot.media() === coverA);
 
+  // ════ P3 ACCUEIL + STOP partout : chaque écran propose 🏠 Accueil + 🛑 Stop ; Stop interrompt proprement -> accueil ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); // écran profond (préparer)
+  const b = bot.buttons();
+  chk('P3 : écran profond propose 🏠 Accueil + 🛑 Stop', b.includes('R0_HOME') && b.includes('R0_STOP'));
+  await bot.tap('R0_STOP'); chk('P3 : Stop -> retour ACCUEIL propre, 1 cockpit', bot.state().screen === 'home' && bot.state().cockpit === 1);
+
+  // ════ P6 ENREGISTRER MODÈLE : depuis l'aperçu, mémorise la config comme modèle réutilisable ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await bot.tap('R0_PHB_prompt'); await bot.tap('R0_LOADP_0'); await bot.tap('R0_GEN_CANCEL'); await bot.tap('R0_PH_PREVIEW');
+  chk('P6 : aperçu propose 💾 Modèle', bot.buttons().includes('R0_SAVEMODEL'));
+  await bot.tap('R0_SAVEMODEL'); chk('P6 : enregistre la config (photo.prompt en défaut)', !!bot.defaults()['photo.prompt']);
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }

@@ -370,7 +370,8 @@ function confirmView(facts, ctx) {
   const rows = (blocked
     ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }]]
     : [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }, { text: '✏️ Éditer', cb: 'R0_GEN_EDIT' }],
-       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }]]);
+       [{ text: '✅ Valider', cb: 'R0_GEN_VALID' }, { text: gen, cb: 'R0_GO2' }],
+       [{ text: '💾 Modèle', cb: 'R0_SAVEMODEL' }]]);  // [P6] mémorise la config courante comme modèle réutilisable
   if (fullBtn) rows.splice(1, 0, fullBtn);
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }

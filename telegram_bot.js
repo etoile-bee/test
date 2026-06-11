@@ -2698,21 +2698,29 @@ function r0RealVideos(persona, max){
 }
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
-async function r0Mosaic(files){
+async function r0Mosaic(files, startNum){
   try{
     files=(files||[]).filter(Boolean).slice(0,9);
     if(!files.length) return null;
-    if(files.length===1) return files[0]; // une seule vignette -> l'image telle quelle
     if(R0DRY) return files[0]; // dry : pas de ffmpeg (ne bloque pas les tests)
+    startNum=startNum||1;
+    if(files.length===1){ // une seule vignette : on incruste quand même son numéro (cohérence avec le bouton)
+      const out1=path.join(BASE,'assets_r','_mosaic_'+(startNum)+'_'+path.basename(files[0])+'.jpg');
+      try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
+      if(fs.existsSync(out1)) return out1;
+      try{ await _execFileP('ffmpeg',['-y','-i',files[0],'-vf','scale=600:600:force_original_aspect_ratio=increase,crop=600:600,drawtext=text=\''+startNum+'\':x=14:y=14:fontsize=72:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=10','-frames:v','1',out1],{timeout:30000}); if(fs.existsSync(out1)) return out1; }catch(e){}
+      return files[0];
+    }
     const n=files.length, cols=(n<=2?2:(n<=4?2:3)), cell=300;
     const args=['-y']; files.forEach(f=>args.push('-i',f));
     let fc=''; const labels=[];
-    files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1[v'+i+'];'; labels.push('[v'+i+']'); });
+    // [P4] NUMÉRO INCRUSTÉ sur chaque vignette (drawtext) = numéro du bouton -> on sait quel numéro = quelle photo.
+    files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1,drawtext=text=\''+(startNum+i)+'\':x=10:y=10:fontsize=64:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[v'+i+'];'; labels.push('[v'+i+']'); });
     const layout=files.map((f,i)=>((i%cols)*cell)+'_'+(Math.floor(i/cols)*cell)).join('|');
     fc+=labels.join('')+'xstack=inputs='+n+':layout='+layout+':fill=black[out]';
     // [FIX grille] nom de planche UNIQUE par CONTENU (hash des fichiers) -> chaque page a SA planche, pas de cache Telegram périmé
     //   (avant : _mosaic.jpg fixe -> page 2 réaffichait la planche de page 1).
-    let key=0; for(const f of files){ const b=path.basename(f); for(let i=0;i<b.length;i++) key=(key*31 + b.charCodeAt(i))>>>0; }
+    let key=startNum; for(const f of files){ const b=path.basename(f); for(let i=0;i<b.length;i++) key=(key*31 + b.charCodeAt(i))>>>0; }
     const out=path.join(BASE,'assets_r','_mosaic_'+key.toString(36)+'.jpg');
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     if(fs.existsSync(out)) return out; // déjà construite pour ce contenu
@@ -2846,14 +2854,14 @@ async function r0Render(persona, editMid, banner){
   await r0Paint(kind, media, caption, vw.rows, editMid);
   r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
   // [NO-FREEZE] planche-contact EN FOND (fire-and-forget) — ne bloque pas le handler, donc Retour/Accueil restent répondants.
-  if(_galFiles && _galFiles.length>1 && !R0DRY){ r0KickMosaic(_galFiles, r0Mid, r0Screen, caption, vw.rows); }
+  if(_galFiles && _galFiles.length && !R0DRY){ const base=(ctx.page&&ctx.page.base)||0; r0KickMosaic(_galFiles, r0Mid, r0Screen, caption, vw.rows, base+1); } // numéros incrustés = numéros des boutons (absolus)
 }
 // [NO-FREEZE] Construit la planche-contact HORS du chemin de réponse aux taps, puis la pose dans le bloc SI on y est toujours
 //   (même message, même écran, toujours une photo). Toute erreur/délai reste silencieux : la 1ère image affichée suffit.
-function r0KickMosaic(files, mid, scr, caption, rows){
+function r0KickMosaic(files, mid, scr, caption, rows, startNum){
   Promise.resolve().then(async()=>{
     try{
-      const mo=await r0Mosaic(files);
+      const mo=await r0Mosaic(files, startNum);
       if(mo && r0Mid===mid && r0Screen===scr && r0Type==='photo'){ const ok=await editPhotoKb(mid, mo, cap1024(caption), r0Kb(rows)); if(ok) r0MediaPath=mo; }
     }catch(e){ try{ jlog('[v4r] mosaïque fond : '+e.message); }catch(_){} }
   });
@@ -2938,6 +2946,13 @@ async function r0Dispatch(persona, d, editMid){
       else if(field==='prompt'){ const pl=_r0Prompts(persona); text=pl[idx]&&pl[idx].text; } }catch(e){}
     if(text){ S.setDraft(BASE,persona,id,kind,{[field]:text},now); try{ await toast('📁 Modèle chargé — édite si besoin'); }catch(e){} }
     else { try{ await toast('Modèle indisponible'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
+  // [P6] ENREGISTRER MODÈLE : mémorise TOUTE la config courante (photo: prompt/look/decor/format ; vidéo: script/voix/musique/soustitres/duree) comme défauts réutilisables.
+  if(d==='R0_SAVEMODEL'){ const {DEF}=_r0(); const f3=r0Cur(persona,true);
+    const kind=(r0Pending&&r0Pending.mediaKind==='video')?'video':'photo'; const dr=S.getDraft(f3,kind)||{};
+    const fields=kind==='video'?['script','voix','musique','soustitres','duree','st_font','st_size','st_pos','st_display']:['prompt','look','decor','format','reference'];
+    let n=0; fields.forEach(ff=>{ if(dr[ff]!=null&&dr[ff]!=='') { DEF.setField(BASE,persona,kind,ff,dr[ff]); n++; } });
+    try{ await toast(n?('💾 Modèle enregistré ('+n+' réglages réutilisables)'):'Rien à enregistrer'); }catch(e){}
     await r0Render(persona, editMid); return; }
   // [#18] ENREGISTRER PAR DÉFAUT la valeur courante de l'outil — réutilisée aux prochaines générations/nouveaux projets.
   if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);

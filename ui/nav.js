@@ -184,7 +184,19 @@ function resolveSet(blk, token, ctx) {
 }
 
 // Rendu d'un état de navigation -> vue pure. state = { screen, section?, block? }
+//   [Etoile] WRAPPER : chaque écran NON-RACINE garantit 🏠 Accueil + 🛑 Stop (ajoutés si absents) -> sortie possible à TOUTE étape.
 function view(state, facts, ctx) {
+  const v = _view(state, facts, ctx);
+  if (state.screen !== 'home' && v && Array.isArray(v.rows)) {
+    const flat = [].concat.apply([], v.rows).map(b => b && b.cb);
+    const extra = [];
+    if (!flat.includes('R0_HOME')) extra.push({ text: '🏠 Accueil', cb: 'R0_HOME' });
+    if (!flat.includes('R0_STOP')) extra.push({ text: '🛑 Stop', cb: 'R0_STOP' });
+    if (extra.length) v.rows = v.rows.concat([extra]);
+  }
+  return v;
+}
+function _view(state, facts, ctx) {
   switch (state.screen) {
     case 'home': return SC.homeView(facts);
     case 'photo': return SC.photoView(facts);
@@ -245,7 +257,7 @@ function reduce(action, st0, facts, ctx) {
   // GÉNÉRATEUR DE TEXTE (Anthropic, PAYANT) -> passe par la CONFIRMATION de coût comme le reste.
   if (d.indexOf('R0_GENTXT_') === 0) { st.pending = { kind: 'text', mediaKind: 'text', ask: d.slice(10) }; return go('confirm'); }
   // [#12] ACCUEIL : Stop / Restart (répondent toujours, jamais de tap mort).
-  if (d === 'R0_STOP') { return { st: st, toast: '⏸ En pause — tape /v4r pour reprendre (ou /menu pour le menu)' }; }
+  if (d === 'R0_STOP') { st.pending = null; st.block = null; st.quitFrom = null; return go('home', '🛑 <b>Interrompu</b> — retour à l\'accueil (rien de perdu)'); } // Stop = sortie propre depuis n'importe quelle étape
   if (d === 'R0_RESTART') { return go('home', '🔄 <b>Rafraîchi</b>'); }
   // [#22/#24] RESSOURCES / FICHIERS DU PROJET : hub de récupération de tous les assets.
   if (d === 'R0_RES') { return go('resources'); }
