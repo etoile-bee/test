@@ -3108,9 +3108,10 @@ async function r0Dispatch(persona, d, editMid){
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
-  if(d==='R0_STPREV'){ const png=await r0SubSample(persona);
-    if(png){ try{ await sendPhotoKb(png, '👁 <i>Aperçu sous-titres — apparence appliquée (police · taille · position · couleur). Le rendu final utilisera EXACTEMENT ces réglages.</i>', null); }catch(e){} }
-    else { try{ await toast('Aperçu indisponible (pas d\'image source du projet)'); }catch(e){} }
+  if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu vidéo des sous-titres en préparation…'); }catch(e){}
+    const clip=await r0SubClip(persona); // [APERÇU SOUS-TITRES] CLIP échantillon (burn local ffmpeg = GRATUIT), apparence courante
+    if(clip){ try{ await sendVideoKb(clip, '👁 <i>Aperçu sous-titres (clip) — police · taille · position · couleur. Le rendu final utilisera EXACTEMENT ces réglages.</i>', null); }catch(e){ try{ const png=await r0SubSample(persona); if(png) await sendPhotoKb(png,'👁 <i>Aperçu sous-titres</i>',null); }catch(_){} } }
+    else { const png=await r0SubSample(persona); if(png){ try{ await sendPhotoKb(png, '👁 <i>Aperçu sous-titres</i>', null); }catch(e){} } else { try{ await toast('Aperçu indisponible (pas d\'image source du projet)'); }catch(e){} } }
     await r0Render(persona, editMid); return; }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
@@ -3266,8 +3267,9 @@ async function r0SubClip(persona){
     await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','4',
       '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0012,1.12)\':d=100:s=720x1280:fps=25,ass='+assPath+',format=yuv420p',
       '-r','25','-c:v','libx264','-preset','veryfast','-movflags','+faststart',out],{timeout:60000});
-    if(fs.existsSync(out)){ _r0SubClipCache[h]=1; return out; }
+    if(fs.existsSync(out)){ _r0SubClipCache[h]=1; try{ jlog('[v4r] aperçu sous-titres CLIP produit '+out+' (src '+path.basename(img)+')'); }catch(_){} return out; }
   }catch(e){ try{ jlog('[v4r] subclip err '+e.message); }catch(_){} }
+  try{ jlog('[v4r] subclip ÉCHEC -> repli'); }catch(_){}
   return null;
 }
 async function r0RealVideo(persona, id, onStep){

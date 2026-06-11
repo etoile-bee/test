@@ -207,7 +207,7 @@ const NAVREQ = {
   photo_prompt: { cls: 'gen', prod: 'R0_PH_PREVIEW', gen: 'R0_PH_GENERATE', back: 'R0_PHOTO' },
   video_params: { cls: 'gen', prod: 'R0_VI_PREVIEW', gen: 'R0_VI_GENERATE', back: 'R0_VI_BACK' },
   photo_montage: { cls: 'edit', back: 'R0_PH_GEN' },
-  video_edit: { cls: 'edit', back: 'R0_VI_CREATE' },
+  video_edit: { cls: 'gen', prod: 'R0_VI_PREVIEW', gen: 'R0_VI_GENERATE', back: 'R0_VI_CREATE' }, // [APERÇU SOUS-TITRES] Montage expose 👁 Aperçu (clip sous-titré) + Valider + Générer
   block: { cls: 'edit' }, // blockView fournit déjà ✅ Valider + ◀ Retour (et 👁 Aperçu pour les sous-titres)
 };
 function _btxt(rows) { return [].concat.apply([], rows).map(b => (b && b.text) || ''); }
