@@ -5,6 +5,32 @@
 process.env.R0_DRYRUN = '1';
 process.env.TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN || 'dry';
 process.env.TELEGRAM_CHAT_ID = process.env.TELEGRAM_CHAT_ID || '1';
+
+// ════ [HERMÉTIQUE — anti-FAUX-VERT] le test SE SUFFIT : il sème SON patrimoine dans un bac ISOLÉ. ════
+//   CAUSE RACINE du « 73 OK / 10 KO » constaté par l'opérateur (alors que le code est IDENTIQUE) :
+//   `prompts/` et `looks/` ne sont PAS versionnés (git ls-files = 0). Sur une machine sans ces données
+//   (checkout neuf, looks iCloud non téléchargés), 10 assertions qui SUPPOSAIENT un patrimoine pré-existant
+//   échouaient — pas une régression de code, un test NON déterministe. Ici on GARANTIT le patrimoine -> vert PARTOUT.
+//   Doit s'exécuter AVANT require(telegram_bot) car BASE est figée au chargement depuis V4R_SANDBOX.
+(function seedHermeticSandbox() {
+  const fs = require('fs'), path = require('path'), os = require('os');
+  const BOX = path.join(os.tmpdir(), 'v4r_runtime_box');
+  try { fs.rmSync(BOX, { recursive: true, force: true }); } catch (e) {}            // bac TOUJOURS neuf -> reproductible
+  const REPO = path.resolve(__dirname, '..');
+  // 1) ≥12 VRAIS jpeg NON VIDES (r0RealImages exige size>0) -> couverture + rendus persistants + P2 + pagination.
+  const TINYJPG = Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AfwB//9k=', 'base64');
+  fs.mkdirSync(path.join(BOX, 'looks'), { recursive: true });
+  for (let i = 0; i < 12; i++) fs.writeFileSync(path.join(BOX, 'looks', 'seed_' + String(i).padStart(2, '0') + '.jpg'), TINYJPG);
+  fs.mkdirSync(path.join(BOX, 'outputs'), { recursive: true });
+  // 2) un MODÈLE de prompt pré-enregistré, texte LONG -> R0_LOADP_0 (#17/#18) + « 📄 Texte complet » + P6.
+  fs.mkdirSync(path.join(BOX, 'prompts', 'imany'), { recursive: true });
+  fs.writeFileSync(path.join(BOX, 'prompts', 'imany', 'seed.json'),
+    JSON.stringify({ name: 'Modèle test', text: ('Portrait éditorial cinématographique, lumière douce de fenêtre, peau nette, regard caméra, profondeur de champ, rendu mode magazine — ').repeat(3) }));
+  // 3) catalogues VERSIONNÉS (donc présents partout) partagés en LECTURE : tenues ≥5, lookbook, scripts.
+  for (const f of ['library.json', 'lookbook.json', 'outfits_catalog.json']) { try { fs.symlinkSync(path.join(REPO, f), path.join(BOX, f)); } catch (e) {} }
+  process.env.V4R_SANDBOX = BOX;
+})();
+
 const bot = require('../telegram_bot.js');
 
 let ok = 0, ko = 0;

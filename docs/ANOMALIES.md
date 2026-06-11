@@ -5,6 +5,18 @@
 
 ---
 
+## ANO-FAUX-VERT-RUNTIME — runtime « 83/0 » chez l'assistant mais « 73/10 » chez l'opérateur (MÊME commit cfc869c)
+- **Écran** : suite `tools/test_v4r_runtime.js` (banc R0_DRYRUN), pas un écran produit.
+- **Gravité** : 🔴 BLOQUANTE (faux vert = certification impossible)
+- **Attendu** : sur le HEAD COMMITÉ, la suite donne le MÊME résultat partout (déterministe). 0 KO réel quand l'opérateur la relance.
+- **Constaté (Etoile, vérifié soi-même sur cfc869c)** : `73 OK / 10 KO`. Les 10 KO = Accueil **couverture**, **RP** (×2 rendus persistants), **#17/#18** (Modèles/Défaut), **Texte complet**, **PERSIST**, **P2** source vidéo, **P6** défaut. Comportements VÉRIFIÉS présents dans le code (pas de perte).
+- **Cause RACINE (reproduite, artefact)** : la suite n'était **pas hermétique** — elle lisait le patrimoine AMBIANT via le sandbox symlinké (`looks/`, `prompts/`), or **ni `looks/` ni `prompts/` ne sont versionnés** (`git ls-files looks/ prompts/` = 0). Machine assistant = looks téléchargés + 1 prompt enregistré → 83/0. Machine opérateur = checkout neuf / looks iCloud dataless / `prompts/` absent → `_r0Prompts()=[]` (pas de `R0_LOADP_0` ⇒ #17/#18/Texte/P6) **et** `r0RealImages` rejette les fichiers `size<=0` / `looks` vide (pas de couverture réelle ⇒ Accueil/RP/PERSIST/P2). **Repro exacte** : `V4R_SANDBOX=<box vide> R0_DRYRUN=1 node tools/test_v4r_runtime.js` → **73 OK / 10 KO**, les 10 EXACTES.
+- **Correctif** : la suite **sème son propre patrimoine** dans un bac ISOLÉ (`os.tmpdir()/v4r_runtime_box`), recréé à chaque run, AVANT `require(telegram_bot)` (BASE figée au chargement) : ≥12 vrais JPEG non vides (couverture/rendus/P2/pagination) + 1 modèle de prompt long (#17/#18/Texte/P6) ; catalogues VERSIONNÉS (`library.json`/`lookbook.json`/`outfits_catalog.json`) liés en lecture. Aucune dépendance aux données locales de l'opérateur. **Aucune modification du code produit** (`telegram_bot.js`/`ui/*` octet-pour-octet identiques à HEAD) — seul le test est rendu déterministe.
+- **Statut** : ✅ CORRIGÉE — re-vérif Etoile en attente (relance runtime+audit)
+- **Artefact réel** : AVANT (box vide) `73 OK / 10 KO` (10 EXACTES listées) ; APRÈS (box vide ET `prompts/` masqué ET `HOME` factice) `83 OK / 0 KO` ; sweep complet `429 OK / 0 KO` (screens 106 · carto 156 · runtime 83 · nav_scenario 28 · scenario 15 · budget 10 · nospend 4 · cloud_chain 15 · soustitres 12) ; audit_cockpit `ANOMALIES STRUCTURELLES: 0` (orphans 0, maxAlive 1, orphanHits 0).
+
+---
+
 ## ANO-SUBTITLE-APERCU — Aperçu sous-titres avant génération vidéo
 - **Écran** : Vidéo → (Montage) → Aperçu (confirmView, mediaKind=video)
 - **Gravité** : 🔴 BLOQUANTE
