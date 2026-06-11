@@ -1,0 +1,102 @@
+<!doctype html><meta charset=utf-8><title>Structure archive projet</title><style>body{font-family:-apple-system,sans-serif;max-width:1000px;margin:24px auto;padding:0 16px;line-height:1.5}table{border-collapse:collapse;width:100%;margin:10px 0;font-size:14px}th,td{border:1px solid #ccc;padding:6px 8px;text-align:left;vertical-align:top}th{background:#f4f4f4}code{background:#f0f0f0;padding:1px 4px;border-radius:3px}pre{background:#1e1e1e;color:#e6e6e6;padding:12px;border-radius:6px;overflow-x:auto;font-size:13px}pre code{background:none;color:inherit}blockquote{background:#fff8e1;border-left:4px solid #f0ad4e;padding:8px 12px}h1{border-bottom:3px solid #333}h2{border-bottom:1px solid #ccc;margin-top:1.5em}</style>
+<h1>Proposition — Archive de référence par projet (podcast-looks)</h1>
+
+<blockquote><b>PROPOSITION SEULEMENT. Aucune écriture/copie/suppression</b> tant qu'Etoile n'a pas validé l'arborescence.</blockquote>
+<blockquote>Objectif : <code>podcast-looks/&lt;projet&gt;/</code> devient l'<b>archive de référence</b> durable — si la base (<code>facts.json</code>) est perdue, le seul dossier projet permet de <b>comprendre et reconstruire</b> le projet.</blockquote>
+<blockquote>Base existante, pas de nouveau connecteur : <code>podcast-looks</code> = <code>~/Library/Mobile Documents/com~apple~CloudDocs/podcast-looks</code> (cible du symlink <code>looks/</code>, iCloud auto-sync).</blockquote>
+
+<h2>1. Nom du dossier racine + convention de nommage</h2>
+
+<li><b>Racine confirmée</b> : <code>podcast-looks/</code> (iCloud). On range les projets sous une sous-racine persona pour rester propre en multi-persona : <b><code>podcast-looks/projets/&lt;persona&gt;/&lt;dossier-projet&gt;/</code></b>.</li>
+<li><b>Nom du dossier projet</b> (proposé) : <code>&lt;projectId&gt;</code> tel quel, car il est <b>déjà daté et lisible</b> et <b>stable/unique</b> : ex. <code>imany_2026-06-11-16-19-32</code>.</li>
+<p>  - Constat réel : <code>intention.message</code> est <b>null</b> sur tous les projets → pas de titre humain fiable aujourd'hui. Donc on garde le <code>projectId</code> daté comme nom.</p>
+<p>  - <b>Option (si tu préfères du plus lisible)</b> : <code>2026-06-11_16h19__&lt;slug&gt;</code> où <code>&lt;slug&gt;</code> vient du titre quand il existera ; le <code>projectId</code> reste écrit dans le manifeste pour la stabilité. → <b>à choisir : (A) projectId brut [recommandé, zéro ambiguïté] ou (B) date + slug.</b></p>
+<li>Sous-dossiers : <b>noms exacts</b> comme demandé (Photos, Vidéos, Références, Looks, Scripts, Légendes, Prompts, Audio, Sous-titres, Exports finaux).</li>
+
+<h2>2. Arborescence complète proposée</h2>
+
+<pre><code>podcast-looks/
+└── projets/
+    └── imany/
+        └── imany_2026-06-11-16-19-32/        ← un dossier par projet
+            ├── projet.json                   ← MANIFESTE (paramètres de régénération) — lisible + structuré
+            ├── RECAP.txt                      ← récap humain (cap, prompt, tenue, décor, durée, décisions)
+            ├── facts.snapshot.json            ← copie brute de l'état (source de vérité ultime, pour reconstruire)
+            ├── Photos/                        ← *.jpg / *.png / *.webp (images générées + importées du projet)
+            ├── Vidéos/                        ← *.mp4 (vidéos finales du projet)
+            ├── Références/                    ← image(s) de référence (base des générations) + *_reference.*
+            ├── Looks/                         ← look/tenue : image(s) de look + look.txt (catégorie tenue retenue)
+            ├── Scripts/                       ← script.txt (script complet, éditable)
+            ├── Légendes/                      ← legendes.txt (courte / longue / hashtags)
+            ├── Prompts/                       ← prompt.txt (prompt photo complet)
+            ├── Audio/                         ← *.mp3 / *.wav (voix ElevenLabs)
+            ├── Sous-titres/                   ← soustitres.txt (réglages) + *.srt si généré
+            └── Exports finaux/               ← médias VALIDÉS (état « garde ») = livrables prêts
+</code></pre>
+
+<h3>Manifeste <code>projet.json</code> (schéma proposé)</h3>
+<pre><code>{
+  "projectId": "imany_2026-06-11-16-19-32",
+  "persona": "imany",
+  "titre": "(daté — pas de titre humain saisi)",
+  "cree_le": "2026-06-11T…", "modifie_le": "2026-06-11T…",
+  "statut": "Photo validée",
+  "intention": { "cap": null, "objectif": null, "public": null },
+  "regeneration": {
+    "prompt": "&lt;PROMPT PHOTO COMPLET, non tronqué&gt;",
+    "tenue": "soiree #1",
+    "decor": "&lt;décor&gt;",
+    "reference": "Références/&lt;fichier&gt;",
+    "format": "9:16",
+    "duree": "30s",
+    "voix": "&lt;voix&gt;",
+    "sous_titres": { "actif": true, "police": "archivo", "taille": "L", "position": "bas" },
+    "moteurs": { "photo": "seedream-v4", "video": "kling+elevenlabs" }
+  },
+  "decisions": [ "… journal des décisions du projet …" ],
+  "publication": { "legende_courte": null, "legende_longue": null, "hashtags": null, "plateforme": null },
+  "fichiers": { "photos": ["Photos/…"], "videos": [], "scripts": ["Scripts/script.txt"] }
+}
+</code></pre>
+<blockquote>Le manifeste contient <b>tout le nécessaire à la régénération</b> (prompt complet, tenue, décor, références, durée, format, décisions). <code>facts.snapshot.json</code> = filet de sécurité brut.</blockquote>
+
+<h2>3. Ce qui sera copié rétroactivement (réel vs vide) — mapping par type</h2>
+
+<table><thead><tr><th>Sous-dossier</th><th>Source réelle</th><th>Volume réel aujourd'hui</th></tr></thead><tbody>
+<tr><td>Photos/</td><td><code>media.file</code> (type image, <code>simule:false</code>) — <b>suivre le chemin réel</b> (un média peut pointer vers le dossier d'un autre projet via choix galerie)</td><td><b>618 photos</b> réparties sur 23 projets</td></tr>
+<tr><td>Vidéos/</td><td><code>media.file</code> (type video) du projet</td><td><b>0 vidéo v4r</b> par projet (les 117 vidéos legacy sont dans <code>podcast-outputs/</code>, non rattachées à un projet v4r — voir §4)</td></tr>
+<tr><td>Références/</td><td><code>draft.photo.reference</code> + <code>looks/*reference*</code></td><td><b>1</b> référence partagée (<code>imany_reference</code>) ; <code>draft.reference</code> quasi vide</td></tr>
+<tr><td>Looks/</td><td><code>draft.photo.look</code> (libellé tenue) → <code>look.txt</code> ; image de look = la photo</td><td>libellé tenue présent quand renseigné ; <b>pas de fichier dédié</b></td></tr>
+<tr><td>Scripts/</td><td><code>draft.video.script</code> → <code>script.txt</code></td><td><b>2 projets</b> avec script</td></tr>
+<tr><td>Légendes/</td><td><code>publication.legende_courte/longue/hashtags</code> → <code>legendes.txt</code></td><td><b>0</b> aujourd'hui (toutes nulles)</td></tr>
+<tr><td>Prompts/</td><td><code>draft.photo.prompt</code> → <code>prompt.txt</code></td><td>présent sur quelques projets</td></tr>
+<tr><td>Audio/</td><td>voix ElevenLabs (fichier)</td><td><b>0</b> en v4r (l'audio legacy est dans <code>podcast-outputs/</code>)</td></tr>
+<tr><td>Sous-titres/</td><td><code>draft.video.st_*</code> → <code>soustitres.txt</code></td><td>réglages seulement, pas de <code>.srt</code></td></tr>
+<tr><td>Exports finaux/</td><td>médias <code>etat:"garde"</code></td><td>selon validations (peu aujourd'hui)</td></tr>
+<tr><td>projet.json / RECAP.txt / facts.snapshot.json</td><td>dérivés de <code>facts.json</code></td><td><b>1 par projet</b> (23 projets avec média)</td></tr>
+</tbody></table>
+
+<p><b>Honnêteté</b> : la copie rétroactive remplira surtout <b>Photos/</b> (618) + les manifestes ; <b>Vidéos/Audio/Légendes/Sous-titres seront souvent vides</b> côté v4r (l'historique vidéo/audio vit dans <code>podcast-outputs/</code>, déjà iCloud). À décider : <b>rattacher ou non les vidéos legacy</b> à des projets (difficile car aucune association projet↔vidéo n'existe) ; proposition : les laisser dans <code>podcast-outputs/</code> (déjà cloud) et ne PAS les déplacer.</p>
+
+<h2>4. Ce qui reste UNIQUEMENT en base (non archivé en fichier)</h2>
+
+<li><b>État vivant / opérationnel</b> : <code>media.etat</code> (candidate/garde/supprimé), pointeur de navigation (<code>v4r_nav.json</code>), compteur budget (<code>v4r_budget.json</code>), défauts (<code>v4r_defaults.json</code>), drapeau LIVE. → <b>non archivé</b> car ce sont des états de session, pas des livrables ; ils n'aident pas à reconstruire le rendu.</li>
+<li><b>Entrées simulées</b> (<code>simule:true</code>) : <b>jamais archivées</b> (placeholders sans fichier).</li>
+<li>Tout le <b>reste utile</b> (prompt, script, légendes, params, décisions) <b>EST</b> archivé via <code>projet.json</code> + <code>facts.snapshot.json</code> → la base devient reconstructible depuis le dossier.</li>
+
+<h2>5. Comment les FUTURES générations alimenteront automatiquement la structure</h2>
+
+<p>À chaque génération réelle (sur le clic d'Etoile, LIVE armé) :</p>
+<p>1. <code>r0CloudCopy(file, id, kind)</code> (déjà en place, à étendre) dépose le rendu dans le <b>bon sous-dossier</b> : image → <code>Photos/</code>, vidéo → <code>Vidéos/</code>, et le média <b>validé</b> → aussi <code>Exports finaux/</code>.</p>
+<p>2. Écriture/MAJ des textes : <code>Prompts/prompt.txt</code>, <code>Scripts/script.txt</code>, <code>Légendes/legendes.txt</code>, <code>Sous-titres/soustitres.txt</code> (depuis le brouillon/publication du projet).</p>
+<p>3. <b>MAJ du manifeste</b> <code>projet.json</code> + <code>RECAP.txt</code> + <code>facts.snapshot.json</code> à chaque génération (paramètres de régénération à jour).</p>
+<p>4. Tout reste <b>sur l'existant</b> (symlink <code>looks/</code>→podcast-looks, iCloud auto-sync) — <b>aucun nouveau connecteur</b>. Jamais en dry-run (sandbox isolée).</p>
+
+<blockquote>Extension de code nécessaire (à faire APRÈS validation) : passer un <code>kind</code> à <code>r0CloudCopy</code> + une fonction <code>r0ArchiveProjet(id)</code> qui écrit manifeste + textes. ~30 lignes, sur la base existante. <b>Signalé, non codé tant que l'arborescence n'est pas validée.</b></blockquote>
+
+<h2>Décisions attendues d'Etoile avant toute écriture</h2>
+<p>1. Nom de dossier : <b>(A) projectId brut</b> [recommandé] ou (B) <code>date_slug</code> ?</p>
+<p>2. Sous-racine <code>podcast-looks/projets/&lt;persona&gt;/</code> OK, ou <code>podcast-looks/&lt;projet&gt;/</code> à plat ?</p>
+<p>3. Vidéos legacy : <b>laisser dans podcast-outputs</b> [recommandé] ou tenter un rattachement ?</p>
+<p>4. Copier la photo <b>physiquement</b> dans <code>Photos/</code> (duplication, ~Mo) ou y mettre un <b>raccourci/relevé de chemin</b> ? (recommandé : copie physique = archive autonome, durable même si projects_r disparaît).</p>
+
