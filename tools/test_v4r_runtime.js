@@ -368,8 +368,8 @@ async function main() {
   chk('CTX-S/T : 🔤 ouvre le panneau Sous-titres (block soustitres)', bot.state().screen === 'block' && bot.state().block === 'soustitres');
   chk('CTX-S/T : le panneau peint LE MÊME subclip que l\'aperçu (source projet), PAS une démo', bot.media() === _apM && /subclip_/.test(bot.media() || '') && !/demo_video/.test(bot.media() || ''));
   const _stM = bot.markup();
-  chk('CTX-S/T : boutons GROUPÉS par dimension (Disposition 3 · Police 2 · Taille 3 · Position 2+2 · Couleur 3)',
-    _stM.rows[0].length === 3 && _stM.rows[1].length === 2 && _stM.rows[2].length === 3 && _stM.rows[3].length === 2 && _stM.rows[4].length === 2 && _stM.rows[5].length === 3);
+  chk('CTX-S/T : boutons GROUPÉS par dimension (Disposition 3 · Police 2 · Taille 3 · Position 4 · Couleur 3) [🔴2 épure : Position en 1 ligne]',
+    _stM.rows[0].length === 3 && _stM.rows[1].length === 2 && _stM.rows[2].length === 3 && _stM.rows[3].length === 4 && _stM.rows[4].length === 3);
   chk('CTX-S/T : position « ✅ Validé » (sweet spot Etoile) exposée', bot.buttons().includes('R0_SET_stpos_valide'));
   chk('CTX-S/T : reste DANS le contexte (◀ Retour -> aperçu vidéo R0_VI_PREVIEW, pas un écran orphelin)', bot.buttons().includes('R0_VI_PREVIEW'));
   await bot.tap('R0_BLOCK_OK'); chk('CTX-S/T : ✅ Valider revient à l\'aperçu vidéo (confirm), 1 cockpit', bot.state().screen === 'confirm' && bot.state().cockpit === 1);

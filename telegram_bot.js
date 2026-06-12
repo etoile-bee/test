@@ -3357,13 +3357,24 @@ async function r0EnsureLocal(file){ try{ if(!file||!fs.existsSync(file)) return 
   for(let i=0;i<12;i++){ try{ const b=require('child_process').execSync('stat -f%b "'+file+'" 2>/dev/null').toString().trim(); if(+b>0) return true; }catch(e){} await new Promise(r=>setTimeout(r,400)); }
   return false;
 }catch(e){ return false; } }
+// [🔴2] DÉCOUPAGE de l'aperçu = EXACTEMENT celui du rendu FINAL : on réutilise render_local.buildChunks sur le VRAI texte du script.
+//   Le groupement (≈2 mots) ne dépend QUE des mots (leur longueur), PAS des timings -> identique au final quels que soient les timings TTS.
+//   Script VIDE -> 1 chunk « EXEMPLE » clairement marqué (jamais un faux texte présenté comme réel). maxWords borne la durée de l'aperçu.
+function r0SubChunks(dv, maxWords){ const rl=freshRL();
+  const txt=(dv&&dv.script&&String(dv.script).trim())||'';
+  if(!txt){ return { exemple:true, chunks:[{ text:'EXEMPLE — ajoute un script', start:0, length:99 }] }; }
+  const words=txt.replace(/\s+/g,' ').trim().split(' ').slice(0, maxWords||8);
+  const wt=words.map((w,i)=>({ text:w, start:i*0.5, end:i*0.5+0.5 })); // timings réguliers : buildChunks groupe par MOTS -> découpage = celui du final
+  let chunks=[]; try{ chunks=rl.buildChunks(wt); }catch(e){ chunks=[{ text:words.join(' '), start:0, length:99 }]; }
+  if(!chunks.length) chunks=[{ text:words.join(' '), start:0, length:99 }];
+  return { exemple:false, chunks };
+}
 async function r0SubSample(persona){
   try{ const {S,C}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
     const img=r0CoverFile(f); if(!img||!fs.existsSync(img)) return null;
     await r0EnsureLocal(img); // iCloud : matérialise la source avant ffmpeg
     const o=r0SubOpts(dv); const rl=freshRL(); const W=720,H=1280;
-    let phrase=(dv.script&&String(dv.script).trim())||'Un aperçu de tes sous-titres incrustés';
-    phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,8).join(' '); // 1res lignes du script
+    const sc=r0SubChunks(dv,8); const phrase=sc.chunks[0].text; // PNG = 1 frame -> 1er chunk RÉEL (même découpage que le final)
     const assPath='/tmp/v4rsub_'+Date.now()+'.ass';
     fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
     const out='/tmp/v4rsub_'+Date.now()+'.png';
@@ -3379,15 +3390,15 @@ async function r0SubClip(persona){
   try{ const {S}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
     const img=r0SourceFile(f); if(!img||!fs.existsSync(img)) return null;
     const o=r0SubOpts(dv);
-    let phrase=(dv.script&&String(dv.script).trim())||'Aperçu de tes sous-titres incrustés ici';
-    phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,7).join(' ');
-    let key=img+'|'+JSON.stringify(o)+'|'+phrase; let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
+    const sc=r0SubChunks(dv,8); const chunks=sc.chunks;                          // [🔴2] VRAI texte du script, découpé EXACTEMENT comme le rendu final (buildChunks)
+    const keytext=chunks.map(c=>c.text).join('|');
+    let key=img+'|'+JSON.stringify(o)+'|'+keytext; let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
     const out=path.join(BASE,'assets_r','subclip_'+h.toString(36)+'.mp4');
     if(_r0SubClipCache[h] && fs.existsSync(out)) return out;
     if(R0DRY) return out; // dry : pas de ffmpeg
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     const rl=freshRL(); const assPath='/tmp/subclip_'+h.toString(36)+'.ass';
-    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
+    fs.writeFileSync(assPath, rl.buildAss(chunks, {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
     const local=await r0EnsureLocal(img); if(!local){ try{ jlog('[v4r] subclip : source iCloud non matérialisée '+path.basename(img)); }catch(_){} return null; } // [iCloud] matérialise avant ffmpeg (placeholders dataless)
     await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','4',
       '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0012,1.12)\':d=100:s=720x1280:fps=25,ass='+assPath+',format=yuv420p',
@@ -4725,6 +4736,7 @@ if(R0DRY){
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)
+    subChunks:(dv)=>{ try{ return r0SubChunks(dv||{},8); }catch(e){ return {chunks:[],exemple:true}; } }, // [🔴2] découpage aperçu (== buildChunks du final sur le vrai script)
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/

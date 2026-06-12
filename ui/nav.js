@@ -91,7 +91,7 @@ function blockSpec(block, facts, ctx) {
     //   Lecture des défauts subtitle_style (jamais d'écriture du verrou). Réglages PAR vidéo (draft.video), panneau qui RESTE ouvert.
     const sty = (ctx && ctx.subStyle) || {};
     const disp = d.st_display || sty.display || 'mot', font = d.st_font || sty.font || 'archivo';
-    const size = d.st_size || sty.size || 'M', pos = d.st_pos || sty.pos || 'bas', col = d.st_color || sty.color || 'blanc';
+    const size = d.st_size || sty.size || 'M', pos = d.st_pos || sty.pos || 'haut', col = d.st_color || sty.color || 'blanc'; // [🔴2] défaut 'haut' = r0SubOpts (oy 0.78) -> panneau == aperçu == final (fin de l'incohérence bas/haut)
     const cap = 'auto · ' + disp + ' · ' + font + ' · ' + size + ' · ' + pos + ' · ' + col;
     return {
       title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: (ctx && ctx.subReturn) || 'R0_VE' },
@@ -110,9 +110,9 @@ function blockSpec(block, facts, ctx) {
           { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
           { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' } ], // Taille
         [ { text: (pos === 'valide' ? '🔵 ' : '') + '✅ Validé', cb: 'R0_SET_stpos_valide' },
-          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' } ],   // Position — « Validé » = sweet spot Etoile (OY 0.370)
-        [ { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
-          { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' } ], // [#1] oy croissant = plus haut (alignement bas constant, fin de l'inversion)
+          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
+          { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
+          { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' } ], // [🔴2] Position en 1 SEULE ligne (épure) — oy croissant = plus haut, alignement bas constant
         [ { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
           { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
           { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' } ], // Couleur
