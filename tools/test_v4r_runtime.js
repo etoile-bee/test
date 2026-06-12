@@ -403,12 +403,18 @@ async function main() {
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // projet AVEC vidéo (parentKind video)
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID');
-  chk('P1-a : VALIDATION (écran texte chiffré) ne montre AUCUNE démo/référence', bot.state().screen === 'validation' && !/demo_video|demo_photo|imany_reference|references\//.test(bot.media() || ''));
+  chk('P1-c FIX-1 : VALIDATION peint la SOURCE projet (média, 0 recréation), PAS une démo', bot.state().screen === 'validation' && !!bot.media() && !/demo_video|demo_photo|imany_reference|references\//.test(bot.media() || ''));
   await bot.tap('R0_GO2');
   chk('P1-a : CONFIRM2 peint la source projet, PAS une démo', bot.state().screen === 'confirm2' && !/demo_video|demo_photo/.test(bot.media() || ''));
   await bot.tap('R0_HOME');
   chk('P1-a : QUIT peint la source projet, PAS une démo', bot.state().screen === 'quit' && !/demo_video|demo_photo/.test(bot.media() || ''));
   chk('P1-a #13 : quitView libellé « ◀ Retour » (plus « Annuler »)', bot.labels().includes('◀ Retour') && !bot.labels().some(t => /Annuler/.test(t)));
+  // [P1-c FIX-1] cœur génération 100% média -> MÊME bloc (0 recréation) de l'Aperçu à la 2ᵉ confirmation
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_PH_GEN'); await bot.tap('R0_PH_PREVIEW'); const _midA = bot.state().mid;
+  await bot.tap('R0_GEN_VALID'); const _midV = bot.state().mid;
+  await bot.tap('R0_GO2'); const _midC2 = bot.state().mid;
+  chk('P1-c FIX-1 : Aperçu→Validation→Confirmation = MÊME bloc (0 recréation)', !!_midA && _midA === _midV && _midV === _midC2 && bot.state().cockpit === 1);
 
   // ════ [ANO-GENID-CREATE] DATA-SAFETY : 2+ créations de projet dans la MÊME seconde -> ids DISTINCTS (jamais d'écrasement silencieux) ════
   //   genId a une résolution à la seconde ; createProject DOIT suffixer (-2,-3…) si l'id existe déjà. Cause historique de perte de projet.

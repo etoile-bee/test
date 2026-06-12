@@ -373,7 +373,10 @@ function validationView(facts, ctx) {
     ? [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
     : [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
        [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
-  return { kind: 'text', caption: cap, rows: rows };
+  // [P1-c FIX-1] la Validation peint la SOURCE PROJET (r0RealSource via le peintre, écran _strictSrc) + récap chiffré en légende.
+  //   -> Aperçu(média)→Validation(média)→Confirmation(média) = 100% média, 0 recréation de bloc. Repli texte si aucune source réelle.
+  const k = (cf.mediaKind !== 'text' && C.hasImage(facts)) ? 'photo' : 'text';
+  return { kind: k, caption: cap, rows: rows };
 }
 
 // ── 2ᵉ CONFIRMATION (garde-fou dépense) : SEUL « Oui, générer » déclenche l'appel réel. ──
