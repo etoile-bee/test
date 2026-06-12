@@ -97,4 +97,18 @@
 - G3 **Validation→média** (cœur génération 0 recréation). ✅ déployé (`2b19795`).
 - G4 **Aucune perte de contexte / aucun écran inutile**. ✅ (priorités cohérence Etoile).
 
-> Maintenu en parallèle : `ANOMALIES.md` (boucle détecté→corrigé→preuve) · `AUDIT_FINAL.md` · `AUDIT_CONTRAT_BOUTONS.md` · scopes (`SCOPE_PHOTO_2ETAPES`, `P2-7_BOITE_OUTILS_SCOPE`, `AJOUT2_INFLUENCES_SCOPE`).
+## H — ÉCRANS DE RÉFÉRENCE & INVARIANTS PROJET
+- H1 **PHOTO·Résultat & VIDÉO·Résultat = écrans de RÉFÉRENCE du projet** (point de départ officiel des workflows suivants) ; ne disparaissent JAMAIS, jamais remplacés silencieusement. ✅ rendu persistant (`r0PostFinal`, bloc unique) · 🟡 à OFFICIALISER (statut « référence » explicite).
+- H2 **Validation explicite PHOTO avant Préparer** (✅ Valider la photo = pin source). 🟡 scopé (LOT 2).
+- H3 **Validation explicite VIDÉO avant génération** (Aperçu→Validation→Générer). ✅ déployé.
+- H4 **N° projet sur écrans finaux** Photo + Vidéo. ✅ vidéo (`finalCaption`) · 🟡 photo (à harmoniser, #11).
+- H5 **Source active visible AUSSI dans Fichiers/Studio/reprise**. 🟡 (helper `srcLine` étendu — LOT 1).
+- H6 **« Nouveau projet » toujours dispo/fonctionnel après projet terminé**. 🟡 #14 (non-réponse = bug à traiter).
+- H7 **Suppression/corbeille récupérable depuis TOUS les espaces** (Fichiers/Biblio/Studio/Historique/Archives). 🟡 (soft-delete `r0Corbeille` existe ; exposition partout à câbler).
+- H8 **Textes longs : Voir plus/Réduire in-bloc + texte complet permanent**. 🟡 #8.
+- H9 **Aperçus sous-titres = rendu final EXACT** (mêmes `r0SubOpts`). 🟡 à PROUVER (2 clips identiques aperçu vs final).
+- H10 **Cohérence Cloud ↔ Telegram ↔ Fichiers** (aller-retour). ⚠️ terrain (LIVE).
+- H11 **Historique des versions accessible depuis le projet** (⏪/🕘). ✅ déployé.
+- H12 **Test terrain réel obligatoire avant clôture d'un lot**. ✅ process.
+
+> Maintenu en parallèle : `ANOMALIES.md` (boucle détecté→corrigé→preuve) · `AUDIT_FINAL.md` · `AUDIT_CONTRAT_BOUTONS.md` · scopes (`SCOPE_PHOTO_2ETAPES`, `P2-7_BOITE_OUTILS_SCOPE`, `AJOUT2_INFLUENCES_SCOPE`) · `PLAN_COHERENCE_PARCOURS`.
