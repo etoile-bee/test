@@ -173,7 +173,7 @@ function blockSpec(block, facts, ctx) {
     const hasDef = !!(ctx && ctx.defaults && ctx.defaults[block.screen + '.' + block.key]);
     // [scripts/prompts EN ENTIER] prompt/script affichés en mode TEXTE (caption jusqu'à 4096), pas en média (limité à 1024) -> texte complet copiable/éditable.
     const pkFree = (block.key === 'prompt' || block.key === 'script') ? 'text' : pk;
-    return { title: titleOf(block), current: d[block.key], parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, options: opts, hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
+    return { title: titleOf(block), current: d[block.key], parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, options: opts, expanded: !!(ctx && ctx.blockExpanded), hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
   }
   // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };

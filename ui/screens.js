@@ -512,14 +512,17 @@ function videoEditView(facts) {
 function blockView(spec) {
   // [TEXTE COPIABLE — Etoile] sur les blocs TEXTE (prompt/script…), la valeur est dans un bloc <code> -> copie d'un geste = TEXTE BRUT SEUL.
   //   L'instruction/aide reste HORS du bloc copiable (ligne <i> séparée). Les blocs à choix gardent l'affichage court.
-  let cap;
+  let cap; let _seeMore = null;
   if (spec.parentKind === 'text' && spec.current != null && String(spec.current).trim()) {
-    // [C — Etoile] APERÇU COURT (≤ ~180 car / 3 lignes) pour ne pas noyer le workflow ; le TEXTE COMPLET est dispo via le message séparé (📄).
+    // [C — Etoile / 🔴5 #8] APERÇU COURT par défaut ; « 👁 Voir plus » DÉROULE le texte complet DANS le bloc, « 🔼 Réduire » revient à l'aperçu.
+    //   Le « 📄 Texte complet » (message séparé copiable) reste dispo via le HUB Fichiers. Bloc <code> = copie d'un geste.
     const full = String(spec.current).replace(/\s+/g, ' ').trim();
-    const preview = full.length > 180 ? (full.slice(0, 180) + '…') : full;
-    cap = '<b>' + spec.title + '</b>\n<code>' + esc(preview) + '</code>'
-      + (full.length > 180 ? '\n<i>(aperçu — texte complet via 📄)</i>' : '')
+    const long = full.length > 180;
+    const shown = (long && !spec.expanded) ? (full.slice(0, 180) + '…') : full.slice(0, 3500);
+    cap = '<b>' + spec.title + '</b>\n<code>' + esc(shown) + '</code>'
+      + (long ? ('\n<i>' + (spec.expanded ? 'texte complet' : 'aperçu — 👁 Voir plus pour tout afficher') + '</i>') : '')
       + (spec.hint ? ('\n\n<i>' + esc(spec.hint) + '</i>') : '');
+    if (long) _seeMore = spec.expanded ? { text: '🔼 Réduire', cb: 'R0_SEELESS' } : { text: '👁 Voir plus', cb: 'R0_SEEMORE' };
   } else {
     cap = '<b>' + spec.title + '</b>\nActuel : ' + val(spec.current)
       + (spec.hint ? ('\n<i>' + esc(spec.hint) + '</i>') : '');
@@ -530,6 +533,7 @@ function blockView(spec) {
   //   sinon découpage générique par 3 (comportement par défaut des autres blocs).
   if (spec.optionRows && spec.optionRows.length) { spec.optionRows.forEach(r => rows.push(r)); }
   else { for (let i = 0; i < opts.length; i += 3) rows.push(opts.slice(i, i + 3)); }
+  if (_seeMore) rows.push([_seeMore]); // [🔴5 #8] Voir plus / Réduire IN-bloc (texte long déroulé sur place)
   if (spec.askCb) rows.push([{ text: '✍️ Saisir', cb: spec.askCb }]);
   if (spec.previewCb) rows.push([{ text: '👁 Aperçu', cb: spec.previewCb }]); // [SOUS-TITRES] incruste un échantillon dans le style courant
   // [ANO-ARCH-VERSIONING] ⏪ Version précédente (restaure la dernière) + 🕘 Historique versions (parcourir/restaurer). Affiché SEULEMENT si des versions existent.

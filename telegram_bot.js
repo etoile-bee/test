@@ -2556,6 +2556,7 @@ let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/réce
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
+let r0BlockExpanded=false; /*[🔴5 #8] « 👁 Voir plus » : déroule le texte complet (script/prompt) DANS le bloc ; réinit à chaque navigation.*/
 // [VERROU GÉNÉRATION — Etoile] flag FICHIER posé au DÉBUT de toute génération réelle, levé à la FIN. Tant qu'il existe -> AUCUN deploy/restart autorisé.
 //   (la procédure de déploiement vérifie ce fichier ; au boot, un flag orphelin = génération tuée par un redémarrage -> message d'incident, jamais de retour silencieux.)
 const R0_GENLOCK=path.join(BASE,'.v4r_generating');
@@ -2900,6 +2901,7 @@ function r0Ctx(persona){
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
   try{ ctx.srcName=ctx.sourceFile?path.basename(ctx.sourceFile):null; }catch(e){ ctx.srcName=null; } // [LOT1 A3] « 📸 Source active : X » visible partout (X = basename(r0SourceFile))
   ctx.generating=r0Generating; ctx.genStep=r0GenStep; // [🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler
+  ctx.blockExpanded=r0BlockExpanded; // [🔴5 #8] texte long déroulé (Voir plus) dans le bloc courant
   ctx.resReturn=r0ResFrom; // [RETOUR CONTEXTUEL] origine d'ouverture de Fichiers/Ressources (Studio/Récents/Résultat)
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
@@ -3094,6 +3096,8 @@ async function r0Dispatch(persona, d, editMid){
   const {ENG,BUD,C}=_r0();
   // [PAGINATION] toute action HORS pagination remet la page à 0 (on rouvre une grille au début) ; les flèches changent la page.
   if(!/^R0_(GNEXT|GPREV|RENEXT|REPREV)$/.test(d)) r0Page=0;
+  // [🔴5 #8] toute action SAUF Voir plus/Réduire replie le texte long (on rouvre un bloc en aperçu court) ; SEEMORE/SEELESS le re-posent juste après.
+  if(d!=='R0_SEEMORE' && d!=='R0_SEELESS') r0BlockExpanded=false;
   // [APERÇU sous-titres] entrée NORMALE par le Montage -> le panneau revient au Montage (pas à l'aperçu) ; on efface le marqueur d'aperçu.
   if(d==='R0_VE_SUBS') r0SubReturn=null;
   if(/^R0_(GNEXT|RENEXT)$/.test(d)){ r0Page++; await r0Render(persona, editMid); return; }       // Suivant ▶
@@ -3206,6 +3210,9 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_RES'){ r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
+  // [🔴5 #8] VOIR PLUS / RÉDUIRE : déroule/replie le texte complet (script/prompt) DANS le bloc, sans quitter l'écran.
+  if(d==='R0_SEEMORE'){ r0BlockExpanded=true; await r0Render(persona, editMid); return; }
+  if(d==='R0_SEELESS'){ r0BlockExpanded=false; await r0Render(persona, editMid); return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
   if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu vidéo des sous-titres en préparation…'); }catch(e){}
     const clip=await r0SubClip(persona); // [APERÇU SOUS-TITRES] CLIP échantillon (burn local ffmpeg = GRATUIT), apparence courante
