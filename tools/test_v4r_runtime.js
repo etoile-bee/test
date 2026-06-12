@@ -323,9 +323,9 @@ async function main() {
   // ════ [SOUS-TITRES #2] DÉFAUT = préréglage VERROUILLÉ Etoile (Archivo Black · 76 · OY 0.370 · alignement bas) ════
   {
     const def = bot.subOpts({});
-    chk('#2 défaut sous-titres = préréglage Etoile (Archivo Black · 76 · OY 0.370 · align 2)', def.font === 'Archivo Black' && def.fontSize === 76 && Math.abs((def.oy || 0) - 0.370) < 0.001 && def.alignment === 2);
+    chk('#2 défaut sous-titres = préréglage Etoile (Archivo Black · 76 · align 2) + position HAUT par défaut (oy 0.78)', def.font === 'Archivo Black' && def.fontSize === 76 && Math.abs((def.oy || 0) - 0.78) < 0.001 && def.alignment === 2);
     chk('#2 taille « M » = 76 (validée, pas une approximation)', bot.subOpts({ st_size: 'M' }).fontSize === 76);
-    chk('#2 position « ✅ Validé » = OY 0.370 (sweet spot Etoile)', Math.abs((bot.subOpts({ st_pos: 'valide' }).oy || 0) - 0.370) < 0.001);
+    chk('#2 cran « ✅ Validé » = OY 0.370 toujours dispo (sweet spot Etoile)', Math.abs((bot.subOpts({ st_pos: 'valide' }).oy || 0) - 0.370) < 0.001);
   }
 
   // ════ [ANO-ARCH-VERSIONING] historique par champ : éditer écrase NON définitivement -> ⏪ restaure ; 🕘 parcourt ; persiste /restart ════

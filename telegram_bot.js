@@ -2640,7 +2640,7 @@ function _r0ScriptCats(){ return _R0_SCRIPT_CATS; }
 // [#27] SOUS-TITRES : valeurs PAR DÉFAUT du style legacy (lecture seule de subtitle_style — JAMAIS d'écriture, verrou intact).
 function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; require('./subtitle_style');
   // [#2] DÉFAUT affiché = préréglage VERROUILLÉ Etoile, en CLÉS cockpit : Archivo Black (archivo) · 76 (M) · OY 0.370 (valide) · majuscules (mot).
-  return { font:'archivo', size:'M', pos:'valide', display:'mot' }; }catch(e){ return { font:'archivo', size:'M', pos:'valide', display:'mot' }; } }
+  return { font:'archivo', size:'M', pos:'haut', display:'mot' }; }catch(e){ return { font:'archivo', size:'M', pos:'haut', display:'mot' }; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
@@ -3288,7 +3288,7 @@ function r0SubOpts(dv){ dv=dv||{};
   // [#1] POSITION : fraction depuis le BAS, alignement ASS CONSTANT = 2 (bas-centre). Plus oy grand = plus HAUT (intuitif, fin de l'inversion).
   const OYP={valide:0.370,bas:0.27,milieu:0.50,haut:0.78};   // [#2] cran « validé » = OY 0.370 (sweet spot Etoile, entre bas et milieu)
   const COLOR={blanc:'&H00FFFFFF',jaune:'&H0000FFFF',cyan:'&H00FFFF00'}; // ASS = &HAABBGGRR
-  const o={ font:(sty.font||'Archivo Black'), fontSize:(sty.fontSize!=null?sty.fontSize:76), oy:(sty.oy!=null?sty.oy:0.370),
+  const o={ font:(sty.font||'Archivo Black'), fontSize:(sty.fontSize!=null?sty.fontSize:76), oy:0.78, // [ÉTAPE0] défaut position HAUT (confirmé Etoile) ; cran « ✅ Validé » (0.370) reste dispo
             letterSpacing:(sty.letter!=null&&isFinite(sty.letter)?sty.letter:2), alignment:2, color:'&H00FFFFFF' };
   // overrides explicites de l'utilisateur (n'écrasent QUE ce qu'elle change ; alignement reste 2 -> aucune inversion).
   if(dv.st_font&&FONTS[dv.st_font])o.font=FONTS[dv.st_font];
