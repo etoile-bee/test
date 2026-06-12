@@ -2724,7 +2724,7 @@ function r0FindAudio(persona){ try{ const cur=r0Cur(persona,false); if(!cur) ret
 // [CLOUD] Reconnexion au mécanisme iCloud EXISTANT : dossier historique = « podcast-looks » (= la cible du symlink `looks/`).
 //   Chaque PROJET a son sous-dossier podcast-looks/<projet>/ avec tous ses fichiers (photo/vidéo/…) -> resync auto iCloud + app Fichiers.
 //   AUCUN nouveau connecteur. Pas en dry-run (sandbox ne touche jamais le vrai iCloud).
-function r0CloudCopy(file, projId){ try{ if(!file || (typeof R0DRY!=='undefined'&&R0DRY)) return null;
+function r0CloudCopy(file, projId){ try{ file=r0FilePath(file); if(!file || (typeof R0DRY!=='undefined'&&R0DRY)) return null; // [🔴1b] garde-fou : si un OBJET média se glisse ici, on prend .file/.path (jamais path.basename(objet))
   let lookRoot; try{ lookRoot=getLooksDir(); }catch(e){ lookRoot=path.join(BASE,'looks'); } // realpath de looks/ -> .../podcast-looks
   const dir=path.join(lookRoot, projId||'v4r'); fs.mkdirSync(dir,{recursive:true});
   const dest=path.join(dir, path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
