@@ -6,19 +6,22 @@
 //     • prompt  -> opts.basePrompt   • look (tenue) -> opts.extra (texte outfit) / opts.category
 //     • décor   -> opts.env (clé)    • mode/count   -> éco, 1 image
 //   NON paramétrables (signalés, pas inventés) :
-//     • références -> le moteur utilise la référence PERSONA FIXE (imany_reference), pas d'option
+//     • références -> le moteur utilise la référence d'IDENTITÉ du PERSONA courant (fixe, avatar-agnostique), pas d'option
 //     • format/aspect -> 9:16 FIXE dans generateLook
+//   [AJOUT 2] COUCHES D'INFLUENCE (neutres) : draft.use_look/use_decor/use_refs (défaut true) -> flag OFF = couche non passée au moteur.
 // ─────────────────────────────────────────────────────────────────────────────
 function buildPhotoOpts(draft, lookbook, outfits) {
   draft = draft || {};
   const opts = { mode: 'eco', count: 1 };
   const unmapped = [];
+  // [AJOUT 2 — COUCHES D'INFLUENCE] bascules NEUTRES (avatar-agnostiques). DÉFAUT true -> comportement actuel, ZÉRO régression.
+  const useLook = draft.use_look !== false, useDecor = draft.use_decor !== false, useRefs = draft.use_refs !== false;
 
-  // PROMPT du projet -> prompt moteur
+  // PROMPT du projet -> prompt moteur (toujours pris en compte)
   if (draft.prompt && String(draft.prompt).trim()) opts.basePrompt = String(draft.prompt).trim();
 
-  // LOOK « Catégorie #id » -> tenue exacte du catalogue (opts.extra) ; sinon catégorie nommée ; sinon libellé brut
-  if (draft.look) {
+  // LOOK « Catégorie #id » -> tenue exacte du catalogue (opts.extra) ; sinon catégorie nommée ; sinon libellé brut. [AJOUT 2] gaté par use_look.
+  if (useLook && draft.look) {
     const m = String(draft.look).match(/^(.+?)\s*#\s*(\d+)$/);
     if (m) {
       const cat = m[1].trim().toLowerCase(), id = +m[2];
@@ -39,16 +42,16 @@ function buildPhotoOpts(draft, lookbook, outfits) {
     }
   }
 
-  // DÉCOR (libellé) -> clé d'environnement du lookbook
-  if (draft.decor) {
+  // DÉCOR (libellé) -> clé d'environnement du lookbook. [AJOUT 2] gaté par use_decor.
+  if (useDecor && draft.decor) {
     const envs = (lookbook && lookbook.envs) || {};
     let key = null;
     for (const k in envs) { if ((envs[k] && envs[k].label === draft.decor) || k === String(draft.decor).toLowerCase()) key = k; }
     if (key) opts.env = key; else unmapped.push('décor «' + draft.decor + '» (clé d\'environnement inconnue)');
   }
 
-  // RÉFÉRENCES -> non paramétrable (référence persona fixe)
-  if (draft.refs && draft.refs !== 'aucune') unmapped.push('références=' + draft.refs + ' (moteur : référence persona FIXE, non paramétrable)');
+  // RÉFÉRENCES VISUELLES (draft.refs) -> [AJOUT 2] gaté par use_refs. (L'IDENTITÉ/visage du persona reste toujours active, gérée hors d'ici.)
+  if (useRefs && draft.refs && draft.refs !== 'aucune') { opts.refs = String(draft.refs); }
   // FORMAT -> non paramétrable (9:16 fixe)
   if (draft.format && draft.format !== '9:16') unmapped.push('format=' + draft.format + ' (moteur : 9:16 FIXE)');
 

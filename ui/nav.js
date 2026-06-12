@@ -63,6 +63,26 @@ function blockSpec(block, facts, ctx) {
       : { text: '◀ Retour', cb: 'R0_PUB' };
   const pk = parentKind(block.screen === 'photo' ? 'photo_prompt' : block.screen === 'video' ? 'video_params' : 'publication', facts);
 
+  // [AJOUT 2] 🎛 INFLUENCES ACTIVES (NEUTRES, avatar-agnostiques) : 4 bascules d'usage + 2 verrous. Défaut use_*=true / lock_*=false.
+  //   Décoché = la couche n'influence PAS la génération. 🔒 = conservé sur les prochaines générations. L'IDENTITÉ de l'avatar reste TOUJOURS active.
+  if (block.key === 'influences') {
+    const useSrc = d.use_source !== false, useLook = d.use_look !== false, useDecor = d.use_decor !== false, useRefs = d.use_refs !== false;
+    const lockLook = d.lock_look === true, lockDecor = d.lock_decor === true;
+    const ck = on => on ? '☑' : '☐';
+    return {
+      title: '🎛 Influences actives', current: null, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_PH_GEN' },
+      hint: 'Décoché = cette couche n\'influence PAS la génération. 🔒 = conservé sur les prochaines générations. (L\'identité de l\'avatar reste toujours active.)',
+      optionRows: [
+        [{ text: ck(useSrc) + ' Utiliser la source principale', cb: 'R0_INFL_use_source' }],
+        [{ text: ck(useLook) + ' Utiliser la tenue', cb: 'R0_INFL_use_look' }],
+        [{ text: (lockLook ? '🔒' : '🔓') + ' Conserver la tenue', cb: 'R0_INFL_lock_look' }],
+        [{ text: ck(useDecor) + ' Utiliser le décor', cb: 'R0_INFL_use_decor' }],
+        [{ text: (lockDecor ? '🔒' : '🔓') + ' Conserver le décor', cb: 'R0_INFL_lock_decor' }],
+        [{ text: ck(useRefs) + ' Utiliser les références visuelles', cb: 'R0_INFL_use_refs' }],
+      ],
+    };
+  }
+
   // SOUS-TITRES (D) : activer/désactiver · position · taille — réglages PAR PROJET (draft.video), retour à Vidéo>Édition.
   //   Lit subtitle_style.js (legacy) pour les valeurs PAR DÉFAUT affichées, SANS jamais le modifier (verrou intact).
   if (block.key === 'soustitres') {

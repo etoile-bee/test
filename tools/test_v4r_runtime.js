@@ -399,6 +399,33 @@ async function main() {
   const _a0 = bot.state().answered; await bot.tap('R0_LEGENDS');
   chk('AJOUT1 : 🏷 Légendes répond + reste sur l\'écran final (blocs copiables postés à part)', bot.state().answered > _a0 && bot.state().screen === 'video_result' && bot.state().cockpit === 1);
 
+  // ════ [AJOUT 2] COUCHES D'INFLUENCE (neutres) : gating moteur + UI + résumé + neutralité ════
+  {
+    const PO = require('../ui/photo_opts');
+    const LB = { categories: { soiree: 1 }, envs: { studio: { label: 'Studio' } } };
+    const OF = { outfits: [{ cat: 'soiree', id: 1, prompt: 'robe' }] };
+    const base = { prompt: 'p', look: 'soiree #1', decor: 'Studio', refs: 'imgX' };
+    let r = PO.buildPhotoOpts(base, LB, OF);
+    chk('AJOUT2 défaut : TOUTES les couches présentes (zéro régression)', r.opts.basePrompt === 'p' && !!r.opts.extra && r.opts.env === 'studio' && r.opts.refs === 'imgX');
+    chk('AJOUT2 use_look=false -> TENUE absente des opts moteur', !PO.buildPhotoOpts(Object.assign({}, base, { use_look: false }), LB, OF).opts.extra && !PO.buildPhotoOpts(Object.assign({}, base, { use_look: false }), LB, OF).opts.category);
+    chk('AJOUT2 use_decor=false -> DÉCOR (env) absent', PO.buildPhotoOpts(Object.assign({}, base, { use_decor: false }), LB, OF).opts.env == null);
+    chk('AJOUT2 use_refs=false -> RÉFÉRENCES absentes', PO.buildPhotoOpts(Object.assign({}, base, { use_refs: false }), LB, OF).opts.refs == null);
+    const propre = PO.buildPhotoOpts(Object.assign({}, base, { use_look: false, use_decor: false, use_refs: false }), LB, OF).opts;
+    chk('AJOUT2 base propre : prompt SEUL (ni tenue, ni décor, ni réf)', propre.basePrompt === 'p' && !propre.extra && propre.env == null && propre.refs == null);
+  }
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
+  chk('AJOUT2 UI : Préparer expose 🎛 Influences', bot.buttons().includes('R0_PHB_influences'));
+  await bot.tap('R0_PHB_influences');
+  chk('AJOUT2 UI : bloc Influences = 6 bascules (libellés exacts Etoile)', bot.state().screen === 'block' && bot.state().block === 'influences'
+    && ['R0_INFL_use_source', 'R0_INFL_use_look', 'R0_INFL_use_decor', 'R0_INFL_use_refs', 'R0_INFL_lock_look', 'R0_INFL_lock_decor'].every(c => bot.buttons().includes(c)));
+  chk('AJOUT2 NEUTRALITÉ : aucun libellé « Imany »/avatar spécifique', !bot.labels().some(t => /imany/i.test(t)));
+  await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : décocher Tenue -> use_look=false', bot.draft('photo').use_look === false);
+  await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : recocher Tenue -> use_look=true', bot.draft('photo').use_look === true);
+  await bot.tap('R0_INFL_lock_look'); chk('AJOUT2 : 🔒 Conserver la tenue -> lock_look=true', bot.draft('photo').lock_look === true);
+  await bot.tap('R0_INFL_use_decor'); // décor OFF -> doit apparaître ✗ dans le résumé
+  await bot.tap('R0_BLOCK_OK'); await bot.tap('R0_PH_PREVIEW');
+  chk('AJOUT2 : résumé 🎛 sur l\'Aperçu reflète les flags (✗ Décor)', /🎛/.test(bot.markup().caption || '') && /✗ Décor/.test(bot.markup().caption || ''));
+
   // ════ [P1-a] ÉCRANS INTERMÉDIAIRES (validation/confirm2/quit) : source projet, JAMAIS une démo (femme cuir) ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // projet AVEC vidéo (parentKind video)

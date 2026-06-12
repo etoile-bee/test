@@ -3081,6 +3081,14 @@ async function r0Dispatch(persona, d, editMid){
   // [texte entier] Envoie le TEXTE COMPLET (prompt/script/légendes) en message(s) SÉPARÉ(S) — copiable/éditable, hors limite média 1024.
   // [AJOUT 1] 🏷 Légendes (écran final vidéo) : poste DIRECTEMENT 2 blocs COPIABLES prêts à coller — courte+# et longue+# (hashtags fusionnés via r0FuseTags).
   //   Règle figée : le bloc copié = TEXTE BRUT SEUL (zéro titre/système) ; l'étiquette part dans un message SÉPARÉ. Reste dans le fil (cockpit re-rendu après).
+  // [AJOUT 2] 🎛 Influences : bascule un flag (use_*/lock_*) dans draft.photo. use_* défaut true ; lock_* défaut false. Verrou -> persiste la valeur via DEF (#18).
+  if(d.indexOf('R0_INFL_')===0){ const flag=d.slice(8); const f3=r0Cur(persona,true); const dp=S.getDraft(f3,'photo')||{};
+    const isLock=flag.indexOf('lock_')===0; const cur=dp[flag];
+    const nv = isLock ? !(cur===true) : !(cur!==false);   // use_*: true->false->true ; lock_*: false->true->false
+    S.setDraft(BASE,persona,f3.projectId,'photo',{[flag]:nv},Date.now());
+    if(isLock && nv){ const {DEF}=_r0(); const field=(flag==='lock_look')?'look':'decor'; const v=(S.getDraft(r0Cur(persona),'photo')||{})[field];
+      if(v!=null&&v!=='') DEF.setField(BASE,persona,'photo',field,v); } // conserve la valeur -> nouveaux projets l'héritent
+    await r0Render(persona, editMid); return; }
   if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); const pub=(f3&&f3.publication)||{};
     const courte=r0FuseTags(pub.legende_courte,pub.hashtags), longue=r0FuseTags(pub.legende_longue,pub.hashtags);
     if(!courte && !longue){ try{ await toast('Aucune légende à copier (édite-les d\'abord)'); }catch(e){} await r0Render(persona, editMid); return; }
@@ -3253,8 +3261,10 @@ async function r0RealPhoto(persona, id){
   // [SOURCE UNIQUE] la génération RECRÉE à partir de la photo source ÉPINGLÉE (sélection/cover).
   // [ANO-SOURCE-PLACEHOLDER] si la source est un placeholder iCloud dataless, on la MATÉRIALISE d'abord ; sinon on ANNULE proprement
   //   (jamais de génération sur fichier vide, JAMAIS de bascule silencieuse sur la référence persona = bug manteau cuir).
+  // [AJOUT 2] use_source : OFF -> on NE passe PAS la photo source (génération « base propre », identité persona seule, sans héritage d'image).
+  const useSource = draft.use_source !== false;
   const srcRef=r0SourceFile(cur0);
-  if(srcRef && fs.existsSync(srcRef)){
+  if(useSource && srcRef && fs.existsSync(srcRef)){
     const local=await r0EnsureLocal(srcRef);
     if(local){ mapped.opts.refOverride=srcRef; }
     else { jlog('[v4r réel] PHOTO annulée : source iCloud non matérialisée '+path.basename(srcRef));

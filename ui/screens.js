@@ -119,6 +119,7 @@ function photoPromptView(facts, ctx) {
   }
   // [Etoile] PHOTO = Prompt · Tenue · Décor (+ Référence) seulement. « Montage » est un concept VIDÉO -> RETIRÉ du parcours photo.
   const rows = blockRows.concat([
+    [{ text: '🎛 Influences', cb: 'R0_PHB_influences' }],                                        // [AJOUT 2] couches d'influence (source/tenue/décor/réf + verrous) AVANT l'Aperçu
     [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }],                                                // PRODUCTION via aperçu obligatoire
     [{ text: '🎬 Faire une vidéo', cb: 'R0_PH_TOVIDEO' }],                                       // [R2] pont vidéo : MÊME photo en source (jamais remplacée)
     [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
@@ -336,6 +337,10 @@ function confirmView(facts, ctx) {
     cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
     cap += '\n🏛 Décor : ' + val(pr.decor);
     cap += '\n🖼 Référence : ' + val(pr.reference ? 'définie' + (pr.refLocked ? ' 🔒' : '') : null);
+    // [AJOUT 2] résumé 1 ligne des couches d'influence (✓ = passée au moteur, ✗ = ignorée ; 🔒 = conservée). Réglable via 🎛 Influences.
+    { const dp = (facts && facts.draft && facts.draft.photo) || {};
+      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (dp.use_look !== false ? '✓' : '✗') + ' Tenue · ' + (dp.use_decor !== false ? '✓' : '✗') + ' Décor · ' + (dp.use_refs !== false ? '✓' : '✗') + ' Réf'
+        + (dp.lock_look === true ? ' · 🔒Tenue' : '') + (dp.lock_decor === true ? ' · 🔒Décor' : ''); }
   } else if (cf.mediaKind === 'video') {
     cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
     cap += '\n📝 Script : ' + (pr.scriptFull ? esc(short(pr.scriptFull, 160)) : '<i>(auto)</i>');
