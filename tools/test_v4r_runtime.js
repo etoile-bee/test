@@ -389,6 +389,16 @@ async function main() {
     chk('CTX-BLOCK-GENERAL : ' + label + ' (photo) peint la source projet (cover), pas une démo', bot.media() === bot.cover() && !!bot.cover());
   }
 
+  // ════ [AJOUT 1] 🏷 Légendes copiables sur l'écran final vidéo + #11 bandeau simplifié ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // video_result
+  chk('AJOUT1 : écran final vidéo expose 🏷 Légendes (copie)', bot.state().screen === 'video_result' && bot.buttons().includes('R0_LEGENDS'));
+  const _capV = bot.markup().caption || '';
+  chk('#11 : bandeau final vidéo = Projet/Date/Type/Statut terminé (plus de « test n°X/10 »)', /Projet #/.test(_capV) && /Statut : terminé/.test(_capV) && !/test n°/.test(_capV));
+  bot.setPub({ legende_courte: 'Ma légende', legende_longue: 'Longue légende', hashtags: '#a #b' });
+  const _a0 = bot.state().answered; await bot.tap('R0_LEGENDS');
+  chk('AJOUT1 : 🏷 Légendes répond + reste sur l\'écran final (blocs copiables postés à part)', bot.state().answered > _a0 && bot.state().screen === 'video_result' && bot.state().cockpit === 1);
+
   // ════ [P1-a] ÉCRANS INTERMÉDIAIRES (validation/confirm2/quit) : source projet, JAMAIS une démo (femme cuir) ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // projet AVEC vidéo (parentKind video)

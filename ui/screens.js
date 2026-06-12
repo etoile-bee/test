@@ -41,6 +41,21 @@ const TITLES = {
   texte_apercu: '✨ TEXTE · Aperçu',
 };
 function titleFor(key) { return TITLES[key] || ''; }
+// [#11] BANDEAU ÉCRAN FINAL SIMPLIFIÉ : Projet # · Date · Type · Catégorie/thème · Durée · Statut: terminé.
+//   (RETIRE « cap à poser » / « brouillon » / « test n°X/10 ». Détails — script/légendes/sous-titres — via les boutons.)
+const _MOIS_F = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
+function finalCaption(facts, type, m, dv) {
+  const id = (facts && facts.projectId) || '';
+  const shortId = id.replace(/^[^_]*_/, '') || id || '—';
+  const dp = (facts && facts.draft && facts.draft.photo) || {};
+  const theme = (dv && dv.theme) || dp.look || '—';
+  let dateStr = '—'; try { const d = new Date(facts && facts.cree_le); if (!isNaN(d)) dateStr = d.getDate() + ' ' + _MOIS_F[d.getMonth()] + ' ' + d.getFullYear(); } catch (e) {}
+  const duree = (type === 'video') ? val((m && m.duree) || (dv && dv.duree), '30s') : null;
+  return '<b>' + titleFor(type === 'video' ? 'video_resultat' : 'photo_resultat') + '</b>'
+    + '\n📦 Projet #' + esc(shortId) + '   📅 ' + dateStr
+    + '\n' + (type === 'video' ? '🎬 Type : Vidéo' : '📸 Type : Photo') + '   🏷 ' + esc(cleanLabel(theme)) + (duree ? ('   ⏱ ' + duree) : '')
+    + '\n✅ Statut : terminé';
+}
 
 // ── ÉCRAN 1 — ACCUEIL (jamais vide : COUVERTURE = dernière image du projet ; sinon sobre, sans placeholder) ──
 function homeView(facts) {
@@ -182,18 +197,12 @@ function videoResultView(facts) {
   const m = C.lastVideo(facts) || {};
   const p = (facts && facts.publication) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
-  // [#22/#5] RÉSULTAT FINAL = HUB : vidéo + script + légendes (courte/longue/hashtags) + sous-titres — tout visible/récupérable.
-  const cap = '<b>' + titleFor('video_resultat') + '</b>'
-    + '\n🖼 source : ' + val(m.source || dv.source, 'photo du projet') + '   ⏱ ' + val(m.duree || dv.duree, '30s')
-    + '\n📝 Script : ' + val(dv.script ? short(dv.script, 50) : null)
-    + '\n✏️ Courte : ' + val(p.legende_courte)
-    + '\n📄 Longue : ' + val(p.legende_longue ? short(p.legende_longue, 50) : null)
-    + '\n#️⃣ Hashtags : ' + val(p.hashtags)
-    + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'));
+  // [#11] BANDEAU FINAL SIMPLIFIÉ : Projet · Date · Type · Catégorie/thème · Durée · Statut (plus de « test n°X/10 »). Détails via boutons.
+  const cap = finalCaption(facts, 'video', m, dv);
   return {
     kind: 'video', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
-      [{ text: '✏️ Légendes', cb: 'R0_PUB_EDIT' }, { text: '🗂 Fichiers projet', cb: 'R0_RES' }],
+      [{ text: '🏷 Légendes', cb: 'R0_LEGENDS' }, { text: '🗂 Fichiers projet', cb: 'R0_RES' }], // [AJOUT 1] 🏷 = blocs copiables prêts à coller (édition légendes via Fichiers)
       [{ text: '📤 Prêt à poster', cb: 'R0_READY' }, { text: '📤 Publier', cb: 'R0_PUB' }],
       [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '◀ Retour', cb: 'R0_VIDEO' }],
       [HOME],

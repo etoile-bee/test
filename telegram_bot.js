@@ -3079,6 +3079,15 @@ async function r0Dispatch(persona, d, editMid){
     return;
   }
   // [texte entier] Envoie le TEXTE COMPLET (prompt/script/légendes) en message(s) SÉPARÉ(S) — copiable/éditable, hors limite média 1024.
+  // [AJOUT 1] 🏷 Légendes (écran final vidéo) : poste DIRECTEMENT 2 blocs COPIABLES prêts à coller — courte+# et longue+# (hashtags fusionnés via r0FuseTags).
+  //   Règle figée : le bloc copié = TEXTE BRUT SEUL (zéro titre/système) ; l'étiquette part dans un message SÉPARÉ. Reste dans le fil (cockpit re-rendu après).
+  if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); const pub=(f3&&f3.publication)||{};
+    const courte=r0FuseTags(pub.legende_courte,pub.hashtags), longue=r0FuseTags(pub.legende_longue,pub.hashtags);
+    if(!courte && !longue){ try{ await toast('Aucune légende à copier (édite-les d\'abord)'); }catch(e){} await r0Render(persona, editMid); return; }
+    try{ await toast('🏷 Légendes copiables ci-dessous'); }catch(e){}
+    if(courte){ try{ await send('<b>✏️ Légende courte + hashtags</b> — <i>copie le bloc (texte seul)</i>'); await send('<code>'+_r0esc(courte)+'</code>'); }catch(e){} }
+    if(longue){ try{ await send('<b>📄 Légende longue + hashtags</b> — <i>copie le bloc (texte seul)</i>'); await send('<code>'+_r0esc(longue)+'</code>'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   if(d.indexOf('R0_FULLTEXT_')===0){ const field=d.slice(12); const f3=r0Cur(persona,true);
     const dp=S.getDraft(f3,'photo')||{}, dv=S.getDraft(f3,'video')||{}, pub=(f3&&f3.publication)||{};
     // [HUB] sous-titres = AUTO-générés ; on restitue le RÉGLAGE D'APPARENCE (la matière texte vient du script à l'incrustation).
@@ -3187,10 +3196,10 @@ async function r0Dispatch(persona, d, editMid){
       await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // reste sur l'écran courant
       const out=await r0RealPhoto(persona, id); // appelle generateLook (avec timeout), dépose la photo RÉELLE, enregistre le test
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
-      const okBanner='✨ <b>Photo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
+      const okBanner='✨ <b>Photo générée</b> · ✅ terminé'+(out.credits!=null?(' · '+out.credits+' cr'):''); // [#11] plus de « test n°X/10 »
       // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
       const koBanner='⚠️ <b>Génération photo NON aboutie</b>'+(out.err?('\n<i>Cause : '+_r0esc(out.err)+'</i>'):'')+'\nAucune photo déposée. Touche ◀ Retour pour réessayer, ou /accueil.';
-      if(out.ok){ const mi=C.lastImage(r0Cur(persona)); if(mi&&mi.file) await r0PostFinal('photo', mi.file, r0FinalCap(persona,'photo',false,'test n°'+out.tests+'/'+out.max)); } // [RENDU PERSISTANT] keepsake séparé
+      if(out.ok){ const mi=C.lastImage(r0Cur(persona)); if(mi&&mi.file) await r0PostFinal('photo', mi.file, r0FinalCap(persona,'photo',false,null)); } // [RENDU PERSISTANT] keepsake séparé [#11] sans « test n°X/10 »
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération photo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
     finally { r0Busy=false; r0GenLock(false); }
@@ -3208,10 +3217,10 @@ async function r0Dispatch(persona, d, editMid){
       let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b>\n'+msg).catch(()=>{}); };
       const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
-      const okBanner='🎬 <b>Vidéo réelle générée</b> · test n°'+out.tests+'/'+out.max+(out.credits!=null?(' · '+out.credits+' cr cumulés'):'');
+      const okBanner='🎬 <b>Vidéo générée</b> · ✅ terminé'+(out.credits!=null?(' · '+out.credits+' cr'):''); // [#11] plus de « test n°X/10 »
       // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
       const koBanner='⚠️ <b>Vidéo NON aboutie</b>'+(out.err?('\n<i>Cause : '+_r0esc(out.err)+'</i>'):'')+'\nAucune vidéo déposée. Touche ◀ Retour pour réessayer, ou /accueil.';
-      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,'test n°'+out.tests+'/'+out.max)); } } // [CLOUD podcast-looks/<projet>]+[RENDU PERSISTANT]
+      if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,null)); } } // [CLOUD]+[RENDU PERSISTANT] [#11] sans « test n°X/10 »
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération vidéo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
     finally { r0Busy=false; r0GenLock(false); }

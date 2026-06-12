@@ -50,7 +50,7 @@ chk('Vidéo/Paramètres : Aperçu + Retour (R0_VI_BACK), PAS d\'Accueil en flux'
 
 // ── ÉCRAN 3.2 VIDÉO/RÉSULTAT ──
 const vir = SC.videoResultView(fvid);
-chk('Vidéo/Résultat = HUB : Modifier/Régénérer/Légendes/Publier/Fichiers projet/Garder/Accueil', ['R0_VI_EDIT', 'R0_VI_REGEN', 'R0_PUB_EDIT', 'R0_PUB', 'R0_RES', 'R0_VI_KEEP', 'R0_HOME'].every(c => has(vir, c)));
+chk('Vidéo/Résultat = HUB : Modifier/Régénérer/🏷Légendes(copie)/Publier/Fichiers projet/Garder/Accueil', ['R0_VI_EDIT', 'R0_VI_REGEN', 'R0_LEGENDS', 'R0_PUB', 'R0_RES', 'R0_VI_KEEP', 'R0_HOME'].every(c => has(vir, c)));
 chk('Vidéo/Résultat : kind vidéo (on voit la vidéo)', vir.kind === 'video');
 
 // ── ÉCRAN 4 PUBLICATION ──
