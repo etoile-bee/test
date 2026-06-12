@@ -394,6 +394,12 @@ function confirm2View(facts, ctx) {
   const b = cf.budget || { tests: 0, max: 10, next: 1, exhausted: false };
   const blocked = paid && live && b.exhausted;
   const cout = (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
+  // [🔴3/4 — H13] GÉNÉRATION EN COURS : état distinct, SANS Oui/Annuler (aucun re-clic possible). r0Busy verrouille en plus côté handler.
+  if (ctx && ctx.generating) {
+    const ico = (cf.mediaKind === 'video') ? '🎬' : '📸';
+    const step = ctx.genStep ? ('\n' + esc(ctx.genStep)) : '';
+    return { kind: C.mediaKind(facts), caption: '<b>' + ico + ' Génération en cours…</b>' + step + '\n<i>Ne reclique pas — le résultat arrive ici même.</i>', rows: [] };
+  }
   let cap;
   // [LOT1 #11] retrait du cadrage « test n°X/10 » ; coût/crédits/moteur conservés.
   if (blocked) cap = '<b>⛔ Budget épuisé (' + b.max + '/' + b.max + ')</b>\nRéautorisation nécessaire — aucune dépense.';

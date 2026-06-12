@@ -2555,6 +2555,7 @@ let r0Pending=null, r0GalKind='image', r0GalAll=false, r0QuitFrom=null, r0SrcRet
 let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/récents/archives/prêt-à-poster). Transitoire, remise à 0 hors pagination.*/
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
+let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
 // [VERROU GÉNÉRATION — Etoile] flag FICHIER posé au DÉBUT de toute génération réelle, levé à la FIN. Tant qu'il existe -> AUCUN deploy/restart autorisé.
 //   (la procédure de déploiement vérifie ce fichier ; au boot, un flag orphelin = génération tuée par un redémarrage -> message d'incident, jamais de retour silencieux.)
 const R0_GENLOCK=path.join(BASE,'.v4r_generating');
@@ -2898,6 +2899,7 @@ function r0Ctx(persona){
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
   try{ ctx.srcName=ctx.sourceFile?path.basename(ctx.sourceFile):null; }catch(e){ ctx.srcName=null; } // [LOT1 A3] « 📸 Source active : X » visible partout (X = basename(r0SourceFile))
+  ctx.generating=r0Generating; ctx.genStep=r0GenStep; // [🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler
   ctx.resReturn=r0ResFrom; // [RETOUR CONTEXTUEL] origine d'ouverture de Fichiers/Ressources (Studio/Récents/Résultat)
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
@@ -3224,9 +3226,11 @@ async function r0Dispatch(persona, d, editMid){
   if(realPhoto){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
     r0Busy=true; r0GenLock(true,'photo'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
+    r0Generating=true; r0GenStep='Seedream · ~30 s à 1 min'; // [🔴3/4 H13] confirm2 masque Oui/Annuler pendant la génération
     try{
-      await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // reste sur l'écran courant
+      await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // état EN COURS (sans Oui/Annuler)
       const out=await r0RealPhoto(persona, id); // appelle generateLook (avec timeout), dépose la photo RÉELLE, enregistre le test
+      r0Generating=false; r0GenStep=''; // [🔴3/4] terminé : on rétablit les écrans normaux
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='✨ <b>Photo générée</b> · ✅ terminé'+(out.credits!=null?(' · '+out.credits+' cr'):''); // [#11] plus de « test n°X/10 »
       // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
@@ -3234,7 +3238,7 @@ async function r0Dispatch(persona, d, editMid){
       if(out.ok){ const mi=C.lastImage(r0Cur(persona)); if(mi&&mi.file) await r0PostFinal('photo', mi.file, r0FinalCap(persona,'photo',false,null)); } // [RENDU PERSISTANT] keepsake séparé [#11] sans « test n°X/10 »
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération photo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
-    finally { r0Busy=false; r0GenLock(false); }
+    finally { r0Busy=false; r0Generating=false; r0GenStep=''; r0GenLock(false); }
     return;
   }
   // ── GÉNÉRATION VIDÉO RÉELLE (script Anthropic + voix ElevenLabs + lipsync Kling) : SEULEMENT sur GO + LIVE + vidéo + 3 clés présentes. ──
@@ -3243,11 +3247,13 @@ async function r0Dispatch(persona, d, editMid){
   if(realVideo){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
     r0Busy=true; r0GenLock(true,'video'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
+    r0Generating=true; r0GenStep='préparation…'; // [🔴3/4 H13] confirm2 masque Oui/Annuler pendant la génération
     try{
-      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(ne reclique pas)</i>');
+      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(ne reclique pas)</i>'); // état EN COURS (sans Oui/Annuler)
       // [AVANCEMENT UN SEUL BLOC — Etoile/Legacy] chaque étape MET À JOUR le MÊME bloc (editMid), pas de flood de messages.
-      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b>\n'+msg).catch(()=>{}); };
+      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0GenStep=String(msg||''); r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b>\n'+msg).catch(()=>{}); };
       const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
+      r0Generating=false; r0GenStep=''; // [🔴3/4] terminé : on rétablit les écrans normaux
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo générée</b> · ✅ terminé'+(out.credits!=null?(' · '+out.credits+' cr'):''); // [#11] plus de « test n°X/10 »
       // [MESSAGE TECHNIQUE COMPLET — Etoile] échec = cause EXACTE + porte de sortie, JAMAIS de retour silencieux.
@@ -3255,7 +3261,7 @@ async function r0Dispatch(persona, d, editMid){
       if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,null)); } } // [CLOUD]+[RENDU PERSISTANT] [#11] sans « test n°X/10 »
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération vidéo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
-    finally { r0Busy=false; r0GenLock(false); }
+    finally { r0Busy=false; r0Generating=false; r0GenStep=''; r0GenLock(false); }
     return;
   }
   if(d==='R0_GO' && r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente'); }catch(e){} return; } // verrou aussi hors photo
