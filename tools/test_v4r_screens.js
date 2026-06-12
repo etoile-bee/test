@@ -162,7 +162,7 @@ chk('point2 : un bloc n\'est jamais une impasse (back = préparation)', (() => {
 const allBtns = [home, ph0, SC.photoView(fimg), php, phr, vi0, SC.videoView(fimg), vip, vir, pub, studio, sect, rec, SC.photoSourceView(fimg), SC.videoEditView(fvid), SC.galleryView(fvid, { galleryKind: 'image' }), SC.quitView(fimg)]
   .flatMap(v => [].concat.apply([], v.rows)).map(b => b.text);
 chk('point3 : libellés courts (aucun > 18 caractères)', allBtns.every(t => t.length <= 18));
-chk('point3 : libellés cibles présents (Conserver/Changer/Choisir/Créer vidéo/Historique)', /Conserver/.test(allBtns.join(' ')) && /Changer/.test(allBtns.join(' ')) && /Choisir/.test(allBtns.join(' ')) && /Créer vidéo/.test(allBtns.join(' ')));
+chk('point3 : libellés cibles présents (Garder/Changer/Choisir/Créer vidéo/Historique)', /Garder/.test(allBtns.join(' ')) && /Changer/.test(allBtns.join(' ')) && /Choisir/.test(allBtns.join(' ')) && /Créer vidéo/.test(allBtns.join(' ')));
 // ── AUDIT JSON BRUT (point 4) : aucune liste n'affiche de JSON/objet sérialisé ──
 const listCaps = [SC.studioSectionView(f0, { section: { icon: '👗', label: 'Looks', count: 2, items: [{ id: 1, cat: 'soiree' }, { id: 2, cat: 'business' }], source: 'x' } }),
   SC.galleryView(fvid, { galleryKind: 'image' }), SC.recentsView(f0, ctx)];

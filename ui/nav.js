@@ -269,13 +269,13 @@ function view(state, facts, ctx) {
 }
 function _view(state, facts, ctx) {
   switch (state.screen) {
-    case 'home': return SC.homeView(facts);
-    case 'photo': return SC.photoView(facts);
+    case 'home': return SC.homeView(facts, ctx);
+    case 'photo': return SC.photoView(facts, ctx);
     case 'photo_prompt': return SC.photoPromptView(facts, ctx);
-    case 'photo_result': return SC.photoResultView(facts);
-    case 'video': return SC.videoView(facts);
-    case 'video_params': return SC.videoParamsView(facts);
-    case 'video_result': return SC.videoResultView(facts);
+    case 'photo_result': return SC.photoResultView(facts, ctx);
+    case 'video': return SC.videoView(facts, ctx);
+    case 'video_params': return SC.videoParamsView(facts, ctx);
+    case 'video_result': return SC.videoResultView(facts, ctx);
     case 'publication': return SC.publicationView(facts);
     case 'studio': return SC.studioView(facts, ctx);
     case 'studio_section': return SC.studioSectionView(facts, ctx);
@@ -357,6 +357,7 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_RES') { return go('resources'); }
   // [PRÊT À POSTER] valide le média courant (état « garde ») et l'ajoute à la file prête à publier.
   if (d === 'R0_READY') { return Object.assign(go('pret', '📤 <b>Ajouté à « Prêt à poster »</b>'), { op: { type: 'etat', which: 'lastVideo', etat: 'garde' } }); }
+  if (d === 'R0_PRET') { return go('pret'); } // [LOT1 accueil] OUVRE la file Prêt à poster (sans marquer de média — pas d'effet de bord)
   if (d.indexOf('R0_PRETITEM_') === 0) { return go('publication', '📤 <b>Sélection à publier</b>'); }
   if (d.indexOf('R0_PUBITEM_') === 0) { return { st: st, toast: '📤 Média publié (archive)' }; }
   // [#25/#7] RÉFÉRENCE PHOTO : consulter · remplacer (upload) · verrouiller. Reste sur le bloc référence.

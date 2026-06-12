@@ -41,6 +41,9 @@ const TITLES = {
   texte_apercu: '✨ TEXTE · Aperçu',
 };
 function titleFor(key) { return TITLES[key] || ''; }
+// [LOT1 A3 / H5] LIGNE « 📸 Source active : <fichier> » — helper PARTAGÉ injecté dans la caption de chaque écran.
+//   X = basename(r0SourceFile) fourni par ctx.srcName (UNE seule source active par projet). Vide si aucune source.
+function srcLine(ctx) { const n = ctx && ctx.srcName; return n ? ('\n📸 Source active : ' + esc(n)) : ''; }
 // [#11] BANDEAU ÉCRAN FINAL SIMPLIFIÉ : Projet # · Date · Type · Catégorie/thème · Durée · Statut: terminé.
 //   (RETIRE « cap à poser » / « brouillon » / « test n°X/10 ». Détails — script/légendes/sous-titres — via les boutons.)
 const _MOIS_F = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
@@ -58,27 +61,30 @@ function finalCaption(facts, type, m, dv) {
 }
 
 // ── ÉCRAN 1 — ACCUEIL (jamais vide : COUVERTURE = dernière image du projet ; sinon sobre, sans placeholder) ──
-function homeView(facts) {
+function homeView(facts, ctx) {
   const hasImg = C.hasImage(facts);
-  // (I) Accueil sobre : nom du projet + statut dérivé + 4 portes. (plus de « cap à définir » ni « couverture : … »)
-  const cap = '<b>🎬 Studio</b> · ' + esc(nom(facts))
+  // [LOT1 accueil] titre « 🏠 Accueil » (plus « Studio »), retrait réf /menu legacy, source active visible, icône Studio 🎨 harmonisée, + Prêt à poster.
+  const cap = '<b>🏠 Accueil</b> · ' + esc(nom(facts))
     + '\n📍 <b>' + esc(C.statutProjet(facts)) + '</b>'
-    + '\n\n<i>Choisis où aller :</i> · <code>/menu</code> pour le menu principal';
+    + srcLine(ctx)
+    + '\n\n<i>Choisis où aller :</i>';
   return {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
-      [{ text: '🏛 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
+      [{ text: '🎨 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
+      [{ text: '📤 Prêt à poster', cb: 'R0_PRET' }],   // [LOT1 accueil] accès direct à la file Prêt à poster
       [{ text: '🛑 Stop', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12/#3] Stop/Restart sur l'Accueil — [ANO-CTX-LIBELLE-STOP] casse unifiée « Stop »
     ],
   };
 }
 
 // ── ÉCRAN 2 — PHOTO ──────────────────────────────────────────────────────────
-function photoView(facts) {
+function photoView(facts, ctx) {
   const has = C.hasImage(facts);
   const n = C.visibles(facts).filter(m => m.type !== 'video').length;
   const cap = '<b>📸 PHOTO · Choisir</b>'
-    + (has ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet') : '\n<i>aucune photo — à créer</i>');
+    + (has ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet') : '\n<i>aucune photo — à créer</i>')
+    + srcLine(ctx);
   // (P2/P1.1b) si une photo existe : « Utiliser » -> préparation (boîte à outils) ; « Modifier » -> galerie (choisir/éditer).
   const rows = (has
     ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '✏️ Modifier', cb: 'R0_PH_GAL' }]]
@@ -112,7 +118,7 @@ function photoPromptView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.photo) || {};
   const has = C.hasImage(facts);
   // (J/R8) prépa = étape + action seulement (le récap complet vit dans l'Aperçu).
-  let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.';
+  let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.' + srcLine(ctx);
   const blockRows = [];
   for (let i = 0; i < PH_BLOCKS.length; i += 2) {
     blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
@@ -129,20 +135,16 @@ function photoPromptView(facts, ctx) {
 
 // ── ÉCRAN 2.2 — PHOTO / RÉSULTAT = HUB DES ASSETS ─────────────────────────────
 //   [#22] image finale + prompt/tenue/décor + Modifier·Régénérer·Créer vidéo·Historique·Publication·Ressources du projet.
-function photoResultView(facts) {
+function photoResultView(facts, ctx) {
   const m = C.lastImage(facts) || {};
   const dr = (facts && facts.draft && facts.draft.photo) || {};
-  // [écran final métier] image + prompt utilisé + tenue + décor + référence. Pas de jargon « test/simulation » en évidence.
-  const cap = '<b>' + titleFor('photo_resultat') + '</b>'
-    + '\n📝 Prompt : ' + val(m.prompt || dr.prompt)
-    + '\n👗 Tenue : ' + val(cleanLabel(m.look || dr.look))
-    + '\n🏛 Décor : ' + val(m.decor || dr.decor)
-    + '\n🖼 Référence : ' + val((dr.reference ? 'définie' + (dr.ref_locked ? ' 🔒' : '') : null));
+  // [#11/D3] BANDEAU FINAL PHOTO harmonisé comme la vidéo (Projet/Date/Type/Catégorie/Statut) + source active. Détails (prompt/tenue/décor) via boutons.
+  const cap = finalCaption(facts, 'photo', m, dr) + srcLine(ctx);
   return {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
       [{ text: '🎬 Créer vidéo', cb: 'R0_PH_TOVIDEO' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
-      [{ text: '📤 Publication', cb: 'R0_PUB' }, { text: '🗂 Ressources', cb: 'R0_RES' }],
+      [{ text: '📤 Publication', cb: 'R0_PUB' }, { text: '🗂 Fichiers', cb: 'R0_RES' }],
       [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '◀ Retour', cb: 'R0_PHOTO' }],
       [HOME],
     ],
@@ -150,16 +152,17 @@ function photoResultView(facts) {
 }
 
 // ── ÉCRAN 3 — VIDÉO ──────────────────────────────────────────────────────────
-function videoView(facts) {
+function videoView(facts, ctx) {
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
   const kind = hasI ? 'photo' : 'text';   // [P2] la prép vidéo montre la PHOTO SOURCE (pas une vidéo démo) -> image cohérente
   const cap = '<b>🎬 VIDÉO · Choisir</b>'
-    + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source dispo — conserver ?</i>' : '\n<i>aucune source — importe ou génère une photo</i>'));
-  // Arbre de décision (point 6) : si un look/source existe -> « Conserver ce look ? » en tête.
+    + (hasV ? '\n🎬 vidéo dans le projet' : (hasI ? '\n🖼 <i>photo source dispo — garder ?</i>' : '\n<i>aucune source — importe ou génère une photo</i>'))
+    + srcLine(ctx);
+  // Arbre de décision (point 6) : si un look/source existe -> « Garder ce look ? » en tête.
   const hasSource = hasI || hasV;
-  // Chaque callback n'apparaît qu'UNE fois. hasSource : Conserver / Changer(=choisir une autre). Sinon : Choisir / Importer.
+  // [LOT1 vocab] « Garder » (jamais « Conserver »). hasSource : Garder / Changer(=choisir une autre). Sinon : Choisir / Importer.
   const rows = (hasSource
-    ? [[{ text: '✅ Conserver', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }],
+    ? [[{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }],
        [{ text: '📥 Importer', cb: 'R0_VI_IMPORT' }, { text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]
     : [[{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }],
        [{ text: '✨ Générer photo', cb: 'R0_VI_GENPHOTO' }]]).concat([
@@ -178,14 +181,14 @@ const VI_BLOCKS = [
   { key: 'duree', icon: '⏱', label: 'Durée' }, { key: 'params', icon: '⚙️', label: 'Format' },
 ];
 const DUREE_DEFAUT = '30s';
-function videoParamsView(facts) {
+function videoParamsView(facts, ctx) {
   const d = (facts && facts.draft && facts.draft.video) || {};
   const hasV = C.hasVideo(facts), hasI = C.hasImage(facts);
   // (J/R8) prépa = étape + action seulement (récap complet à l'Aperçu).
-  let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.';
-  // [R6] IMAGE SOURCE (Garder · Remplacer · Générer) PUIS un seul 🛠 Montage (Script·Voix·Musique·Sous-titres·Durée·Mouvement). Format retiré.
+  let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.' + srcLine(ctx);
+  // [R6] IMAGE SOURCE (Garder · Changer · Autre photo) PUIS un seul 🛠 Montage. [LOT1 vocab] « Changer » (jamais « Remplacer »).
   const rows = [
-    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Remplacer', cb: 'R0_VI_PICK' }, { text: '✨ Autre photo', cb: 'R0_VI_GENPHOTO' }], // [Etoile] libellé clair : génère une AUTRE photo source (≠ générer la vidéo)
+    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }, { text: '✨ Autre photo', cb: 'R0_VI_GENPHOTO' }], // « Autre photo » = génère une AUTRE source (≠ générer la vidéo)
     [{ text: '🛠 Montage', cb: 'R0_VE' }, { text: '📸 Outils photo', cb: 'R0_PH_GEN' }],            // [NAV BIDIRECTIONNELLE] revenir aux outils photo (même image source conservée)
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }],                                                  // PRODUCTION via aperçu obligatoire
     [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],                                                      // NAVIGATION : Retour vers VIDÉO·Choisir (pas de boucle)
@@ -194,12 +197,12 @@ function videoParamsView(facts) {
 }
 
 // ── ÉCRAN 3.2 — VIDÉO / RÉSULTAT ─────────────────────────────────────────────
-function videoResultView(facts) {
+function videoResultView(facts, ctx) {
   const m = C.lastVideo(facts) || {};
   const p = (facts && facts.publication) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
   // [#11] BANDEAU FINAL SIMPLIFIÉ : Projet · Date · Type · Catégorie/thème · Durée · Statut (plus de « test n°X/10 »). Détails via boutons.
-  const cap = finalCaption(facts, 'video', m, dv);
+  const cap = finalCaption(facts, 'video', m, dv) + srcLine(ctx);
   return {
     kind: 'video', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
@@ -331,7 +334,7 @@ function confirmView(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
   const titre = cf.mediaKind === 'video' ? titleFor('video_apercu') : (cf.mediaKind === 'text' ? titleFor('texte_apercu') : titleFor('photo_apercu'));
   const pr = cf.prep || {};
-  let cap = '<b>' + titre + '</b>';
+  let cap = '<b>' + titre + '</b>' + srcLine(ctx);
   if (cf.mediaKind === 'photo') {
     cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(short(pr.promptFull, 160)) : '<i>(par défaut)</i>');
     cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
@@ -364,15 +367,15 @@ function validationView(facts, ctx) {
   const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
   const blocked = paid && live && b.exhausted;
   const pr = cf.prep || {};
-  let cap = '<b>✅ Validation — ' + (cf.mediaKind === 'video' ? '🎬 Vidéo' : (cf.mediaKind === 'text' ? '✨ Texte' : '📸 Photo')) + '</b>';
+  let cap = '<b>✅ Validation — ' + (cf.mediaKind === 'video' ? '🎬 Vidéo' : (cf.mediaKind === 'text' ? '✨ Texte' : '📸 Photo')) + '</b>' + srcLine(ctx);
   cap += '\n⚙️ Moteur : ' + esc(e.moteur || (cf.mediaKind === 'video' ? 'Kling+ElevenLabs+Anthropic' : 'Seedream'));
   if (cf.mediaKind === 'video') cap += '\n⏱ Durée : ' + (e.duree || pr.duree || '30s') + '   🖼 Médias prévus : ' + nbPhotos(e.duree || pr.duree);
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     cap += '\n💰 Crédits cumulés : ' + (b.credits != null ? b.credits + ' cr' : '—');
     if (blocked) cap += '\n⛔ <b>Budget épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation requise.';
-    else if (live) cap += '\n🧪 <b>Test réel n°' + b.next + '/' + b.max + '</b> — dépense au clic « Générer maintenant ».';
-    else cap += '\n🧪 Tests : ' + b.tests + '/' + b.max + ' · 🟡 simulation — aucune dépense';
+    else if (live) cap += '\n⚠️ <b>Dépense réelle</b> au clic « Générer maintenant ».'; // [LOT1 #11] retrait du cadrage « test n°X/10 » (coût/crédits gardés ci-dessus)
+    else cap += '\n🟡 Simulation — aucune dépense.';
   } else cap += '\n🟢 Local — gratuit.';
   const rows = blocked
     ? [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
@@ -392,12 +395,14 @@ function confirm2View(facts, ctx) {
   const blocked = paid && live && b.exhausted;
   const cout = (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
   let cap;
-  if (blocked) cap = '<b>⛔ Budget de test épuisé (' + b.max + '/' + b.max + ')</b>\nRéautorisation nécessaire — aucune dépense.';
-  else if (live) cap = '<b>⚠️ Dépense réelle</b>\n💳 ' + cout + '\n🧪 Test réel n°' + b.next + '/' + b.max + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer la génération ?</b>';
-  else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i>\n🧪 Tests : ' + b.tests + '/' + b.max + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
+  // [LOT1 #11] retrait du cadrage « test n°X/10 » ; coût/crédits/moteur conservés.
+  if (blocked) cap = '<b>⛔ Budget épuisé (' + b.max + '/' + b.max + ')</b>\nRéautorisation nécessaire — aucune dépense.';
+  else if (live) cap = '<b>⚠️ Dépense réelle</b>\n💳 ' + cout + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer la génération ?</b>';
+  else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i> · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
+  cap += srcLine(ctx);
   const rows = blocked
     ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]]
-    : [[{ text: '✅ Oui, générer (n°' + b.next + ')', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
+    : [[{ text: '✅ Oui, générer', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
@@ -455,7 +460,7 @@ function resourcesView(facts, ctx) {
   const dp = (facts && facts.draft && facts.draft.photo) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
   const p = (facts && facts.publication) || {};
-  const cap = '<b>🗂 Ressources du projet</b> · ' + esc(nom(facts))
+  const cap = '<b>🗂 Fichiers du projet</b> · ' + esc(nom(facts)) + srcLine(ctx) // [LOT1 vocab] « Fichiers » (jamais « Ressources »)
     + '\n🖼 Photos : ' + imgs.length + '   🎬 Vidéos : ' + vids.length
     + '\n📝 Prompt : ' + val(dp.prompt ? short(dp.prompt, 40) : null)
     + '\n👗 Tenue : ' + val(cleanLabel(dp.look)) + '   🏛 Décor : ' + val(dp.decor)

@@ -110,5 +110,9 @@
 - H10 **Cohérence Cloud ↔ Telegram ↔ Fichiers** (aller-retour). ⚠️ terrain (LIVE).
 - H11 **Historique des versions accessible depuis le projet** (⏪/🕘). ✅ déployé.
 - H12 **Test terrain réel obligatoire avant clôture d'un lot**. ✅ process.
+- H13 **Génération en cours VISIBLE** : bouton inactif/disparaît + statut « Génération en cours » + étapes + aucun double-clic. 🟡 #12 (verrou `r0Busy`/`.v4r_generating` existe ; rendre l'UI explicite).
+- H14 **Conservation tenue/décor VISIBLE avant génération** (résumé 🎛 sur l'Aperçu). 🟡 (influences — résumé en place, à finaliser au build).
+- H15 **Tenues/décors PERSO depuis Studio**. 🔵 PLANIFIÉ (roadmap).
+- H16 **« Nouveau projet / Nouvelle photo / Nouvelle vidéo » toujours accessibles depuis un résultat** (aucun écran qui enferme). 🟡 #14.
 
 > Maintenu en parallèle : `ANOMALIES.md` (boucle détecté→corrigé→preuve) · `AUDIT_FINAL.md` · `AUDIT_CONTRAT_BOUTONS.md` · scopes (`SCOPE_PHOTO_2ETAPES`, `P2-7_BOITE_OUTILS_SCOPE`, `AJOUT2_INFLUENCES_SCOPE`) · `PLAN_COHERENCE_PARCOURS`.

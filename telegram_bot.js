@@ -2886,6 +2886,7 @@ function r0Ctx(persona){
   };
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
+  try{ ctx.srcName=ctx.sourceFile?path.basename(ctx.sourceFile):null; }catch(e){ ctx.srcName=null; } // [LOT1 A3] « 📸 Source active : X » visible partout (X = basename(r0SourceFile))
   ctx.resReturn=r0ResFrom; // [RETOUR CONTEXTUEL] origine d'ouverture de Fichiers/Ressources (Studio/Récents/Résultat)
   // [GALERIE — comportement unique + compteur EXACT + PAGINATION] projet = médias du projet ; global (historique) = TOUT.
   if(r0Screen==='gallery'){ const {C}=_r0(); const f=r0Cur(persona,false)||{}; let list;
