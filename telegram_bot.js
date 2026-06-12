@@ -2685,6 +2685,11 @@ function r0RealSource(f){ try{ const {S,C}=_r0(); const dv=S.getDraft(f,'video')
   const pers=(f&&f.persona)||(typeof _persona==='function'?_persona():'imany');
   const g=r0RealImages(pers,1); if(g&&g[0]&&!_r0IsRef(g[0])&&fs.existsSync(g[0])) return g[0];
 }catch(e){} return null; }
+// [🔴1 — ÉRADICATION DÉMO] VRAIE vidéo GÉNÉRÉE du projet (fichier réel, non simulé), SANS aucun repli démo : null si aucune.
+function r0RealVideo(f){ try{ const {C}=_r0(); const vids=(C.visibles(f)||[]).filter(m=>m&&m.type==='video');
+  for(let i=vids.length-1;i>=0;i--){ const m=vids[i]; if(m&&m.file&&!m.simule&&fs.existsSync(m.file)) return m.file; } }catch(e){} return null; }
+// [🔴1] LE PROJET EXISTE-T-IL VRAIMENT ? (au moins une source réelle, une vraie vidéo, ou un média visible). Si NON -> la démo redevient autorisée.
+function r0HasProject(f){ try{ if(r0RealSource(f)) return true; if(r0RealVideo(f)) return true; const {C}=_r0(); return (C.visibles(f)||[]).length>0; }catch(e){} return false; }
 // Épingle l'image X comme SOURCE unique du projet (photo + vidéo) — appelée à la sélection, à la génération et au pont photo→vidéo.
 function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();
   S.setDraft(BASE,persona,id,'photo',{source_file:file},ts); S.setDraft(BASE,persona,id,'video',{source_file:file},ts);
@@ -2954,25 +2959,35 @@ async function r0Render(persona, editMid, banner){
   const _strictSrc = _isEditPanel || (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation'); // [P1-a] source projet stricte (jamais démo) sur édition + écrans intermédiaires
   const _isSubPanel = (_isEditPanel && r0Block && r0Block.key==='soustitres');
   const _isVideoApercu = (r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video');
+  // [🔴1 — ÉRADICATION DÉMO] hors « aucun projet », un écran ne peint JAMAIS r0DemoVideo/r0DemoPhoto.
+  //   Règle unique : VRAIE vidéo générée -> sinon SOURCE ACTIVE réelle (== ligne « Source active ») -> sinon TEXTE. Démo seulement si AUCUN projet.
+  const _hasProj = r0HasProject(f);
   if(_isVideoApercu || _isSubPanel){
     const clip=await r0SubClip(persona);                       // CLIP sous-titré (matérialise la source iCloud avant ffmpeg)
     if(clip){ media=clip; kind='video'; }
     else { const png=await r0SubSample(persona);               // repli : PNG AVEC sous-titres incrustés (jamais l'image nue silencieuse)
       if(png){ media=png; kind='photo'; } else { media=r0RealSource(f); kind=media?'photo':'text'; } }
   }
-  // [ANO-CTX-BLOCK-DEMO-GENERAL] RÈGLE SYSTÉMIQUE : AUCUN écran d'ÉDITION (block, quel que soit le parentKind) ne peint une démo.
-  //   Il peint TOUJOURS le CONTEXTE PROJET (r0RealSource = même fichier que l'aperçu) ; si aucune source réelle -> texte (JAMAIS r0DemoVideo/r0DemoPhoto).
+  // [ANO-CTX-BLOCK-DEMO-GENERAL] AUCUN écran d'ÉDITION (block) ne peint une démo : contexte projet réel (r0RealSource) ou TEXTE.
   else if(_isEditPanel){ media=r0RealSource(f); kind=media?'photo':'text'; }
-  // [P1-a] ÉCRANS INTERMÉDIAIRES (quit · confirm · confirm2 · validation) : TOUJOURS la source projet, JAMAIS une démo/référence (femme cuir).
+  // [P1-a] ÉCRANS INTERMÉDIAIRES (quit · confirm · confirm2 · validation) : source projet réelle, jamais une démo (femme cuir).
   else if(kind==='video' && (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation')){ media=r0RealSource(f); kind=media?'photo':'text'; }
-  // Démo/dégradé RÉSERVÉ aux écrans NON-édition restants (ex. aperçu vidéo sans clip ffmpeg dispo).
-  else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } }
+  // [🔴1] ÉCRAN DE PROJET en kind VIDÉO (résultat · publication · prêt · publiés · studio · …) :
+  //   VRAIE vidéo générée -> sinon SOURCE ACTIVE réelle (photo) -> sinon TEXTE. La démo n'est atteignable QUE s'il n'existe AUCUN projet.
+  else if(kind==='video'){
+    const rv=r0RealVideo(f);
+    if(rv){ media=rv; }
+    else { const rs=r0RealSource(f);
+      if(rs){ media=rs; kind='photo'; }
+      else if(!_hasProj){ media=await r0DemoVideo(); if(!media) kind=C.hasImage(f)?'photo':'text'; }
+      else { kind='text'; } }
+  }
   if(kind==='photo'){
-    // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
-    //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).
-    //   Écran d'ÉDITION : on garde la source RÉELLE déjà résolue (jamais de repli démo via r0SourceFile).
-    if(_strictSrc){ if(!media){ media=r0RealSource(f); } if(!media) kind='text'; } // [P1-a] édition + écrans intermédiaires : source réelle ou texte, JAMAIS démo/référence
-    else { media=(r0Screen==='photo_result')?r0CoverFile(f):r0SourceFile(f); if(!media) kind='text'; }
+    // [SOURCE UNIQUE] l'image peinte == la ligne « Source active ». photo_result peint la couverture générée (= nouvelle source épinglée).
+    if(_strictSrc){ if(!media){ media=r0RealSource(f); } if(!media) kind='text'; } // [P1-a] édition + intermédiaires : source réelle ou texte, JAMAIS démo
+    else if(r0Screen==='photo_result'){ if(!media){ media=r0CoverFile(f); } if(!media) kind='text'; } // résultat = dernière image générée
+    // [🔴1] tout autre écran de projet (photo · préparer · vidéo · prêt · publiés · …) : SOURCE ACTIVE réelle ; démo SEULEMENT si AUCUN projet ; sinon texte.
+    else { if(!media){ media=r0RealSource(f); } if(!media && !_hasProj){ media=r0DemoPhoto(); } if(!media) kind='text'; }
   }
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
@@ -2984,7 +2999,7 @@ async function r0Render(persona, editMid, banner){
     if(r0Screen==='gallery'){
       if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIES images (projet ou global selon le scope)
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
-        files=all.filter(m=>m.type!=='video').slice(0,R0_PAGE).map(m=>(m.file&&fs.existsSync(m.file))?m.file:r0DemoPhoto()); }
+        files=all.filter(m=>m.type!=='video' && m.file && fs.existsSync(m.file)).slice(0,R0_PAGE).map(m=>m.file); } // [🔴1] vignette RÉELLE uniquement (jamais la démo cuir pour un fichier manquant)
     }
     else { const r=ctx.recents||{projets:[]}; const base=(ctx.page&&ctx.page.base)||0; files=(r.projets||[]).slice(base,base+R0_PAGE).map(p=>r0CoverFile(p)); } // page courante + couverture réelle par projet (6/page)
     files=files.filter(Boolean);
@@ -3240,7 +3255,10 @@ async function r0Dispatch(persona, d, editMid){
   // [RENDU PERSISTANT] création SIMULÉE d'une photo/vidéo (LIVE off) : on dépose AUSSI un message dédié qui RESTE dans le fil (maquette).
   if(res.op && res.op.type==='create' && (res.op.kind==='image' || res.op.kind==='video')){
     try{ const cur2=r0Cur(persona); const isVid=res.op.kind==='video';
-      const mi=isVid?C.lastVideo(cur2):C.lastImage(cur2); let file=(mi&&mi.file&&fs.existsSync(mi.file))?mi.file:(isVid?await r0DemoVideo():r0DemoPhoto());
+      const mi=isVid?C.lastVideo(cur2):C.lastImage(cur2); let file=(mi&&mi.file&&fs.existsSync(mi.file))?mi.file:null;
+      // [🔴1] keepsake SIMULÉ : à défaut de fichier réel généré, on montre la SOURCE ACTIVE réelle — JAMAIS la démo cuir. Démo seulement si AUCUN projet.
+      if(!file){ const rv=isVid?r0RealVideo(cur2):null; file=rv||r0RealSource(cur2); }
+      if(!file && !r0HasProject(cur2)){ file=isVid?await r0DemoVideo():r0DemoPhoto(); }
       if(file) await r0PostFinal(isVid?'video':'photo', file, r0FinalCap(persona, isVid?'video':'photo', true, null));
     }catch(e){ try{ jlog('[v4r] rendu sim persistant err '+e.message); }catch(_){} }
   }

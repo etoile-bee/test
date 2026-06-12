@@ -115,4 +115,14 @@
 - H15 **Tenues/décors PERSO depuis Studio**. 🔵 PLANIFIÉ (roadmap).
 - H16 **« Nouveau projet / Nouvelle photo / Nouvelle vidéo » toujours accessibles depuis un résultat** (aucun écran qui enferme). 🟡 #14.
 
-> Maintenu en parallèle : `ANOMALIES.md` (boucle détecté→corrigé→preuve) · `AUDIT_FINAL.md` · `AUDIT_CONTRAT_BOUTONS.md` · scopes (`SCOPE_PHOTO_2ETAPES`, `P2-7_BOITE_OUTILS_SCOPE`, `AJOUT2_INFLUENCES_SCOPE`) · `PLAN_COHERENCE_PARCOURS`.
+## R — CHECKPOINT TERRAIN ETOILE (5 rouges, captures à l'appui)
+- R1 **ÉRADICATION DÉMO « femme en cuir »** : aucun écran de projet ne doit peindre `r0DemoVideo`/`r0DemoPhoto` ; il peint la VRAIE vidéo générée ou la SOURCE ACTIVE réelle (image == ligne « Source active »), sinon TEXTE. Démo atteignable UNIQUEMENT si AUCUN projet. 🟢 **CORRIGÉ (offline)** : peintre durci (vidéo+photo), galerie filtrée, keepsake simulé sur source réelle ; helpers `r0RealVideo`/`r0HasProject` ; preuve `test_v4r_cuir` 19/0 + grep (tous appels démo gardés `!hasProject`). À déployer sur ton go.
+- R2 **APERÇU SOUS-TITRES = FINAL EXACT** : l'aperçu (`r0SubClip`) doit utiliser le VRAI texte du script (mêmes mots/découpage que le rendu) + la VRAIE position/réglages → aperçu == vidéo finale. + SIMPLIFIER le panneau sous-titres (~20 boutons = trop : regrouper). 🔴 OUVERT (la vidéo finale est correcte ; c'est l'aperçu qui montre un texte d'exemple « …SOUS-TITRES INCRUSTÉS ICI » et une position non concordante).
+- R3 **GÉNÉRATION EN COURS CLAIRE (H13)** : au clic « Oui, générer », les boutons Oui/Annuler DISPARAISSENT (aucun re-clic), statut « 📸/🎬 Génération en cours… étape X/Y » visible. Photo ET vidéo. 🔴 OUVERT (actuellement « en cours » affiché MAIS Oui/Annuler restent).
+- R4 **(idem R3 côté vidéo)** — couvert par R3 (photo+vidéo). 🔴 OUVERT.
+- R5 **SCRIPT/PROMPT VISIBLES (#8/#9)** : afficher le VRAI texte généré dans le bloc (aperçu court + 👁 Voir plus / Réduire) + texte complet en message séparé ; Régénérer = nouvelle version du MÊME thème. 🔴 OUVERT (on voit les params, pas le texte).
+- R6 **#11bis keepsake persistant** (`r0FinalCap`/`r0PostFinal`) : appliquer le bandeau simplifié #11 (plus de « cap à poser / brouillon / décision(s) »). 🟡 À FAIRE.
+
+> LOT 2 (photo 2-étapes) **VALIDÉ Etoile** — cf `LOT2_RENDU_AVANT_APRES.md` (✅ Valider la photo charnière · Référence retirée · source épinglée · Influences 5 bascules réf masquée · #7 MVP couleur). À coder après les rouges.
+
+> Maintenu en parallèle : `ANOMALIES.md` (boucle détecté→corrigé→preuve) · `AUDIT_FINAL.md` · `AUDIT_CONTRAT_BOUTONS.md` · scopes (`SCOPE_PHOTO_2ETAPES`, `P2-7_BOITE_OUTILS_SCOPE`, `AJOUT2_INFLUENCES_SCOPE`, `LOT2_RENDU_AVANT_APRES`) · `PLAN_COHERENCE_PARCOURS`.
