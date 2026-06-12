@@ -2956,7 +2956,8 @@ async function r0Render(persona, editMid, banner){
   // [ANO-CTX-SOUSTITRES-DEMO] APERÇU VIDÉO (confirm) **ET** panneau SOUS-TITRES (block soustitres) peignent le CLIP de LA SOURCE PROJET
   //   (r0SubClip = r0SourceFile + sous-titres incrustés), repli PNG sous-titré (r0SubSample). JAMAIS une démo générique (manteau cuir).
   const _isEditPanel = (r0Screen==='block');                                                     // TOUT écran d'édition (prompt/look/decor/ref/script/musique/duree/soustitres/source/legendes…)
-  const _strictSrc = _isEditPanel || (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation'); // [P1-a] source projet stricte (jamais démo) sur édition + écrans intermédiaires
+  const _strictSrc = _isEditPanel || (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation') // [P1-a] source projet stricte (jamais démo) sur édition + écrans intermédiaires
+    || (r0Screen==='publication'||r0Screen==='pret'||r0Screen==='publies'); // [🔴1] écrans de SORTIE : source réelle ou TEXTE, JAMAIS de démo (même sans projet)
   const _isSubPanel = (_isEditPanel && r0Block && r0Block.key==='soustitres');
   const _isVideoApercu = (r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video');
   // [🔴1 — ÉRADICATION DÉMO] hors « aucun projet », un écran ne peint JAMAIS r0DemoVideo/r0DemoPhoto.
@@ -2979,7 +2980,7 @@ async function r0Render(persona, editMid, banner){
     if(rv){ media=rv; }
     else { const rs=r0RealSource(f);
       if(rs){ media=rs; kind='photo'; }
-      else if(!_hasProj){ media=await r0DemoVideo(); if(!media) kind=C.hasImage(f)?'photo':'text'; }
+      else if(!_hasProj && !_strictSrc){ media=await r0DemoVideo(); if(!media) kind=C.hasImage(f)?'photo':'text'; } // [🔴1] démo : jamais sur un écran de sortie (_strictSrc)
       else { kind='text'; } }
   }
   if(kind==='photo'){
