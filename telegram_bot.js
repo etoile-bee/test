@@ -2685,11 +2685,15 @@ function r0RealSource(f){ try{ const {S,C}=_r0(); const dv=S.getDraft(f,'video')
   const pers=(f&&f.persona)||(typeof _persona==='function'?_persona():'imany');
   const g=r0RealImages(pers,1); if(g&&g[0]&&!_r0IsRef(g[0])&&fs.existsSync(g[0])) return g[0];
 }catch(e){} return null; }
-// [🔴1 — ÉRADICATION DÉMO] VRAIE vidéo GÉNÉRÉE du projet (fichier réel, non simulé), SANS aucun repli démo : null si aucune.
-function r0RealVideo(f){ try{ const {C}=_r0(); const vids=(C.visibles(f)||[]).filter(m=>m&&m.type==='video');
+// [🔴1 — ÉRADICATION DÉMO] FICHIER de la VRAIE vidéo GÉNÉRÉE du projet (réel, non simulé), SANS aucun repli démo : null si aucune.
+//   NB nom = r0RealVideoFile (et NON r0RealVideo) : `async function r0RealVideo(persona,id)` (générateur Kling, ligne ~3399) existe déjà -> collision évitée.
+function r0RealVideoFile(f){ try{ const {C}=_r0(); const vids=(C.visibles(f)||[]).filter(m=>m&&m.type==='video');
   for(let i=vids.length-1;i>=0;i--){ const m=vids[i]; if(m&&m.file&&!m.simule&&fs.existsSync(m.file)) return m.file; } }catch(e){} return null; }
 // [🔴1] LE PROJET EXISTE-T-IL VRAIMENT ? (au moins une source réelle, une vraie vidéo, ou un média visible). Si NON -> la démo redevient autorisée.
-function r0HasProject(f){ try{ if(r0RealSource(f)) return true; if(r0RealVideo(f)) return true; const {C}=_r0(); return (C.visibles(f)||[]).length>0; }catch(e){} return false; }
+function r0HasProject(f){ try{ if(r0RealSource(f)) return true; if(r0RealVideoFile(f)) return true; const {C}=_r0(); return (C.visibles(f)||[]).length>0; }catch(e){} return false; }
+// [🔴1 incident Publier→Retour] COERCION FRONTIÈRE : un CHEMIN de fichier doit être une STRING. Si un OBJET média ({file}/{path}/{media}) arrive
+//   par erreur jusqu'à fs/path (createReadStream/basename…), on extrait la string ; sinon null. Empêche « path must be of type string. Received Object ».
+function r0FilePath(x){ if(x==null) return null; if(typeof x==='string') return x; if(typeof x==='object'){ const s=x.file||x.path||x.media||x.src||null; return (typeof s==='string')?s:null; } return null; }
 // Épingle l'image X comme SOURCE unique du projet (photo + vidéo) — appelée à la sélection, à la génération et au pont photo→vidéo.
 function r0PinSource(persona, id, file){ try{ if(!file) return; const {S}=_r0(); const ts=Date.now();
   S.setDraft(BASE,persona,id,'photo',{source_file:file},ts); S.setDraft(BASE,persona,id,'video',{source_file:file},ts);
@@ -2851,6 +2855,8 @@ function r0MidOf(r){ return (r&&r.result&&r.result.message_id)||(typeof r==='num
 // PEINTRE du bloc UNIQUE : décide edit / editMedia (swap photo↔vidéo EN PLACE) / recreate via l'oracle SB.plan.
 //   targetKind ∈ {text,photo,video} ; mediaPath = fichier local (image/vidéo) ou null pour texte.
 async function r0Paint(targetKind, mediaPath, caption, rows, editMid){
+  mediaPath=r0FilePath(mediaPath); // [🔴1] frontière : jamais d'OBJET média vers fs/path (sinon incident « path must be string »). Si null -> dégradé texte plus bas.
+  if(targetKind!=='text' && !mediaPath) targetKind='text'; // pas de fichier réel -> on peint du TEXTE (jamais un objet, jamais un crash)
   const {SB}=_r0(); const kb=r0Kb(rows); const cur=editMid||r0Mid;
   const p=SB.plan(r0Type, cur, targetKind);
   if(p.action==='edit'){
@@ -2976,7 +2982,7 @@ async function r0Render(persona, editMid, banner){
   // [🔴1] ÉCRAN DE PROJET en kind VIDÉO (résultat · publication · prêt · publiés · studio · …) :
   //   VRAIE vidéo générée -> sinon SOURCE ACTIVE réelle (photo) -> sinon TEXTE. La démo n'est atteignable QUE s'il n'existe AUCUN projet.
   else if(kind==='video'){
-    const rv=r0RealVideo(f);
+    const rv=r0RealVideoFile(f);
     if(rv){ media=rv; }
     else { const rs=r0RealSource(f);
       if(rs){ media=rs; kind='photo'; }
@@ -3032,6 +3038,7 @@ const R0_FINAL_KB=[
 ];
 async function r0PostFinal(kind, file, caption){
   try{
+    file=r0FilePath(file); // [🔴1] frontière : keepsake persistant ne reçoit qu'une STRING de chemin (jamais un objet média)
     if(!file) return null;
     let mid=null; const kb=r0Kb(R0_FINAL_KB);
     if(kind==='video'){ mid=await sendVideoKb(file, cap1024(caption), kb); if(!mid){ const d=await sendPhotoKb(file, cap1024(caption), kb); mid=r0MidOf(d); } }
@@ -3258,7 +3265,7 @@ async function r0Dispatch(persona, d, editMid){
     try{ const cur2=r0Cur(persona); const isVid=res.op.kind==='video';
       const mi=isVid?C.lastVideo(cur2):C.lastImage(cur2); let file=(mi&&mi.file&&fs.existsSync(mi.file))?mi.file:null;
       // [🔴1] keepsake SIMULÉ : à défaut de fichier réel généré, on montre la SOURCE ACTIVE réelle — JAMAIS la démo cuir. Démo seulement si AUCUN projet.
-      if(!file){ const rv=isVid?r0RealVideo(cur2):null; file=rv||r0RealSource(cur2); }
+      if(!file){ const rv=isVid?r0RealVideoFile(cur2):null; file=rv||r0RealSource(cur2); }
       if(!file && !r0HasProject(cur2)){ file=isVid?await r0DemoVideo():r0DemoPhoto(); }
       if(file) await r0PostFinal(isVid?'video':'photo', file, r0FinalCap(persona, isVid?'video':'photo', true, null));
     }catch(e){ try{ jlog('[v4r] rendu sim persistant err '+e.message); }catch(_){} }

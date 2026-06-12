@@ -19,6 +19,9 @@ const _iso = (function isolate() {
   return BOX;
 })();
 const fs = require('fs'), path = require('path');
+// [🔴1 incident] toute promesse rejetée (ex. objet média -> path.join, collision de nom) = échec DUR du test (sinon faux vert).
+let _unhandled = null;
+process.on('unhandledRejection', (e) => { _unhandled = (e && e.message) || String(e); });
 const bot = require('../telegram_bot.js');
 
 let ok = 0, ko = 0;
@@ -56,11 +59,31 @@ async function main() {
     }
   }
 
+  // ── 🔴1 incident Publier→Retour : le chemin ne lève AUCUNE exception + média = string|null (jamais un objet) ──
+  bot.reset(); await bot.open();
+  await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_VALID');   // video_result
+  await bot.tap('R0_PUB');                                    // publication
+  let pubThrow = bot.logs().some(l => /^THROW:/.test(l));
+  await bot.tap('R0_PUB_DO');                                 // PUBLIER -> publies
+  const back = bot.resReturn(); if (back) await bot.tap(back); // RETOUR
+  await bot.tap('R0_HOME'); await bot.tap('R0_PRET'); await bot.tap('R0_HOME'); // Prêt à poster -> Retour
+  const anyThrow = bot.logs().some(l => /^THROW:/.test(l));
+  const m2 = bot.media();
+  chk('Publier→Retour : AUCUNE exception (filet incident non déclenché)', !anyThrow);
+  chk('Publier→Retour : média peint = string|null (JAMAIS un objet)', m2 == null || typeof m2 === 'string');
+  chk('Publier→Retour : si média peint, ce n\'est pas une démo', !(m2 && DEMO_RE.test(m2)));
+
   // ── Cas « AUCUN projet » : la démo redevient autorisée (on ne casse pas le tout-premier lancement) ──
   bot.reset();
   try { fs.rmSync(path.join(_iso, 'projects_r'), { recursive: true, force: true }); } catch (e) {}
   // (pas de open() qui recrée un projet) — on vérifie juste que les helpers autorisent la démo sans projet : non-régression douce
   chk('NO-PROJET : la démo reste un repli LÉGITIME hors projet (helpers présents)', typeof bot.media === 'function');
+
+  // laisse les microtâches se vider pour capter une éventuelle promesse rejetée (collision de nom / objet média)
+  await new Promise(r => setTimeout(r, 50));
+  chk('AUCUNE promesse rejetée non gérée (collision de nom / objet média -> path.join)', _unhandled == null);
+  if (_unhandled) console.log('   ↳ ' + _unhandled);
 
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
