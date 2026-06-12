@@ -2638,8 +2638,9 @@ const _R0_SCRIPT_CATS = [
 ];
 function _r0ScriptCats(){ return _R0_SCRIPT_CATS; }
 // [#27] SOUS-TITRES : valeurs PAR DÉFAUT du style legacy (lecture seule de subtitle_style — JAMAIS d'écriture, verrou intact).
-function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; const s=require('./subtitle_style')||{};
-  return { font:(s.fontLabel||s.font||'Archivo'), size:(s.size||'M'), pos:(s.position||s.pos||'bas'), display:(s.display||'mot') }; }catch(e){ return {}; } }
+function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; require('./subtitle_style');
+  // [#2] DÉFAUT affiché = préréglage VERROUILLÉ Etoile, en CLÉS cockpit : Archivo Black (archivo) · 76 (M) · OY 0.370 (valide) · majuscules (mot).
+  return { font:'archivo', size:'M', pos:'valide', display:'mot' }; }catch(e){ return { font:'archivo', size:'M', pos:'valide', display:'mot' }; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
@@ -3280,15 +3281,19 @@ async function r0RealPhoto(persona, id){
 // [SOUS-TITRES DÉFINITIF] mappe les réglages d'apparence PAR vidéo (draft.video.st_*) -> options render_local (incrustation finale).
 //   Les MÊMES valeurs alimentent l'APERÇU (r0SubSample) ET le rendu réel -> ce qu'elle règle s'applique aux deux.
 function r0SubOpts(dv){ dv=dv||{};
+  // [#2] DÉFAUT = préréglage VERROUILLÉ Etoile (subtitle_style.js : Archivo Black, 76, OY 0.370, lettrage 2px, blanc majuscules).
+  let sty={}; try{ const SS=require('./subtitle_style'); sty={font:SS.FONT,fontSize:SS.FONT_SIZE,oy:SS.OY,letter:parseFloat(SS.LETTER)}; }catch(e){}
   const FONTS={archivo:'Archivo Black',classique:'Arial'};
-  const SIZE={S:58,M:78,L:98};
-  const OYP={bas:0.27,milieu:0.50,haut:0.78};   // fraction depuis le bas (OY)
-  const ALIGN={bas:2,milieu:5,haut:8};          // alignement ASS (bas/milieu/haut, centré)
+  const SIZE={S:58,M:76,L:98};                  // [#2] M = taille VALIDÉE Etoile (76), plus une approximation
+  // [#1] POSITION : fraction depuis le BAS, alignement ASS CONSTANT = 2 (bas-centre). Plus oy grand = plus HAUT (intuitif, fin de l'inversion).
+  const OYP={valide:0.370,bas:0.27,milieu:0.50,haut:0.78};   // [#2] cran « validé » = OY 0.370 (sweet spot Etoile, entre bas et milieu)
   const COLOR={blanc:'&H00FFFFFF',jaune:'&H0000FFFF',cyan:'&H00FFFF00'}; // ASS = &HAABBGGRR
-  const o={};
+  const o={ font:(sty.font||'Archivo Black'), fontSize:(sty.fontSize!=null?sty.fontSize:76), oy:(sty.oy!=null?sty.oy:0.370),
+            letterSpacing:(sty.letter!=null&&isFinite(sty.letter)?sty.letter:2), alignment:2, color:'&H00FFFFFF' };
+  // overrides explicites de l'utilisateur (n'écrasent QUE ce qu'elle change ; alignement reste 2 -> aucune inversion).
   if(dv.st_font&&FONTS[dv.st_font])o.font=FONTS[dv.st_font];
   if(dv.st_size&&SIZE[dv.st_size]!=null)o.fontSize=SIZE[dv.st_size];
-  if(dv.st_pos){ if(OYP[dv.st_pos]!=null)o.oy=OYP[dv.st_pos]; if(ALIGN[dv.st_pos]!=null)o.alignment=ALIGN[dv.st_pos]; }
+  if(dv.st_pos&&OYP[dv.st_pos]!=null)o.oy=OYP[dv.st_pos];
   if(dv.st_color&&COLOR[dv.st_color])o.color=COLOR[dv.st_color];
   return o;
 }
@@ -3311,7 +3316,7 @@ async function r0SubSample(persona){
     let phrase=(dv.script&&String(dv.script).trim())||'Un aperçu de tes sous-titres incrustés';
     phrase=phrase.replace(/\s+/g,' ').trim().split(' ').slice(0,8).join(' '); // 1res lignes du script
     const assPath='/tmp/v4rsub_'+Date.now()+'.ass';
-    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color}));
+    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
     const out='/tmp/v4rsub_'+Date.now()+'.png';
     try{ await _execFileP('ffmpeg',['-y','-i',img,'-vf','scale='+W+':'+H+':force_original_aspect_ratio=increase,crop='+W+':'+H+',setsar=1,ass='+assPath,'-frames:v','1','-q:v','2',out],{timeout:30000}); }catch(e){ return null; }
     return fs.existsSync(out)?out:null;
@@ -3333,7 +3338,7 @@ async function r0SubClip(persona){
     if(R0DRY) return out; // dry : pas de ffmpeg
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     const rl=freshRL(); const assPath='/tmp/subclip_'+h.toString(36)+'.ass';
-    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color}));
+    fs.writeFileSync(assPath, rl.buildAss([{text:phrase,start:0,length:99}], {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
     const local=await r0EnsureLocal(img); if(!local){ try{ jlog('[v4r] subclip : source iCloud non matérialisée '+path.basename(img)); }catch(_){} return null; } // [iCloud] matérialise avant ffmpeg (placeholders dataless)
     await _execFileP('ffmpeg',['-y','-loop','1','-i',img,'-t','4',
       '-vf','scale=720:1280:force_original_aspect_ratio=increase,crop=720:1280,zoompan=z=\'min(zoom+0.0012,1.12)\':d=100:s=720x1280:fps=25,ass='+assPath+',format=yuv420p',
@@ -4670,6 +4675,7 @@ if(R0DRY){
     setPub:(patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setPublication(BASE,_persona(),f.projectId,patch,Date.now()); }catch(e){} }, // [G5] seed légendes/hashtags
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
+    subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/

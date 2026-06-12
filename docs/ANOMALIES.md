@@ -5,6 +5,33 @@
 
 ---
 
+# NUIT — SOUS-TITRES & SCRIPTS (offline, non déployé)
+
+## ANO-SUBPOS-INVERSION — #1 position sous-titres INVERSÉE (« monter » descend)
+- **Écran** : panneau Sous-titres → Position (Haut/Milieu/Bas)
+- **Gravité** : 🔴 (commande contre-intuitive)
+- **Cause RACINE (Dispatch + confirmé)** : `r0SubOpts` changeait l'ALIGNEMENT ASS par position (`ALIGN={bas:2,milieu:5,haut:8}`). Avec `alignment=8` (top-anchored), `MarginV` se mesure DEPUIS LE HAUT → grand oy = texte vers le BAS = inversion ; `alignment=5` (milieu) ignore MarginV.
+- **Correctif** : **alignement CONSTANT = 2 (bas-centre) pour TOUTES les positions** ; seul `oy` (fraction depuis le bas) varie : bas 0.27 · validé 0.370 · milieu 0.50 · haut 0.78. Plus oy grand = plus haut (intuitif).
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE (ASS ground-truth + clips)** : MarginV (px depuis le bas) = BAS **346** < VALIDÉ **474** < MILIEU **640** < HAUT **998**, Alignment **2** partout. Clips ffmpeg `pos_HAUT.mp4` vs `pos_BAS.mp4` (texte visiblement plus haut en Haut). Assertions runtime `#1 marginV Haut>Milieu>Bas` + `alignement constant 2`. **Trou de test comblé** : on compare désormais la position VERTICALE réelle (marginV), pas juste « une valeur est posée ».
+
+## ANO-SUBPRESET-DEFAUT — #2 le DÉFAUT sous-titres ne matchait pas le préréglage verrouillé Etoile
+- **Gravité** : 🟡 (l'aperçu ne reflétait pas le rendu validé)
+- **Cause** : l'aperçu `r0SubClip` appelait `buildAss` SANS opts → défauts module render_local (78 / OY 0.27), ≠ préréglage verrouillé `subtitle_style.js` (Archivo Black, 76, OY 0.370, lettrage 2).
+- **Correctif** : `r0SubOpts` part désormais du **préréglage verrouillé** (lecture `subtitle_style.js`) comme DÉFAUT (police Archivo Black, taille 76, OY 0.370, lettrage 2, blanc, alignement bas) ; les `st_*` n'écrasent que ce qu'Etoile change. Ajout taille **M = 76** (validée, plus une approximation) + position **« ✅ Validé » = OY 0.370** (sweet spot, exposée comme cran). Aperçu = rendu réel (même opts pour `r0SubClip` ET `WF.renderVideo`).
+- **Chunking** : le vrai chemin vidéo (`r0RealVideo`→`WF.renderVideo`→`render_local.buildChunks`, LONG=7) applique bien le découpage 1-2 mots (mot>7 seul). Vérifié : phrase test → `["Ne cours","jamais après","quelqu un","qui doute","de toi"]`.
+- **Statut** : ✅ CORRIGÉE (offline)
+- **PREUVE RÉELLE** : clip `preset_Etoile.mp4` (Archivo Black 76, OY 0.370, chunking) sur vraie source projet, livré à Etoile pour validation. Assertions runtime `#2 défaut=préréglage` + `M=76` + `validé=0.370`.
+
+## ANO-SCRIPT-3PARTS — #4 vidéo longue 3 parties : CÂBLÉE mais inatteignable depuis l'UI
+- **État** : la génération multi-parties EST câblée (`r0RealVideo` : `parts=round(secs/30)`, boucle `WF.partPrompt`+`prevScripts` pour la continuité, `concatClips` à la fin). MAIS le cockpit n'offrait que `15s/30s/60s` → max **2 parties** ; **3 parties (90s) inatteignables**.
+- **Correctif** : ajout durée **`90s`** au cran Durée → `parts=3` atteignable. (Régénérer script = nouveau script, MÊME catégorie via `theme_seed`, longueur ∝ durée : `words=secs×2.4` ; défaut 30s.)
+- **Statut** : ✅ UI débloquée (offline) · ⚠️ exécution réelle = TERRAIN LIVE (le « grand test » d'Etoile).
+- **Limites honnêtes** : (a) une vidéo N-parties = **N appels moteur réels** (coût ×N) mais compte pour **1 « test »** au budget (le compteur incrémente une fois par génération vidéo, pas par partie) → surveiller les crédits sur un 90s. (b) durée max cockpit = 90s (3 parties) ; au-delà = non exposé. (c) continuité narrative entre parties = `partPrompt` (à valider qualitativement en terrain).
+- **PREUVE** : assertions runtime `#4 durée 90s exposée` + `mapping 30=1/60=2/90=3`.
+
+---
+
 # CATÉGORIE A — RUPTURES DE CONTEXTE / SOUS-ÉCRANS / MODULES ISOLÉS
 > Un module d'édition ne doit JAMAIS devenir une sous-app isolée : même projet, même source (photo/vidéo), retour à l'écran d'où il vient, aperçu au bon endroit, aucun média étranger. Audit en cours (≥15 points/module). Lot B = offline, déploiement sur go explicite.
 

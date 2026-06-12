@@ -89,9 +89,10 @@ function blockSpec(block, facts, ctx) {
         [ { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
           { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
           { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' } ], // Taille
-        [ { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' },
-          { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
-          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' } ], // Position
+        [ { text: (pos === 'valide' ? '🔵 ' : '') + '✅ Validé', cb: 'R0_SET_stpos_valide' },
+          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' } ],   // Position — « Validé » = sweet spot Etoile (OY 0.370)
+        [ { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
+          { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' } ], // [#1] oy croissant = plus haut (alignement bas constant, fin de l'inversion)
         [ { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
           { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
           { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' } ], // Couleur

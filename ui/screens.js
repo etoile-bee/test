@@ -544,7 +544,7 @@ const PRESETS = {
   vi_voix: ['douce', 'énergique', 'posée', 'off'],
   vi_musique: ['off', 'automatique', 'personnalisée'],   // (E) permettre une vidéo SANS musique
   vi_legendes: ['oui', 'non'],
-  vi_duree: ['15s', '30s', '60s'],                       // (K) durée explicite et éditable
+  vi_duree: ['15s', '30s', '60s', '90s'],                // (K) durée explicite et éditable ; 90s -> vidéo LONGUE 3 parties (parts=round(s/30)) — test Etoile
   vi_params: ['9:16', '1:1'],                            // format
   pub_plateforme: ['TikTok', 'Instagram', 'YouTube'],
 };

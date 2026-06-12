@@ -180,7 +180,7 @@ chk('G : titres « PHOTO/VIDÉO · Étape »', /📸 PHOTO · Choisir/.test(SC.p
 chk('G : titre Aperçu cohérent (📸/🎬 · Aperçu)', /📸 PHOTO · Aperçu/.test(SC.confirmView(fimg, { confirm: { mediaKind: 'photo', est: _estCv, live: false, budget: { tests: 0, max: 10, next: 1, credits: 0 } } }).caption));
 // (K) durée visible + éditable + défaut
 chk('K : durée éditable (bloc dans la prépa) + visible à l Aperçu', has(SC.videoEditView(fimg), 'R0_VIB_duree') && /⏱ Durée : 30s/.test(SC.confirmView(fvid,{confirm:{mediaKind:'video',est:{moteur:'x',duree:'30s',gratuit:false},live:false,budget:{tests:0,max:10,next:1}}}).caption));
-chk('K : presets durée 15/30/60', SC.PRESETS.vi_duree.join(',') === '15s,30s,60s' && NAV.resolveSet('viduree', '2', {}).value === '60s');
+chk('K : presets durée 15/30/60/90 (90s = vidéo longue 3 parties)', SC.PRESETS.vi_duree.join(',') === '15s,30s,60s,90s' && NAV.resolveSet('viduree', '2', {}).value === '60s' && NAV.resolveSet('viduree', '3', {}).value === '90s');
 // (E) musique OFF/Automatique/Personnalisée
 chk('E : musique off/automatique/personnalisée', SC.PRESETS.vi_musique[0] === 'off' && NAV.resolveSet('vimus', '0', {}).value === 'off');
 // (D) sous-titres dédiés dans Vidéo>Édition : DÉFINITIF — auto-générés (PAS d'on/off, PAS de champ texte), boîte apparence legacy : disposition·police·taille·position·couleur
