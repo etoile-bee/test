@@ -2950,6 +2950,7 @@ async function r0Render(persona, editMid, banner){
   // [ANO-CTX-SOUSTITRES-DEMO] APERÇU VIDÉO (confirm) **ET** panneau SOUS-TITRES (block soustitres) peignent le CLIP de LA SOURCE PROJET
   //   (r0SubClip = r0SourceFile + sous-titres incrustés), repli PNG sous-titré (r0SubSample). JAMAIS une démo générique (manteau cuir).
   const _isEditPanel = (r0Screen==='block');                                                     // TOUT écran d'édition (prompt/look/decor/ref/script/musique/duree/soustitres/source/legendes…)
+  const _strictSrc = _isEditPanel || (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation'); // [P1-a] source projet stricte (jamais démo) sur édition + écrans intermédiaires
   const _isSubPanel = (_isEditPanel && r0Block && r0Block.key==='soustitres');
   const _isVideoApercu = (r0Screen==='confirm' && r0Pending && r0Pending.mediaKind==='video');
   if(_isVideoApercu || _isSubPanel){
@@ -2961,13 +2962,15 @@ async function r0Render(persona, editMid, banner){
   // [ANO-CTX-BLOCK-DEMO-GENERAL] RÈGLE SYSTÉMIQUE : AUCUN écran d'ÉDITION (block, quel que soit le parentKind) ne peint une démo.
   //   Il peint TOUJOURS le CONTEXTE PROJET (r0RealSource = même fichier que l'aperçu) ; si aucune source réelle -> texte (JAMAIS r0DemoVideo/r0DemoPhoto).
   else if(_isEditPanel){ media=r0RealSource(f); kind=media?'photo':'text'; }
-  // Démo/dégradé RÉSERVÉ aux écrans NON-édition (ex. aperçu vidéo sans clip ffmpeg dispo).
+  // [P1-a] ÉCRANS INTERMÉDIAIRES (quit · confirm · confirm2 · validation) : TOUJOURS la source projet, JAMAIS une démo/référence (femme cuir).
+  else if(kind==='video' && (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation')){ media=r0RealSource(f); kind=media?'photo':'text'; }
+  // Démo/dégradé RÉSERVÉ aux écrans NON-édition restants (ex. aperçu vidéo sans clip ffmpeg dispo).
   else if(kind==='video'){ media=await r0DemoVideo(); if(!media){ kind=C.hasImage(f)?'photo':'text'; } }
   if(kind==='photo'){
     // [SOURCE UNIQUE] TOUS les écrans (Préparer · Aperçu/confirm · Vidéo · Montage) peignent LA MÊME image source épinglée.
     //   Exception : photo_result peint la dernière image générée (= la nouvelle source, déjà épinglée à la génération).
     //   Écran d'ÉDITION : on garde la source RÉELLE déjà résolue (jamais de repli démo via r0SourceFile).
-    if(_isEditPanel){ if(!media){ media=r0RealSource(f); if(!media) kind='text'; } }
+    if(_strictSrc){ if(!media){ media=r0RealSource(f); } if(!media) kind='text'; } // [P1-a] édition + écrans intermédiaires : source réelle ou texte, JAMAIS démo/référence
     else { media=(r0Screen==='photo_result')?r0CoverFile(f):r0SourceFile(f); if(!media) kind='text'; }
   }
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.

@@ -300,7 +300,7 @@ function quitView(facts) {
   return {
     kind: C.mediaKind(facts), caption: cap, rows: [
       [{ text: '💾 Enregistrer', cb: 'R0_QUIT_SAVE' }, { text: '🚪 Quitter', cb: 'R0_QUIT_DISCARD' }],
-      [{ text: '↩️ Annuler', cb: 'R0_QUIT_CANCEL' }],
+      [{ text: '◀ Retour', cb: 'R0_QUIT_CANCEL' }], // [P1-a #13] libellé « Retour » (cb inchangé) — revient où on était
     ],
   };
 }

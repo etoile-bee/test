@@ -389,6 +389,17 @@ async function main() {
     chk('CTX-BLOCK-GENERAL : ' + label + ' (photo) peint la source projet (cover), pas une démo', bot.media() === bot.cover() && !!bot.cover());
   }
 
+  // ════ [P1-a] ÉCRANS INTERMÉDIAIRES (validation/confirm2/quit) : source projet, JAMAIS une démo (femme cuir) ════
+  bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // projet AVEC vidéo (parentKind video)
+  await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GEN_VALID');
+  chk('P1-a : VALIDATION (écran texte chiffré) ne montre AUCUNE démo/référence', bot.state().screen === 'validation' && !/demo_video|demo_photo|imany_reference|references\//.test(bot.media() || ''));
+  await bot.tap('R0_GO2');
+  chk('P1-a : CONFIRM2 peint la source projet, PAS une démo', bot.state().screen === 'confirm2' && !/demo_video|demo_photo/.test(bot.media() || ''));
+  await bot.tap('R0_HOME');
+  chk('P1-a : QUIT peint la source projet, PAS une démo', bot.state().screen === 'quit' && !/demo_video|demo_photo/.test(bot.media() || ''));
+  chk('P1-a #13 : quitView libellé « ◀ Retour » (plus « Annuler »)', bot.labels().includes('◀ Retour') && !bot.labels().some(t => /Annuler/.test(t)));
+
   // ════ [ANO-GENID-CREATE] DATA-SAFETY : 2+ créations de projet dans la MÊME seconde -> ids DISTINCTS (jamais d'écrasement silencieux) ════
   //   genId a une résolution à la seconde ; createProject DOIT suffixer (-2,-3…) si l'id existe déjà. Cause historique de perte de projet.
   {
