@@ -85,12 +85,15 @@ function photoView(facts, ctx) {
   const cap = '<b>📸 PHOTO · Choisir</b>'
     + (has ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet') : '\n<i>aucune photo — à créer</i>')
     + srcLine(ctx);
-  // (P2/P1.1b) si une photo existe : « Utiliser » -> préparation (boîte à outils) ; « Modifier » -> galerie (choisir/éditer).
+  // [LOT 2 — PHOTO 2-ÉTAPES] Étape 1 = CHOISIR la source. « ✅ Valider la photo » l'ÉPINGLE (r0PinSource) et ouvre l'Étape 2 (Préparer).
+  //   Garder = source en l'état · Changer = galerie/import · 🛠 Modifier = boîte à outils #7 (retouche couleur, non destructif) · ✨ Générer = IA.
   const rows = (has
-    ? [[{ text: '✅ Utiliser', cb: 'R0_PH_USE' }, { text: '✏️ Modifier', cb: 'R0_PH_GAL' }]]
-    : []).concat([
-      [{ text: '✨ Générer', cb: 'R0_PH_GEN' }, { text: '📥 Importer', cb: 'R0_PH_IMPORT' }],
-      [{ text: '🕘 Historique', cb: 'R0_PH_HIST' }, { text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (écran enfant direct ; pas de doublon)
+    ? [[{ text: '✅ Valider la photo', cb: 'R0_PH_VALID' }],
+       [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '🔄 Changer', cb: 'R0_PH_GAL' }],
+       [{ text: '🛠 Modifier', cb: 'R0_PH_TOOLS' }, { text: '✨ Générer', cb: 'R0_PH_GEN' }]]
+    : [[{ text: '✨ Générer', cb: 'R0_PH_GEN' }]]).concat([
+      [{ text: '📥 Importer', cb: 'R0_PH_IMPORT' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
+      [{ text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (écran enfant direct ; pas de doublon)
     ]);
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
 }
@@ -119,20 +122,42 @@ function photoPromptView(facts, ctx) {
   const has = C.hasImage(facts);
   // (J/R8) prépa = étape + action seulement (le récap complet vit dans l'Aperçu).
   let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.' + srcLine(ctx);
-  const blockRows = [];
-  for (let i = 0; i < PH_BLOCKS.length; i += 2) {
-    blockRows.push(PH_BLOCKS.slice(i, i + 2).map(b => ({ text: b.icon + ' ' + b.label, cb: 'R0_PHB_' + b.key })));
-  }
-  // [Etoile] PHOTO = Prompt · Tenue · Décor (+ Référence) seulement. « Montage » est un concept VIDÉO -> RETIRÉ du parcours photo.
-  const rows = blockRows.concat([
-    [{ text: '🎛 Influences', cb: 'R0_PHB_influences' }],                                        // [AJOUT 2] couches d'influence (source/tenue/décor/réf + verrous) AVANT l'Aperçu
+  // [LOT 2] Étape 2 = PARAMÈTRES. Tenue/Décor · 🎛 Influences/Prompt · Aperçu · Faire une vidéo. RÉFÉRENCE RETIRÉE du parcours (code conservé, réactivable).
+  //   Pas de « Valider les paramètres » : le flux D3 reste — Aperçu -> ✅ Valider (à l'aperçu) -> Validation chiffrée -> Générer.
+  const rows = [
+    [{ text: '👗 Tenue', cb: 'R0_PHB_look' }, { text: '🏛 Décor', cb: 'R0_PHB_decor' }],
+    [{ text: '🎛 Influences', cb: 'R0_PHB_influences' }, { text: '📝 Prompt', cb: 'R0_PHB_prompt' }], // [AJOUT 2] couches d'influence (5 bascules) AVANT l'Aperçu
     [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }],                                                // PRODUCTION via aperçu obligatoire
     [{ text: '🎬 Faire une vidéo', cb: 'R0_PH_TOVIDEO' }],                                       // [R2] pont vidéo : MÊME photo en source (jamais remplacée)
     [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
-  ]);
+  ];
   return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
+// ── [LOT 2 — #7] BOÎTE À OUTILS PHOTO (🛠 Modifier) : MVP COULEUR non-destructif (ffmpeg local, zéro dépense) ──
+//   Réglages : Luminosité · Contraste · Saturation · Netteté. 👁 Aperçu (applique sur la source) · ↺ Réinitialiser · ✅ Valider.
+//   NON-DESTRUCTIF : l'original est conservé ; ✅ Valider produit une NOUVELLE image (source candidate) sans écraser.
+function editionView(facts, ctx) {
+  const d = (facts && facts.draft && facts.draft.photo) || {};
+  const b = d.eq_bright != null ? +d.eq_bright : 0, c = d.eq_contrast != null ? +d.eq_contrast : 1;
+  const s = d.eq_sat != null ? +d.eq_sat : 1, sh = d.eq_sharp != null ? +d.eq_sharp : 0;
+  const neutral = (b === 0 && c === 1 && s === 1 && sh === 0);
+  const cap = '<b>🛠 Retouche couleur</b> · <i>non destructif (l\'original est conservé)</i>'
+    + srcLine(ctx)
+    + '\n☀️ Luminosité : ' + b.toFixed(1) + '    🌗 Contraste : ' + c.toFixed(1)
+    + '\n🎨 Saturation : ' + s.toFixed(1) + '    🔪 Netteté : ' + sh.toFixed(1)
+    + '\n<i>' + (neutral ? 'Règle puis 👁 Aperçu, enfin ✅ Valider.' : '👁 Aperçu pour visualiser · ✅ Valider pour appliquer.') + '</i>';
+  return {
+    kind: C.hasImage(facts) ? 'photo' : 'text', caption: cap, rows: [
+      [{ text: '➖ ☀️ Lum', cb: 'R0_EDIT_bright_dn' }, { text: '➕ ☀️ Lum', cb: 'R0_EDIT_bright_up' }],
+      [{ text: '➖ 🌗 Contraste', cb: 'R0_EDIT_contrast_dn' }, { text: '➕ 🌗 Contraste', cb: 'R0_EDIT_contrast_up' }],
+      [{ text: '➖ 🎨 Saturation', cb: 'R0_EDIT_sat_dn' }, { text: '➕ 🎨 Saturation', cb: 'R0_EDIT_sat_up' }],
+      [{ text: '➖ 🔪 Netteté', cb: 'R0_EDIT_sharp_dn' }, { text: '➕ 🔪 Netteté', cb: 'R0_EDIT_sharp_up' }],
+      [{ text: '👁 Aperçu', cb: 'R0_EDIT_PREVIEW' }, { text: '↺ Réinitialiser', cb: 'R0_EDIT_RESET' }],
+      [{ text: '✅ Valider', cb: 'R0_EDIT_VALID' }, { text: '◀ Retour', cb: 'R0_PHOTO' }],
+    ],
+  };
+}
 // ── ÉCRAN 2.2 — PHOTO / RÉSULTAT = HUB DES ASSETS ─────────────────────────────
 //   [#22] image finale + prompt/tenue/décor + Modifier·Régénérer·Créer vidéo·Historique·Publication·Ressources du projet.
 function photoResultView(facts, ctx) {
@@ -339,10 +364,10 @@ function confirmView(facts, ctx) {
     cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(short(pr.promptFull, 160)) : '<i>(par défaut)</i>');
     cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
     cap += '\n🏛 Décor : ' + val(pr.decor);
-    cap += '\n🖼 Référence : ' + val(pr.reference ? 'définie' + (pr.refLocked ? ' 🔒' : '') : null);
-    // [AJOUT 2] résumé 1 ligne des couches d'influence (✓ = passée au moteur, ✗ = ignorée ; 🔒 = conservée). Réglable via 🎛 Influences.
+    // [LOT 2] Référence RETIRÉE du résumé (désexposée du parcours photo ; code conservé/réactivable).
+    // [AJOUT 2] résumé 1 ligne des couches d'influence (✓ = passée au moteur, ✗ = ignorée ; 🔒 = conservée). 5 bascules (réf masquée). Réglable via 🎛 Influences.
     { const dp = (facts && facts.draft && facts.draft.photo) || {};
-      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (dp.use_look !== false ? '✓' : '✗') + ' Tenue · ' + (dp.use_decor !== false ? '✓' : '✗') + ' Décor · ' + (dp.use_refs !== false ? '✓' : '✗') + ' Réf'
+      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (dp.use_look !== false ? '✓' : '✗') + ' Tenue · ' + (dp.use_decor !== false ? '✓' : '✗') + ' Décor'
         + (dp.lock_look === true ? ' · 🔒Tenue' : '') + (dp.lock_decor === true ? ' · 🔒Décor' : ''); }
   } else if (cf.mediaKind === 'video') {
     cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
@@ -585,6 +610,6 @@ module.exports = {
   homeView, photoView, photoPromptView, photoResultView,
   videoView, videoParamsView, videoResultView, publicationView,
   studioView, studioSectionView, recentsView, blockView,
-  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, resourcesView, pretView, publiesView, versionsView, gridRows,
+  confirmView, validationView, confirm2View, galleryView, videoEditView, quitView, photoSourceView, videoSourceView, resourcesView, pretView, publiesView, versionsView, editionView, gridRows,
   PH_BLOCKS, VI_BLOCKS, PRESETS, esc, cleanLabel, titleFor,
 };

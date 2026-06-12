@@ -416,8 +416,9 @@ async function main() {
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
   chk('AJOUT2 UI : Préparer expose 🎛 Influences', bot.buttons().includes('R0_PHB_influences'));
   await bot.tap('R0_PHB_influences');
-  chk('AJOUT2 UI : bloc Influences = 6 bascules (libellés exacts Etoile)', bot.state().screen === 'block' && bot.state().block === 'influences'
-    && ['R0_INFL_use_source', 'R0_INFL_use_look', 'R0_INFL_use_decor', 'R0_INFL_use_refs', 'R0_INFL_lock_look', 'R0_INFL_lock_decor'].every(c => bot.buttons().includes(c)));
+  chk('AJOUT2 UI [LOT2] : bloc Influences = 5 bascules (réf MASQUÉE ; Source/Tenue+🔒/Décor+🔒)', bot.state().screen === 'block' && bot.state().block === 'influences'
+    && ['R0_INFL_use_source', 'R0_INFL_use_look', 'R0_INFL_use_decor', 'R0_INFL_lock_look', 'R0_INFL_lock_decor'].every(c => bot.buttons().includes(c))
+    && !bot.buttons().includes('R0_INFL_use_refs'));
   chk('AJOUT2 NEUTRALITÉ : aucun libellé « Imany »/avatar spécifique', !bot.labels().some(t => /imany/i.test(t)));
   await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : décocher Tenue -> use_look=false', bot.draft('photo').use_look === false);
   await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : recocher Tenue -> use_look=true', bot.draft('photo').use_look === true);

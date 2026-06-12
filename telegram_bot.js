@@ -2557,6 +2557,7 @@ const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au 
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
 let r0BlockExpanded=false; /*[🔴5 #8] « 👁 Voir plus » : déroule le texte complet (script/prompt) DANS le bloc ; réinit à chaque navigation.*/
+let r0EditPreviewFile=null; /*[LOT 2 #7] aperçu retouche couleur (ffmpeg local) peint dans le bloc edition ; non destructif.*/
 // [VERROU GÉNÉRATION — Etoile] flag FICHIER posé au DÉBUT de toute génération réelle, levé à la FIN. Tant qu'il existe -> AUCUN deploy/restart autorisé.
 //   (la procédure de déploiement vérifie ce fichier ; au boot, un flag orphelin = génération tuée par un redémarrage -> message d'incident, jamais de retour silencieux.)
 const R0_GENLOCK=path.join(BASE,'.v4r_generating');
@@ -2981,6 +2982,8 @@ async function r0Render(persona, editMid, banner){
   }
   // [ANO-CTX-BLOCK-DEMO-GENERAL] AUCUN écran d'ÉDITION (block) ne peint une démo : contexte projet réel (r0RealSource) ou TEXTE.
   else if(_isEditPanel){ media=r0RealSource(f); kind=media?'photo':'text'; }
+  // [LOT 2 #7] ÉCRAN edition (🛠 Modifier) : peint l'APERÇU retouché s'il existe, sinon la SOURCE réelle. Jamais de démo.
+  else if(r0Screen==='edition'){ media=(r0EditPreviewFile&&fs.existsSync(r0EditPreviewFile))?r0EditPreviewFile:r0RealSource(f); kind=media?'photo':'text'; }
   // [P1-a] ÉCRANS INTERMÉDIAIRES (quit · confirm · confirm2 · validation) : source projet réelle, jamais une démo (femme cuir).
   else if(kind==='video' && (r0Screen==='quit'||r0Screen==='confirm'||r0Screen==='confirm2'||r0Screen==='validation')){ media=r0RealSource(f); kind=media?'photo':'text'; }
   // [🔴1] ÉCRAN DE PROJET en kind VIDÉO (résultat · publication · prêt · publiés · studio · …) :
@@ -3213,6 +3216,26 @@ async function r0Dispatch(persona, d, editMid){
   // [🔴5 #8] VOIR PLUS / RÉDUIRE : déroule/replie le texte complet (script/prompt) DANS le bloc, sans quitter l'écran.
   if(d==='R0_SEEMORE'){ r0BlockExpanded=true; await r0Render(persona, editMid); return; }
   if(d==='R0_SEELESS'){ r0BlockExpanded=false; await r0Render(persona, editMid); return; }
+  // [LOT 2 #7] BOÎTE À OUTILS COULEUR : un changement de réglage invalide l'aperçu précédent (il faut re-cliquer 👁 Aperçu).
+  if(d==='R0_PH_TOOLS' || /^R0_EDIT_(bright|contrast|sat|sharp)_/.test(d) || d==='R0_EDIT_RESET'){ r0EditPreviewFile=null; }
+  if(d==='R0_EDIT_PREVIEW'){ // 👁 Aperçu : applique les réglages sur la source (ffmpeg local), peint le résultat dans le bloc
+    try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
+    if(R0DRY){ r0EditPreviewFile=null; try{ await toast('👁 Aperçu (simulation)'); }catch(e){} await r0Render(persona, editMid); return; }
+    const out=path.join(BASE,'assets_r','edit_preview.jpg'); const ap=await r0EditApply(persona,out); r0EditPreviewFile=ap;
+    await r0Render(persona, editMid, ap?'👁 <b>Aperçu</b> — règle encore ou ✅ Valide.':'Aperçu indisponible (source manquante).'); return; }
+  if(d==='R0_EDIT_VALID'){ // ✅ Valider : produit une NOUVELLE image retouchée (non-destructif), l'ajoute au projet + l'épingle comme source
+    const dp=S.getDraft(cur,'photo')||{};
+    const neutral=((+dp.eq_bright||0)===0 && (dp.eq_contrast!=null?+dp.eq_contrast:1)===1 && (dp.eq_sat!=null?+dp.eq_sat:1)===1 && (+dp.eq_sharp||0)===0);
+    if(neutral){ try{ await toast('Aucun réglage à appliquer'); }catch(e){} await r0Render(persona, editMid); return; }
+    let applied=null; const out=path.join(BASE,'assets_r','edit_'+Date.now()+'.jpg');
+    if(R0DRY){ applied=r0RealSource(cur); } else { try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){} applied=await r0EditApply(persona,out); }
+    if(applied){ try{ S.addCandidate(BASE,persona,id,Date.now(),'image',{file:applied,simule:false,etat:'candidate',edited:true}); }catch(e){}
+      r0PinSource(persona,id,applied); // [INVARIANT SOURCE] la photo retouchée DEVIENT la source du projet
+      try{ S.setDraft(BASE,persona,id,'photo',{eq_bright:0,eq_contrast:1,eq_sat:1,eq_sharp:0},Date.now()); }catch(e){} // réglages consommés
+      r0EditPreviewFile=null; r0Screen='photo';
+      await r0Render(persona, editMid, '✅ <b>Retouche appliquée</b> — nouvelle photo (l\'originale est conservée).'); }
+    else { try{ await toast('Retouche impossible'); }catch(e){} await r0Render(persona, editMid); }
+    return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
   if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu vidéo des sous-titres en préparation…'); }catch(e){}
     const clip=await r0SubClip(persona); // [APERÇU SOUS-TITRES] CLIP échantillon (burn local ffmpeg = GRATUIT), apparence courante
@@ -3381,6 +3404,19 @@ function r0SubChunks(dv, maxWords){ const rl=freshRL();
   let chunks=[]; try{ chunks=rl.buildChunks(wt); }catch(e){ chunks=[{ text:words.join(' '), start:0, length:99 }]; }
   if(!chunks.length) chunks=[{ text:words.join(' '), start:0, length:99 }];
   return { exemple:false, chunks };
+}
+// [LOT 2 #7] BOÎTE À OUTILS COULEUR : applique eq (luminosité/contraste/saturation) + netteté sur la SOURCE -> fichier outPath. ffmpeg LOCAL, zéro dépense.
+//   NON-DESTRUCTIF : lit la source, écrit un NOUVEAU fichier (jamais d'écrasement). Réutilise render_local.buildColorFilter.
+async function r0EditApply(persona, outPath){
+  try{ const {S}=_r0(); const f=r0Cur(persona,true); const dp=S.getDraft(f,'photo')||{};
+    const src=r0RealSource(f); if(!src||!fs.existsSync(src)) return null;
+    await r0EnsureLocal(src); // iCloud : matérialise avant ffmpeg
+    const rl=freshRL();
+    const filt=rl.buildColorFilter({ brightness:(+dp.eq_bright||0), contrast:(dp.eq_contrast!=null?+dp.eq_contrast:1), saturation:(dp.eq_sat!=null?+dp.eq_sat:1), sharpness:(+dp.eq_sharp||0) });
+    const vf=(filt?filt+',':'')+'scale=trunc(iw/2)*2:trunc(ih/2)*2'; // au moins 1 vf (dimensions paires)
+    await _execFileP('ffmpeg',['-y','-i',src,'-vf',vf,'-q:v','2',outPath],{timeout:30000});
+    return fs.existsSync(outPath)?outPath:null;
+  }catch(e){ try{ jlog('[v4r] edit apply err '+e.message); }catch(_){} return null; }
 }
 async function r0SubSample(persona){
   try{ const {S,C}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
@@ -4741,6 +4777,7 @@ if(R0DRY){
       return { screen:r0Screen, kind:vw.kind, caption:cap, rows:rows }; }catch(e){ return { error:e.message }; } },
     draft:(kind)=>{ try{ const {S}=_r0(); return S.getDraft(r0Cur(_persona(),false), kind)||{}; }catch(e){ return {}; } }, // brouillon courant (preuve #17/#18)
     cover:()=>{ try{ return r0CoverFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // image AFFICHÉE (couverture réelle) — preuve conservation source
+    srcFile:()=>{ try{ return r0SourceFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [LOT 2] SOURCE ACTIVE épinglée (invariant) — preuve hash sha1 stable
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
     projects:()=>{ try{ return _r0().S.listProjects(BASE,_persona()).length; }catch(e){ return 0; } },                         // [G4] nb de projets (preuve « Modèle = projet réutilisable »)

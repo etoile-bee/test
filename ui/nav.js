@@ -66,9 +66,10 @@ function blockSpec(block, facts, ctx) {
   // [AJOUT 2] 🎛 INFLUENCES ACTIVES (NEUTRES, avatar-agnostiques) : 4 bascules d'usage + 2 verrous. Défaut use_*=true / lock_*=false.
   //   Décoché = la couche n'influence PAS la génération. 🔒 = conservé sur les prochaines générations. L'IDENTITÉ de l'avatar reste TOUJOURS active.
   if (block.key === 'influences') {
-    const useSrc = d.use_source !== false, useLook = d.use_look !== false, useDecor = d.use_decor !== false, useRefs = d.use_refs !== false;
+    const useSrc = d.use_source !== false, useLook = d.use_look !== false, useDecor = d.use_decor !== false;
     const lockLook = d.lock_look === true, lockDecor = d.lock_decor === true;
     const ck = on => on ? '☑' : '☐';
+    // [LOT 2 — OPTION 2] 5 BASCULES : Source · Tenue (+🔒) · Décor (+🔒). « Références visuelles » MASQUÉE (refs→moteur 🟡 PLANIFIÉ ; le drapeau use_refs reste dans le draft, défaut true).
     return {
       title: '🎛 Influences actives', current: null, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_PH_GEN' },
       hint: 'Décoché = cette couche n\'influence PAS la génération. 🔒 = conservé sur les prochaines générations. (L\'identité de l\'avatar reste toujours active.)',
@@ -78,7 +79,6 @@ function blockSpec(block, facts, ctx) {
         [{ text: (lockLook ? '🔒' : '🔓') + ' Conserver la tenue', cb: 'R0_INFL_lock_look' }],
         [{ text: ck(useDecor) + ' Utiliser le décor', cb: 'R0_INFL_use_decor' }],
         [{ text: (lockDecor ? '🔒' : '🔓') + ' Conserver le décor', cb: 'R0_INFL_lock_decor' }],
-        [{ text: ck(useRefs) + ' Utiliser les références visuelles', cb: 'R0_INFL_use_refs' }],
       ],
     };
   }
@@ -273,6 +273,7 @@ function _view(state, facts, ctx) {
     case 'photo': return SC.photoView(facts, ctx);
     case 'photo_prompt': return SC.photoPromptView(facts, ctx);
     case 'photo_result': return SC.photoResultView(facts, ctx);
+    case 'edition': return SC.editionView(facts, ctx); // [LOT 2 #7] boîte à outils couleur (🛠 Modifier)
     case 'video': return SC.videoView(facts, ctx);
     case 'video_params': return SC.videoParamsView(facts, ctx);
     case 'video_result': return SC.videoResultView(facts, ctx);
@@ -336,6 +337,18 @@ function reduce(action, st0, facts, ctx) {
     if (!c) return { st: st, toast: 'Thème indisponible' };
     return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed } }, toast: '🎬 Thème : ' + c.label };
   }
+  // [LOT 2 #7] STEPPERS retouche couleur : R0_EDIT_<param>_<up|dn> -> incrémente/décrémente, borné, reste sur l'écran edition. (PREVIEW/VALID = côté bot, ffmpeg.)
+  if (/^R0_EDIT_(bright|contrast|sat|sharp)_(up|dn)$/.test(d)) {
+    const m = d.slice(8).split('_'); const p = m[0], dir = m[1];
+    const STEP = { bright: 0.1, contrast: 0.1, sat: 0.2, sharp: 0.5 };
+    const RANGE = { bright: [-0.3, 0.3], contrast: [0.7, 1.4], sat: [0, 2], sharp: [-1, 2] };
+    const NEUT = { bright: 0, contrast: 1, sat: 1, sharp: 0 };
+    const key = 'eq_' + p; const dp = (facts && facts.draft && facts.draft.photo) || {};
+    let v = dp[key] != null ? +dp[key] : NEUT[p];
+    v = +(v + (dir === 'up' ? STEP[p] : -STEP[p])).toFixed(2);
+    v = Math.max(RANGE[p][0], Math.min(RANGE[p][1], v));
+    return Object.assign(go('edition'), { op: { type: 'draft', kind: 'photo', patch: { [key]: v } } });
+  }
   if (d.indexOf('R0_SET_') === 0) {
     const rest = d.slice(7), us = rest.indexOf('_'), blk = rest.slice(0, us), token = rest.slice(us + 1);
     const r = resolveSet(blk, token, ctx);
@@ -396,7 +409,11 @@ function reduce(action, st0, facts, ctx) {
     case 'R0_PH_HIST': st.galleryKind = 'image'; st.galleryAll = true; st.galleryRole = 'history'; st.srcReturn = null; return go('gallery');   // [G1] HISTORIQUE = LECTURE seule (revoir), aucune sélection vers le flux
     // [R4] APERÇU = vrai écran récap (confirm) ; la production passe TOUJOURS par là. (plus de toast)
     case 'R0_PH_PREVIEW': st.pending = { kind: 'image', mediaKind: 'photo', regen: false }; return go('confirm');
-    case 'R0_PH_VALID': return { st: st, toast: '✅ Paramètres validés' };
+    // [LOT 2] ✅ Valider la photo (Étape 1) : ÉPINGLE la source du projet (pinsource via ctx.coverFile) puis ouvre l'Étape 2 (Préparer).
+    case 'R0_PH_VALID': return Object.assign(go('photo_prompt', '✅ <b>Photo validée</b> — c\'est la source du projet.'), { op: { type: 'pinsource' } });
+    case 'R0_PH_TOOLS': return go('edition', '🛠 <b>Retouche couleur</b> <i>(non destructif)</i>'); // [LOT 2 #7] boîte à outils
+    case 'R0_EDIT_NOP': return { st: st };
+    case 'R0_EDIT_RESET': return Object.assign(go('edition', '↺ <b>Réglages réinitialisés</b>'), { op: { type: 'draft', kind: 'photo', patch: { eq_bright: 0, eq_contrast: 1, eq_sat: 1, eq_sharp: 0 } } });
     case 'R0_PH_MONTAGE': return go('photo_prompt');   // [G3] Montage RETIRÉ de Photo (concept vidéo) : l'écran orphelin n'existe plus, on renvoie vers la préparation
     case 'R0_BLOCK_OK': { // [A1] ✅ Valider d'un bloc (cb UNIQUE) -> revient au parent (brouillon déjà sauvegardé), sans dupliquer le cb du Retour
       const blk = st.block || {};
@@ -470,6 +487,8 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
   const draftKey = (mediaKind) => (mediaKind === 'video' ? 'video' : 'photo'); // média image|video -> tampon photo|video
   switch (op.type) {
     case 'create': S.addCandidate(base, persona, id, ts, op.kind, op.useDraft ? S.getDraft(facts, draftKey(op.kind)) : (op.attrs || {})); break;
+    // [LOT 2] ÉPINGLE la SOURCE du projet (✅ Valider la photo) : la couverture réelle (ctx.coverFile) devient source_file photo ET vidéo.
+    case 'pinsource': { const src = ctx && ctx.coverFile; if (src) { S.setDraft(base, persona, id, 'photo', { source_file: src }, ts); S.setDraft(base, persona, id, 'video', { source_file: src }, ts); } break; }
     case 'etat': { const m = op.which === 'lastVideo' ? C.lastVideo(facts) : (op.which === 'lastMedia' ? C.lastMedia(facts) : C.lastImage(facts)); if (m) S.setMediaEtat(base, persona, id, m.id, op.etat, ts); break; }
     case 'draft': {
       if (op.onlyIfImage && !C.hasImage(facts)) break;
