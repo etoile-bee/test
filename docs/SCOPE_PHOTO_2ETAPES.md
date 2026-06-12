@@ -44,6 +44,19 @@ Assertion : `sha1(r0SourceFile)` **IDENTIQUE à chaque étape**, jamais de bascu
 5. **aucune perte contexte** : Valider épingle, draft persistant. ✅
 6. **aucun écran inutile** : 0 nouvel écran plein (réutilise les 2 + 1 bloc toolbox). ✅
 
+## 5bis. DÉCISION 1 — 🎛 Influences = 5 bascules (références MASQUÉE)
+- Le bloc 🎛 (LOT A) passe de 6 à **5 bascules fonctionnelles** : ☑ Source · ☑ Tenue · ☑ Décor · 🔒 Conserver tenue · 🔒 Conserver décor.
+- **« Utiliser les références visuelles » = MASQUÉE** (no-op tant que `draft.refs` n'est pas consommé par le moteur). Le flag `use_refs` reste dans le modèle (défaut true, inerte) — on retire seulement le BOUTON + la mention « Réf » du résumé Aperçu.
+- **Impact (au build)** : 1 ligne retirée des `optionRows` du bloc influences + ajuster le résumé Aperçu (retirer « Réf ») + maj 2 assertions. **Trivial.** (Le gating `use_refs` dans `buildPhotoOpts` reste, sans effet visible.)
+- **🟡 PLANIFIÉ (lot dédié futur)** : brancher `draft.refs` → `generateLook` (références visuelles réellement consommées) PUIS ré-exposer la bascule. Documenté, non fait.
+
+## 5ter. DÉCISION 2 — « 📸 Source active : X » VISIBLE PARTOUT (helper partagé)
+- **Helper unique** `srcLine(facts)` → `'📸 Source active : ' + basename(r0SourceFile(facts))` (ou « — » si aucune). Une SEULE source active/projet = `r0SourceFile` courant.
+- **Injecté** dans la caption de CHAQUE écran concerné : Photo·Choisir · Photo·Préparer · Aperçu (confirm) · Validation · Photo/Vidéo·Résultat · Fichiers (resources) · Accueil/reprise · menu Vidéo. (≈ **8-9 captions**, +1 ligne chacune.)
+- **Remplacement explicite** : quand une photo est validée/générée → `r0PinSource` change la source active ; l'ancienne reste en historique/fichiers (jamais supprimée). La ligne « 📸 Source active » reflète TOUJOURS le fichier courant.
+- **Impact** : 1 helper (screens.js, exposé) + le bot fournit `ctx.srcName` (basename de `r0SourceFile`) à r0Ctx pour que les vues l'affichent sans I/O. **~9 insertions de 1 ligne + 1 helper. Pas de refonte.**
+- **Preuve** : dump caption de tous les écrans → la MÊME ligne « 📸 Source active : X » présente partout, et X == basename(`r0SourceFile`) à chaque écran (test : un seul nom de fichier sur tout le parcours).
+
 ## 6. PHOTO · RÉSULTAT (bloc unique conservé) — à vérifier dans le lot
 `photoResultView` doit rester la référence projet : photo visible · infos · fichiers · historique · légendes si dispo · actions (🎬 créer vidéo · 🛠 modifier la photo · 🔁 variante · 🗂 fichiers · revenir). À auditer/compléter dans le lot (impact texte/markup).
 
