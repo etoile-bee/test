@@ -30,8 +30,11 @@ function val(v, d) { return (v == null || v === '') ? (d || '<i>à définir</i>'
 // (P6) nombre de photos sources nécessaires selon la durée (déterministe) : 15s→1 · 30s→1 · 45s→2 · 60s→3.
 function nbPhotos(duree) { const s = parseInt(duree, 10) || 30; return s >= 60 ? 3 : (s >= 45 ? 2 : 1); }
 function nom(facts) { return (facts && facts.intention && facts.intention.message) ? short(facts.intention.message, 48) : C.situation(facts).nom; }
-// [🔴P3] NUMÉRO DE PROJET visible partout (Fichiers/Prêt/Publiés/Récents) — même forme courte que l'écran Résultat.
-function projNo(facts) { const id = (facts && facts.projectId) || ''; const s = id.replace(/^[^_]*_/, '') || id; return s ? (' · 📦 #' + esc(s)) : ''; }
+// [RG-7] NUMÉRO DE PROJET visible partout (Résultat/Fichiers/Prêt/Publiés/Publication/Récents). Forme LISIBLE « 📦 Projet n°N » (rang de création, via ctx.projNum)
+//   + le code court entre parenthèses pour la traçabilité. Repli sur le code seul si le n° n'est pas fourni.
+function projNo(facts, num) { const id = (facts && facts.projectId) || ''; const s = id.replace(/^[^_]*_/, '') || id;
+  if (num != null) return ' · 📦 Projet n°' + num + (s ? (' (#' + esc(s) + ')') : '');
+  return s ? (' · 📦 #' + esc(s)) : ''; }
 function capLigne(facts) { const i = (facts && facts.intention) || {}; return i.message ? ('🎯 ' + esc(short(i.message, 60))) : '🎯 <i>cap à définir</i>'; }
 const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
 
@@ -49,15 +52,16 @@ function srcLine(ctx) { const n = ctx && ctx.srcName; return n ? ('\n📸 Source
 // [#11] BANDEAU ÉCRAN FINAL SIMPLIFIÉ : Projet # · Date · Type · Catégorie/thème · Durée · Statut: terminé.
 //   (RETIRE « cap à poser » / « brouillon » / « test n°X/10 ». Détails — script/légendes/sous-titres — via les boutons.)
 const _MOIS_F = ['janv.', 'févr.', 'mars', 'avr.', 'mai', 'juin', 'juil.', 'août', 'sept.', 'oct.', 'nov.', 'déc.'];
-function finalCaption(facts, type, m, dv) {
+function finalCaption(facts, type, m, dv, num) {
   const id = (facts && facts.projectId) || '';
   const shortId = id.replace(/^[^_]*_/, '') || id || '—';
   const dp = (facts && facts.draft && facts.draft.photo) || {};
   const theme = (dv && dv.theme) || dp.look || '—';
   let dateStr = '—'; try { const d = new Date(facts && facts.cree_le); if (!isNaN(d)) dateStr = d.getDate() + ' ' + _MOIS_F[d.getMonth()] + ' ' + d.getFullYear(); } catch (e) {}
   const duree = (type === 'video') ? val((m && m.duree) || (dv && dv.duree), '30s') : null;
+  const numTxt = (num != null) ? ('Projet n°' + num + ' (#' + esc(shortId) + ')') : ('Projet #' + esc(shortId)); // [RG-7] n° lisible + code
   return '<b>' + titleFor(type === 'video' ? 'video_resultat' : 'photo_resultat') + '</b>'
-    + '\n📦 Projet #' + esc(shortId) + '   📅 ' + dateStr
+    + '\n📦 ' + numTxt + '   📅 ' + dateStr
     + '\n' + (type === 'video' ? '🎬 Type : Vidéo' : '📸 Type : Photo') + '   🏷 ' + esc(cleanLabel(theme)) + (duree ? ('   ⏱ ' + duree) : '')
     + '\n✅ Statut : terminé';
 }
@@ -167,7 +171,7 @@ function photoResultView(facts, ctx) {
   const m = C.lastImage(facts) || {};
   const dr = (facts && facts.draft && facts.draft.photo) || {};
   // [#11/D3] BANDEAU FINAL PHOTO harmonisé comme la vidéo (Projet/Date/Type/Catégorie/Statut) + source active. Détails (prompt/tenue/décor) via boutons.
-  const cap = finalCaption(facts, 'photo', m, dr) + srcLine(ctx);
+  const cap = finalCaption(facts, 'photo', m, dr, ctx && ctx.projNum) + srcLine(ctx);
   return {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
@@ -231,7 +235,7 @@ function videoResultView(facts, ctx) {
   const p = (facts && facts.publication) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
   // [#11] BANDEAU FINAL SIMPLIFIÉ : Projet · Date · Type · Catégorie/thème · Durée · Statut (plus de « test n°X/10 »). Détails via boutons.
-  const cap = finalCaption(facts, 'video', m, dv) + srcLine(ctx);
+  const cap = finalCaption(facts, 'video', m, dv, ctx && ctx.projNum) + srcLine(ctx);
   const nVid = C.visibles(facts).filter(x => x.type === 'video').length; // [PARTIE 2/3] prochaine partie = nb de vidéos + 1
   return {
     kind: 'video', caption: cap, rows: [
@@ -249,7 +253,7 @@ function pretView(facts, ctx) {
   const items = (ctx && ctx.pretFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.pretTotal != null) ? ctx.pretTotal : items.length;
-  let cap = '<b>📤 Prêt à poster</b>' + projNo(facts) + ' · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+  let cap = '<b>📤 Prêt à poster</b>' + projNo(facts, ctx && ctx.projNum) + ' · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>touche un numéro pour le publier</i>' : '\n<i>aucun média validé — touche « Garder » sur un résultat</i>');
   const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PRETITEM_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
@@ -262,7 +266,7 @@ function publiesView(facts, ctx) {
   const items = (ctx && ctx.publiesFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.publiesTotal != null) ? ctx.publiesTotal : items.length;
-  let cap = '<b>📤 Archives publiées</b>' + projNo(facts) + ' · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+  let cap = '<b>📤 Archives publiées</b>' + projNo(facts, ctx && ctx.projNum) + ' · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>tes médias publiés (retrouvables ici)</i>' : '\n<i>rien de publié pour l\'instant</i>');
   const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PUBITEM_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
@@ -271,14 +275,14 @@ function publiesView(facts, ctx) {
 }
 
 // ── ÉCRAN 4 — PUBLICATION ────────────────────────────────────────────────────
-function publicationView(facts) {
+function publicationView(facts, ctx) {
   const p = (facts && facts.publication) || {};
-  const cap = '<b>📤 Publication</b> · ' + nom(facts)
+  // [#2-plateforme — Etoile] PAS de plateforme dans le parcours : publier = marquer le statut (Prêt à poster / Publié), sans connecteur réseau.
+  const cap = '<b>📤 Publication</b> · ' + nom(facts) + projNo(facts, ctx && ctx.projNum)
     + '\n✏️ légende courte : ' + val(p.legende_courte)
     + '\n📄 légende longue : ' + val(p.legende_longue ? short(p.legende_longue, 60) : null)
     + '\n#️⃣ hashtags : ' + val(p.hashtags)
-    + '\n🌐 plateforme : ' + val(p.plateforme)
-    + (p.publie_le ? ('\n✅ publié le ' + esc(p.publie_le)) : '');
+    + '\n📍 statut : ' + (p.publie_le ? ('✅ publié le ' + esc(p.publie_le)) : '🟡 prêt à poster (marquer le statut)');
   return {
     kind: C.hasVideo(facts) ? 'video' : (C.hasImage(facts) ? 'photo' : 'text'), caption: cap, rows: [
       [{ text: '◀ Retour', cb: 'R0_VI_RESULT' }, { text: '✏️ Légende', cb: 'R0_PUB_EDIT' }],
@@ -327,8 +331,8 @@ function recentsView(facts, ctx) {
     + '📂 ' + all.length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
     + (r.legacy ? ('\n🗄 ' + r.legacy + ' hérité(s)') : '') + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
-  // NUMÉRO AFFICHÉ + index cb = ABSOLUS (base de page + j) -> ouverture correcte ; retrait = Archiver (soft).
-  const rows = gridRows(top, (p, j) => ({ text: (pg.base + j + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 18), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
+  // [RG-7] chaque vignette projet affiche son NUMÉRO de projet (n°N, rang de création via ctx -> p._num) + le titre. cb index = position absolue (ouverture correcte).
+  const rows = gridRows(top, (p, j) => ({ text: '📦 n°' + (p._num != null ? p._num : (pg.base + j + 1)) + ' · ' + short((p.intention && p.intention.message) || 'Projet', 14), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_REPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_REPREV' }, { text: 'Suivant ▶', cb: 'R0_RENEXT' }]);
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]); // [#4] 2/ligne
   rows.push([{ text: '🗂 Fichiers', cb: 'R0_RES' }]); // [HUB] accès assets du projet ouvert
@@ -447,7 +451,9 @@ function galleryView(facts, ctx) {
   const total = (ctx && ctx.galleryTotal != null) ? ctx.galleryTotal : items.length;
   const ic = kindWanted === 'video' ? '🎬 ' : '🖼 ';
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
-  let cap = '<b>' + titre + '</b> · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)')
+  // [RG-7] la galerie « du projet » affiche le n° de projet ; la galerie globale (historique) ne dépend pas d'un projet -> pas de n°.
+  const scopeNo = (ctx && ctx.galleryScope === 'global') ? '' : projNo(facts, ctx && ctx.projNum);
+  let cap = '<b>' + titre + '</b>' + scopeNo + ' · ' + total + (kindWanted === 'video' ? ' vidéo(s)' : ' photo(s)')
     + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? (isHist ? '\n<i>journal en lecture — touche un numéro pour le revoir</i>' : '\n<i>touche un numéro pour l\'utiliser</i>') : '\n<i>rien ici — génère ou importe</i>');
   const back = kindWanted === 'video' ? 'R0_VIDEO' : 'R0_PHOTO';
@@ -488,7 +494,7 @@ function resourcesView(facts, ctx) {
   const dp = (facts && facts.draft && facts.draft.photo) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
   const p = (facts && facts.publication) || {};
-  const cap = '<b>🗂 Fichiers du projet</b> · ' + esc(nom(facts)) + projNo(facts) + srcLine(ctx) // [LOT1 vocab] « Fichiers » ; [P3] n° projet
+  const cap = '<b>🗂 Fichiers du projet</b> · ' + esc(nom(facts)) + projNo(facts, ctx && ctx.projNum) + srcLine(ctx) // [LOT1 vocab] « Fichiers » ; [P3] n° projet
     + '\n🖼 Photos : ' + imgs.length + '   🎬 Vidéos : ' + vids.length
     + '\n📝 Prompt : ' + val(dp.prompt ? short(dp.prompt, 40) : null)
     + '\n👗 Tenue : ' + val(cleanLabel(dp.look)) + '   🏛 Décor : ' + val(dp.decor)

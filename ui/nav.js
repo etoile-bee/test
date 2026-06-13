@@ -128,15 +128,14 @@ function blockSpec(block, facts, ctx) {
       ],
     };
   }
-  // PUBLICATION : édition légendes/plateforme
+  // PUBLICATION : édition des LÉGENDES uniquement. [#2-plateforme — Etoile] PUCES PLATEFORME RETIRÉES du parcours (pas de connecteur réseau ;
+  //   publier = marquer le statut Prêt à poster / Publié). On ne propose donc QUE l'édition courte/longue/hashtags (manuelle ou IA).
   if (block.screen === 'pub') {
     const p = (facts && facts.publication) || {};
-    const plat = SC.PRESETS.pub_plateforme.map((v, i) => ({ text: (p.plateforme === v ? '🔵 ' : '') + v, cb: 'R0_SET_pubplat_' + i }));
     return {
-      title: '📤 Légendes & plateforme', current: p.legende_courte, parentKind: pk, back: back,
-      // saisie manuelle OU génération IA (gatée) pour chaque champ texte ; puces plateforme.
+      title: '📤 Légendes', current: p.legende_courte, parentKind: pk, back: back,
       options: [{ text: '✍️ Courte', cb: 'R0_ASK_pub_courte' }, { text: '✍️ Longue', cb: 'R0_ASK_pub_longue' }, { text: '#️⃣ Hashtags', cb: 'R0_ASK_pub_hashtags' },
-        { text: '✨ Courte (IA)', cb: 'R0_GENTXT_pub_courte' }, { text: '✨ Longue (IA)', cb: 'R0_GENTXT_pub_longue' }, { text: '✨ #tags (IA)', cb: 'R0_GENTXT_pub_hashtags' }].concat(plat),
+        { text: '✨ Courte (IA)', cb: 'R0_GENTXT_pub_courte' }, { text: '✨ Longue (IA)', cb: 'R0_GENTXT_pub_longue' }, { text: '✨ #tags (IA)', cb: 'R0_GENTXT_pub_hashtags' }],
     };
   }
 
@@ -274,7 +273,7 @@ function _view(state, facts, ctx) {
     case 'video': return SC.videoView(facts, ctx);
     case 'video_params': return SC.videoParamsView(facts, ctx);
     case 'video_result': return SC.videoResultView(facts, ctx);
-    case 'publication': return SC.publicationView(facts);
+    case 'publication': return SC.publicationView(facts, ctx);
     case 'studio': return SC.studioView(facts, ctx);
     case 'studio_section': return SC.studioSectionView(facts, ctx);
     case 'recents': return SC.recentsView(facts, ctx);

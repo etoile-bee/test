@@ -396,7 +396,7 @@ async function main() {
   await bot.tap('R0_VIDEO'); await bot.tap('R0_VI_GENERATE'); await bot.tap('R0_GO2'); await bot.tap('R0_GO'); // video_result
   chk('AJOUT1 : écran final vidéo expose 🏷 Légendes (copie)', bot.state().screen === 'video_result' && bot.buttons().includes('R0_LEGENDS'));
   const _capV = bot.markup().caption || '';
-  chk('#11 : bandeau final vidéo = Projet/Date/Type/Statut terminé (plus de « test n°X/10 »)', /Projet #/.test(_capV) && /Statut : terminé/.test(_capV) && !/test n°/.test(_capV));
+  chk('#11 : bandeau final vidéo = Projet n° (RG-7)/Date/Type/Statut terminé (plus de « test n°X/10 »)', /Projet n°\d/.test(_capV) && /Statut : terminé/.test(_capV) && !/test n°\d|test réel/.test(_capV));
   bot.setPub({ legende_courte: 'Ma légende', legende_longue: 'Longue légende', hashtags: '#a #b' });
   const _a0 = bot.state().answered; await bot.tap('R0_LEGENDS');
   chk('AJOUT1 : 🏷 Légendes répond + reste sur l\'écran final (blocs copiables postés à part)', bot.state().answered > _a0 && bot.state().screen === 'video_result' && bot.state().cockpit === 1);

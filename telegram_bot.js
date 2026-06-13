@@ -2655,6 +2655,12 @@ function _r0esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/<
 function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,persona);
   if(!cur&&create){ cur=S.createProject(BASE,persona,{},Date.now()).facts; jlog('[v4r] projet cree '+cur.projectId); }
   return cur?S.loadFacts(BASE,persona,cur.projectId):null; }
+// [RG-7 NUMÉRO DE PROJET] numéro SÉQUENTIEL lisible (n°1, n°2, …) = rang du projet par ORDRE DE CRÉATION (cree_le croissant), STABLE.
+//   Déterministe, sans persistance (pas de bump de modifie_le). Renvoie un map { projectId -> n° } pour tous les projets du persona.
+function r0ProjNums(persona){ try{ const {S}=_r0(); const list=(S.listProjects(BASE,persona)||[]).slice()
+    .sort((a,b)=>String(a.cree_le||'').localeCompare(String(b.cree_le||'')) || String(a.projectId||'').localeCompare(String(b.projectId||'')));
+  const map={}; list.forEach((p,i)=>{ if(p&&p.projectId) map[p.projectId]=i+1; }); return map; }catch(e){ return {}; } }
+function r0ProjNum(persona, id){ if(!id) return null; const m=r0ProjNums(persona); return m[id]||null; }
 // [B] À la reprise : « projet courant » = le plus récent QUI A des médias (sa vraie dernière prod), pas un projet vide.
 //   On le « touche » pour qu'il redevienne le projet courant -> l'Accueil affiche sa couverture.
 function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BASE,persona)||[];
@@ -3044,6 +3050,9 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll, galleryRole:r0GalRole, verKeys:r0VerKeys, // [ANO-ARCH-VERSIONING] clés exposées à l'écran versions
   };
+  // [RG-7] numéro de projet (séquentiel, lisible) injecté pour TOUS les écrans + par item de la grille Récents.
+  try{ const _nums=r0ProjNums(persona); ctx.projNum=_nums[(r0Cur(persona,false)||{}).projectId]||null;
+    if(ctx.recents&&Array.isArray(ctx.recents.projets)) ctx.recents.projets.forEach(p=>{ if(p&&p.projectId) p._num=_nums[p.projectId]||null; }); }catch(e){}
   ctx.coverFile=r0CoverFile(r0Cur(persona,false)||{}); // [P2] image AFFICHÉE (couverture réelle) -> sert à ÉPINGLER la source vidéo = la photo vue
   ctx.sourceFile=r0SourceFile(r0Cur(persona,false)||{}); // [SOURCE UNIQUE] image source épinglée du projet, lue partout (photo+vidéo)
   try{ ctx.srcName=ctx.sourceFile?path.basename(ctx.sourceFile):null; }catch(e){ ctx.srcName=null; } // [LOT1 A3] « 📸 Source active : X » visible partout (X = basename(r0SourceFile))
@@ -3205,10 +3214,11 @@ async function r0PostFinal(kind, file, caption){
 // Légende d'un rendu persistant : nom du projet + nature + (réel/simulation). Reste affichée à vie dans le fil.
 function r0FinalCap(persona, kind, sim, extra){
   // [#11bis] keepsake PROPRE : NOM lisible (intention message OU « Projet #id »), JAMAIS C.titre() qui renvoie « (cap à poser) · 0 décision(s) ».
-  let nom=''; try{ const f=r0Cur(persona,false)||{}; const msg=(f.intention&&f.intention.message)?String(f.intention.message).trim():'';
-    if(msg){ nom=msg.length>48?msg.slice(0,48):msg; } else { const id=(f.projectId||'').replace(/^[^_]*_/,''); nom='Projet'+(id?(' #'+id):''); } }catch(e){}
+  let nom='', numTxt=''; try{ const f=r0Cur(persona,false)||{}; const msg=(f.intention&&f.intention.message)?String(f.intention.message).trim():'';
+    if(msg){ nom=msg.length>48?msg.slice(0,48):msg; } else { const id=(f.projectId||'').replace(/^[^_]*_/,''); nom='Projet'+(id?(' #'+id):''); }
+    const n=r0ProjNum(persona, f.projectId); if(n!=null) numTxt='📦 Projet n°'+n; }catch(e){} // [RG-7] n° de projet aussi sur le keepsake (message conservé dans le fil)
   const tete=(kind==='video'?'🎬 <b>Vidéo générée</b>':'✨ <b>Photo générée</b>');
-  return tete+(nom?(' · '+_r0esc(nom)):'')+(extra?(' · '+extra):'')+(sim?'\n🟡 <i>simulation — aucune dépense</i>':'\n<i>conservée dans le fil</i>');
+  return tete+(numTxt?(' · '+numTxt):'')+(nom?(' · '+_r0esc(nom)):'')+(extra?(' · '+extra):'')+(sim?'\n🟡 <i>simulation — aucune dépense</i>':'\n<i>conservée dans le fil</i>');
 }
 
 // [B3] /v4r typé : RESTAURE le contexte + poste un bloc FRAIS, en POST-PUIS-SUPPRIME (le bloc ne disparaît jamais).
@@ -3228,6 +3238,12 @@ async function r0TypedV4r(txt){
   r0Screen='home'; r0Mid=null; r0Type=null; r0MediaPath=null;
   await r0Render(persona,null,'⚠️ « '+_r0esc(txt)+' » non reconnue — touche un bouton.'); if(old&&old!==r0Mid){ try{ await delMsg(old); }catch(e){} }
 }
+// [#1-connexion — Etoile] CARTE DE CONNEXION : à CHAQUE connexion (/start) un message PERSISTANT « ✅ Connecté » + ▶️ Reprendre + 🏠 Accueil.
+//   Reste dans le chat (send, jamais edit -> ne disparaît pas). ▶️ Reprendre = écran/projet EXACT conservé (R0_RESUME) ; 🏠 Accueil = accueil en gardant l'état (R0_RESUME_HOME).
+function r0ConnectCardSpec(){ return { text:'✅ <b>Connecté</b> — ton écran et ton projet sont conservés.',
+  rows:[[{text:'▶️ Reprendre où j\'en étais',callback_data:'R0_RESUME'}],[{text:'🏠 Accueil',callback_data:'R0_RESUME_HOME'}]] }; }
+async function r0ConnectCard(persona){ try{ const c=r0ConnectCardSpec(); await send(c.text, c.rows); try{ jlog('[v4r] carte de connexion affichée (Reprendre/Accueil)'); }catch(_){}; return c;
+}catch(e){ try{ jlog('[v4r] connectCard err '+e.message); }catch(_){} return null; } }
 
 function r0ParentOfAsk(ask){ return ask.indexOf('ph_')===0?'photo_prompt':(ask.indexOf('vi_')===0?'video_params':'publication'); }
 // [A] CONSERVATION D'ÉTAT : persiste/restaure le contexte de navigation du projet courant (hint, hors Socle).
@@ -4672,7 +4688,8 @@ async function handle(upd){
   }
   if(txt==='/v4'){ v4active=true; try{ await cockpitV4().resume(); }catch(e){ jlog('v4 open err '+e.message); await send('⚠️ v4 indispo'); } return; } /*[cockpit-v4] entrée du nouveau cockpit (strangler-fig, test bascule)*/
   if(txt==='/accueil'||txt.startsWith('/v4r')){ try{ await r0TypedV4r(txt==='/accueil'?'/v4r':txt); }catch(e){ jlog('v4r err '+e.message); try{ await send('⚠️ cockpit indisponible.'); }catch(_){} } return; } // [Etoile] /accueil = entrée principale du nouveau cockpit ; /v4r = alias ; /menu legacy inchangé
-  if(txt==='/start'||txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = NOUVEAU bloc ACCUEIL ; quitte v4 si actif*/
+  if(txt==='/start'){ v4active=false; try{ await r0ConnectCard(_persona()); }catch(e){ jlog('connectCard err '+e.message); try{ await r0TypedV4r('/v4r'); }catch(_){} } return; } /*[#1-connexion] /start = carte « Connecté » (Reprendre/Accueil) à CHAQUE ouverture*/
+  if(txt==='/menu'){ v4active=false; await routeBlock('home');return;} /*[L0-1d-fix] /menu = bloc ACCUEIL legacy (inchangé)*/
   if(txt==='/studio'){await showStudio();return;} /*[C4] Studio = bibliothèque*/
   if(txt==='/creer'){await showCreer();return;} /*[C4] Créer*/
   if(txt==='/apercu'){await runPreview();return;} /*[C4] aperçu gratuit*/
@@ -4995,6 +5012,8 @@ if(R0DRY){
     ensureCaptions:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0EnsureCaptions(_persona(), f.projectId); }catch(e){ return null; } }, // [#2] dérive les légendes DEPUIS LE SCRIPT si vides (rétroactif, zéro dépense)
     deriveCaptions:(s)=>{ try{ return r0DeriveCaptions(s); }catch(e){ return null; } }, // [#2] dérivation déterministe courte/longue+tags
     budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } }, // [#1'] suivi crédits cumulés (informatif, SANS plafond) — exhausted toujours false
+    connectCard:()=>{ try{ return r0ConnectCardSpec(); }catch(e){ return null; } }, // [#1-connexion] carte « Connecté » (texte + Reprendre/Accueil)
+    projNum:(id)=>{ try{ return r0ProjNum(_persona(), id||(r0Cur(_persona(),false)||{}).projectId); }catch(e){ return null; } }, // [RG-7] n° séquentiel du projet
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)
