@@ -3344,9 +3344,14 @@ async function r0Dispatch(persona, d, editMid){
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }
   // [A — REPRISE DE CONTEXTE] ▶️ Reprendre : restaure l'écran/projet/pending EXACTS d'avant le redémarrage. 🏠 Accueil : repart propre.
+  // [#carte connexion — Etoile] La carte « ✅ Connecté » (editMid = message porteur du bouton cliqué) est un message PERSISTANT à part :
+  //   on ne la réutilise JAMAIS comme cockpit (sinon r0Render l'éditerait en cockpit et elle disparaîtrait). Le cockpit s'ouvre dans son
+  //   PROPRE bloc (r0Mid existant) ou un NOUVEAU message (r0Mid=null) -> on NE passe PAS editMid à r0Render, et on neutralise r0Mid s'il pointe la carte.
   if(d==='R0_RESUME'){ r0PickCurrent(persona); if(!r0RestoreNav(persona)){ r0Screen='home'; r0Section=null; r0Block=null; r0Pending=null; }
-    r0Mid=editMid; r0Type='text'; await r0Render(persona, editMid, r0Screen==='home'?null:'↩️ <i>Contexte restauré</i>'); return; }
-  if(d==='R0_RESUME_HOME'){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null; r0Mid=editMid; r0Type='text'; await r0Render(persona, editMid); return; }
+    if(r0Mid===editMid){ r0Mid=null; r0Type=null; r0MediaPath=null; }
+    await r0Render(persona, null, r0Screen==='home'?null:'↩️ <i>Contexte restauré</i>'); return; }
+  if(d==='R0_RESUME_HOME'){ r0Screen='home'; r0Section=null; r0Block=null; r0Ret=null; r0Pending=null; r0QuitFrom=null; r0SrcReturn=null;
+    if(r0Mid===editMid){ r0Mid=null; r0Type=null; r0MediaPath=null; } await r0Render(persona, null); return; }
   // [LAYOUT GRILLE] « Choisir » au milieu des flèches : guide (la sélection se fait en touchant un NUMÉRO). Commande exacte à figer avec Etoile.
   if(d==='R0_GCHOOSE'){ try{ await toast('👇 Touche le NUMÉRO de la photo voulue'); }catch(e){} return; }
   // [CORBEILLE] bascule mode retrait dans la galerie (récupérable).
@@ -5013,6 +5018,8 @@ if(R0DRY){
     deriveCaptions:(s)=>{ try{ return r0DeriveCaptions(s); }catch(e){ return null; } }, // [#2] dérivation déterministe courte/longue+tags
     budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } }, // [#1'] suivi crédits cumulés (informatif, SANS plafond) — exhausted toujours false
     connectCard:()=>{ try{ return r0ConnectCardSpec(); }catch(e){ return null; } }, // [#1-connexion] carte « Connecté » (texte + Reprendre/Accueil)
+    startCard:async()=>{ try{ const before=new Set([...R0DRY.alive]); await r0ConnectCard(_persona()); r0Mid=null; r0Type=null; return [...R0DRY.alive].find(x=>!before.has(x))||null; }catch(e){ return null; } }, // [#carte] envoie la carte connexion (comme /start) et renvoie son id ; r0Mid=null = la carte n'est PAS le cockpit
+    aliveHas:(id)=>{ try{ return R0DRY.alive.has(id); }catch(e){ return false; } }, // [test] le message <id> est-il toujours dans le fil ?
     projNum:(id)=>{ try{ return r0ProjNum(_persona(), id||(r0Cur(_persona(),false)||{}).projectId); }catch(e){ return null; } }, // [RG-7] n° séquentiel du projet
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
