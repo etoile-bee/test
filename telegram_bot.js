@@ -3066,7 +3066,9 @@ async function r0PostFinal(kind, file, caption){
 }
 // Légende d'un rendu persistant : nom du projet + nature + (réel/simulation). Reste affichée à vie dans le fil.
 function r0FinalCap(persona, kind, sim, extra){
-  let nom=''; try{ const {C}=_r0(); const f=r0Cur(persona,false); nom=(C.titre?C.titre(f):'')||(f&&f.nom)||''; }catch(e){}
+  // [#11bis] keepsake PROPRE : NOM lisible (intention message OU « Projet #id »), JAMAIS C.titre() qui renvoie « (cap à poser) · 0 décision(s) ».
+  let nom=''; try{ const f=r0Cur(persona,false)||{}; const msg=(f.intention&&f.intention.message)?String(f.intention.message).trim():'';
+    if(msg){ nom=msg.length>48?msg.slice(0,48):msg; } else { const id=(f.projectId||'').replace(/^[^_]*_/,''); nom='Projet'+(id?(' #'+id):''); } }catch(e){}
   const tete=(kind==='video'?'🎬 <b>Vidéo générée</b>':'✨ <b>Photo générée</b>');
   return tete+(nom?(' · '+_r0esc(nom)):'')+(extra?(' · '+extra):'')+(sim?'\n🟡 <i>simulation — aucune dépense</i>':'\n<i>conservée dans le fil</i>');
 }
@@ -4798,6 +4800,7 @@ if(R0DRY){
     resReturn:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona()); const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx); const all=[].concat.apply([], (vw.rows||[])); const b=all.find(x=>/Retour/.test(x&&x.text||'')); return b&&b.cb||null; }catch(e){ return null; } }, // [G2] cb du ◀ Retour courant (preuve retour contextuel)
     setPub:(patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setPublication(BASE,_persona(),f.projectId,patch,Date.now()); }catch(e){} }, // [G5] seed légendes/hashtags
     pub:()=>{ try{ return (r0Cur(_persona(),false)||{}).publication||{}; }catch(e){ return {}; } }, // [🔴P1] lecture publication (légendes auto)
+    finalCap:(kind,sim)=>{ try{ return r0FinalCap(_persona(), kind||'video', !!sim, null); }catch(e){ return ''; } }, // [#11bis] caption keepsake (doit être propre)
     storeCaptions:(caps)=>{ try{ const f=r0Cur(_persona(),true); return r0StoreCaptions(_persona(), f.projectId, caps); }catch(e){ return null; } }, // [🔴P1] stocke les légendes auto (réutilise le moteur script)
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ

@@ -30,6 +30,8 @@ function val(v, d) { return (v == null || v === '') ? (d || '<i>à définir</i>'
 // (P6) nombre de photos sources nécessaires selon la durée (déterministe) : 15s→1 · 30s→1 · 45s→2 · 60s→3.
 function nbPhotos(duree) { const s = parseInt(duree, 10) || 30; return s >= 60 ? 3 : (s >= 45 ? 2 : 1); }
 function nom(facts) { return (facts && facts.intention && facts.intention.message) ? short(facts.intention.message, 48) : C.situation(facts).nom; }
+// [🔴P3] NUMÉRO DE PROJET visible partout (Fichiers/Prêt/Publiés/Récents) — même forme courte que l'écran Résultat.
+function projNo(facts) { const id = (facts && facts.projectId) || ''; const s = id.replace(/^[^_]*_/, '') || id; return s ? (' · 📦 #' + esc(s)) : ''; }
 function capLigne(facts) { const i = (facts && facts.intention) || {}; return i.message ? ('🎯 ' + esc(short(i.message, 60))) : '🎯 <i>cap à définir</i>'; }
 const HOME = { text: '🏠 Accueil', cb: 'R0_HOME' };
 
@@ -243,7 +245,7 @@ function pretView(facts, ctx) {
   const items = (ctx && ctx.pretFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.pretTotal != null) ? ctx.pretTotal : items.length;
-  let cap = '<b>📤 Prêt à poster</b> · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+  let cap = '<b>📤 Prêt à poster</b>' + projNo(facts) + ' · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>touche un numéro pour le publier</i>' : '\n<i>aucun média validé — touche « Garder » sur un résultat</i>');
   const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PRETITEM_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
@@ -256,7 +258,7 @@ function publiesView(facts, ctx) {
   const items = (ctx && ctx.publiesFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.publiesTotal != null) ? ctx.publiesTotal : items.length;
-  let cap = '<b>📤 Archives publiées</b> · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+  let cap = '<b>📤 Archives publiées</b>' + projNo(facts) + ' · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
     + (items.length ? '\n<i>tes médias publiés (retrouvables ici)</i>' : '\n<i>rien de publié pour l\'instant</i>');
   const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PUBITEM_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
@@ -491,7 +493,7 @@ function resourcesView(facts, ctx) {
   const dp = (facts && facts.draft && facts.draft.photo) || {};
   const dv = (facts && facts.draft && facts.draft.video) || {};
   const p = (facts && facts.publication) || {};
-  const cap = '<b>🗂 Fichiers du projet</b> · ' + esc(nom(facts)) + srcLine(ctx) // [LOT1 vocab] « Fichiers » (jamais « Ressources »)
+  const cap = '<b>🗂 Fichiers du projet</b> · ' + esc(nom(facts)) + projNo(facts) + srcLine(ctx) // [LOT1 vocab] « Fichiers » ; [P3] n° projet
     + '\n🖼 Photos : ' + imgs.length + '   🎬 Vidéos : ' + vids.length
     + '\n📝 Prompt : ' + val(dp.prompt ? short(dp.prompt, 40) : null)
     + '\n👗 Tenue : ' + val(cleanLabel(dp.look)) + '   🏛 Décor : ' + val(dp.decor)
