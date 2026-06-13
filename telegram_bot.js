@@ -2556,6 +2556,7 @@ let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/réce
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
+let r0NextPart=null; /*[PARTIE 2/3] série multi-parties : {n, prev:[scripts], baseTopic} — script = SUITE cohérente, mêmes réglages, même projet.*/
 let r0BlockExpanded=false; /*[🔴5 #8] « 👁 Voir plus » : déroule le texte complet (script/prompt) DANS le bloc ; réinit à chaque navigation.*/
 let r0EditPreviewFile=null; /*[LOT 2 #7] aperçu retouche couleur (ffmpeg local) peint dans le bloc edition ; non destructif.*/
 // [VERROU GÉNÉRATION — Etoile] flag FICHIER posé au DÉBUT de toute génération réelle, levé à la FIN. Tant qu'il existe -> AUCUN deploy/restart autorisé.
@@ -2658,7 +2659,8 @@ function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,
 //   On le « touche » pour qu'il redevienne le projet courant -> l'Accueil affiche sa couverture.
 function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BASE,persona)||[];
   const withMedia=list.find(p=>(C.visibles(p)||[]).length>0); const pick=withMedia||list[0];
-  if(pick){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
+  if(pick){ try{ r0ReconcileProjectMedia(persona, pick.projectId); }catch(e){} // [🔴P2] récupère du disque les médias perdus AVANT de reprendre
+    try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
 // [G5 / D7] fusion légende+hashtags pour la COPIE (un geste = texte prêt à coller). Champ hashtags conservé séparément ailleurs.
@@ -2778,6 +2780,55 @@ function r0FindRaw(persona, id){ try{ const RAW=/raw.*\.mp4$/i; const shortid=St
   if(!hits.length) return null;
   const mine=hits.filter(h=>shortid && h.p.indexOf(shortid)>=0);                         // priorité : RAW de CE projet
   (mine.length?mine:hits).sort((a,b)=>b.m-a.m); return (mine.length?mine:hits)[0].p;
+}catch(e){ return null; } }
+// [🔴P2 — JAMAIS PERDRE UN MÉDIA] RÉCONCILIATION DISQUE↔FAITS : scanne le DOSSIER RÉEL du projet (projects_r/<persona>/<id>/
+//   + copie cloud podcast-looks/<id>/) et RÉ-INJECTE dans facts.medias tout final/photo présent sur le disque mais absent des faits
+//   (ex. faits écrasés par un état périmé). -> la dernière vidéo générée RESTE retrouvable après Accueil/reprise. Les _raw sont exclus (☁ RAW).
+//   Idempotent (dédup par basename), zéro réseau, zéro dépense. Renvoie le nb de médias récupérés.
+function r0ReconcileProjectMedia(persona, id){
+  try{ const {S}=_r0(); if(!id) return 0; const f=S.loadFacts(BASE,persona,id); if(!f) return 0;
+    const known=new Set(((f.medias||[]).map(m=>m&&m.file).filter(Boolean)).map(p=>path.basename(p)));
+    const dirs=[ path.join(BASE,'projects_r',persona,id) ];
+    try{ dirs.push(path.join(getLooksDir(), id)); }catch(e){ dirs.push(path.join(BASE,'looks', id)); }
+    const VID=/\.(mp4|mov|m4v|webm)$/i, IMG=/\.(jpe?g|png|webp)$/i;
+    const found=[];
+    for(const d of dirs){ try{ for(const x of fs.readdirSync(d)){ if(/_raw/i.test(x)||x.charAt(0)==='.') continue; // RAW exclu (récupérable via ☁ RAW)
+      const fp=path.join(d,x); try{ if(!fs.statSync(fp).isFile()) continue; }catch(e){ continue; }
+      if(VID.test(x)||IMG.test(x)) found.push(fp); } }catch(e){} }
+    let added=0; const ts=Date.now();
+    for(const fp of found){ const bn=path.basename(fp); if(known.has(bn)||!fs.existsSync(fp)) continue;
+      const isV=VID.test(fp);
+      try{ S.addCandidate(BASE,persona,id,ts,isV?'video':'image',{file:fp, simule:false, etat:'garde', source:'disque projet', recovered:true}); known.add(bn); added++; }catch(e){} }
+    // [🔴SCRIPT RÉEL] si les faits ont un script vide/simulé alors qu'un vrai script existe (sidecar/média), on le restaure dans le draft.
+    try{ const dv=S.getDraft(f,'video')||{}; const cur=String(dv.script||'').trim();
+      if(!cur || /simul/i.test(cur)){ const real=r0FindProjectScript(persona, id); if(real){ S.setDraft(BASE,persona,id,'video',{script:real},ts); try{ jlog('[v4r] 🔴 script réel restauré pour '+id); }catch(_){} } } }catch(e){}
+    if(added) try{ jlog('[v4r] 🔴P2 réconciliation disque projet '+id+' : +'+added+' média(s) récupéré(s) du dossier'); }catch(_){}
+    return added;
+  }catch(e){ try{ jlog('[v4r] reconcile err '+e.message); }catch(_){} return 0; }
+}
+// [🔴SCRIPT RÉEL] récupère le VRAI script généré du projet : sidecar .txt (« SCRIPT:\n… ») le plus récent, sinon script d'un média. JAMAIS le stub simulé.
+function r0FindProjectScript(persona, id){ try{ const {S,C}=_r0(); const dir=path.join(BASE,'projects_r',persona,id); const cand=[];
+  try{ for(const x of fs.readdirSync(dir)){ if(!/\.txt$/i.test(x)) continue; const fp=path.join(dir,x);
+    try{ const st=fs.statSync(fp); const txt=fs.readFileSync(fp,'utf8'); const m=txt.match(/SCRIPT:\s*([\s\S]*?)(\n\nSHORT:|\n\nLONG:|\n\nHASHTAGS:|$)/i);
+      const s=m&&m[1]?m[1].trim():''; if(s.length>10 && !/simul/i.test(s)) cand.push({s:s,m:st.mtimeMs}); }catch(e){} } }catch(e){}
+  cand.sort((a,b)=>b.m-a.m); if(cand[0]) return cand[0].s;
+  // repli : script d'un média réel (non simulé)
+  try{ const f=S.loadFacts(BASE,persona,id); const vids=((f&&f.medias)||[]).filter(mm=>mm&&mm.script&&!/simul/i.test(String(mm.script))); if(vids.length){ const sc=String(vids[vids.length-1].script).trim(); if(sc.length>10) return sc; } }catch(e){}
+  return null;
+}catch(e){ return null; } }
+// [PARTIE 2/3] scripts de la SÉRIE (ordre chronologique) du projet : sidecars .txt « SCRIPT: » + scripts de médias réels. Pour partPrompt (continuité).
+function r0SeriesScripts(persona, id){ try{ const dir=path.join(BASE,'projects_r',persona,id); const out=[];
+  try{ const files=fs.readdirSync(dir).filter(x=>/\.txt$/i.test(x)).sort(); // tri = chronologique (préfixe horodaté)
+    for(const x of files){ try{ const txt=fs.readFileSync(path.join(dir,x),'utf8'); const m=txt.match(/SCRIPT:\s*([\s\S]*?)(\n\nSHORT:|\n\nLONG:|\n\nHASHTAGS:|$)/i); const s=m&&m[1]?m[1].trim():''; if(s.length>10 && !/simul/i.test(s)) out.push(s); }catch(e){} } }catch(e){}
+  if(out.length) return out;
+  try{ const {S}=_r0(); const f=S.loadFacts(BASE,persona,id); ((f&&f.medias)||[]).forEach(mm=>{ if(mm&&mm.script&&!/simul/i.test(String(mm.script))){ const s=String(mm.script).trim(); if(s.length>10) out.push(s); } }); }catch(e){}
+  return out;
+}catch(e){ return []; } }
+// [🔴P2] DERNIÈRE VIDÉO du projet présente sur le DISQUE (final, hors _raw) — pour ré-afficher / récupérer même si les faits l'ont perdue.
+function r0ProjectLastVideo(persona, id){ try{ const dirs=[ path.join(BASE,'projects_r',persona,id) ]; try{ dirs.push(path.join(getLooksDir(), id)); }catch(e){}
+  const VID=/\.(mp4|mov|m4v|webm)$/i; const hits=[];
+  for(const d of dirs){ try{ for(const x of fs.readdirSync(d)){ if(/_raw/i.test(x)||x.charAt(0)==='.'||!VID.test(x)) continue; const fp=path.join(d,x); try{ const st=fs.statSync(fp); if(st.isFile()&&st.size>0) hits.push({p:fp,m:st.mtimeMs}); }catch(e){} } }catch(e){} }
+  hits.sort((a,b)=>b.m-a.m); return hits[0]?hits[0].p:null;
 }catch(e){ return null; } }
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // [ARCHIVE] Écrit l'ARCHIVE DE RÉFÉRENCE d'un projet dans podcast-looks/projets/<persona>/<id>/ (copie physique + manifeste).
@@ -3264,7 +3315,9 @@ async function r0Dispatch(persona, d, editMid){
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
     return; }
   // [RETOUR CONTEXTUEL — résources/Fichiers] [G2] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat/Publication), pas un défaut fixe. Couvre studio_section, pret, publies.
-  if(d==='R0_RES'){ r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
+  if(d==='R0_VI_RESULT'||d==='R0_PHOTO_RESULT'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} } // [🔴P2] Résultat = ré-affiche la dernière vidéo retrouvée du disque
+  if(d==='R0_RES'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [🔴P2] Fichiers = SCAN du dossier projet -> aucune vidéo perdue
+    r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
   // [🔴5 #8] VOIR PLUS / RÉDUIRE : déroule/replie le texte complet (script/prompt) DANS le bloc, sans quitter l'écran.
@@ -3293,7 +3346,24 @@ async function r0Dispatch(persona, d, editMid){
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
   // [BUG APERÇU SINGLE-BLOC] 👁 Aperçu sous-titres : on NE poste PLUS de nouveau message (sendVideoKb=2e bloc). Le clip est peint
   //   EN PLACE dans le cockpit par le peintre (_isSubPanel -> r0SubClip -> editMessageMedia). On re-rend simplement le bloc.
-  if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu sous-titres mis à jour'); }catch(e){} await r0Render(persona, editMid); return; }
+  // [PARTIE 2/3] série multi-parties : MÊME thème/réglages (look/décor/voix/sous-titres/durée), SEUL le script change = SUITE cohérente (legacy partPrompt).
+  //   Reste dans le MÊME projet. Passe par le gate de dépense normal (confirm -> confirm2 -> Oui).
+  if(d==='R0_VI_PART'){ const cur2=r0Cur(persona,true); const dv=S.getDraft(cur2,'video')||{};
+    const series=r0SeriesScripts(persona, cur2.projectId);
+    const baseTopic=(dv.theme_seed||dv.theme||(cur2.intention&&cur2.intention.message)||(dv.script&&String(dv.script))||'Podcast');
+    r0NextPart={ n: series.length+1, prev: series, baseTopic: String(baseTopic) };
+    r0Pending={ kind:'video', mediaKind:'video', regen:false, part:r0NextPart.n };
+    r0Screen='confirm'; r0Section=null; r0Block=null;
+    await r0Render(persona, editMid, '➕ <b>Partie '+r0NextPart.n+'</b> — même thème & réglages ; le script sera une SUITE cohérente de la/les partie(s) précédente(s). Confirme pour générer.'); return; }
+  // [BUG APERÇU MUET] 👁 Aperçu : (1) produit le clip sous-titré, (2) le peint EN PLACE avec un BANNEAU (caption change -> jamais « not modified » muet),
+  //   (3) si le clip est impossible (source projet pas prête), MESSAGE CLAIR — jamais de silence.
+  if(d==='R0_STPREV'){
+    let clip=null; try{ clip=await r0SubClip(persona); }catch(e){}
+    if(clip){ await r0Render(persona, editMid, '👁 <b>Aperçu sous-titres</b> — police · taille · hauteur appliquées (rendu final identique).'); }
+    else { let png=null; try{ png=await r0SubSample(persona); }catch(e){}
+      if(png){ await r0Render(persona, editMid, '👁 <b>Aperçu sous-titres</b> (image)'); }
+      else { try{ await toast('Aperçu indisponible : la photo source du projet n\'est pas encore téléchargée — réessaie dans quelques secondes (aucune dépense).'); }catch(e){} await r0Render(persona, editMid); } }
+    return; }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
   if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image'){
@@ -3521,7 +3591,10 @@ async function r0RealVideo(persona, id, onStep){
   //   priorité : script RÉEL écrit par Etoile > thème legacy choisi (seed EN) > source > nom.
   const _isSim=s=>/simulé|généré — simul|\(simulé/i.test(String(s||''));
   const userScript=(draft.script&&String(draft.script).trim()&&!_isSim(draft.script))?String(draft.script).trim():null;
-  const topic=userScript || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
+  let topic=userScript || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
+  // [PARTIE 2/3] continuation : le topic devient le prompt de SUITE (legacy partPrompt) référençant les scripts précédents. Consommé une fois.
+  const _part=r0NextPart; r0NextPart=null;
+  if(_part && _part.n>1){ try{ topic=WF.partPrompt(_part.baseTopic||topic, _part.n, _part.n, _part.prev||[]); }catch(e){} }
   let finalP=null, err=null; const raws=[]; // [☁ RÉORG CLOUD] RAW Kling collectés -> archivés avec le média (scope fonction : utilisé après le try)
   try{
     if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');
@@ -3540,7 +3613,8 @@ async function r0RealVideo(persona, id, onStep){
         STEP('📝 Étape 2/5 — Écriture du script'+pp+'…');
         const c=await WF.generateScript(i===1?topic:WF.partPrompt(topic,i,parts,prevScripts), words); // script Anthropic
         // [🔴P1] LÉGENDES AUTO : le MÊME appel renvoie caption_short/long/hashtags -> stockées AVEC le projet (part 1), zéro dépense en plus.
-        if(i===1){ try{ r0StoreCaptions(persona, id, { short:c.caption_short||c.caption, long:c.caption_long, hashtags:c.hashtags }); }catch(_){} }
+        if(i===1){ try{ r0StoreCaptions(persona, id, { short:c.caption_short||c.caption, long:c.caption_long, hashtags:c.hashtags }); }catch(_){}
+          try{ if(c.script&&String(c.script).trim()) S.setDraft(BASE,persona,id,'video',{script:String(c.script).trim()},ts); }catch(_){} } // [🔴SCRIPT RÉEL] le script généré devient le script du projet (visible dans le panneau)
         prevScripts.push(c.script);
         STEP('🎙 Étape 3/5 — Génération de la voix'+pp+'…');
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
@@ -4838,6 +4912,11 @@ if(R0DRY){
     findRaw:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0FindRaw(_persona(), f.projectId); }catch(e){ return null; } }, // [☁] RAW retrouvé (test)
     BASE:()=>BASE,
     seedDraft:(kind,patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setDraft(BASE,_persona(),f.projectId,kind,patch,Date.now()); }catch(e){} }, // [test] seed script/prompt/st_*
+    reconcile:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0ReconcileProjectMedia(_persona(), f.projectId); }catch(e){ return 0; } }, // [🔴P2] réconcilie facts<-disque projet
+    projDir:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return path.join(BASE,'projects_r',_persona(),f.projectId); }catch(e){ return null; } }, // [test] dossier disque du projet courant
+    curId:()=>{ try{ return (r0Cur(_persona(),false)||{}).projectId; }catch(e){ return null; } },
+    nextPart:()=>r0NextPart, // [PARTIE 2/3] état de série armé
+    seriesScripts:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0SeriesScripts(_persona(), f.projectId); }catch(e){ return []; } },
     realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)

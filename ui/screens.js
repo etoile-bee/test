@@ -230,9 +230,11 @@ function videoResultView(facts, ctx) {
   const dv = (facts && facts.draft && facts.draft.video) || {};
   // [#11] BANDEAU FINAL SIMPLIFIÉ : Projet · Date · Type · Catégorie/thème · Durée · Statut (plus de « test n°X/10 »). Détails via boutons.
   const cap = finalCaption(facts, 'video', m, dv) + srcLine(ctx);
+  const nVid = C.visibles(facts).filter(x => x.type === 'video').length; // [PARTIE 2/3] prochaine partie = nb de vidéos + 1
   return {
     kind: 'video', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
+      [{ text: '➕ Partie ' + (nVid + 1) + ' (suite)', cb: 'R0_VI_PART' }], // [PARTIE 2/3] série cohérente : mêmes réglages, script = suite
       [{ text: '🏷 Légendes', cb: 'R0_LEGENDS' }, { text: '🗂 Fichiers projet', cb: 'R0_RES' }], // [AJOUT 1] 🏷 = blocs copiables prêts à coller (édition légendes via Fichiers)
       [{ text: '📤 Prêt à poster', cb: 'R0_READY' }, { text: '📤 Publier', cb: 'R0_PUB' }],
       [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '◀ Retour', cb: 'R0_VIDEO' }],
