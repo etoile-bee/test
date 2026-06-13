@@ -2742,6 +2742,43 @@ function r0CloudCopy(file, projId){ try{ file=r0FilePath(file); if(!file || (typ
   const dir=path.join(lookRoot, projId||'v4r'); fs.mkdirSync(dir,{recursive:true});
   const dest=path.join(dir, path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
   jlog('[v4r] rendu déposé dans podcast-looks/'+(projId||'v4r')+': '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
+// [☁ RÉORG CLOUD — Etoile] « 1 dossier par jour ; 1 média finalisé = 1 dossier avec TOUS ses fichiers (RAW inclus) ».
+//   Cible : outputs/AAAA-MM-JJ/<#proj>_<titre-slug>/ { final.mp4, raw.mp4(+pN), script.txt, legende_courte/longue.txt, prompt.txt, soustitres.txt, cover.jpg }
+//   NON gardé par R0DRY -> en test (BASE=sandbox) on écrit dans le sandbox/outputs (jamais le vrai cloud). En LIVE, BASE/outputs = iCloud.
+function _r0Slug(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'media'; }
+function r0OutputArchive(persona, id, finalFile, raws, ts){
+  try{ const {S}=_r0(); const f=S.loadFacts(BASE,persona,id)||{}; const dp=S.getDraft(f,'photo')||{}, dv=S.getDraft(f,'video')||{}, pub=f.publication||{};
+    const day=new Date(ts||Date.now()).toISOString().slice(0,10);                       // AAAA-MM-JJ
+    const shortid=String(id||'').replace(/^[^_]*_/,'')||String(id||'v4r');
+    const titre=(f.intention&&f.intention.message)||dv.theme||'media';
+    const dir=path.join(BASE,'outputs',day, shortid+'_'+_r0Slug(titre));
+    fs.mkdirSync(dir,{recursive:true});
+    const cpf=(src,dest)=>{ try{ const s=r0FilePath(src); if(s&&fs.existsSync(s)) fs.copyFileSync(s, path.join(dir,dest)); }catch(e){} };
+    cpf(finalFile,'final.mp4');                                                          // vidéo finale sous-titrée
+    const rs=(raws||[]).filter(Boolean);
+    rs.forEach((r,i)=> cpf(r, rs.length>1?('raw_p'+(i+1)+'.mp4'):'raw.mp4'));            // RAW Kling — TOUJOURS inclus
+    const W=(name,txt)=>{ try{ if(txt!=null&&String(txt).trim()) fs.writeFileSync(path.join(dir,name), String(txt)); }catch(e){} };
+    W('script.txt', dv.script);
+    W('legende_courte.txt', r0FuseTags(pub.legende_courte, pub.hashtags));               // légende + hashtags
+    W('legende_longue.txt', r0FuseTags(pub.legende_longue, pub.hashtags));
+    W('prompt.txt', dp.prompt);
+    W('soustitres.txt', 'auto · police '+(dv.st_font||'archivo')+' · taille '+(dv.st_size||'M')+' · hauteur '+((dv.st_oy!=null)?dv.st_oy:0.370));
+    cpf(r0RealSource(f),'cover.jpg');                                                     // couverture = source active
+    try{ jlog('[v4r] ☁ sortie archivée -> '+dir); }catch(_){}
+    return dir;
+  }catch(e){ try{ jlog('[v4r] outputArchive err '+e.message); }catch(_){} return null; }
+}
+// [☁ RAW] retrouve le RAW Kling du projet : nouveau schéma (outputs/JJ/<#proj>_*/raw*.mp4) + ancien (à plat *_raw_*.mp4) + projects_r.
+//   On collecte tous les RAW, on PRIORISE ceux dont le chemin contient le n° de projet, sinon le plus récent.
+function r0FindRaw(persona, id){ try{ const RAW=/raw.*\.mp4$/i; const shortid=String(id||'').replace(/^[^_]*_/,''); const hits=[];
+  const add=p=>{ if(!RAW.test(path.basename(p))) return; try{ const st=fs.statSync(p); if(st.size>0) hits.push({p:p,m:st.mtimeMs}); }catch(e){} };
+  r0Walk(path.join(BASE,'projects_r',persona,id), RAW, add);                             // raws du projet (cockpit)
+  let od; try{ od=fs.realpathSync(path.join(BASE,'outputs')); }catch(e){ od=path.join(BASE,'outputs'); }
+  r0Walk(od, RAW, add);                                                                  // outputs (nouveau dossier/jour + ancien à plat)
+  if(!hits.length) return null;
+  const mine=hits.filter(h=>shortid && h.p.indexOf(shortid)>=0);                         // priorité : RAW de CE projet
+  (mine.length?mine:hits).sort((a,b)=>b.m-a.m); return (mine.length?mine:hits)[0].p;
+}catch(e){ return null; } }
 const _execFileP=require('util').promisify(require('child_process').execFile); // [B4] exec ASYNC : ne BLOQUE PAS la boucle d'événements
 // [ARCHIVE] Écrit l'ARCHIVE DE RÉFÉRENCE d'un projet dans podcast-looks/projets/<persona>/<id>/ (copie physique + manifeste).
 //   MÊME mécanisme pour le rétroactif ET le futur. Lecture seule de la base ; écriture UNIQUEMENT dans podcast-looks. Jamais en dry-run.
@@ -3165,6 +3202,11 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_GETAUDIO'){ const a=r0FindAudio(persona);
     if(a){ try{ await r0SendDoc(a,'🎙 <i>Voix/Audio (ElevenLabs)</i>'); }catch(e){ try{ await send('🎙 Audio : '+_r0esc(path.basename(a))); }catch(_){} } } else { try{ await toast('Aucun audio trouvé pour cette version'); }catch(e){} }
     await r0Render(persona, editMid); return; }
+  // [☁ RAW] récupère le RAW Kling du projet (nouveau schéma outputs/JJ/<#proj>/raw.mp4 ou ancien à plat) — « recevoir le RAW » trivial.
+  if(d==='R0_GETRAW'){ const cur2=r0Cur(persona,false)||{}; const raw=r0FindRaw(persona, cur2.projectId);
+    if(raw&&fs.existsSync(raw)){ try{ await sendVideoKb(raw,'☁ <i>RAW Kling (sans sous-titres) — export brut</i>',null); }catch(e){ try{ await r0SendDoc(raw,'☁ RAW Kling'); }catch(_){ try{ await send('☁ RAW : '+_r0esc(path.basename(raw))); }catch(__){} } } }
+    else { try{ await toast('Aucun RAW trouvé pour ce projet (généré seulement avec la vidéo réelle)'); }catch(e){} }
+    await r0Render(persona, editMid); return; }
   // [#17] CHARGER UN MODÈLE pré-enregistré (script/prompt) dans le brouillon — besoin du disque -> hors reducer pur. Aperçu = re-render.
   if(d.indexOf('R0_LOADP_')===0 && r0Block){ const idx=+d.slice(9); const kind=r0Block.screen; const field=NAV.fieldAlias(r0Block);
     let text=null; try{ if(field==='script'){ const sc=(_r0Library().scripts||[]).slice(-12).reverse(); text=sc[idx]&&sc[idx].script; }
@@ -3480,7 +3522,7 @@ async function r0RealVideo(persona, id, onStep){
   const _isSim=s=>/simulé|généré — simul|\(simulé/i.test(String(s||''));
   const userScript=(draft.script&&String(draft.script).trim()&&!_isSim(draft.script))?String(draft.script).trim():null;
   const topic=userScript || (draft.theme_seed&&String(draft.theme_seed)) || (draft.source&&String(draft.source)) || (facts&&facts.nom) || 'Podcast';
-  let finalP=null, err=null;
+  let finalP=null, err=null; const raws=[]; // [☁ RÉORG CLOUD] RAW Kling collectés -> archivés avec le média (scope fonction : utilisé après le try)
   try{
     if(!srcPath || !fs.existsSync(srcPath)) throw new Error('aucune photo source validée — valide d\'abord une photo');
     // [ANO-SOURCE-PLACEHOLDER] matérialise la source iCloud (dataless) avant de la passer à Kling ; jamais d'avatar vide / bascule silencieuse.
@@ -3504,7 +3546,7 @@ async function r0RealVideo(persona, id, onStep){
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
         STEP('🎬 Étape 4/5 — Lipsync (Kling)'+pp+'… <i>2 à 5 min</i>');
         const lip=await WF.generateLipsync(imageUrl, audio.audioUrl, i);           // lipsync Kling
-        const rawi=await WF.saveLipsyncRaw(lip, i, tsStr, outDir);
+        const rawi=await WF.saveLipsyncRaw(lip, i, tsStr, outDir); raws.push(rawi); // [☁] RAW conservé pour l'archivage organisé
         STEP('✨ Étape 5/5 — Montage + sous-titres'+pp+'…');
         const vid=await WF.renderVideo(lip, audio.wordTimings, c.keywords, audio.duration, i, c.reactions, rawi, r0SubOpts(draft)); // sous-titres LOCAL (gratuit) — apparence PAR vidéo (draft.st_*)
         const p=await WF.saveOpen(vid, c, tsStr, i, outDir);
@@ -3522,6 +3564,7 @@ async function r0RealVideo(persona, id, onStep){
   }catch(e){ err=(e&&e.message)||String(e); finalP=null; }
   if(finalP){
     S.addCandidate(BASE,persona,id,ts,'video', Object.assign({}, draft, {file:finalP, simule:false, moteur:'kling+elevenlabs', script:(draft.script||topic)}));
+    try{ r0OutputArchive(persona, id, finalP, raws, ts); }catch(e){ try{ jlog('[v4r] ☁ archive sortie err '+e.message); }catch(_){} } // [☁ RÉORG CLOUD] 1 dossier/jour · 1 média = 1 dossier (RAW inclus)
     const cr=(est&&est.credits!=null)?est.credits:26; // coût réel estimé (cr) — 1 test réel consommé
     const b=BUD.record(BASE, cr);
     jlog('[v4r] TEST RÉEL VIDÉO n°'+b.tests+'/'+b.max+' — vidéo déposée '+finalP);
@@ -4791,6 +4834,10 @@ if(R0DRY){
     srcFile:()=>{ try{ return r0SourceFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [LOT 2] SOURCE ACTIVE épinglée (invariant) — preuve hash sha1 stable
     galFiles:()=>{ try{ return (r0Ctx(_persona()).galleryFiles)||[]; }catch(e){ return []; } }, // [🔴P2] fichiers RÉELS de la galerie courante (preuve photo choisie == fichier #k)
     realSrc:()=>{ try{ return r0RealSource(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [BUG APERÇU SOURCE] source ACTIVE utilisée par l'aperçu sous-titres/clip
+    outputArchive:(finalFile,raws,ts)=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0OutputArchive(_persona(), f.projectId, finalFile, raws||[], ts); }catch(e){ return null; } }, // [☁] archivage organisé (test)
+    findRaw:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0FindRaw(_persona(), f.projectId); }catch(e){ return null; } }, // [☁] RAW retrouvé (test)
+    BASE:()=>BASE,
+    seedDraft:(kind,patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setDraft(BASE,_persona(),f.projectId,kind,patch,Date.now()); }catch(e){} }, // [test] seed script/prompt/st_*
     realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)

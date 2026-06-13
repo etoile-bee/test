@@ -505,7 +505,8 @@ function resourcesView(facts, ctx) {
   // [HUB ASSETS — Etoile] récupération UN PAR UN de TOUS les fichiers de la version : un bouton dédié par type.
   //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
   const rows = [
-    [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
+    [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '☁ RAW', cb: 'R0_GETRAW' }], // [☁] RAW Kling récupérable (export brut)
+    [{ text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
     [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '✏️ Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '📄 Lég. longue', cb: 'R0_FULLTEXT_legl' }, { text: '#️⃣ Hashtags', cb: 'R0_FULLTEXT_tags' }],
     [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
