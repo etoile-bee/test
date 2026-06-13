@@ -173,6 +173,17 @@ function blockSpec(block, facts, ctx) {
       hint: 'Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : '') };
   }
   // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
+  // [#D — Etoile] TENUE/DÉCOR : option explicite « Désactiver » (= image de base, la couche n'influence pas) ET « Activer ». Par défaut, sans valeur -> image de base.
+  if (block.key === 'look' || block.key === 'decor') {
+    const useFlag = block.key === 'look' ? 'use_look' : 'use_decor';
+    const on = d[useFlag] !== false; const val = d[fieldAlias(block)];
+    const cur = !on ? '🚫 Désactivé — image de base' : (val == null || val === '' ? '— (image de base tant que non choisi)' : val);
+    const toggle = on
+      ? { text: '🚫 Désactiver (image de base)', cb: 'R0_INFL_' + useFlag }
+      : { text: '✅ Activer ' + (block.key === 'look' ? 'la tenue' : 'le décor'), cb: 'R0_INFL_' + useFlag };
+    return { title: titleOf(block), current: cur, parentKind: pk, back: back,
+      options: optionsFor(block, ctx, d).concat([toggle, { text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
+  }
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
 }
 
@@ -359,7 +370,11 @@ function reduce(action, st0, facts, ctx) {
   if (d.indexOf('R0_SET_') === 0) {
     const rest = d.slice(7), us = rest.indexOf('_'), blk = rest.slice(0, us), token = rest.slice(us + 1);
     const r = resolveSet(blk, token, ctx);
-    const op = r ? (r.target === 'pub' ? { type: 'pub', patch: { [r.field]: r.value } } : { type: 'draft', kind: r.kind, patch: { [r.field]: r.value } }) : { type: 'none' };
+    // [#D] choisir une TENUE/DÉCOR RÉACTIVE la couche (use_look/use_decor=true) -> picker cohérent avec « Désactiver » (sinon un layer désactivé resterait ignoré malgré le choix).
+    const patch = r ? { [r.field]: r.value } : {};
+    if (r && r.target !== 'pub' && r.field === 'look') patch.use_look = true;
+    if (r && r.target !== 'pub' && r.field === 'decor') patch.use_decor = true;
+    const op = r ? (r.target === 'pub' ? { type: 'pub', patch: { [r.field]: r.value } } : { type: 'draft', kind: r.kind, patch: patch }) : { type: 'none' };
     // [SOUS-TITRES DÉFINITIF] le panneau d'apparence RESTE ouvert (réglages multiples enchaînés) ; ✅ Valider referme. Les autres blocs (choix unique) referment au choix.
     if (blk.indexOf('st') === 0) { return { st: Object.assign(st, { screen: 'block' }), op: op }; }
     return { st: Object.assign(st, { screen: parentOf(blk), block: null }), op: op };

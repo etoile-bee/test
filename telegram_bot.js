@@ -3508,7 +3508,7 @@ async function r0Dispatch(persona, d, editMid){
     r0Busy=true; r0GenLock(true,'photo'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
     r0Generating=true; r0GenStep='Seedream · ~30 s à 1 min'; // [🔴3/4 H13] confirm2 masque Oui/Annuler pendant la génération
     try{
-      await r0Render(persona, editMid, '⏳ <b>Génération en cours…</b> <i>(Seedream, ~30 s à 1 min — ne reclique pas)</i>'); // état EN COURS (sans Oui/Annuler)
+      await r0Render(persona, editMid); // [#A statut UNIQUE] état EN COURS rendu par confirm2View (ctx.generating + genStep) -> PAS de bannière en plus (sinon double statut)
       const out=await r0RealPhoto(persona, id); // appelle generateLook (avec timeout), dépose la photo RÉELLE, enregistre le test
       r0Generating=false; r0GenStep=''; // [🔴3/4] terminé : on rétablit les écrans normaux
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
@@ -3529,9 +3529,9 @@ async function r0Dispatch(persona, d, editMid){
     r0Busy=true; r0GenLock(true,'video'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
     r0Generating=true; r0GenStep='préparation…'; // [🔴3/4 H13] confirm2 masque Oui/Annuler pendant la génération
     try{
-      await r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b> <i>(ne reclique pas)</i>'); // état EN COURS (sans Oui/Annuler)
-      // [AVANCEMENT UN SEUL BLOC — Etoile/Legacy] chaque étape MET À JOUR le MÊME bloc (editMid), pas de flood de messages.
-      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0GenStep=String(msg||''); r0Render(persona, editMid, '⏳ <b>Vidéo en cours…</b>\n'+msg).catch(()=>{}); };
+      await r0Render(persona, editMid); // [#A statut UNIQUE] état EN COURS rendu par confirm2View (ctx.generating + genStep) -> PAS de bannière en plus (sinon double statut)
+      // [AVANCEMENT UN SEUL BLOC + STATUT UNIQUE] chaque étape MET À JOUR genStep ; confirm2View le ré-affiche (un seul « en cours », pas de flood, pas de double).
+      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0GenStep=String(msg||''); r0Render(persona, editMid).catch(()=>{}); };
       const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
       r0Generating=false; r0GenStep=''; // [🔴3/4] terminé : on rétablit les écrans normaux
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;

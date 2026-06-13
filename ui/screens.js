@@ -87,22 +87,29 @@ function homeView(facts, ctx) {
 
 // ── ÉCRAN 2 — PHOTO ──────────────────────────────────────────────────────────
 function photoView(facts, ctx) {
-  const has = C.hasImage(facts);
+  const hasImg = C.hasImage(facts);
+  const hasSrc = !!(ctx && ctx.srcName);          // [#G] une SOURCE ACTIVE compte comme « photo disponible »
+  const has = hasImg || hasSrc;
   const n = C.visibles(facts).filter(m => m.type !== 'video').length;
+  // [#G — Etoile] cohérence : si une source active existe, ne JAMAIS afficher « aucune photo ».
   const cap = '<b>📸 PHOTO · Choisir</b>'
-    + (has ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet') : '\n<i>aucune photo — à créer</i>')
-    + srcLine(ctx);
-  // [LOT 2 — PHOTO 2-ÉTAPES] Étape 1 = CHOISIR la source. « ✅ Valider la photo » l'ÉPINGLE (r0PinSource) et ouvre l'Étape 2 (Préparer).
-  //   Garder = source en l'état · Changer = galerie/import · 🛠 Modifier = boîte à outils #7 (retouche couleur, non destructif) · ✨ Générer = IA.
+    + (hasImg ? ('\n🖼 ' + n + (n > 1 ? ' photos disponibles' : ' photo disponible') + ' dans le projet')
+      : (hasSrc ? '\n🖼 Source active prête (image de base)' : '\n<i>aucune photo — à créer</i>'))
+    + srcLine(ctx)
+    // [#C — Etoile] DÉCOUVRABILITÉ : on rappelle où régler/désactiver tenue & décor (sinon génération = image de base).
+    + (has ? '\n<i>→ 🎨 Tenue & décor pour styliser, ou ✨ Générer = image de base (sans tenue/décor).</i>' : '');
+  // [LOT 2 — PHOTO 2-ÉTAPES] « ✅ Valider la photo » épingle la source et ouvre Préparer (tenue/décor/influences/aperçu).
+  //   [#C] « 🎨 Tenue & décor » = accès DIRECT à Préparer (découvrabilité). Garder/Changer/Modifier/Générer comme avant.
   const rows = (has
     ? [[{ text: '✅ Valider la photo', cb: 'R0_PH_VALID' }],
+       [{ text: '🎨 Tenue & décor', cb: 'R0_PH_VALID' }, { text: '✨ Générer', cb: 'R0_PH_GEN' }],
        [{ text: '✅ Garder', cb: 'R0_PH_KEEP' }, { text: '🔄 Changer', cb: 'R0_PH_GAL' }],
-       [{ text: '🛠 Modifier', cb: 'R0_PH_TOOLS' }, { text: '✨ Générer', cb: 'R0_PH_GEN' }]]
+       [{ text: '🛠 Modifier', cb: 'R0_PH_TOOLS' }]]
     : [[{ text: '✨ Générer', cb: 'R0_PH_GEN' }]]).concat([
       [{ text: '📥 Importer', cb: 'R0_PH_IMPORT' }, { text: '🕘 Historique', cb: 'R0_PH_HIST' }],
       [{ text: '◀ Retour', cb: 'R0_HOME' }],   // [R3] Retour -> Accueil (écran enfant direct ; pas de doublon)
     ]);
-  return { kind: has ? 'photo' : 'text', caption: cap, rows: rows };
+  return { kind: (hasImg ? 'photo' : 'text'), caption: cap, rows: rows };
 }
 
 // ── PHOTO / CHOISIR UNE AUTRE (sources : Galerie · Archives · Récents · Importer) — point 5 ──
@@ -377,8 +384,12 @@ function confirmView(facts, ctx) {
     cap += '\n🏛 Décor : ' + val(pr.decor);
     // [LOT 2] Référence RETIRÉE du résumé (désexposée du parcours photo ; code conservé/réactivable).
     // [AJOUT 2] résumé 1 ligne des couches d'influence (✓ = passée au moteur, ✗ = ignorée ; 🔒 = conservée). 5 bascules (réf masquée). Réglable via 🎛 Influences.
+    // [#H — Etoile] l'indicateur reflète la RÉALITÉ : une couche est ✓ seulement si elle a une VALEUR ET n'est pas désactivée. Sinon ✗ = image de base (aucun forçage).
     { const dp = (facts && facts.draft && facts.draft.photo) || {};
-      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (dp.use_look !== false ? '✓' : '✗') + ' Tenue · ' + (dp.use_decor !== false ? '✓' : '✗') + ' Décor'
+      const lookOn = (dp.use_look !== false) && !!(dp.look && String(dp.look).trim());
+      const decorOn = (dp.use_decor !== false) && !!(dp.decor && String(dp.decor).trim());
+      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (lookOn ? '✓' : '✗') + ' Tenue · ' + (decorOn ? '✓' : '✗') + ' Décor'
+        + ((!lookOn && !decorOn) ? ' · 🖼 image de base' : '')
         + (dp.lock_look === true ? ' · 🔒Tenue' : '') + (dp.lock_decor === true ? ' · 🔒Décor' : ''); }
   } else if (cf.mediaKind === 'video') {
     cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
