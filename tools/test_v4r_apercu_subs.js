@@ -39,25 +39,18 @@ chk('aperçu : AUCUN placeholder (« incrustés ici » / « aperçu de tes »)',
 const apE = bot.subChunks({});
 chk('aperçu : script vide -> EXEMPLE clairement marqué', apE.exemple === true && /EXEMPLE/i.test((apE.chunks[0] || {}).text || ''));
 
-// 4) POSITION cohérente : défaut == « haut » côté r0SubOpts (== panneau == final)
-const oyDef = bot.subOpts({}).oy, oyHaut = bot.subOpts({ st_pos: 'haut' }).oy, oyBas = bot.subOpts({ st_pos: 'bas' }).oy;
-chk('position : défaut r0SubOpts == « haut » (panneau affiche haut -> cohérent)', oyDef === oyHaut && oyDef !== oyBas);
+// 4) [P4] POSITION = LEGACY : défaut oy == 0.370 (lu depuis subtitle_style.js), pas de preset
+const oyDef = bot.subOpts({}).oy;
+chk('position : défaut r0SubOpts == LEGACY 0.370 (== panneau == final)', Math.abs((oyDef || 0) - 0.370) < 0.001);
+chk('position : Hauteur réglable (st_oy continu) — st_oy=0.50 -> 0.50', Math.abs((bot.subOpts({ st_oy: 0.50 }).oy || 0) - 0.50) < 0.001);
 
-// 5) Cohérence panneau<->moteur : le label position par défaut du panneau == « haut »
+// 5) [P4bis] PANNEAU = 3 réglages EXACTS (Police · Taille · Hauteur), legacy 0.370 affiché
 const NAV = require('../ui/nav');
-const spec = NAV.blockSpec({ screen: 'video', key: 'soustitres' }, { draft: { video: {} } }, { subStyle: { font: 'archivo', size: 'M', pos: 'haut', display: 'mot' } });
-chk('panneau : « Actuel » par défaut montre la position « haut » (== r0SubOpts)', /\bhaut\b/.test(spec.current || ''));
-
-// 6) ÉPURE : Position regroupée sur UNE seule ligne (4 crans) -> moins de lignes
-const posRows = (spec.optionRows || []).filter(r => r.some(b => /stpos_/.test(b.cb || '')));
-chk('panneau épuré : Position en 1 SEULE ligne (Validé/Bas/Milieu/Haut)', posRows.length === 1 && posRows[0].length === 4);
-const totalOpt = (spec.optionRows || []).reduce((n, r) => n + r.length, 0);
-chk('panneau épuré : boutons d\'option réduits (≤ 16)', totalOpt <= 16);
-
-// 7) Dimensions conservées (Disposition/Police/Taille/Position/Couleur toutes présentes)
+const spec = NAV.blockSpec({ screen: 'video', key: 'soustitres' }, { draft: { video: {} } }, { subStyle: { font: 'archivo', size: 'M', oy: 0.370 } });
+chk('panneau : « Actuel » affiche la hauteur legacy 0.37', /hauteur 0\.37/.test(spec.current || ''));
 const allcb = (spec.optionRows || []).flat().map(b => b.cb).join(' ');
-chk('panneau : 5 dimensions conservées (disp/font/size/pos/color)',
-  /stdisp_/.test(allcb) && /stfont_/.test(allcb) && /stsize_/.test(allcb) && /stpos_/.test(allcb) && /stcolor_/.test(allcb));
+chk('panneau [P4bis] : EXACTEMENT 3 réglages (Police/Taille/Hauteur)', (spec.optionRows || []).length === 3 && /stfont_/.test(allcb) && /stsize_/.test(allcb) && /R0_STOY_/.test(allcb));
+chk('panneau [P4bis] : disposition/position-presets/couleur RETIRÉES', !/stdisp_|stpos_|stcolor_/.test(allcb));
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
 process.exit(ko ? 1 : 0);

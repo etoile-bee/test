@@ -313,19 +313,20 @@ async function main() {
     chk('#4 mapping durée->parties : 30s=1 · 60s=2 · 90s=3', partsOf('30s') === 1 && partsOf('60s') === 2 && partsOf('90s') === 3);
   }
 
-  // ════ [SOUS-TITRES #1] POSITION : alignement bas CONSTANT, oy/marginV croissant = plus HAUT (fin de l'inversion) ════
+  // ════ [SOUS-TITRES #1 — P4bis] HAUTEUR continue (≈ Position y legacy) : alignement bas CONSTANT, st_oy/marginV croissant = plus HAUT ════
   {
-    const H = 1280; const mv = (pos) => { const o = bot.subOpts({ st_pos: pos }); return { oy: o.oy, align: o.alignment, marginV: Math.round((o.oy || 0) * H) }; };
-    const haut = mv('haut'), milieu = mv('milieu'), bas = mv('bas');
-    chk('#1 marginV : Haut > Milieu > Bas en hauteur (depuis le bas)', haut.marginV > milieu.marginV && milieu.marginV > bas.marginV);
-    chk('#1 alignement CONSTANT bas (=2) pour TOUTES les positions (plus d\'inversion ASS)', [haut, milieu, bas, mv('valide')].every(x => x.align === 2));
+    const H = 1280; const mv = (oy) => { const o = bot.subOpts({ st_oy: oy }); return { oy: o.oy, align: o.alignment, marginV: Math.round((o.oy || 0) * H) }; };
+    const haut = mv(0.60), milieu = mv(0.45), bas = mv(0.27);
+    chk('#1 marginV : st_oy plus grand = plus HAUT (0.60 > 0.45 > 0.27)', haut.marginV > milieu.marginV && milieu.marginV > bas.marginV);
+    chk('#1 alignement CONSTANT bas (=2) pour toutes les hauteurs', [haut, milieu, bas].every(x => x.align === 2));
+    chk('#1 Hauteur bornée (st_oy hors plage -> clampé dans [0.12, 0.88])', bot.subOpts({ st_oy: 5 }).oy <= 0.88 && bot.subOpts({ st_oy: -5 }).oy >= 0.12);
   }
-  // ════ [SOUS-TITRES #2] DÉFAUT = préréglage VERROUILLÉ Etoile (Archivo Black · 76 · OY 0.370 · alignement bas) ════
+  // ════ [SOUS-TITRES #2 — P4] DÉFAUT = LEGACY (Archivo Black · 76 · OY 0.370 lu depuis subtitle_style.js · alignement bas) ════
   {
     const def = bot.subOpts({});
-    chk('#2 défaut sous-titres = préréglage Etoile (Archivo Black · 76 · align 2) + position HAUT par défaut (oy 0.78)', def.font === 'Archivo Black' && def.fontSize === 76 && Math.abs((def.oy || 0) - 0.78) < 0.001 && def.alignment === 2);
+    chk('#2 défaut sous-titres = LEGACY (Archivo Black · 76 · align 2) + HAUTEUR par défaut = OY legacy 0.370', def.font === 'Archivo Black' && def.fontSize === 76 && Math.abs((def.oy || 0) - 0.370) < 0.001 && def.alignment === 2);
     chk('#2 taille « M » = 76 (validée, pas une approximation)', bot.subOpts({ st_size: 'M' }).fontSize === 76);
-    chk('#2 cran « ✅ Validé » = OY 0.370 toujours dispo (sweet spot Etoile)', Math.abs((bot.subOpts({ st_pos: 'valide' }).oy || 0) - 0.370) < 0.001);
+    chk('#2 Hauteur réglable : st_oy=0.50 -> oy=0.50 (continu, pas de preset)', Math.abs((bot.subOpts({ st_oy: 0.50 }).oy || 0) - 0.50) < 0.001);
   }
 
   // ════ [ANO-ARCH-VERSIONING] historique par champ : éditer écrase NON définitivement -> ⏪ restaure ; 🕘 parcourt ; persiste /restart ════
@@ -368,9 +369,10 @@ async function main() {
   chk('CTX-S/T : 🔤 ouvre le panneau Sous-titres (block soustitres)', bot.state().screen === 'block' && bot.state().block === 'soustitres');
   chk('CTX-S/T : le panneau peint LE MÊME subclip que l\'aperçu (source projet), PAS une démo', bot.media() === _apM && /subclip_/.test(bot.media() || '') && !/demo_video/.test(bot.media() || ''));
   const _stM = bot.markup();
-  chk('CTX-S/T : boutons GROUPÉS par dimension (Disposition 3 · Police 2 · Taille 3 · Position 4 · Couleur 3) [🔴2 épure : Position en 1 ligne]',
-    _stM.rows[0].length === 3 && _stM.rows[1].length === 2 && _stM.rows[2].length === 3 && _stM.rows[3].length === 4 && _stM.rows[4].length === 3);
-  chk('CTX-S/T : position « ✅ Validé » (sweet spot Etoile) exposée', bot.buttons().includes('R0_SET_stpos_valide'));
+  chk('CTX-S/T [P4bis] : 3 réglages EXACTS (Police 2 · Taille 3 · Hauteur 3)',
+    _stM.rows[0].length === 2 && _stM.rows[1].length === 3 && _stM.rows[2].length === 3);
+  chk('CTX-S/T [P4bis] : Hauteur (R0_STOY_up/dn) exposée ; disposition/position/couleur RETIRÉES',
+    bot.buttons().includes('R0_STOY_up') && bot.buttons().includes('R0_STOY_dn') && !bot.buttons().some(c => /stdisp_|stpos_|stcolor_/.test(c)));
   chk('CTX-S/T : reste DANS le contexte (◀ Retour -> aperçu vidéo R0_VI_PREVIEW, pas un écran orphelin)', bot.buttons().includes('R0_VI_PREVIEW'));
   await bot.tap('R0_BLOCK_OK'); chk('CTX-S/T : ✅ Valider revient à l\'aperçu vidéo (confirm), 1 cockpit', bot.state().screen === 'confirm' && bot.state().cockpit === 1);
   // [ANO-CTX-BLOCK-DEMO-GENERAL] AUCUN panneau d'édition vidéo-parent ne peint de démo : Script · Musique · Durée -> SOURCE projet, jamais demo_video.

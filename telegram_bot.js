@@ -2641,9 +2641,9 @@ const _R0_SCRIPT_CATS = [
 ];
 function _r0ScriptCats(){ return _R0_SCRIPT_CATS; }
 // [#27] SOUS-TITRES : valeurs PAR DÉFAUT du style legacy (lecture seule de subtitle_style — JAMAIS d'écriture, verrou intact).
-function _r0SubStyle(){ try{ delete require.cache[require.resolve('./subtitle_style')]; require('./subtitle_style');
-  // [#2] DÉFAUT affiché = préréglage VERROUILLÉ Etoile, en CLÉS cockpit : Archivo Black (archivo) · 76 (M) · OY 0.370 (valide) · majuscules (mot).
-  return { font:'archivo', size:'M', pos:'haut', display:'mot' }; }catch(e){ return { font:'archivo', size:'M', pos:'haut', display:'mot' }; } }
+function _r0SubStyle(){ try{ const SS=(function(){ delete require.cache[require.resolve('./subtitle_style')]; return require('./subtitle_style'); })();
+  // [P4] DÉFAUT affiché = préréglage LEGACY VERROUILLÉ (lecture seule) : Archivo Black · 76 (M) · HAUTEUR = OY legacy (0.370).
+  return { font:'archivo', size:'M', oy:(SS&&SS.OY!=null&&isFinite(+SS.OY)?+SS.OY:0.370) }; }catch(e){ return { font:'archivo', size:'M', oy:0.370 }; } }
 // Estimation du coût d'une génération en attente (pour l'écran de confirmation ET l'enregistrement d'un test réel).
 function r0EstFor(persona, pending){ const {COST,S}=_r0(); const f=r0Cur(persona,true); const lb=_r0Lookbook();
   if(pending.kind==='text') return { kind:'text', nb:1, moteur:'Anthropic (claude-sonnet-4-6)', credits:null, eur:0.01, gratuit:false }; // texte = Anthropic, payant
@@ -3249,11 +3249,9 @@ async function r0Dispatch(persona, d, editMid){
     else { try{ await toast('Retouche impossible'); }catch(e){} await r0Render(persona, editMid); }
     return; }
   // [SOUS-TITRES DÉFINITIF] 👁 Aperçu : incruste un échantillon dans LE style courant (même moteur que le rendu), reste sur le panneau.
-  if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu vidéo des sous-titres en préparation…'); }catch(e){}
-    const clip=await r0SubClip(persona); // [APERÇU SOUS-TITRES] CLIP échantillon (burn local ffmpeg = GRATUIT), apparence courante
-    if(clip){ try{ await sendVideoKb(clip, '👁 <i>Aperçu sous-titres (clip) — police · taille · position · couleur. Le rendu final utilisera EXACTEMENT ces réglages.</i>', null); }catch(e){ try{ const png=await r0SubSample(persona); if(png) await sendPhotoKb(png,'👁 <i>Aperçu sous-titres</i>',null); }catch(_){} } }
-    else { const png=await r0SubSample(persona); if(png){ try{ await sendPhotoKb(png, '👁 <i>Aperçu sous-titres</i>', null); }catch(e){} } else { try{ await toast('Aperçu indisponible (pas d\'image source du projet)'); }catch(e){} } }
-    await r0Render(persona, editMid); return; }
+  // [BUG APERÇU SINGLE-BLOC] 👁 Aperçu sous-titres : on NE poste PLUS de nouveau message (sendVideoKb=2e bloc). Le clip est peint
+  //   EN PLACE dans le cockpit par le peintre (_isSubPanel -> r0SubClip -> editMessageMedia). On re-rend simplement le bloc.
+  if(d==='R0_STPREV'){ try{ await toast('🎬 Aperçu sous-titres mis à jour'); }catch(e){} await r0Render(persona, editMid); return; }
   const res=NAV.reduce(d, {screen:r0Screen,section:r0Section,block:r0Block,ret:r0Ret,pending:r0Pending,quitFrom:r0QuitFrom,srcReturn:r0SrcReturn}, cur, ctx);
   // DRY-RUN : trace des paramètres qui PARTIRAIENT au moteur (prompt/look/décor du projet) — sim ET réel, AUCUN appel ici.
   if(d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='image'){
@@ -3377,21 +3375,20 @@ async function r0RealPhoto(persona, id){
 //   JAMAIS de crash. Enregistre 1 test réel (au coût estimé) sur succès seulement. Timeout dur (anti-blocage).
 // [SOUS-TITRES DÉFINITIF] mappe les réglages d'apparence PAR vidéo (draft.video.st_*) -> options render_local (incrustation finale).
 //   Les MÊMES valeurs alimentent l'APERÇU (r0SubSample) ET le rendu réel -> ce qu'elle règle s'applique aux deux.
+// [P4 — POSITION LEGACY] DÉFAUT lu depuis subtitle_style.js (OY 0.370, taille 76, Archivo Black) — comme le legacy /edit. AUCUN preset valide/bas/milieu/haut.
+//   subtitle_style.js reste VERROUILLÉ (lecture seule). La Hauteur est réglable par vidéo via draft.video.st_oy (continu), défaut = legacy.
+const SUB_OY_DEFAULT = (function(){ try{ const SS=require('./subtitle_style'); return (SS.OY!=null&&isFinite(+SS.OY))?+SS.OY:0.370; }catch(e){ return 0.370; } })();
 function r0SubOpts(dv){ dv=dv||{};
-  // [#2] DÉFAUT = préréglage VERROUILLÉ Etoile (subtitle_style.js : Archivo Black, 76, OY 0.370, lettrage 2px, blanc majuscules).
   let sty={}; try{ const SS=require('./subtitle_style'); sty={font:SS.FONT,fontSize:SS.FONT_SIZE,oy:SS.OY,letter:parseFloat(SS.LETTER)}; }catch(e){}
   const FONTS={archivo:'Archivo Black',classique:'Arial'};
-  const SIZE={S:58,M:76,L:98};                  // [#2] M = taille VALIDÉE Etoile (76), plus une approximation
-  // [#1] POSITION : fraction depuis le BAS, alignement ASS CONSTANT = 2 (bas-centre). Plus oy grand = plus HAUT (intuitif, fin de l'inversion).
-  const OYP={valide:0.370,bas:0.27,milieu:0.50,haut:0.78};   // [#2] cran « validé » = OY 0.370 (sweet spot Etoile, entre bas et milieu)
-  const COLOR={blanc:'&H00FFFFFF',jaune:'&H0000FFFF',cyan:'&H00FFFF00'}; // ASS = &HAABBGGRR
-  const o={ font:(sty.font||'Archivo Black'), fontSize:(sty.fontSize!=null?sty.fontSize:76), oy:0.78, // [ÉTAPE0] défaut position HAUT (confirmé Etoile) ; cran « ✅ Validé » (0.370) reste dispo
+  const SIZE={S:58,M:76,L:98};                  // M = taille VALIDÉE Etoile (76)
+  const o={ font:(sty.font||'Archivo Black'), fontSize:(sty.fontSize!=null?sty.fontSize:76),
+            oy:(sty.oy!=null&&isFinite(+sty.oy)?+sty.oy:SUB_OY_DEFAULT),   // [P4] DÉFAUT = LEGACY (subtitle_style.OY = 0.370). Rendu final == aperçu == legacy.
             letterSpacing:(sty.letter!=null&&isFinite(sty.letter)?sty.letter:2), alignment:2, color:'&H00FFFFFF' };
-  // overrides explicites de l'utilisateur (n'écrasent QUE ce qu'elle change ; alignement reste 2 -> aucune inversion).
+  // overrides PAR VIDÉO (n'écrasent QUE ce qu'elle change). Panneau réduit : POLICE · TAILLE · HAUTEUR.
   if(dv.st_font&&FONTS[dv.st_font])o.font=FONTS[dv.st_font];
   if(dv.st_size&&SIZE[dv.st_size]!=null)o.fontSize=SIZE[dv.st_size];
-  if(dv.st_pos&&OYP[dv.st_pos]!=null)o.oy=OYP[dv.st_pos];
-  if(dv.st_color&&COLOR[dv.st_color])o.color=COLOR[dv.st_color];
+  if(dv.st_oy!=null&&isFinite(+dv.st_oy))o.oy=Math.max(0.12,Math.min(0.88,+dv.st_oy)); // [P4bis] HAUTEUR réglable (≈ « Position y » legacy), bornée
   return o;
 }
 // [SOUS-TITRES DÉFINITIF] APERÇU : incruste un échantillon (1res lignes du script, sinon phrase type) dans LE style courant,
@@ -3432,7 +3429,7 @@ async function r0EditApply(persona, outPath){
 }
 async function r0SubSample(persona){
   try{ const {S,C}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
-    const img=r0CoverFile(f); if(!img||!fs.existsSync(img)) return null;
+    const img=r0RealSource(f); if(!img||!fs.existsSync(img)) return null; // [BUG APERÇU SOURCE] source ACTIVE du projet (jamais démo/ancienne)
     await r0EnsureLocal(img); // iCloud : matérialise la source avant ffmpeg
     const o=r0SubOpts(dv); const rl=freshRL(); const W=720,H=1280;
     const sc=r0SubChunks(dv,8); const phrase=sc.chunks[0].text; // PNG = 1 frame -> 1er chunk RÉEL (même découpage que le final)
@@ -3449,7 +3446,7 @@ async function r0SubSample(persona){
 let _r0SubClipCache={};
 async function r0SubClip(persona){
   try{ const {S}=_r0(); const f=r0Cur(persona,true); const dv=S.getDraft(f,'video')||{};
-    const img=r0SourceFile(f); if(!img||!fs.existsSync(img)) return null;
+    const img=r0RealSource(f); if(!img||!fs.existsSync(img)) return null; // [BUG APERÇU SOURCE] incruste sur la SOURCE ACTIVE du projet (jamais démo/ancienne)
     const o=r0SubOpts(dv);
     const sc=r0SubChunks(dv,8); const chunks=sc.chunks;                          // [🔴2] VRAI texte du script, découpé EXACTEMENT comme le rendu final (buildChunks)
     const keytext=chunks.map(c=>c.text).join('|');
@@ -4793,6 +4790,7 @@ if(R0DRY){
     cover:()=>{ try{ return r0CoverFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // image AFFICHÉE (couverture réelle) — preuve conservation source
     srcFile:()=>{ try{ return r0SourceFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [LOT 2] SOURCE ACTIVE épinglée (invariant) — preuve hash sha1 stable
     galFiles:()=>{ try{ return (r0Ctx(_persona()).galleryFiles)||[]; }catch(e){ return []; } }, // [🔴P2] fichiers RÉELS de la galerie courante (preuve photo choisie == fichier #k)
+    realSrc:()=>{ try{ return r0RealSource(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [BUG APERÇU SOURCE] source ACTIVE utilisée par l'aperçu sous-titres/clip
     realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)

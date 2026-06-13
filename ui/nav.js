@@ -89,34 +89,26 @@ function blockSpec(block, facts, ctx) {
     // [SOUS-TITRES DÉFINITIF] AUTO-générés + incrustés : AUCUN on/off, AUCUN champ texte.
     //   ELLE règle UNIQUEMENT l'APPARENCE (boîte à outils legacy) : disposition · police · taille · position · couleur.
     //   Lecture des défauts subtitle_style (jamais d'écriture du verrou). Réglages PAR vidéo (draft.video), panneau qui RESTE ouvert.
+    // [P4bis — Etoile] PANNEAU RÉDUIT À 3 RÉGLAGES : 🔤 Police · 📏 Taille · 📍 Hauteur. (Plus de disposition / couleur / presets de position.)
     const sty = (ctx && ctx.subStyle) || {};
-    const disp = d.st_display || sty.display || 'mot', font = d.st_font || sty.font || 'archivo';
-    const size = d.st_size || sty.size || 'M', pos = d.st_pos || sty.pos || 'haut', col = d.st_color || sty.color || 'blanc'; // [🔴2] défaut 'haut' = r0SubOpts (oy 0.78) -> panneau == aperçu == final (fin de l'incohérence bas/haut)
-    const cap = 'auto · ' + disp + ' · ' + font + ' · ' + size + ' · ' + pos + ' · ' + col;
+    const font = d.st_font || sty.font || 'archivo';
+    const size = d.st_size || sty.size || 'M';
+    const oy = (d.st_oy != null && isFinite(+d.st_oy)) ? +d.st_oy : (sty.oy != null ? +sty.oy : 0.370); // [P4] défaut = LEGACY (0.370)
+    const cap = 'auto · ' + font + ' · ' + size + ' · hauteur ' + oy.toFixed(2);
     return {
       title: '🔤 Sous-titres', current: cap, parentKind: pk, back: { text: '◀ Retour', cb: (ctx && ctx.subReturn) || 'R0_VE' },
-      validateCb: (ctx && ctx.subReturn) || 'R0_VE', validateLabel: '✅ Valider', // [APERÇU] revient à l'aperçu si ouvert depuis là (re-rend le clip)
-      previewCb: 'R0_STPREV', // 👁 Aperçu : incruste un échantillon du script dans CE style (même moteur que le rendu)
-      hint: 'Apparence — chaque ligne = un réglage. Aperçu/vidéo finale utilisent ces valeurs.',
-      // [ANO-CTX-SOUSTITRES-MUR] regroupement LOGIQUE : 1 ligne par dimension (Disposition · Police · Taille · Position · Couleur),
-      //   plus de mur de boutons mélangés. Lisible sur mobile. (Aperçu/Valider/Retour ajoutés par blockView+wrapper.)
+      validateCb: (ctx && ctx.subReturn) || 'R0_VE', validateLabel: '✅ Valider',
+      previewCb: 'R0_STPREV', // 👁 Aperçu : incruste un échantillon du script dans CE style (peint EN PLACE dans le cockpit)
+      hint: 'Police · Taille · Hauteur. Aperçu/vidéo finale utilisent EXACTEMENT ces valeurs (défaut legacy 0.37).',
       optionRows: [
-        [ { text: (disp === 'mot' ? '🔵 ' : '') + '🔠 Mot', cb: 'R0_SET_stdisp_mot' },
-          { text: (disp === 'phrase' ? '🔵 ' : '') + '📝 Phrase', cb: 'R0_SET_stdisp_phrase' },
-          { text: (disp === 'paragraphe' ? '🔵 ' : '') + '📄 Paragraphe', cb: 'R0_SET_stdisp_paragraphe' } ], // Disposition [D2]
         [ { text: (font === 'archivo' ? '🔵 ' : '') + '🅰 Archivo', cb: 'R0_SET_stfont_archivo' },
-          { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' } ], // Police
+          { text: (font === 'classique' ? '🔵 ' : '') + '🔤 Classique', cb: 'R0_SET_stfont_classique' } ], // 🔤 Police
         [ { text: (size === 'S' ? '🔵 ' : '') + '🔡 Petit', cb: 'R0_SET_stsize_S' },
           { text: (size === 'M' ? '🔵 ' : '') + '🔠 Moyen', cb: 'R0_SET_stsize_M' },
-          { text: (size === 'L' ? '🔵 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' } ], // Taille
-        [ { text: (pos === 'valide' ? '🔵 ' : '') + '✅ Validé', cb: 'R0_SET_stpos_valide' },
-          { text: (pos === 'bas' ? '🔵 ' : '') + '⬇ Bas', cb: 'R0_SET_stpos_bas' },
-          { text: (pos === 'milieu' ? '🔵 ' : '') + '↔ Milieu', cb: 'R0_SET_stpos_milieu' },
-          { text: (pos === 'haut' ? '🔵 ' : '') + '⬆ Haut', cb: 'R0_SET_stpos_haut' } ], // [🔴2] Position en 1 SEULE ligne (épure) — oy croissant = plus haut, alignement bas constant
-        [ { text: (col === 'blanc' ? '🔵 ' : '') + '⚪ Blanc', cb: 'R0_SET_stcolor_blanc' },
-          { text: (col === 'jaune' ? '🔵 ' : '') + '🟡 Jaune', cb: 'R0_SET_stcolor_jaune' },
-          { text: (col === 'cyan' ? '🔵 ' : '') + '🔵 Cyan', cb: 'R0_SET_stcolor_cyan' } ], // Couleur
-        [ { text: '💾 Défaut', cb: 'R0_DEFSAVE' } ], // [#18] mémorise les réglages sous-titres courants
+          { text: (size === 'L' ? '🔠 ' : '') + '🔠 Grand', cb: 'R0_SET_stsize_L' } ], // 📏 Taille
+        [ { text: '⬇ Plus bas', cb: 'R0_STOY_dn' },
+          { text: '📍 ' + oy.toFixed(2), cb: 'R0_STOY_NOP' },
+          { text: '⬆ Plus haut', cb: 'R0_STOY_up' } ], // 📍 Hauteur (continu, ≈ Position y legacy)
       ],
     };
   }
@@ -336,6 +328,15 @@ function reduce(action, st0, facts, ctx) {
     const i = +d.slice(10); const c = (ctx && ctx.scriptCats && ctx.scriptCats[i]) || null;
     if (!c) return { st: st, toast: 'Thème indisponible' };
     return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed } }, toast: '🎬 Thème : ' + c.label };
+  }
+  // [P4bis] HAUTEUR sous-titres (≈ « Position y » legacy) : stepper continu sur draft.video.st_oy, borné, reste sur le panneau. Défaut legacy 0.37.
+  if (d === 'R0_STOY_NOP') { return { st: st }; }
+  if (d === 'R0_STOY_up' || d === 'R0_STOY_dn') {
+    const dv = (facts && facts.draft && facts.draft.video) || {};
+    let v = (dv.st_oy != null && isFinite(+dv.st_oy)) ? +dv.st_oy : 0.370;
+    v = +(v + (d === 'R0_STOY_up' ? 0.03 : -0.03)).toFixed(2);
+    v = Math.max(0.12, Math.min(0.88, v));
+    return Object.assign({ st: st }, { op: { type: 'draft', kind: 'video', patch: { st_oy: v } } });
   }
   // [LOT 2 #7] STEPPERS retouche couleur : R0_EDIT_<param>_<up|dn> -> incrémente/décrémente, borné, reste sur l'écran edition. (PREVIEW/VALID = côté bot, ffmpeg.)
   if (/^R0_EDIT_(bright|contrast|sat|sharp)_(up|dn)$/.test(d)) {

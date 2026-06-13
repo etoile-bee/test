@@ -33,6 +33,15 @@ async function main() {
   chk('P5 #11bis : keepsake = « Vidéo générée » + nom lisible', /Vidéo générée/.test(capV) && !/🧭|📊/.test(capV));
   chk('P5 #11bis : keepsake photo PROPRE aussi', !/cap à poser|décision|brouillon|🧭|📊/i.test(capP) && /Photo générée/.test(capP));
 
+  // ── P1 : 2 BLOCS LÉGENDES COPIABLES PROPRES (UNIQUEMENT légende + hashtags, zéro texte système) ──
+  bot.setPub({ legende_courte: 'Arrête de douter de toi 💔', legende_longue: 'Les hommes toxiques te font douter... reprends ton pouvoir 💪 abonne-toi', hashtags: '#fyp #viral #redflags' });
+  const legc = bot.fullText('legc'), legl = bot.fullText('legl');
+  console.log('   bloc 1 (courte):', JSON.stringify(legc));
+  console.log('   bloc 2 (longue):', JSON.stringify(legl));
+  chk('P1 : bloc 1 = légende courte + hashtags UNIQUEMENT', legc === 'Arrête de douter de toi 💔\n\n#fyp #viral #redflags');
+  chk('P1 : bloc 2 = légende longue + hashtags UNIQUEMENT', legl === 'Les hommes toxiques te font douter... reprends ton pouvoir 💪 abonne-toi\n\n#fyp #viral #redflags');
+  chk('P1 : ZÉRO texte système dans les blocs (pas de « cap/brouillon/décision/Légende »)', !/cap à poser|brouillon|décision|🧭|📊|Légende courte|Légende longue/i.test(legc + ' ' + legl));
+
   console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');
   process.exit(ko ? 1 : 0);
 }
