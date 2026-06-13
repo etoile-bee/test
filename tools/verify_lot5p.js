@@ -1,6 +1,6 @@
 // [VÉRIF CONSOLIDÉE LOT 5P] Rejoue les écrans RÉELS (dry-run) et imprime, par rubrique, la PREUVE (markup/texte).
 //   But : montrer écran par écran que chaque demande d'Etoile est fonctionnelle ENSEMBLE sur le build terrain-lot-5p.
-process.env.R0_DRYRUN='1'; process.env.R0_FORCE_LIVE='1'; process.env.TELEGRAM_TOKEN='dry'; process.env.TELEGRAM_CHAT_ID='1';
+process.env.R0_DRYRUN='1'; process.env.TELEGRAM_TOKEN='dry'; process.env.TELEGRAM_CHAT_ID='1'; // [HERMÉTIQUE] aucune dépendance au flag LIVE réel
 const fs=require('fs'),path=require('path'),os=require('os');
 const BOX=fs.mkdtempSync(path.join(os.tmpdir(),'v4r-verify-'));
 const T=Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AfwB//9k=','base64');

@@ -2,7 +2,7 @@
 //  Q1 Je sais où je suis ?  Q2 Je sais quelle photo est active ?  Q3 Je comprends ce qui se passe si je clique ?
 //  Q4 Je peux revenir sans perdre mon travail ?  Q5 Je retrouve facilement mes fichiers ?  Q6 Je peux publier le média généré ?
 //  ✓ = conforme · n/a = non applicable à cet écran · ✗ = ÉCART (non conforme).
-process.env.R0_DRYRUN='1'; process.env.R0_FORCE_LIVE='1'; process.env.TELEGRAM_TOKEN='dry'; process.env.TELEGRAM_CHAT_ID='1';
+process.env.R0_DRYRUN='1'; process.env.TELEGRAM_TOKEN='dry'; process.env.TELEGRAM_CHAT_ID='1'; // [HERMÉTIQUE] pas de dépendance au flag LIVE réel — l'audit vérifie la structure des écrans, pas l'état moteur
 const fs=require('fs'),path=require('path'),os=require('os');
 const BOX=fs.mkdtempSync(path.join(os.tmpdir(),'v4r-audit-'));
 const T=Buffer.from('/9j/4AAQSkZJRgABAQEAYABgAAD/2wBDAP////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////wgARCAABAAEDAREAAhEBAxEB/8QAFAABAAAAAAAAAAAAAAAAAAAAA//EABQQAQAAAAAAAAAAAAAAAAAAAAD/xAAUAQEAAAAAAAAAAAAAAAAAAAAA/8QAFBEBAAAAAAAAAAAAAAAAAAAAAP/aAAwDAQACEQMRAD8AfwB//9k=','base64');
