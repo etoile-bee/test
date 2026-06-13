@@ -29,21 +29,27 @@ async function main() {
   const rawF = path.join(BOX, 'raw_src.mp4'); fs.writeFileSync(rawF, Buffer.alloc(15000, 3));
   const ts = Date.UTC(2026, 5, 13, 14, 30);
 
-  // (a) ARCHIVAGE ORGANISÉ
+  // (a) ARCHIVAGE PAR CODE PROJET [#8] : un sous-dossier podcast-looks/<projectId>/ avec TOUS les fichiers (RAW inclus), PLUS de dossier par date
+  const id = bot.curId();
   const dir = bot.outputArchive(finalF, [rawF], ts);
   chk('archivage : dossier créé', dir && fs.existsSync(dir));
-  chk('archivage : chemin = outputs/AAAA-MM-JJ/<#proj>_<slug>/', /\/outputs\/2026-06-13\/[^/]+_/.test(dir || ''));
+  chk('archivage [#8] : chemin = podcast-looks/<CODE PROJET>/ (PAS de dossier par date)', new RegExp('/looks/' + id + '$').test(dir || '') && !/\/\d{4}-\d{2}-\d{2}(\/|$)/.test(dir || ''));
   const has = n => fs.existsSync(path.join(dir, n));
-  chk('archivage : final.mp4 présent', has('final.mp4'));
-  chk('archivage : RAW.mp4 TOUJOURS inclus', has('raw.mp4'));
+  const ls = () => fs.readdirSync(dir);
+  chk('archivage : vidéo finale présente (basename réel)', has(path.basename(finalF)));
+  chk('archivage [#8] : RAW TOUJOURS inclus (marqué _raw)', ls().some(n => /_raw.*\.mp4$/i.test(n)));
   chk('archivage : script.txt + prompt.txt', has('script.txt') && has('prompt.txt'));
   chk('archivage : legende_courte.txt + legende_longue.txt (avec #)', has('legende_courte.txt') && has('legende_longue.txt') && /#fyp/.test(fs.readFileSync(path.join(dir, 'legende_courte.txt'), 'utf8')));
   chk('archivage : soustitres.txt + cover.jpg', has('soustitres.txt') && has('cover.jpg'));
-  chk('archivage : raw.mp4 = copie du RAW (taille identique, non vide)', fs.statSync(path.join(dir, 'raw.mp4')).size === fs.statSync(rawF).size);
+  const rawName = ls().find(n => /_raw.*\.mp4$/i.test(n));
+  chk('archivage : RAW = copie fidèle (taille identique, non vide)', rawName && fs.statSync(path.join(dir, rawName)).size === fs.statSync(rawF).size);
+  // [#8] la vidéo finale REMONTE dans le flux : déposée dans podcast-looks/<id>/, elle est vue par la réconciliation ET le patrimoine vidéo global
+  bot.reconcile();
+  chk('archivage [#8] : vidéo finale REMONTE (patrimoine vidéo global)', bot.realVideos(99).some(v => /final_src\.mp4$/.test(v)));
 
-  // (b) RAW RÉCUPÉRABLE
+  // (b) RAW RÉCUPÉRABLE depuis le dossier du projet (podcast-looks/<id>/)
   const raw = bot.findRaw();
-  chk('RAW retrouvable via r0FindRaw (dans le dossier organisé)', raw && /raw.*\.mp4$/i.test(raw) && fs.existsSync(raw));
+  chk('RAW retrouvable via r0FindRaw (dans podcast-looks/<code projet>/)', raw && /raw.*\.mp4$/i.test(raw) && fs.existsSync(raw));
   const fichiers = SC.resourcesView({ projectId: 'imany_x', medias: [], publication: {}, draft: { photo: {}, video: {} } }, {});
   const cbs = [].concat.apply([], fichiers.rows).map(b => b.cb);
   chk('Fichiers : bouton ☁ RAW (R0_GETRAW) présent', cbs.includes('R0_GETRAW'));

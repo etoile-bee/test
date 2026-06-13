@@ -2768,21 +2768,22 @@ function r0CloudCopy(file, projId){ try{ file=r0FilePath(file); if(!file || (typ
   const dir=path.join(lookRoot, projId||'v4r'); fs.mkdirSync(dir,{recursive:true});
   const dest=path.join(dir, path.basename(file)); if(!fs.existsSync(dest)) fs.copyFileSync(file,dest);
   jlog('[v4r] rendu déposé dans podcast-looks/'+(projId||'v4r')+': '+dest); return dest; }catch(e){ try{ jlog('[v4r] cloud copy err '+e.message); }catch(_){} return null; } }
-// [☁ RÉORG CLOUD — Etoile] « 1 dossier par jour ; 1 média finalisé = 1 dossier avec TOUS ses fichiers (RAW inclus) ».
-//   Cible : outputs/AAAA-MM-JJ/<#proj>_<titre-slug>/ { final.mp4, raw.mp4(+pN), script.txt, legende_courte/longue.txt, prompt.txt, soustitres.txt, cover.jpg }
-//   NON gardé par R0DRY -> en test (BASE=sandbox) on écrit dans le sandbox/outputs (jamais le vrai cloud). En LIVE, BASE/outputs = iCloud.
+// [☁ RÉORG CLOUD — Etoile #8] « UN parent (podcast-looks) ; UN sous-dossier PAR CODE PROJET (projectId) ; TOUS ses fichiers AU MÊME endroit, RAW inclus ».
+//   Cible : podcast-looks/<projectId>/ { <final>.mp4 (basename réel, plusieurs parties cohabitent), <…>_raw.mp4(+pN), script.txt, legende_courte/longue.txt, prompt.txt, soustitres.txt, cover.jpg }
+//   PLUS de dossier par DATE (AAAA-MM-JJ abandonné). C'est le MÊME dossier que r0CloudCopy + celui scanné par la réconciliation -> la vidéo REMONTE dans le flux. RAW marqué « _raw » -> exclu du remontage média mais trouvable (☁ RAW).
+//   NON gardé par R0DRY -> en test (BASE=sandbox) on écrit dans sandbox/looks/<id> (jamais le vrai iCloud). En LIVE, looks/ -> podcast-looks (iCloud).
 function _r0Slug(s){ return String(s||'').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,40)||'media'; }
 function r0OutputArchive(persona, id, finalFile, raws, ts){
   try{ const {S}=_r0(); const f=S.loadFacts(BASE,persona,id)||{}; const dp=S.getDraft(f,'photo')||{}, dv=S.getDraft(f,'video')||{}, pub=f.publication||{};
-    const day=new Date(ts||Date.now()).toISOString().slice(0,10);                       // AAAA-MM-JJ
-    const shortid=String(id||'').replace(/^[^_]*_/,'')||String(id||'v4r');
-    const titre=(f.intention&&f.intention.message)||dv.theme||'media';
-    const dir=path.join(BASE,'outputs',day, shortid+'_'+_r0Slug(titre));
+    let root; try{ root=getLooksDir(); }catch(e){ root=path.join(BASE,'looks'); }          // realpath de looks/ -> .../podcast-looks (iCloud)
+    const dir=path.join(root, id||'v4r');                                                  // [#8] un sous-dossier PAR CODE PROJET (pas par date)
     fs.mkdirSync(dir,{recursive:true});
-    const cpf=(src,dest)=>{ try{ const s=r0FilePath(src); if(s&&fs.existsSync(s)) fs.copyFileSync(s, path.join(dir,dest)); }catch(e){} };
-    cpf(finalFile,'final.mp4');                                                          // vidéo finale sous-titrée
+    const cpf=(src,dest)=>{ try{ const s=r0FilePath(src); if(s&&fs.existsSync(s)){ const d=path.join(dir,dest); if(!fs.existsSync(d)) fs.copyFileSync(s, d); } }catch(e){} };
+    const fin=r0FilePath(finalFile); if(fin&&fs.existsSync(fin)) cpf(fin, path.basename(fin)); // vidéo finale : garde son basename réel (parties multiples sans écrasement)
     const rs=(raws||[]).filter(Boolean);
-    rs.forEach((r,i)=> cpf(r, rs.length>1?('raw_p'+(i+1)+'.mp4'):'raw.mp4'));            // RAW Kling — TOUJOURS inclus
+    rs.forEach((r,i)=>{ const rp=r0FilePath(r); if(!rp||!fs.existsSync(rp)) return;          // RAW Kling — TOUJOURS inclus, nom marqué « _raw » (exclu du remontage, trouvable via ☁ RAW)
+      const bn=path.basename(rp), ext=path.extname(bn)||'.mp4', stem=bn.replace(/\.[^.]+$/,'');
+      const name=/_raw/i.test(bn)?bn:(stem+'_raw'+(rs.length>1?('_p'+(i+1)):'')+ext); cpf(rp, name); });
     const W=(name,txt)=>{ try{ if(txt!=null&&String(txt).trim()) fs.writeFileSync(path.join(dir,name), String(txt)); }catch(e){} };
     W('script.txt', dv.script);
     W('legende_courte.txt', r0FuseTags(pub.legende_courte, pub.hashtags));               // légende + hashtags
@@ -2790,7 +2791,7 @@ function r0OutputArchive(persona, id, finalFile, raws, ts){
     W('prompt.txt', dp.prompt);
     W('soustitres.txt', 'auto · police '+(dv.st_font||'archivo')+' · taille '+(dv.st_size||'M')+' · hauteur '+((dv.st_oy!=null)?dv.st_oy:0.370));
     cpf(r0RealSource(f),'cover.jpg');                                                     // couverture = source active
-    try{ jlog('[v4r] ☁ sortie archivée -> '+dir); }catch(_){}
+    try{ jlog('[v4r] ☁ sortie archivée (par code projet) -> '+dir); }catch(_){}
     return dir;
   }catch(e){ try{ jlog('[v4r] outputArchive err '+e.message); }catch(_){} return null; }
 }
@@ -2799,8 +2800,9 @@ function r0OutputArchive(persona, id, finalFile, raws, ts){
 function r0FindRaw(persona, id){ try{ const RAW=/raw.*\.mp4$/i; const shortid=String(id||'').replace(/^[^_]*_/,''); const hits=[];
   const add=p=>{ if(!RAW.test(path.basename(p))) return; try{ const st=fs.statSync(p); if(st.size>0) hits.push({p:p,m:st.mtimeMs}); }catch(e){} };
   r0Walk(path.join(BASE,'projects_r',persona,id), RAW, add);                             // raws du projet (cockpit)
+  try{ r0Walk(path.join(getLooksDir(), id), RAW, add); }catch(e){ r0Walk(path.join(BASE,'looks',id), RAW, add); } // [#8] RAW déposé dans podcast-looks/<code projet>/
   let od; try{ od=fs.realpathSync(path.join(BASE,'outputs')); }catch(e){ od=path.join(BASE,'outputs'); }
-  r0Walk(od, RAW, add);                                                                  // outputs (nouveau dossier/jour + ancien à plat)
+  r0Walk(od, RAW, add);                                                                  // outputs (ancien dossier/jour + ancien à plat — rétrocompat)
   if(!hits.length) return null;
   const mine=hits.filter(h=>shortid && h.p.indexOf(shortid)>=0);                         // priorité : RAW de CE projet
   (mine.length?mine:hits).sort((a,b)=>b.m-a.m); return (mine.length?mine:hits)[0].p;

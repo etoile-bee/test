@@ -1,84 +1,124 @@
 #!/usr/bin/env node
-// [☁ RÉORG CLOUD — Etoile] Range le dépôt À PLAT podcast-outputs en : AAAA-MM-JJ/<média>/ (1 dossier/jour · 1 média = 1 dossier).
-//   Regroupe final + raw + txt d'un MÊME média via le préfixe horodaté « AAAA-MM-JJ-HH-MM_ ».
-//   PAR DÉFAUT = DRY-RUN (liste « fichier -> dossier », AUCUN déplacement). Déplacement RÉEL uniquement avec --apply.
-//   RÉVERSIBLE : --apply écrit un journal .v4r_migration_undo.json (chaque move) -> `node tools/cloud_migration.js --undo` annule.
-//   Ne touche PAS les sous-dossiers de travail (generations, proj_media, tests, sandbox, .v4r_*). Lecture seule en dry-run.
+// [☁ RÉORG CLOUD — Etoile #8] CONSOLIDE le cloud par CODE PROJET : UN parent (podcast-looks) · UN sous-dossier par projectId · TOUS ses fichiers AU MÊME endroit, RAW inclus.
+//   Abandon de la structure par DATE (AAAA-MM-JJ). Pour chaque projet, on RASSEMBLE dans podcast-looks/<projectId>/ tout ce qui lui appartient et qui MANQUE encore là :
+//     - depuis projects_r/<persona>/<id>/ (copie de travail : finals, RAW, sidecars .txt)
+//     - depuis podcast-outputs (ancien dépôt par date / à plat) quand le chemin ou le nom référence ce projet
+//   But concret : « podcast-looks/<proj>/ n'a souvent que le final, pas le raw » -> on y ramène le RAW (et le reste) pour que tout REMONTE dans le flux.
+//   COPIE (jamais de déplacement destructif) -> aucun fichier perdu, le cockpit garde ses originaux. RAW marqué « _raw » -> exclu du remontage média, trouvable via ☁ RAW.
+//   PAR DÉFAUT = DRY-RUN (liste « source -> podcast-looks/<id>/dest », AUCUNE écriture). Copie RÉELLE uniquement avec --apply.
+//   RÉVERSIBLE : --apply écrit .v4r_cloud_consolidate_undo.json (fichiers CRÉÉS) -> `node tools/cloud_migration.js --undo` les supprime (n'efface QUE ce qu'il a copié).
+//   Paramètres tests : --base=<dir> (racine, défaut ~/podcast-workflow) · --looks=<dir> (cible, défaut realpath de base/looks) · --persona=<nom> (défaut : tous).
+'use strict';
 const fs = require('fs'), path = require('path'), os = require('os');
 
 const APPLY = process.argv.includes('--apply');
 const UNDO  = process.argv.includes('--undo');
-// cible : le vrai dossier de sorties (symlink outputs/ -> iCloud podcast-outputs), surchageable par --dir=<path> (tests)
-const dirArg = (process.argv.find(a => a.startsWith('--dir=')) || '').slice(6);
-const ROOT = dirArg ? path.resolve(dirArg)
-  : (function(){ try { return fs.realpathSync(path.join(os.homedir(), 'podcast-workflow', 'outputs')); }
-      catch(e){ return path.join(os.homedir(), 'podcast-workflow', 'outputs'); } })();
-const UNDO_LOG = path.join(ROOT, '.v4r_migration_undo.json');
+const arg = k => { const a = process.argv.find(x => x.startsWith('--' + k + '=')); return a ? a.slice(k.length + 3) : null; };
 
-const SKIP_DIRS = new Set(['generations', 'proj_media', 'tests', 'test', 'sandbox', 'ready_to_post', 'a_retravailler']);
-const TS = /^(\d{4}-\d{2}-\d{2})-\d{2}-\d{2}_/;            // préfixe AAAA-MM-JJ-HH-MM_
-const GROUP = /^(\d{4}-\d{2}-\d{2}-\d{2}-\d{2})_/;          // clé de regroupement (même média) = horodatage minute
+const BASE  = arg('base') ? path.resolve(arg('base')) : path.join(os.homedir(), 'podcast-workflow');
+const LOOKS = arg('looks') ? path.resolve(arg('looks'))
+  : (function(){ try { return fs.realpathSync(path.join(BASE, 'looks')); } catch (e) { return path.join(BASE, 'looks'); } })();
+const OUTPUTS = (function(){ try { return fs.realpathSync(path.join(BASE, 'outputs')); } catch (e) { return path.join(BASE, 'outputs'); } })();
+const PERSONA = arg('persona'); // si absent : tous les personas trouvés sous projects_r
+const UNDO_LOG = path.join(LOOKS, '.v4r_cloud_consolidate_undo.json');
+
+const MEDIA = /\.(mp4|mov|m4v|webm|jpe?g|png|webp)$/i;
+const RAWRE = /(_raw|[-_]raw)/i;
+
+function walk(dir, onFile) {
+  let ents = []; try { ents = fs.readdirSync(dir, { withFileTypes: true }); } catch (e) { return; }
+  for (const e of ents) {
+    if (e.name.startsWith('.')) continue;
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) walk(p, onFile);
+    else if (e.isFile()) onFile(p, e.name);
+  }
+}
+
+function personas() {
+  if (PERSONA) return [PERSONA];
+  try { return fs.readdirSync(path.join(BASE, 'projects_r'), { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name); }
+  catch (e) { return []; }
+}
+function projectIds(persona) {
+  try { return fs.readdirSync(path.join(BASE, 'projects_r', persona), { withFileTypes: true }).filter(e => e.isDirectory() && !e.name.startsWith('.')).map(e => e.name); }
+  catch (e) { return []; }
+}
+const shortOf = id => String(id || '').replace(/^[^_]*_/, ''); // id sans préfixe persona (= nom des anciens dossiers par date)
 
 function undo() {
   if (!fs.existsSync(UNDO_LOG)) { console.log('Aucun journal d\'annulation (' + UNDO_LOG + ').'); return; }
-  const moves = JSON.parse(fs.readFileSync(UNDO_LOG, 'utf8'));
+  const created = JSON.parse(fs.readFileSync(UNDO_LOG, 'utf8'));
   let n = 0;
-  for (const m of moves.reverse()) { try { if (fs.existsSync(m.to)) { fs.renameSync(m.to, m.from); n++; } } catch (e) { console.log('  ⚠️ ' + e.message); } }
+  for (const f of created.reverse()) { try { if (fs.existsSync(f)) { fs.unlinkSync(f); n++; } } catch (e) { console.log('  ⚠️ ' + e.message); } }
   try { fs.unlinkSync(UNDO_LOG); } catch (e) {}
-  console.log('↩️  ' + n + ' fichier(s) remis à leur place. Journal supprimé.');
+  console.log('↩️  ' + n + ' copie(s) supprimée(s) (originaux jamais touchés). Journal supprimé.');
+}
+
+// Nom de destination dans podcast-looks/<id>/ : on garde le basename réel ; un RAW reçoit le marqueur « _raw » s'il ne l'a pas (-> exclu du remontage média, trouvable ☁ RAW).
+function destName(name, isRaw) {
+  if (!isRaw || RAWRE.test(name)) return name;
+  const ext = path.extname(name) || '.mp4', stem = name.slice(0, name.length - ext.length);
+  return stem + '_raw' + ext;
 }
 
 function plan() {
-  let entries = [];
-  try { entries = fs.readdirSync(ROOT, { withFileTypes: true }); }
-  catch (e) { console.log('Dossier introuvable : ' + ROOT); process.exit(1); }
-  // fichiers À PLAT à la racine, horodatés (on ignore dossiers de travail + fichiers cachés)
-  const flat = entries.filter(e => e.isFile() && !e.name.startsWith('.') && TS.test(e.name)).map(e => e.name);
-  const ignoredDirs = entries.filter(e => e.isDirectory() && (SKIP_DIRS.has(e.name) || e.name.startsWith('.'))).map(e => e.name);
-  const otherFlat = entries.filter(e => e.isFile() && !e.name.startsWith('.') && !TS.test(e.name)).map(e => e.name);
-
-  // regroupe par horodatage-minute (final + raw + txt d'un même média finissent dans le MÊME dossier)
-  const groups = {};
-  for (const name of flat) {
-    const g = (name.match(GROUP) || [])[1]; if (!g) continue;
-    (groups[g] = groups[g] || []).push(name);
-  }
-  const moves = [];
-  for (const g of Object.keys(groups).sort()) {
-    const day = g.slice(0, 10);                       // AAAA-MM-JJ
-    const folder = path.join(ROOT, day, g);           // 1 dossier par média (clé minute)
-    for (const name of groups[g]) {
-      // renommage lisible dans le dossier : final.mp4 / raw.mp4 / <reste>
-      let dest = name.replace(GROUP, '');             // retire le préfixe horodaté redondant
-      if (/_raw_p?\d*\.mp4$/i.test(name) || /_raw\.mp4$/i.test(name)) dest = 'raw' + (name.match(/_p?(\d+)\.mp4$/i) ? '_p' + name.match(/_p?(\d+)\.mp4$/i)[1] : '') + '.mp4';
-      else if (/_p?\d*\.mp4$/i.test(name) && !/_raw/i.test(name)) dest = 'final' + (name.match(/_p(\d+)\.mp4$/i) ? '_p' + name.match(/_p(\d+)\.mp4$/i)[1] : '') + '.mp4';
-      else if (/\.txt$/i.test(name)) dest = 'infos' + (name.match(/_p(\d+)\.txt$/i) ? '_p' + name.match(/_p(\d+)\.txt$/i)[1] : '') + '.txt';
-      moves.push({ from: path.join(ROOT, name), to: path.join(folder, dest), folder: path.relative(ROOT, folder) });
+  const moves = []; let projetsTouches = 0;
+  for (const persona of personas()) {
+    for (const id of projectIds(persona)) {
+      const destDir = path.join(LOOKS, id);
+      // ce qui est DÉJÀ dans podcast-looks/<id>/ (par basename) -> on ne recopie pas
+      const present = new Set(); try { for (const x of fs.readdirSync(destDir)) present.add(x); } catch (e) {}
+      const candidates = []; // {src, name, isRaw}
+      // 1) copie de travail du projet
+      walk(path.join(BASE, 'projects_r', persona, id), (p, name) => { if (MEDIA.test(name) || /\.txt$/i.test(name)) candidates.push({ src: p, name, isRaw: RAWRE.test(name) }); });
+      // 2) ancien dépôt outputs : fichiers dont le CHEMIN ou le NOM référence ce projet (id complet OU short-id == nom d'ancien dossier par date)
+      const sid = shortOf(id);
+      walk(OUTPUTS, (p, name) => {
+        if (!MEDIA.test(name) && !/\.txt$/i.test(name)) return;
+        const rel = p.replace(/\\/g, '/');
+        const hit = rel.indexOf('/' + id + '/') >= 0 || rel.indexOf('_' + sid + '/') >= 0 || rel.indexOf('/' + sid + '_') >= 0 || name.indexOf(sid) >= 0;
+        if (hit) candidates.push({ src: p, name, isRaw: RAWRE.test(name) });
+      });
+      let added = 0;
+      const seenDest = new Set(present);
+      for (const c of candidates) {
+        const dn = destName(c.name, c.isRaw);
+        if (seenDest.has(dn)) continue;           // déjà présent (ou planifié) -> rien à faire
+        seenDest.add(dn);
+        moves.push({ from: c.src, to: path.join(destDir, dn), id, raw: c.isRaw });
+        added++;
+      }
+      if (added) projetsTouches++;
     }
   }
-  return { moves, ignoredDirs, otherFlat, nGroups: Object.keys(groups).length };
+  return { moves, projetsTouches };
 }
 
 if (UNDO) { undo(); process.exit(0); }
 
-const { moves, ignoredDirs, otherFlat, nGroups } = plan();
-console.log('☁ RÉORG CLOUD — ' + (APPLY ? 'APPLICATION RÉELLE' : 'DRY-RUN (aucun déplacement)'));
-console.log('Racine : ' + ROOT);
-console.log('Dossiers de travail IGNORÉS : ' + (ignoredDirs.join(', ') || '(aucun)'));
-console.log('Fichiers à plat non horodatés (laissés tels quels) : ' + otherFlat.length);
-console.log('Médias regroupés : ' + nGroups + ' · fichiers à ranger : ' + moves.length + '\n');
-for (const m of moves) console.log('  ' + path.basename(m.from) + '  →  ' + m.folder + '/' + path.basename(m.to));
+const { moves, projetsTouches } = plan();
+const nRaw = moves.filter(m => m.raw).length;
+console.log('☁ CONSOLIDATION CLOUD PAR CODE PROJET — ' + (APPLY ? 'APPLICATION RÉELLE (copie)' : 'DRY-RUN (aucune écriture)'));
+console.log('Base   : ' + BASE);
+console.log('Cible  : ' + LOOKS + '/<projectId>/');
+console.log('Projets concernés : ' + projetsTouches + ' · fichiers à rapatrier : ' + moves.length + ' (dont RAW : ' + nRaw + ')\n');
+for (const m of moves) console.log('  ' + m.from.replace(BASE + '/', '') + '  →  looks/' + m.id + '/' + path.basename(m.to) + (m.raw ? '   [RAW]' : ''));
 
 if (APPLY) {
-  const done = [];
+  const created = [];
   for (const m of moves) {
-    try { fs.mkdirSync(path.dirname(m.to), { recursive: true });
+    try {
+      fs.mkdirSync(path.dirname(m.to), { recursive: true });
       if (fs.existsSync(m.to)) { console.log('  ⚠️ existe déjà, ignoré : ' + m.to); continue; }
-      fs.renameSync(m.from, m.to); done.push({ from: m.from, to: m.to });
+      fs.copyFileSync(m.from, m.to); created.push(m.to);
     } catch (e) { console.log('  ❌ ' + path.basename(m.from) + ' : ' + e.message); }
   }
-  try { fs.writeFileSync(UNDO_LOG, JSON.stringify(done, null, 2)); } catch (e) {}
-  console.log('\n✅ ' + done.length + ' fichier(s) déplacé(s). Annulable : node tools/cloud_migration.js --undo' + (dirArg ? ' --dir=' + dirArg : ''));
+  // journal CUMULATIF : un 2e --apply ne doit PAS écraser les copies du 1er (sinon --undo n'en retire qu'une partie). On fusionne + dédup.
+  let prev = []; try { prev = JSON.parse(fs.readFileSync(UNDO_LOG, 'utf8')) || []; } catch (e) {}
+  const merged = Array.from(new Set(prev.concat(created)));
+  try { fs.writeFileSync(UNDO_LOG, JSON.stringify(merged, null, 2)); } catch (e) {}
+  console.log('\n✅ ' + created.length + ' fichier(s) copié(s) (originaux intacts). Annulable : node tools/cloud_migration.js --undo' + (arg('looks') ? ' --looks=' + arg('looks') : '') + (arg('base') ? ' --base=' + arg('base') : ''));
 } else {
-  console.log('\n(DRY-RUN — rien déplacé. Pour appliquer : node tools/cloud_migration.js --apply ; pour annuler ensuite : --undo)');
+  console.log('\n(DRY-RUN — rien écrit. Appliquer : --apply ; annuler ensuite : --undo. La copie ne supprime AUCUN original.)');
 }
