@@ -2663,6 +2663,16 @@ function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BA
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
 // [G5 / D7] fusion légende+hashtags pour la COPIE (un geste = texte prêt à coller). Champ hashtags conservé séparément ailleurs.
 function r0FuseTags(leg, tags){ return [leg, tags].map(x=>String(x==null?'':x).trim()).filter(Boolean).join('\n\n'); }
+// [🔴P1 — LÉGENDES AUTO] stocke AVEC le projet (publication) les légendes générées par le MÊME appel script (Anthropic) — aucune dépense en plus.
+//   Ne remplit QUE les champs vides (n'écrase JAMAIS une édition d'Etoile). caps = { short, long, hashtags:[...]|tags:'...' }.
+function r0StoreCaptions(persona, id, caps){ try{ if(!caps) return null; const {S}=_r0(); const f=S.loadFacts(BASE,persona,id)||r0Cur(persona,false)||{}; const pub=f.publication||{};
+  const tags = Array.isArray(caps.hashtags) ? caps.hashtags.map(h=>'#'+String(h).replace(/^#+/,'')).join(' ') : String(caps.tags||'').trim();
+  const patch={};
+  if(!String(pub.legende_courte||'').trim() && caps.short) patch.legende_courte=String(caps.short).trim();
+  if(!String(pub.legende_longue||'').trim() && caps.long)  patch.legende_longue=String(caps.long).trim();
+  if(!String(pub.hashtags||'').trim() && tags)             patch.hashtags=tags;
+  if(Object.keys(patch).length){ S.setPublication(BASE,persona,id,patch,Date.now()); try{ jlog('[v4r] légendes AUTO stockées ('+Object.keys(patch).join('+')+')'); }catch(_){}; return patch; }
+}catch(e){ try{ jlog('[v4r] storeCaptions err '+e.message); }catch(_){} } return null; }
 // [FIX réel] COUVERTURE du projet = la DERNIÈRE image visible dont le FICHIER EXISTE vraiment (on remonte la liste).
 //   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
 // [ANO-SOURCE-EDIT-REVERT] garde-fou ABSOLU : la couverture/source NE DOIT JAMAIS être la référence persona (cuir, sous references/).
@@ -3488,6 +3498,8 @@ async function r0RealVideo(persona, id, onStep){
         const pp=parts>1?(' (partie '+i+'/'+parts+')'):'';
         STEP('📝 Étape 2/5 — Écriture du script'+pp+'…');
         const c=await WF.generateScript(i===1?topic:WF.partPrompt(topic,i,parts,prevScripts), words); // script Anthropic
+        // [🔴P1] LÉGENDES AUTO : le MÊME appel renvoie caption_short/long/hashtags -> stockées AVEC le projet (part 1), zéro dépense en plus.
+        if(i===1){ try{ r0StoreCaptions(persona, id, { short:c.caption_short||c.caption, long:c.caption_long, hashtags:c.hashtags }); }catch(_){} }
         prevScripts.push(c.script);
         STEP('🎙 Étape 3/5 — Génération de la voix'+pp+'…');
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
@@ -4783,6 +4795,8 @@ if(R0DRY){
     projects:()=>{ try{ return _r0().S.listProjects(BASE,_persona()).length; }catch(e){ return 0; } },                         // [G4] nb de projets (preuve « Modèle = projet réutilisable »)
     resReturn:()=>{ try{ const {NAV}=_r0(); const f=r0Cur(_persona(),true); const ctx=r0Ctx(_persona()); const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx); const all=[].concat.apply([], (vw.rows||[])); const b=all.find(x=>/Retour/.test(x&&x.text||'')); return b&&b.cb||null; }catch(e){ return null; } }, // [G2] cb du ◀ Retour courant (preuve retour contextuel)
     setPub:(patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setPublication(BASE,_persona(),f.projectId,patch,Date.now()); }catch(e){} }, // [G5] seed légendes/hashtags
+    pub:()=>{ try{ return (r0Cur(_persona(),false)||{}).publication||{}; }catch(e){ return {}; } }, // [🔴P1] lecture publication (légendes auto)
+    storeCaptions:(caps)=>{ try{ const f=r0Cur(_persona(),true); return r0StoreCaptions(_persona(), f.projectId, caps); }catch(e){ return null; } }, // [🔴P1] stocke les légendes auto (réutilise le moteur script)
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)
