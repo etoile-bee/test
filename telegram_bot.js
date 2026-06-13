@@ -3242,15 +3242,8 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_VE_SUBS') r0SubReturn=null;
   if(/^R0_(GNEXT|RENEXT)$/.test(d)){ r0Page++; await r0Render(persona, editMid); return; }       // Suivant ▶
   if(/^R0_(GPREV|REPREV)$/.test(d)){ r0Page=Math.max(0,r0Page-1); await r0Render(persona, editMid); return; } // ◀ Précédent
-  // [#1b RÉAUTORISATION] Etoile rouvre le budget de tests (acte délibéré, son clic) : remet le compteur à 0 -> « Générer » redevient disponible. Aucune dépense déclenchée.
-  if(d==='R0_BUDGET_REARM'){ const nb=BUD.reauthorize(BASE); jlog('[v4r] budget RÉAUTORISÉ par Etoile -> '+nb.tests+'/'+nb.max);
-    await r0Render(persona, editMid, '🔓 <b>Budget réautorisé</b> ('+nb.remaining+'/'+nb.max+' tests disponibles) — tu peux générer.'); return; }
-  // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
-  if(d==='R0_GO' && r0Pending && ENG.live() && BUD.state(BASE).exhausted){
-    const b=BUD.state(BASE); jlog('[v4r] GO bloqué : budget tests réels épuisé '+b.max+'/'+b.max);
-    await r0Render(persona, editMid, '⛔ <b>Budget de test épuisé ('+b.max+'/'+b.max+')</b> — réautorisation d\'Etoile nécessaire.');
-    return;
-  }
+  // [#1' QUOTA SUPPRIMÉ] Plus de plafond de tests ni de « réautorisation requise » : la génération n'est JAMAIS bloquée par un compteur.
+  //   Le SEUL garde-fou conservé = l'écran de Validation/Confirmation chiffré (moteur/coût/crédits) + la double-confirmation (R0_GO2 -> R0_GO).
   // [texte entier] Envoie le TEXTE COMPLET (prompt/script/légendes) en message(s) SÉPARÉ(S) — copiable/éditable, hors limite média 1024.
   // [AJOUT 1] 🏷 Légendes (écran final vidéo) : poste DIRECTEMENT 2 blocs COPIABLES prêts à coller — courte+# et longue+# (hashtags fusionnés via r0FuseTags).
   //   Règle figée : le bloc copié = TEXTE BRUT SEUL (zéro titre/système) ; l'étiquette part dans un message SÉPARÉ. Reste dans le fil (cockpit re-rendu après).
@@ -3451,7 +3444,7 @@ async function r0Dispatch(persona, d, editMid){
     return;
   }
   // ── GÉNÉRATION VIDÉO RÉELLE (script Anthropic + voix ElevenLabs + lipsync Kling) : SEULEMENT sur GO + LIVE + vidéo + 3 clés présentes. ──
-  //    Même double-confirmation, même plafond budget. JAMAIS en dry-run (R0DRY). C'est la SEULE dépense vidéo, déclenchée par le clic d'Etoile.
+  //    Même double-confirmation (garde-fou financier conservé), SANS plafond de quota. JAMAIS en dry-run (R0DRY). C'est la SEULE dépense vidéo, déclenchée par le clic d'Etoile.
   const realVideo = (d==='R0_GO' && res.op && res.op.type==='create' && res.op.kind==='video' && ENG.liveFor('video') && !R0DRY);
   if(realVideo){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
@@ -3530,9 +3523,9 @@ async function r0RealPhoto(persona, id){
     S.addCandidate(BASE,persona,id,ts,'image', Object.assign({}, draft, {file:localPath, simule:false, moteur:'seedream-v4', prompt:(draft.prompt||'(éco)')}));
     r0PinSource(persona, id, localPath); // [SOURCE UNIQUE] la photo générée DEVIENT la source du projet (lue partout, y compris vidéo)
     r0CloudCopy(localPath, id); // [CLOUD] dépôt dans podcast-looks/<projet>/ (= iCloud) -> resync + app Fichiers + galerie
-    const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — 1 test réel consommé
-    jlog('[v4r] TEST RÉEL PHOTO n°'+b.tests+'/'+b.max+' — photo déposée '+localPath);
-    return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
+    const b=BUD.record(BASE, 0.48); // 1 photo éco = 0,48 cr (mesuré) — suivi crédits cumulés (informatif, SANS plafond)
+    jlog('[v4r] GÉNÉRATION RÉELLE PHOTO (cumul '+b.tests+' · '+b.credits+' cr) — photo déposée '+localPath);
+    return {ok:true, credits:b.credits};
   }
   jlog('[v4r] génération réelle échouée : '+err);
   return {ok:false, err:err};
@@ -3696,10 +3689,10 @@ async function r0RealVideo(persona, id, onStep){
   if(finalP){
     S.addCandidate(BASE,persona,id,ts,'video', Object.assign({}, draft, {file:finalP, simule:false, moteur:'kling+elevenlabs', script:(draft.script||topic)}));
     try{ r0OutputArchive(persona, id, finalP, raws, ts); }catch(e){ try{ jlog('[v4r] ☁ archive sortie err '+e.message); }catch(_){} } // [☁ RÉORG CLOUD] 1 dossier/jour · 1 média = 1 dossier (RAW inclus)
-    const cr=(est&&est.credits!=null)?est.credits:26; // coût réel estimé (cr) — 1 test réel consommé
+    const cr=(est&&est.credits!=null)?est.credits:26; // coût réel estimé (cr) — suivi crédits cumulés (informatif)
     const b=BUD.record(BASE, cr);
-    jlog('[v4r] TEST RÉEL VIDÉO n°'+b.tests+'/'+b.max+' — vidéo déposée '+finalP);
-    return {ok:true, tests:b.tests, max:b.max, credits:b.credits};
+    jlog('[v4r] GÉNÉRATION RÉELLE VIDÉO (cumul '+b.tests+' · '+b.credits+' cr) — vidéo déposée '+finalP);
+    return {ok:true, credits:b.credits};
   }
   jlog('[v4r] génération vidéo réelle échouée : '+err);
   return {ok:false, err:err};
@@ -4986,8 +4979,7 @@ if(R0DRY){
     storeCaptions:(caps)=>{ try{ const f=r0Cur(_persona(),true); return r0StoreCaptions(_persona(), f.projectId, caps); }catch(e){ return null; } }, // [🔴P1] stocke les légendes auto (réutilise le moteur script)
     ensureCaptions:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0EnsureCaptions(_persona(), f.projectId); }catch(e){ return null; } }, // [#2] dérive les légendes DEPUIS LE SCRIPT si vides (rétroactif, zéro dépense)
     deriveCaptions:(s)=>{ try{ return r0DeriveCaptions(s); }catch(e){ return null; } }, // [#2] dérivation déterministe courte/longue+tags
-    reauthorize:()=>{ try{ return BUD.reauthorize(BASE); }catch(e){ return null; } }, // [#1b] réautorise le budget (acte délibéré)
-    budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } },
+    budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } }, // [#1'] suivi crédits cumulés (informatif, SANS plafond) — exhausted toujours false
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)

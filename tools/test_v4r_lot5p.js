@@ -50,18 +50,15 @@ const cbs=v=>[].concat.apply([],v.rows||[]).map(b=>b.cb);
   bot.ensureCaptions();
   chk('#2 : édition d’Etoile préservée (jamais écrasée)', /MA LÉGENDE PERSO/.test(bot.pub().legende_courte||''));
 
-  // ── #1b BUDGET RÉAUTORISÉ ──
-  fs.writeFileSync(path.join(BOX,'v4r_budget.json'),JSON.stringify({tests:10,credits:50}));
-  chk('#1b : budget épuisé avant (10/10)', BUD.state(BOX).exhausted===true);
-  // les écrans Validation/Confirmation exposent le bouton de sortie d'impasse
+  // ── #1' QUOTA SUPPRIMÉ : même avec un ancien fichier « 10/10 », plus AUCUN blocage ; Générer toujours dispo ; aucun bouton « Réautoriser » ──
+  fs.writeFileSync(path.join(BOX,'v4r_budget.json'),JSON.stringify({tests:99,credits:500}));
+  chk('#1\' : jamais épuisé (plafond supprimé), même à 99 générations', BUD.state(BOX).exhausted===false);
   const vv=SC.validationView({},{confirm:{mediaKind:'video',est:{gratuit:false,credits:5},live:true,budget:BUD.state(BOX)}});
-  chk('#1b : Validation expose « Réautoriser le budget » (plus de cul-de-sac)', cbs(vv).includes('R0_BUDGET_REARM'));
+  chk('#1\' : Validation -> Générer TOUJOURS dispo, AUCUN « Réautoriser »', cbs(vv).includes('R0_GO2') && !cbs(vv).includes('R0_BUDGET_REARM') && !/épuisé/i.test(vv.caption));
   const c2=SC.confirm2View({},{confirm:{mediaKind:'video',est:{gratuit:false,credits:5},live:true,budget:BUD.state(BOX)}});
-  chk('#1b : Confirmation expose « Réautoriser le budget »', cbs(c2).includes('R0_BUDGET_REARM'));
-  // le tap réautorise réellement
-  await bot.tap('R0_BUDGET_REARM');
-  chk('#1b : après réautorisation, budget rouvert (non épuisé, 10 dispo)', BUD.state(BOX).exhausted===false && BUD.state(BOX).remaining===10);
-  chk('#1b : crédits cumulés CONSERVÉS (historique de dépense)', BUD.state(BOX).credits===50);
+  chk('#1\' : Confirmation -> Oui générer, AUCUN « Réautoriser »', cbs(c2).includes('R0_GO') && !cbs(c2).includes('R0_BUDGET_REARM'));
+  chk('#1\' : handler R0_BUDGET_REARM retiré (test hook reauthorize absent)', typeof bot.reauthorize==='undefined');
+  chk('#1\' : garde-fou financier conservé (coût affiché à la Validation)', /Coût/.test(vv.caption) && /Dépense réelle/i.test(vv.caption));
 
   console.log('\nRÉSULTAT: '+ok+' OK, '+ko+' KO'); process.exit(ko?1:0);
 })();

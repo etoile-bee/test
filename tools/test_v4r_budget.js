@@ -1,5 +1,7 @@
-// [RÉALISATION /v4r] BUDGET DE TESTS RÉELS (plafond 10) — logique testée EN SIMULATION, AUCUN appel réel.
-//   Vérifie : compteur persistant · incrément sur GO réel simulé · blocage à 10 · affichage confirm (moteur/coût/crédits/X-10).
+// [#1' QUOTA SUPPRIMÉ] Le plafond de tests (≤10 + « réautorisation requise ») est RETIRÉ. Ce test prouve :
+//   - aucun blocage par compteur (jamais « épuisé », jamais de refus, même après BEAUCOUP de générations) ;
+//   - le suivi crédits cumulés reste informatif (record accumule) ;
+//   - le GARDE-FOU FINANCIER par génération est CONSERVÉ : Validation chiffrée (moteur/coût/crédits) + bouton Générer TOUJOURS présent, AUCUN bouton « Réautoriser ».
 const fs = require('fs'), path = require('path'), os = require('os');
 const BUD = require('../ui/budget');
 const SC = require('../ui/screens');
@@ -8,43 +10,38 @@ const S = require('../ui/socle');
 
 let ok = 0, ko = 0;
 function chk(label, cond) { if (cond) { ok++; console.log('✅ ' + label); } else { ko++; console.log('❌ ' + label); } }
+const cbs = v => [].concat.apply([], v.rows || []).map(b => b.cb);
 
 const base = fs.mkdtempSync(path.join(os.tmpdir(), 'v4r_bud_'));
 
-// État initial
+// État initial : jamais épuisé
 let s = BUD.state(base);
-chk('init : 0 test consommé, plafond 10, prochain n°1, non épuisé', s.tests === 0 && s.max === 10 && s.next === 1 && !s.exhausted && s.remaining === 10);
+chk('init : 0 génération, JAMAIS épuisé (plus de plafond)', s.tests === 0 && s.exhausted === false);
 
-// Incrément simulé (comme un GO réel) — on simule 9 tests à 0,48 cr (photo éco)
-for (let i = 0; i < 9; i++) BUD.record(base, 0.48);
+// Beaucoup de générations (bien au-delà de l'ancien plafond de 10) -> JAMAIS bloqué
+for (let i = 0; i < 25; i++) BUD.record(base, 0.48);
 s = BUD.state(base);
-chk('après 9 tests : compteur=9, restant=1, prochain n°10, non épuisé', s.tests === 9 && s.remaining === 1 && s.next === 10 && !s.exhausted);
-chk('crédits cumulés corrects (9 × 0,48 = 4,32)', Math.abs(s.credits - 4.32) < 1e-9);
+chk('après 25 générations : compteur=25, TOUJOURS non épuisé (aucun plafond)', s.tests === 25 && s.exhausted === false);
+chk('crédits cumulés corrects (25 × 0,48 = 12)', Math.abs(s.credits - 12) < 1e-9);
+chk('record n\'est JAMAIS refusé (le compteur avance toujours)', (BUD.record(base, 0.48), BUD.state(base).tests === 26));
+chk('persistance : l\'état survit (relecture)', BUD.state(base).tests === 26);
+chk('plus d\'API de réautorisation (reauthorize supprimé)', typeof BUD.reauthorize === 'undefined');
 
-// 10e test -> épuisé
-BUD.record(base, 0.48); s = BUD.state(base);
-chk('après 10 tests : ÉPUISÉ (10/10), restant=0', s.tests === 10 && s.exhausted && s.remaining === 0);
-
-// 11e tentative -> REFUSÉE (jamais au-delà du plafond)
-const before = BUD.state(base).tests; BUD.record(base, 0.48);
-chk('11e tentative REFUSÉE (plafond dur, aucune dépense au-delà)', BUD.state(base).tests === before);
-
-// Persistance : relire depuis le disque
-chk('persistance : l\'état survit (relecture)', BUD.state(base).tests === 10);
-
-// ── Écran de confirmation : affichage moteur · coût · crédits consommés · X/10 · validation/blocage ──
+// ── GARDE-FOU FINANCIER CONSERVÉ : écran de Validation moteur·coût·crédits + bouton Générer toujours là ──
 const f = S.defaultFacts('imany', 't', Date.UTC(2026, 5, 11, 13));
 const est = COST.estimate('image', { nb_images: 1, mode: 'eco' }, { pricing: { ops: { eco: 0.48 }, eur_per_credit: 0.058 } });
-// cas SIMULATION (live=false) : pas de blocage, le clic ne dépense pas
-const vSim = SC.validationView(f, { confirm: { mediaKind: 'photo', est: est, live: false, budget: { tests: 3, credits: 1.44, max: 10, next: 4, remaining: 7, exhausted: false } } });
-chk('confirm SIM : coût + crédits + état simulation (compact)', /Coût/.test(vSim.caption) && /Crédits/i.test(vSim.caption) && /simulation/i.test(vSim.caption));
-chk('confirm SIM : bouton valider présent (pas de blocage)', [].concat.apply([], vSim.rows).some(b => b.cb === 'R0_GO2'));
-// [LOT1 #11] cas RÉEL non épuisé : coût/crédits gardés, cadrage « test n°X/10 » retiré
-const vReal = SC.validationView(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: { tests: 3, credits: 1.44, max: 10, next: 4, remaining: 7, exhausted: false } } });
-chk('confirm RÉEL : coût + « dépense réelle » (sans cadrage test n°X/10)', /Coût/.test(vReal.caption) && /Dépense réelle/i.test(vReal.caption) && !/test réel n°/i.test(vReal.caption) && [].concat.apply([], vReal.rows).some(b => b.cb === 'R0_GO2'));
-// cas RÉEL épuisé : blocage, pas de R0_GO
-const vBlocked = SC.validationView(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: { tests: 10, credits: 4.8, max: 10, next: 11, remaining: 0, exhausted: true } } });
-chk('confirm RÉEL ÉPUISÉ : message « budget épuisé » + AUCUN bouton de dépense', /épuisé/i.test(vBlocked.caption) && !([].concat.apply([], vBlocked.rows).some(b => b.cb === 'R0_GO')));
+// SIMULATION
+const vSim = SC.validationView(f, { confirm: { mediaKind: 'photo', est: est, live: false, budget: BUD.state(base) } });
+chk('Validation SIM : coût + crédits cumulés + état simulation', /Coût/.test(vSim.caption) && /Crédits/i.test(vSim.caption) && /simulation/i.test(vSim.caption));
+chk('Validation SIM : bouton Générer présent (R0_GO2)', cbs(vSim).includes('R0_GO2'));
+// RÉEL même après 26 générations : TOUJOURS Générer, AUCUN blocage / AUCUN « Réautoriser »
+const vReal = SC.validationView(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: BUD.state(base) } });
+chk('Validation RÉEL : « Dépense réelle » + coût (garde-fou financier conservé)', /Dépense réelle/i.test(vReal.caption) && /Coût/.test(vReal.caption));
+chk('Validation RÉEL : Générer TOUJOURS dispo, JAMAIS bloqué', cbs(vReal).includes('R0_GO2'));
+chk('Validation RÉEL : AUCUN « budget épuisé » / « Réautoriser »', !/épuisé/i.test(vReal.caption) && !cbs(vReal).includes('R0_BUDGET_REARM'));
+// Confirmation (2e garde-fou) : Oui/Annuler, jamais bloquée
+const c2 = SC.confirm2View(f, { confirm: { mediaKind: 'photo', est: est, live: true, budget: BUD.state(base) } });
+chk('Confirmation : double-confirmation présente (Oui, générer)', cbs(c2).includes('R0_GO') && !cbs(c2).includes('R0_BUDGET_REARM'));
 
 try { fs.rmSync(base, { recursive: true, force: true }); } catch (e) {}
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');

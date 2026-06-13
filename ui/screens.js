@@ -358,9 +358,9 @@ function gridRows(items, mkBtn, cols) {
 }
 
 // ── CONFIRMATION DE DÉPENSE (Aperçu→Récap→Coût→Validation) : AVANT toute génération payante (photo ET vidéo) ──
-//   ctx.confirm = { mediaKind, est:{moteur,credits,eur,gratuit,...}, credits, live:bool, budget:{tests,credits,max,next,remaining,exhausted} }
-//   Affiche : (1) moteur · (2) coût · (3) crédits déjà consommés (cumul tests réels) + « test réel n°X/10 » · (4) validation.
-//   En SIMULATION (live=false) : aucune dépense, le compteur n'avance pas. À 10/10 réel : BLOQUE.
+//   ctx.confirm = { mediaKind, est:{moteur,credits,eur,gratuit,...}, live:bool, budget:{tests,credits,exhausted:false} }
+//   Affiche : (1) moteur · (2) coût · (3) crédits cumulés (informatif) · (4) validation -> double confirmation.
+//   [#1'] AUCUN plafond/quota : la génération n'est JAMAIS bloquée par un compteur. En SIMULATION (live=false) : aucune dépense.
 // [D3 — V2] APERÇU = MÉDIA SEUL (récap métier, AUCUN coût/crédit). On VOIT le média ; on Valide pour passer à la Validation chiffrée.
 function confirmView(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
@@ -392,12 +392,12 @@ function confirmView(facts, ctx) {
   rows.push([{ text: '✅ Valider', cb: 'R0_GEN_VALID' }]); // -> écran VALIDATION (chiffré)
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
-// [D3 — V2] VALIDATION = GARDE-FOU CHIFFRÉ (moteur·coût·crédits·budget n/10·nb médias·durée) -> ✨ Générer maintenant -> double confirmation.
+// [D3 — V2] VALIDATION = GARDE-FOU FINANCIER CHIFFRÉ (moteur·coût·crédits cumulés·nb médias·durée) -> ✨ Générer maintenant -> double confirmation.
+//   [#1'] PLUS de plafond/blocage par quota : « Générer maintenant » est TOUJOURS disponible. Seul reste le garde-fou par génération (coût + double confirmation).
 function validationView(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
   const e = cf.est || {}; const paid = !e.gratuit; const live = !!cf.live;
-  const b = cf.budget || { tests: 0, credits: 0, max: 10, next: 1, remaining: 10, exhausted: false };
-  const blocked = paid && live && b.exhausted;
+  const b = cf.budget || { credits: 0 };
   const pr = cf.prep || {};
   let cap = '<b>✅ Validation — ' + (cf.mediaKind === 'video' ? '🎬 Vidéo' : (cf.mediaKind === 'text' ? '✨ Texte' : '📸 Photo')) + '</b>' + srcLine(ctx);
   cap += '\n⚙️ Moteur : ' + esc(e.moteur || (cf.mediaKind === 'video' ? 'Kling+ElevenLabs+Anthropic' : 'Seedream'));
@@ -405,14 +405,9 @@ function validationView(facts, ctx) {
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     cap += '\n💰 Crédits cumulés : ' + (b.credits != null ? b.credits + ' cr' : '—');
-    if (blocked) cap += '\n⛔ <b>Budget épuisé (' + b.max + '/' + b.max + ')</b> — réautorisation requise.';
-    else if (live) cap += '\n⚠️ <b>Dépense réelle</b> au clic « Générer maintenant ».'; // [LOT1 #11] retrait du cadrage « test n°X/10 » (coût/crédits gardés ci-dessus)
-    else cap += '\n🟡 Simulation — aucune dépense.';
+    cap += live ? '\n⚠️ <b>Dépense réelle</b> au clic « Générer maintenant ».' : '\n🟡 Simulation — aucune dépense.';
   } else cap += '\n🟢 Local — gratuit.';
-  const rows = blocked
-    ? [[{ text: '🔓 Réautoriser', cb: 'R0_BUDGET_REARM' }], // [#1b] plus de cul-de-sac : un clic rouvre 10 tests (acte délibéré d'Etoile)
-       [{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
-    : [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
+  const rows = [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
        [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
   // [P1-c FIX-1] la Validation peint la SOURCE PROJET (r0RealSource via le peintre, écran _strictSrc) + récap chiffré en légende.
   //   -> Aperçu(média)→Validation(média)→Confirmation(média) = 100% média, 0 recréation de bloc. Repli texte si aucune source réelle.
@@ -424,8 +419,6 @@ function validationView(facts, ctx) {
 function confirm2View(facts, ctx) {
   const cf = (ctx && ctx.confirm) || {};
   const e = cf.est || {}; const paid = !e.gratuit; const live = !!cf.live;
-  const b = cf.budget || { tests: 0, max: 10, next: 1, exhausted: false };
-  const blocked = paid && live && b.exhausted;
   const cout = (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
   // [🔴3/4 — H13] GÉNÉRATION EN COURS : état distinct, SANS Oui/Annuler (aucun re-clic possible). r0Busy verrouille en plus côté handler.
   if (ctx && ctx.generating) {
@@ -433,15 +426,11 @@ function confirm2View(facts, ctx) {
     const step = ctx.genStep ? ('\n' + esc(ctx.genStep)) : '';
     return { kind: C.mediaKind(facts), caption: '<b>' + ico + ' Génération en cours…</b>' + step + '\n<i>Ne reclique pas — le résultat arrive ici même.</i>', rows: [] };
   }
-  let cap;
-  // [LOT1 #11] retrait du cadrage « test n°X/10 » ; coût/crédits/moteur conservés.
-  if (blocked) cap = '<b>⛔ Budget épuisé (' + b.max + '/' + b.max + ')</b>\nRéautorisation nécessaire — aucune dépense.';
-  else if (live) cap = '<b>⚠️ Dépense réelle</b>\n💳 ' + cout + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer la génération ?</b>';
-  else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i> · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
+  // [#1'] PLUS de blocage par quota : double-confirmation TOUJOURS proposée ; seul reste le rappel coût/moteur (garde-fou financier).
+  let cap = live ? ('<b>⚠️ Dépense réelle</b>\n💳 ' + cout + ' · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer la génération ?</b>')
+    : ('<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i> · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>');
   cap += srcLine(ctx);
-  const rows = blocked
-    ? [[{ text: '🔓 Réautoriser', cb: 'R0_BUDGET_REARM' }], [{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]] // [#1b] sortie d'impasse : réautorise au lieu d'un cul-de-sac
-    : [[{ text: '✅ Oui, générer', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
+  const rows = [[{ text: '✅ Oui, générer', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
 
