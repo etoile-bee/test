@@ -36,7 +36,7 @@ chk('(b) PENDANT vidéo : étape (X/Y) affichée', /2\/4/.test(genV.caption));
 // CÂBLAGE handler : le flag r0Generating est posé ET nettoyé (finally) dans les 2 branches réelles
 const src = fs.readFileSync(require('path').join(__dirname, '..', 'telegram_bot.js'), 'utf8');
 chk('câblage : r0Generating posé pendant la génération (photo+vidéo)', (src.match(/r0Generating=true/g) || []).length >= 2);
-chk('câblage : r0Generating nettoyé en finally (anti-blocage)', (src.match(/finally\s*\{[^}]*r0Generating=false/g) || []).length >= 2);
+chk('câblage : r0Generating nettoyé en finally (anti-blocage)', (src.match(/finally\s*\{[\s\S]*?r0Generating=false[\s\S]*?r0GenLock\(false\)/g) || []).length >= 2);
 chk('câblage : verrou r0Busy bloque tout re-clic de R0_GO', /d==='R0_GO' && r0Busy/.test(src));
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');

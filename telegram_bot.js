@@ -117,7 +117,7 @@ async function sendVid(fp){
   const f=new FormData();
   f.append('chat_id',CHAT_ID);
   f.append('video',fs.createReadStream(fp));
-  f.append('supports_streaming','true');
+  _attachVideoMeta(f,fp); // [#K] width/height/thumb -> affichage 9:16
   f.append('caption','🎬 Video ready!');
   f.append('reply_markup',JSON.stringify({inline_keyboard:[[{text:'💾 Enregistrer (fichier)',callback_data:'SAVE_VID'}]]}));
   const r=await tg('sendVideo',null,f);
@@ -131,12 +131,19 @@ async function sendVid(fp){
   return r;
 }
 // Vidéo + caption + boutons en UN seul message (livraison consolidée). Renvoie le message_id.
+// [#K AFFICHAGE 9:16] dimensions RÉELLES de la vidéo (ffprobe) -> width/height envoyés à Telegram, sinon il affiche mal (réduit/mal cadré). Repli 720×1280 (sortie 9:16 connue).
+function _videoDims(fp){ try{ const out=require('child_process').execFileSync('ffprobe',['-v','error','-select_streams','v:0','-show_entries','stream=width,height','-of','csv=p=0:s=x',fp],{timeout:8000}).toString().trim(); const m=out.match(/(\d+)x(\d+)/); if(m && +m[1]>0 && +m[2]>0) return {w:+m[1],h:+m[2]}; }catch(e){} return {w:720,h:1280}; }
+// [#K] vignette (1re frame) pour un aperçu correct dans le fil. Best-effort (jamais bloquant : si ffmpeg échoue, on envoie sans thumb).
+function _videoThumb(fp){ try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); const out=path.join(BASE,'assets_r','_thumb_'+path.basename(fp).replace(/[^a-z0-9._-]/gi,'_')+'.jpg'); if(fs.existsSync(out)&&fs.statSync(out).size>0) return out; require('child_process').execFileSync('ffmpeg',['-y','-ss','0','-i',fp,'-frames:v','1','-vf','scale=720:-2','-q:v','4',out],{timeout:15000}); return (fs.existsSync(out)&&fs.statSync(out).size>0)?out:null; }catch(e){ return null; } }
+// [#K] applique width/height/thumbnail (+supports_streaming) à un form-data sendVideo. Centralisé -> TOUS les chemins d'envoi vidéo affichent du 9:16 correct.
+function _attachVideoMeta(form, fp){ try{ const d=_videoDims(fp); form.append('width',String(d.w)); form.append('height',String(d.h)); form.append('supports_streaming','true');
+  const th=_videoThumb(fp); if(th) form.append('thumbnail',fs.createReadStream(th)); }catch(e){} }
 async function sendVideoKb(fp,caption,rows){
   if(typeof R0DRY!=='undefined'&&R0DRY){ const r=_dryTg('sendVideo',{caption:caption}); return r.result.message_id; }
   uiLog({dir:'out',type:'video',screen:'video prête',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:false});
   try{
     const FormData=require('form-data');const f=new FormData();
-    f.append('chat_id',CHAT_ID);f.append('video',fs.createReadStream(fp));f.append('supports_streaming','true');
+    f.append('chat_id',CHAT_ID);f.append('video',fs.createReadStream(fp));_attachVideoMeta(f,fp); // [#K] width/height/thumb -> affichage 9:16
     if(caption){f.append('caption',caption.slice(0,1020));f.append('parse_mode','HTML');}
     if(rows)f.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await tg('sendVideo',null,f);
@@ -2229,16 +2236,17 @@ async function editVideoKb(mid,fp,caption,rows){
   uiLog({dir:'out',type:'edit',screen:screenOf(caption)||'maquette',user_action:'',caption_len:(caption||'').length,buttons:btnLabels(rows),edited_in_place:true});
   try{
     let d=null;
+    const _dim=_videoDims(fp); // [#K] 9:16 : width/height dans le média édité
     const fid=cachedFileId(fp,'video');
     if(fid){ // vidéo déjà connue de Telegram -> édition JSON, ZÉRO re-upload
-      d=await tg('editMessageMedia',{message_id:mid,media:{type:'video',media:fid,caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true},...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
+      d=await tg('editMessageMedia',{message_id:mid,media:{type:'video',media:fid,caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true,width:_dim.w,height:_dim.h},...(rows?{reply_markup:{inline_keyboard:rows}}:{})});
       if(d&&d.ok){sigSet(mid,sig);return true;}
       if(isNotMod(d&&d.description)){sigSet(mid,sig);return true;}
       if(isGone(d&&d.description)){jlog('⚠️ editVideoKb message disparu mid='+mid);return false;}
     }
     const FormData=require('form-data');const form=new FormData();
     form.append('chat_id',CHAT_ID);form.append('message_id',String(mid));
-    form.append('media',JSON.stringify({type:'video',media:'attach://vid',caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true}));
+    form.append('media',JSON.stringify({type:'video',media:'attach://vid',caption:cap1024(caption),parse_mode:'HTML',supports_streaming:true,width:_dim.w,height:_dim.h})); // [#K] 9:16
     form.append('vid',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
     if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
     const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/editMessageMedia',{method:'POST',body:form});
@@ -2262,7 +2270,8 @@ async function cockpitVideo(fp,caption,rows){
   if(cockpit.mid&&await editVideoKb(cockpit.mid,fp,caption,rows))return cockpit.mid;
   const FormData=require('form-data');const form=new FormData();
   form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(fp),{filename:'v.mp4',contentType:'video/mp4'});
-  form.append('caption',cap1024(caption));form.append('parse_mode','HTML');form.append('supports_streaming','true');
+  _attachVideoMeta(form,fp); // [#K] width/height/thumb -> affichage 9:16
+  form.append('caption',cap1024(caption));form.append('parse_mode','HTML');
   if(rows)form.append('reply_markup',JSON.stringify({inline_keyboard:rows}));
   try{const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});const d=await r.json();cockpit.mid=(d&&d.result&&d.result.message_id)||null;if(d&&d.ok)cacheFileId(fp,d.result);}catch(e){cockpit.mid=null;}
   return cockpit.mid;
@@ -2556,6 +2565,7 @@ let r0Page=0; /*[PAGINATION] page courante des grilles (galerie/historique/réce
 const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au lieu de 9), sur TOUTES les grilles*/
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
+const R0_HEARTBEAT_MS = (parseInt(process.env.R0_HEARTBEAT_MS,10)>0) ? parseInt(process.env.R0_HEARTBEAT_MS,10) : 180000; /*[#J] battement de cœur génération vidéo = ~3 min (legacy) ; surchargé en test.*/
 let r0NextPart=null; /*[PARTIE 2/3] série multi-parties : {n, prev:[scripts], baseTopic} — script = SUITE cohérente, mêmes réglages, même projet.*/
 let r0BlockExpanded=false; /*[🔴5 #8] « 👁 Voir plus » : déroule le texte complet (script/prompt) DANS le bloc ; réinit à chaque navigation.*/
 let r0EditPreviewFile=null; /*[LOT 2 #7] aperçu retouche couleur (ffmpeg local) peint dans le bloc edition ; non destructif.*/
@@ -2597,7 +2607,7 @@ function cockpitV4(){
     sendPhoto:(media,caption,rm,raw)=>sendPhotoKb(media,cap1024(caption),rk(rm)),
     editPhoto:async(mid,media,caption,rm,raw)=>{const r=await editPhotoKb(mid,media,cap1024(caption),rk(rm));return r===false?{ok:false}:{ok:true};},
     editCaption:(mid,caption,rm)=>tg('editMessageCaption',{message_id:mid,caption:cap1024(caption),parse_mode:'HTML',...(rm?{reply_markup:rm}:{})}),
-    sendVideo:async(media,caption,rm)=>{ try{ const FormData=require('form-data');const form=new FormData();form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(media),{filename:'v.mp4',contentType:'video/mp4'});if(caption){form.append('caption',cap1024(caption));form.append('parse_mode','HTML');}if(rm)form.append('reply_markup',JSON.stringify(rm));const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});return await r.json(); }catch(e){ return {ok:false}; } },
+    sendVideo:async(media,caption,rm)=>{ try{ const FormData=require('form-data');const form=new FormData();form.append('chat_id',CHAT_ID);form.append('video',fs.readFileSync(media),{filename:'v.mp4',contentType:'video/mp4'});_attachVideoMeta(form,media); /*[#K] 9:16*/ if(caption){form.append('caption',cap1024(caption));form.append('parse_mode','HTML');}if(rm)form.append('reply_markup',JSON.stringify(rm));const r=await fetch('https://api.telegram.org/bot'+TOKEN+'/sendVideo',{method:'POST',body:form});return await r.json(); }catch(e){ return {ok:false}; } },
     editVideo:async(mid,media,caption,rm)=>{const r=await editVideoKb(mid,media,cap1024(caption),rk(rm));return r===false?{ok:false}:{ok:true};},
   };
   let v4lookbook={}; try{ v4lookbook=nlMod().readLookbook()||{}; }catch(e){}
@@ -2686,23 +2696,33 @@ function r0StoreCaptions(persona, id, caps){ try{ if(!caps) return null; const {
 const R0_TAGS_DEFAUT = '#fyp #foryou #viral #pourtoi';
 // [#2 LÉGENDES RÉTRO] Dérive 2 légendes DEPUIS LE SCRIPT — déterministe, ZÉRO dépense (aucun appel moteur). Pause déjà retirée en amont.
 //   courte = 1re phrase nette (≤120) ; longue = ~3 premières phrases (≤240). Sert de repli quand le projet n'a pas de légendes stockées.
+// [#O — format LEGACY] COURTE ≈ 2 phrases (accroche) ; LONGUE = développée (plusieurs phrases) ; les deux NETTEMENT différentes. Hashtags fusionnés ailleurs (r0FuseTags).
 function r0DeriveCaptions(script){ const s=_stripPause(String(script==null?'':script)).replace(/\s+/g,' ').trim(); if(!s) return null;
   const phrases=s.split(/(?<=[.!?…])\s+/).map(x=>x.trim()).filter(Boolean);
-  let courte=phrases[0]||s; if(courte.length>120) courte=courte.slice(0,117).replace(/\s+\S*$/,'').trim()+'…';
-  let longue=phrases.slice(0,3).join(' ')||s; if(longue.length>240) longue=longue.slice(0,237).replace(/\s+\S*$/,'').trim()+'…';
+  const clip=(t,n)=>{ t=String(t||'').trim(); return t.length>n ? (t.slice(0,n-1).replace(/\s+\S*$/,'').trim()+'…') : t; };
+  // COURTE : 2 premières phrases (accroche courte), bornée ~200
+  let courte=clip(phrases.slice(0,2).join(' ')||s, 200);
+  // LONGUE : plus développée (jusqu'à ~5 phrases), bornée ~500 ; si le script est court, on ajoute un appel à l'action -> garantit qu'elle DIFFÈRE de la courte.
+  let longue=clip(phrases.slice(0,5).join(' ')||s, 500);
+  const CTA=' Enregistre cette vidéo et partage-la si elle t\'a parlé. 💬';
+  if(longue.length<=courte.length+10){ longue=clip((phrases.slice(0,5).join(' ')||s)+CTA, 500); }
+  if(longue===courte){ longue=clip(courte+CTA, 500); } // jamais deux légendes identiques
   return { short:courte, long:longue, tags:R0_TAGS_DEFAUT }; }
 // [#2 LÉGENDES RÉTRO] Remplit les légendes VIDES d'un projet existant À PARTIR DU SCRIPT (même vidéo déjà générée). N'écrase jamais une édition d'Etoile.
 //   Appelé à l'ouverture de Résultat / Légendes / Fichiers : si script présent mais légendes « à définir », on les fabrique sans dépense.
 function r0EnsureCaptions(persona, id){ try{ const {S}=_r0(); if(!id) id=(r0Cur(persona,false)||{}).projectId; if(!id) return null;
   const f=S.loadFacts(BASE,persona,id)||{}; const pub=f.publication||{};
-  const hasC=!!String(pub.legende_courte||'').trim(), hasL=!!String(pub.legende_longue||'').trim(), hasT=!!String(pub.hashtags||'').trim();
-  if(hasC && hasL && hasT) return null; // tout est déjà là
+  const cC=String(pub.legende_courte||'').trim(), cL=String(pub.legende_longue||'').trim();
+  const hasC=!!cC, hasL=!!cL, hasT=!!String(pub.hashtags||'').trim();
+  // [#O] re-dérive aussi si les 2 légendes sont IDENTIQUES ou si la longue n'est pas plus longue (symptôme « trop courtes/identiques ») — sans écraser des légendes distinctes (édition préservée).
+  const degenere = hasC && hasL && (cC===cL || cL.length<=cC.length);
+  if(hasC && hasL && hasT && !degenere) return null; // tout est déjà là ET les 2 légendes sont distinctes
   const dv=(f.draft&&f.draft.video)||{}; const script=_stripPause(dv.script||r0FindProjectScript(persona,id)||'').trim();
   if(!script) return null;
   const der=r0DeriveCaptions(script); if(!der) return null;
   const patch={};
-  if(!hasC && der.short) patch.legende_courte=der.short;
-  if(!hasL && der.long)  patch.legende_longue=der.long;
+  if((!hasC||degenere) && der.short) patch.legende_courte=der.short;
+  if((!hasL||degenere) && der.long)  patch.legende_longue=der.long;
   if(!hasT)              patch.hashtags=R0_TAGS_DEFAUT;
   if(Object.keys(patch).length){ S.setPublication(BASE,persona,id,patch,Date.now()); try{ jlog('[v4r] légendes RÉTRO dérivées du script ('+Object.keys(patch).join('+')+')'); }catch(_){}; return patch; }
 }catch(e){ try{ jlog('[v4r] ensureCaptions err '+e.message); }catch(_){} } return null; }
@@ -3427,7 +3447,8 @@ async function r0Dispatch(persona, d, editMid){
     try{ await toast(r?('💾 Version enregistrée — récupérable dans 🗂 Mes fichiers ('+r.photos+' photo(s)·'+r.videos+' vidéo(s))'):'💾 Enregistré'); }catch(e){}
     return; }
   // [RETOUR CONTEXTUEL — résources/Fichiers] [G2] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat/Publication), pas un défaut fixe. Couvre studio_section, pret, publies.
-  if(d==='R0_VI_RESULT'||d==='R0_PHOTO_RESULT'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} } // [🔴P2] Résultat = ré-affiche la dernière vidéo retrouvée du disque
+  if(d==='R0_VI_RESULT'||d==='R0_PHOTO_RESULT'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [🔴P2] Résultat = ré-affiche la dernière vidéo retrouvée du disque
+    try{ r0EnsureCaptions(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} } // [#L] légendes dérivées du script -> 🏷 Lég. courte/longue copiables directement sur l'écran final
   if(d==='R0_RES'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [🔴P2] Fichiers = SCAN du dossier projet -> aucune vidéo perdue
     try{ r0EnsureCaptions(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [#2] légendes dérivées du script si vides (zéro dépense)
     r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
@@ -3528,11 +3549,15 @@ async function r0Dispatch(persona, d, editMid){
     if(r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente (ne reclique pas)'); }catch(e){} return; } // VERROU anti double-dépense
     r0Busy=true; r0GenLock(true,'video'); // [VERROU GÉNÉRATION] bloque tout deploy/restart pendant la génération
     r0Generating=true; r0GenStep='préparation…'; // [🔴3/4 H13] confirm2 masque Oui/Annuler pendant la génération
+    const _t0=Date.now(); let _stepBase='préparation…'; let _hb=null;
     try{
       await r0Render(persona, editMid); // [#A statut UNIQUE] état EN COURS rendu par confirm2View (ctx.generating + genStep) -> PAS de bannière en plus (sinon double statut)
       // [AVANCEMENT UN SEUL BLOC + STATUT UNIQUE] chaque étape MET À JOUR genStep ; confirm2View le ré-affiche (un seul « en cours », pas de flood, pas de double).
-      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); if(now-_lastStep<1200) return; _lastStep=now; r0GenStep=String(msg||''); r0Render(persona, editMid).catch(()=>{}); };
-      const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout), dépose la VIDÉO RÉELLE, enregistre le test
+      let _lastStep=0; const onStep=(msg)=>{ const now=Date.now(); _stepBase=String(msg||_stepBase); if(now-_lastStep<1200) return; _lastStep=now; r0GenStep=_stepBase+' · ⏱ '+fmtElapsed(now-_t0); r0Render(persona, editMid).catch(()=>{}); };
+      // [#J BATTEMENT DE CŒUR — repris du legacy (~3 min)] pendant le poll Kling (lipsync, le plus long), on rafraîchit la caption avec le TEMPS ÉCOULÉ -> jamais d'écran figé.
+      if(typeof R0DRY==='undefined' || !R0DRY){ _hb=setInterval(()=>{ try{ r0GenStep=_stepBase+' · ⏱ '+fmtElapsed(Date.now()-_t0)+' — génération en cours'; r0Render(persona, editMid).catch(()=>{}); }catch(e){} }, R0_HEARTBEAT_MS); }
+      const out=await r0RealVideo(persona, id, onStep); // pipeline réel (timeout 15 min -> incident), dépose la VIDÉO RÉELLE
+      if(_hb){ clearInterval(_hb); _hb=null; }
       r0Generating=false; r0GenStep=''; // [🔴3/4] terminé : on rétablit les écrans normaux
       r0Screen=res.st.screen; r0Section=res.st.section; r0Block=res.st.block; r0Ret=res.st.ret; r0Pending=res.st.pending; r0QuitFrom=res.st.quitFrom; r0SrcReturn=res.st.srcReturn;
       const okBanner='🎬 <b>Vidéo générée</b> · ✅ terminé'+(out.credits!=null?(' · '+out.credits+' cr'):''); // [#11] plus de « test n°X/10 »
@@ -3541,7 +3566,7 @@ async function r0Dispatch(persona, d, editMid){
       if(out.ok){ const mv=C.lastVideo(r0Cur(persona)); if(mv&&mv.file){ r0CloudCopy(mv.file, id); await r0PostFinal('video', mv.file, r0FinalCap(persona,'video',false,null)); } } // [CLOUD]+[RENDU PERSISTANT] [#11] sans « test n°X/10 »
       await r0Render(persona, editMid, out.ok ? okBanner : koBanner);
     } catch(e){ try{ await r0Render(persona, editMid, '⚠️ <b>Incident génération vidéo</b>\n<i>Cause : '+_r0esc(e.message||String(e))+'</i>\nRien n\'est perdu. ◀ Retour ou /accueil.'); }catch(_){} }
-    finally { r0Busy=false; r0Generating=false; r0GenStep=''; r0GenLock(false); }
+    finally { if(_hb){ try{ clearInterval(_hb); }catch(_){} } r0Busy=false; r0Generating=false; r0GenStep=''; r0GenLock(false); }
     return;
   }
   if(d==='R0_GO' && r0Busy){ try{ await toast('⏳ Génération déjà en cours — patiente'); }catch(e){} return; } // verrou aussi hors photo

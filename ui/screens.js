@@ -244,14 +244,15 @@ function videoResultView(facts, ctx) {
   // [#11] BANDEAU FINAL SIMPLIFIÉ : Projet · Date · Type · Catégorie/thème · Durée · Statut (plus de « test n°X/10 »). Détails via boutons.
   const cap = finalCaption(facts, 'video', m, dv, ctx && ctx.projNum) + srcLine(ctx);
   const nVid = C.visibles(facts).filter(x => x.type === 'video').length; // [PARTIE 2/3] prochaine partie = nb de vidéos + 1
+  // [#L — Etoile] ÉCRAN FINAL VIDÉO complet : légendes COPIABLES (courte+# / longue+#) + ➕ Partie 2/3 + 🎬 Refaire vidéo DIRECTEMENT ici (sans passer par Fichiers).
   return {
     kind: 'video', caption: cap, rows: [
+      [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#L] copie directe (légende + hashtags fusionnés)
+      [{ text: '➕ Partie ' + (nVid + 1) + ' (suite)', cb: 'R0_VI_PART' }, { text: '🎬 Refaire vidéo', cb: 'R0_VI_CREATE' }], // [#L] série cohérente OU nouvelle vidéo du projet
       [{ text: '✏️ Modifier', cb: 'R0_VI_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_VI_REGEN' }],
-      [{ text: '➕ Partie ' + (nVid + 1) + ' (suite)', cb: 'R0_VI_PART' }], // [PARTIE 2/3] série cohérente : mêmes réglages, script = suite
-      [{ text: '🏷 Légendes', cb: 'R0_LEGENDS' }, { text: '🗂 Fichiers projet', cb: 'R0_RES' }], // [AJOUT 1] 🏷 = blocs copiables prêts à coller (édition légendes via Fichiers)
-      [{ text: '📤 Prêt à poster', cb: 'R0_READY' }, { text: '📤 Publier', cb: 'R0_PUB' }],
-      [{ text: '✅ Garder', cb: 'R0_VI_KEEP' }, { text: '◀ Retour', cb: 'R0_VIDEO' }],
-      [HOME],
+      [{ text: '📤 Publier', cb: 'R0_PUB' }, { text: '📤 Prêt à poster', cb: 'R0_READY' }],
+      [{ text: '🗂 Fichiers', cb: 'R0_RES' }, { text: '✅ Garder', cb: 'R0_VI_KEEP' }],
+      [{ text: '◀ Retour', cb: 'R0_VIDEO' }, HOME],
     ],
   };
 }
@@ -512,7 +513,7 @@ function resourcesView(facts, ctx) {
     + '\n🎬 Script : ' + val(dv.script ? short(dv.script, 40) : null)
     + '\n✏️ Légende courte : ' + val(p.legende_courte)
     + '\n📄 Légende longue : ' + val(p.legende_longue ? short(p.legende_longue, 40) : null)
-    + '\n#️⃣ Hashtags : ' + val(p.hashtags)
+    // [#M — Etoile] ligne « # Hashtags » séparée RETIRÉE : les hashtags n'existent QUE fusionnés dans les 2 légendes (courte+# / longue+#).
     + '\n🔤 Sous-titres : ' + esc(String(dv.soustitres || 'auto'));
   // [HUB ASSETS — Etoile] récupération UN PAR UN de TOUS les fichiers de la version : un bouton dédié par type.
   //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
@@ -524,7 +525,7 @@ function resourcesView(facts, ctx) {
     [{ text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#2] hashtags FUSIONNÉS dans les 2 légendes -> bouton Hashtags séparé supprimé
     [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
-    [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
+    [{ text: '📤 Publication', cb: 'R0_PUB' }], // [#M] bouton « Éditer légendes » RETIRÉ (Etoile n'en veut pas) ; légendes auto + copiables ci-dessus
     [{ text: '◀ Retour', cb: (ctx && ctx.resReturn) || (C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO') }, HOME], // [RETOUR CONTEXTUEL] revient à l'origine (Studio/Récents/Résultat)
   ];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
