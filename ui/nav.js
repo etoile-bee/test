@@ -7,6 +7,8 @@ const SC = require('./screens');
 const C = require('./conscience');
 // [#3 PAUSE INVISIBLE] garde-fou d'AFFICHAGE : le panneau Script ne montre JAMAIS « [pause] »/« pause » (la pause reste en coulisses pour le TTS).
 let _stripPauseDisp; try { _stripPauseDisp = require('../tts_sanitize').stripPauseText; } catch (e) { _stripPauseDisp = (x) => String(x == null ? '' : x); }
+// [#E libellés] tronque PROPREMENT un libellé de bouton (jamais coupé en plein mot) : nettoie le markdown, coupe à la limite de mot, ajoute « … ».
+function _shortLbl(s, n) { s = String(s == null ? '' : s).replace(/[*_`\[\]"]/g, '').replace(/\s+/g, ' ').trim(); n = n || 15; return s.length > n ? (s.slice(0, n).replace(/\s+\S*$/, '').trim() || s.slice(0, n)) + '…' : s; }
 
 // Navigation pure : action -> écran (sans mutation). Les actions à effet (génération, etc.) sont gérées par le câble.
 const NEXT = {
@@ -144,32 +146,31 @@ function blockSpec(block, facts, ctx) {
   const FREE = { prompt: 'ph_prompt', script: 'vi_script', source: 'vi_source' };
   if (FREE[block.key]) {
     const ask = FREE[block.key];
-    // « Image source » = sélection RÉELLE (Choisir une photo / Importer), pas une saisie libre.
-    // [scripts] « 🔄 Régénérer le script » (réutilisable à volonté) ; sinon « ✨ Générer (IA) ».
-    // [B — Etoile] le SCRIPT se régénère IN-SCREEN (reste sur le bloc Script, même thème) -> R0_REGEN_SCRIPT (pas R0_GENTXT qui sortait vers video_params).
-    const opts = (block.key === 'source')
-      ? [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }]
-      : (block.key === 'script')
-        ? [{ text: '🔄 Régénérer', cb: 'R0_REGEN_SCRIPT' }]
-        : [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
-    // [#17] MODÈLES PRÉ-ENREGISTRÉS (scripts/prompts existants) : remontent ici, chargeables, aperçu éditable. Libellés LISIBLES (non coupés trop court).
-    // [#18] « 💾 Défaut » : enregistre la valeur courante pour la réutiliser aux prochaines générations/nouveaux projets.
-    // [SCRIPTS] CATÉGORIES/THÈMES RÉELS legacy (comme les Tenues) : une puce par thème ; oriente la génération. Marqueur 🔵 sur le thème courant.
+    const hasDef = !!(ctx && ctx.defaults && ctx.defaults[block.screen + '.' + block.key]);
+    const pkFree = (block.key === 'prompt' || block.key === 'script') ? 'text' : pk; // texte (4096) pour prompt/script -> « Voir plus » déroule tout
+    const curVal = (block.key === 'script') ? _stripPauseDisp(d[block.key]) : d[block.key]; // [#3] script affiché sans « pause »
+    // ── IMAGE SOURCE : sélection réelle (pas une saisie) ──
+    if (block.key === 'source') {
+      return { title: titleOf(block), current: d[block.key], parentKind: pk, back: back, askCb: 'R0_ASK_' + ask,
+        options: [{ text: '🖼 Choisir', cb: 'R0_VI_PICK' }, { text: '📥 Importer', cb: 'R0_VI_IMPORT' }], hint: 'Choisis une photo ou importe.' };
+    }
+    // ── SCRIPT : présentation LEGACY lisible — grille de CATÉGORIES claires (2/ligne, 🔵 = thème courant), ACTIONS séparées. Aucun modèle tronqué. ──
+    //   Choisir/changer un thème GÉNÈRE le vrai script (câble) ; 🔄 Régénérer = autre version ; ✍️ Saisir (ajouté par blockView) = écrire le sien.
     if (block.key === 'script') {
       const cats = (ctx && ctx.scriptCats) || [];
-      cats.forEach((c, i) => opts.push({ text: (d.theme === c.label ? '🔵 ' : '') + c.label, cb: 'R0_STHEME_' + i }));
+      const optionRows = [[{ text: '🔄 Régénérer le script', cb: 'R0_REGEN_SCRIPT' }]]; // action principale, pleine largeur
+      for (let i = 0; i < cats.length; i += 2) optionRows.push(cats.slice(i, i + 2).map((c, j) => ({ text: (d.theme === c.label ? '🔵 ' : '') + c.label, cb: 'R0_STHEME_' + (i + j) }))); // catégories legacy, 2/ligne, LISIBLES
+      optionRows.push([{ text: '💾 Modèle défaut', cb: 'R0_DEFSAVE' }]);
+      return { title: titleOf(block), current: curVal, parentKind: 'text', back: back, askCb: 'R0_ASK_' + ask, optionRows: optionRows, expanded: !!(ctx && ctx.blockExpanded),
+        hint: 'Choisis un thème (génère le script) · 🔄 Régénérer pour une autre version · ✍️ Saisir pour écrire le tien.' };
     }
-    if (block.key === 'prompt' || block.key === 'script') {
-      const list = ((ctx && ctx.presets && (block.key === 'script' ? ctx.presets.scripts : ctx.presets.prompts)) || []).slice(0, 3);
-      list.forEach((p, i) => opts.push({ text: '📁 ' + String(p.title || p.name || ('Modèle ' + (i + 1))).replace(/[*_`\[\]"]/g, '').slice(0, 28), cb: 'R0_LOADP_' + i }));
-      opts.push({ text: '💾 Défaut', cb: 'R0_DEFSAVE' });
-    }
-    const hasDef = !!(ctx && ctx.defaults && ctx.defaults[block.screen + '.' + block.key]);
-    // [scripts/prompts EN ENTIER] prompt/script affichés en mode TEXTE (caption jusqu'à 4096), pas en média (limité à 1024) -> texte complet copiable/éditable.
-    const pkFree = (block.key === 'prompt' || block.key === 'script') ? 'text' : pk;
-    // [#3] le SCRIPT affiché ne montre jamais « pause » (invisible partout) ; la pause TTS est gérée en coulisses (sanitizeTTS).
-    const curVal = (block.key === 'script') ? _stripPauseDisp(d[block.key]) : d[block.key];
-    return { title: titleOf(block), current: curVal, parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, options: opts, expanded: !!(ctx && ctx.blockExpanded), hint: (block.key === 'source' ? 'Choisis une photo ou importe.' : ('Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : ''))) };
+    // ── PROMPT (et autres saisies libres) : Générer IA + modèles 📁 (libellés PROPRES, jamais coupés en plein mot) + 💾 Défaut, en 2/ligne ──
+    const optsP = [{ text: '✨ Générer (IA)', cb: 'R0_GENTXT_' + ask }];
+    ((ctx && ctx.presets && ctx.presets.prompts) || []).slice(0, 3).forEach((p, i) => optsP.push({ text: '📁 ' + _shortLbl(p.title || p.name || ('Modèle ' + (i + 1)), 15), cb: 'R0_LOADP_' + i }));
+    optsP.push({ text: '💾 Défaut', cb: 'R0_DEFSAVE' });
+    const optionRowsP = []; for (let i = 0; i < optsP.length; i += 2) optionRowsP.push(optsP.slice(i, i + 2));
+    return { title: titleOf(block), current: curVal, parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, optionRows: optionRowsP, expanded: !!(ctx && ctx.blockExpanded),
+      hint: 'Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : '') };
   }
   // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
@@ -386,7 +387,8 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_REF_LOCK') { const lock = !((facts && facts.draft && facts.draft.photo) || {}).ref_locked; return { st: st, toast: lock ? '🔒 Référence verrouillée' : '🔓 Référence déverrouillée', op: { type: 'draft', kind: 'photo', patch: { ref_locked: lock } } }; }
   if (d === 'R0_PHB_edition') { return { st: st, toast: '🎨 Édition image (local, gratuit)', op: { type: 'draft', kind: 'photo', patch: { image_fx: 'réglée' } } }; } // (P2) Édition dans la prépa photo (local)
   if (d.indexOf('R0_PHB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'photo', key: d.slice(7) } }) }; }
-  if (d.indexOf('R0_VIB_') === 0) { return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: d.slice(7) } }) }; }
+  // [#B sous-titres] toute entrée « sous-titres » (R0_VIB_subs hérité) ROUTE vers le VRAI panneau key='soustitres' (Police·Taille·Hauteur·Modèle), jamais un « • subs » cassé.
+  if (d.indexOf('R0_VIB_') === 0) { let _k = d.slice(7); if (_k === 'subs' || _k === 'soustitres') return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: 'soustitres' } }) }; return { st: Object.assign(st, { screen: 'block', block: { screen: 'video', key: _k } }) }; }
   if (d.indexOf('R0_ST_') === 0 && d !== 'R0_STUDIO') { st.section = d.slice(6); return { st: Object.assign(st, { screen: 'studio_section', block: null }) }; }
   if (d.indexOf('R0_STA_') === 0) { return { st: st, toast: '🏛 Studio — édition à venir (lecture seule)' }; }
   if (d.indexOf('R0_STI_') === 0) { return { st: st, toast: '🏛 Élément (lecture seule)' }; }
