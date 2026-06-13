@@ -1,5 +1,7 @@
 // [RÉALISATION — RÉFÉRENCE PRODUIT] Conformité des ÉCRANS : boutons EXACTS de l'architecture, commandes
 //   globales à comportement CONSTANT, aucun écran orphelin (toujours un retour ◀/🏠), kind correct, reduce déterministe.
+// [ISOLATION] R0_DRYRUN -> engines.live() === false DÉTERMINISTE : le test ne doit JAMAIS lire le flag LIVE réel (~/podcast-workflow/v4r_live), sinon faux rouge quand le réel est armé.
+process.env.R0_DRYRUN = '1';
 const S = require('../ui/socle');
 const C = require('../ui/conscience');
 const NAV = require('../ui/nav');

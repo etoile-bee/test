@@ -49,7 +49,10 @@ const NAV = require('../ui/nav');
 const spec = NAV.blockSpec({ screen: 'video', key: 'soustitres' }, { draft: { video: {} } }, { subStyle: { font: 'archivo', size: 'M', oy: 0.370 } });
 chk('panneau : « Actuel » affiche la hauteur legacy 0.37', /hauteur 0\.37/.test(spec.current || ''));
 const allcb = (spec.optionRows || []).flat().map(b => b.cb).join(' ');
-chk('panneau [P4bis] : EXACTEMENT 3 réglages (Police/Taille/Hauteur)', (spec.optionRows || []).length === 3 && /stfont_/.test(allcb) && /stsize_/.test(allcb) && /R0_STOY_/.test(allcb));
+// [#5] le panneau garde EXACTEMENT 3 rangées de RÉGLAGES (Police/Taille/Hauteur) ; la rangée « 💾 Modèle par défaut » est une ACTION, pas un réglage.
+const settingRows = (spec.optionRows || []).filter(r => r.some(b => /stfont_|stsize_|R0_STOY_/.test(b.cb)));
+chk('panneau [P4bis] : EXACTEMENT 3 réglages (Police/Taille/Hauteur)', settingRows.length === 3 && /stfont_/.test(allcb) && /stsize_/.test(allcb) && /R0_STOY_/.test(allcb));
+chk('panneau [#5] : bouton « Modèle par défaut » présent (action séparée)', /R0_DEFSAVE/.test(allcb));
 chk('panneau [P4bis] : disposition/position-presets/couleur RETIRÉES', !/stdisp_|stpos_|stcolor_/.test(allcb));
 
 console.log('\nRÉSULTAT: ' + ok + ' OK, ' + ko + ' KO');

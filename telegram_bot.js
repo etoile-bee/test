@@ -3304,7 +3304,7 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_DEFSAVE' && r0Block){ const {DEF}=_r0(); const kind=r0Block.screen;
     const dr=S.getDraft(r0Cur(persona),kind)||{};
     // [SOUS-TITRES DÉFINITIF] le panneau d'apparence porte PLUSIEURS champs (st_*) -> on les mémorise TOUS comme défauts.
-    const fields=(r0Block.key==='soustitres')?['st_display','st_font','st_size','st_pos','st_color']:[NAV.fieldAlias(r0Block)];
+    const fields=(r0Block.key==='soustitres')?['st_display','st_font','st_size','st_pos','st_color','st_oy']:[NAV.fieldAlias(r0Block)]; // [#5] inclut la HAUTEUR (collier 0.370) dans le modèle par défaut
     let n=0; fields.forEach(ff=>{ const v=dr[ff]; if(v!=null&&v!==''){ DEF.setField(BASE,persona,kind,ff,v); n++; } });
     try{ await toast(n?'💾 Enregistré par défaut — réutilisé ensuite':'Rien à enregistrer (vide)'); }catch(e){}
     await r0Render(persona, editMid); return; }

@@ -109,6 +109,7 @@ function blockSpec(block, facts, ctx) {
         [ { text: '⬇ Plus bas', cb: 'R0_STOY_dn' },
           { text: '📍 ' + oy.toFixed(2), cb: 'R0_STOY_NOP' },
           { text: '⬆ Plus haut', cb: 'R0_STOY_up' } ], // 📍 Hauteur (continu, ≈ Position y legacy)
+        [ { text: '💾 Enregistrer comme modèle par défaut', cb: 'R0_DEFSAVE' } ], // [#5] un clic -> ces 3 réglages deviennent le défaut GLOBAL (réutilisé sur chaque nouvelle vidéo)
       ],
     };
   }
