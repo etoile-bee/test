@@ -74,6 +74,7 @@ function homeView(facts, ctx) {
     kind: hasImg ? 'photo' : 'text', caption: cap, rows: [   // couverture = image RÉELLE si elle existe ; sinon texte (aucun cadre vide)
       [{ text: '📸 PHOTO', cb: 'R0_PHOTO' }, { text: '🎬 VIDÉO', cb: 'R0_VIDEO' }],
       [{ text: '🎨 STUDIO', cb: 'R0_STUDIO' }, { text: '🕘 RÉCENTS', cb: 'R0_RECENTS' }],
+      [{ text: '🔎 Trouver vidéo', cb: 'R0_VI_HIST' }],   // [#7] recherche inter-projets : journal vidéo GLOBAL -> ouvrir le projet d'une vidéo (libellé court ≤18)
       [{ text: '📤 Prêt à poster', cb: 'R0_PRET' }],   // [LOT1 accueil] accès direct à la file Prêt à poster
       [{ text: '🛑 Stop', cb: 'R0_STOP' }, { text: '🔄 Restart', cb: 'R0_RESTART' }],  // [#12/#3] Stop/Restart sur l'Accueil — [ANO-CTX-LIBELLE-STOP] casse unifiée « Stop »
     ],
@@ -407,7 +408,7 @@ function validationView(facts, ctx) {
     else cap += '\n🟡 Simulation — aucune dépense.';
   } else cap += '\n🟢 Local — gratuit.';
   const rows = blocked
-    ? [[{ text: '🔓 Réautoriser le budget', cb: 'R0_BUDGET_REARM' }], // [#1b] plus de cul-de-sac : un clic rouvre 10 tests (acte délibéré d'Etoile)
+    ? [[{ text: '🔓 Réautoriser', cb: 'R0_BUDGET_REARM' }], // [#1b] plus de cul-de-sac : un clic rouvre 10 tests (acte délibéré d'Etoile)
        [{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
     : [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
        [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
@@ -437,7 +438,7 @@ function confirm2View(facts, ctx) {
   else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i> · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
   cap += srcLine(ctx);
   const rows = blocked
-    ? [[{ text: '🔓 Réautoriser le budget', cb: 'R0_BUDGET_REARM' }], [{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]] // [#1b] sortie d'impasse : réautorise au lieu d'un cul-de-sac
+    ? [[{ text: '🔓 Réautoriser', cb: 'R0_BUDGET_REARM' }], [{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]] // [#1b] sortie d'impasse : réautorise au lieu d'un cul-de-sac
     : [[{ text: '✅ Oui, générer', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
@@ -509,7 +510,7 @@ function resourcesView(facts, ctx) {
   //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
   const rows = [
     [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '☁ RAW', cb: 'R0_GETRAW' }], // [☁] RAW Kling récupérable (export brut)
-    [{ text: '🎬 Refaire une vidéo depuis ce projet', cb: 'R0_VI_CREATE' }], // [#6] relance le flux vidéo en réutilisant la photo + le projet (flux existant testé)
+    [{ text: '🎬 Refaire vidéo', cb: 'R0_VI_CREATE' }], // [#6] relance le flux vidéo en réutilisant la photo + le projet (flux existant testé ; libellé court ≤18)
     [{ text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
     [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#2] hashtags FUSIONNÉS dans les 2 légendes -> bouton Hashtags séparé supprimé

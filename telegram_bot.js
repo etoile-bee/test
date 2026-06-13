@@ -2942,6 +2942,17 @@ function r0RealVideos(persona, max){
   out.sort((a,b)=>b.m-a.m);
   return out.slice(0,max).map(o=>o.p);
 }
+// [#7 RECHERCHE INTER-PROJETS] À partir du CHEMIN d'un média, retrouve le CODE PROJET propriétaire (projectId).
+//   Couvre projects_r/<persona>/<id>/…, podcast-looks/<id>/… (et /projets/<id>/…). Renvoie l'id seulement s'il existe vraiment comme projet.
+function r0ProjectIdOfFile(persona, file){ try{ if(!file) return null; const {S}=_r0(); const f=String(file).replace(/\\/g,'/');
+  const ids=(S.listProjects(BASE,persona)||[]).map(p=>p.projectId);
+  // 1) chemin dans le dossier de travail du projet : projects_r/<persona>/<id>/
+  let m=f.match(/\/projects_r\/[^/]+\/([^/]+)\//); if(m && ids.indexOf(m[1])>=0) return m[1];
+  // 2) chemin cloud par projet : podcast-looks(/projets)?/<id>/
+  m=f.match(/\/(?:podcast-looks|looks)\/(?:projets\/)?([^/]+)\//); if(m && ids.indexOf(m[1])>=0) return m[1];
+  // 3) repli : un id de projet apparaît tel quel dans le chemin (ex. nom de fichier préfixé)
+  for(const id of ids){ if(id && f.indexOf('/'+id+'/')>=0) return id; }
+  return null; }catch(e){ return null; } }
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
 async function r0Mosaic(files, startNum){
@@ -3322,10 +3333,25 @@ async function r0Dispatch(persona, d, editMid){
     else { try{ await toast('Élément introuvable'); }catch(e){} }
     await r0Render(persona, editMid); return; }
   // [G1] HISTORIQUE — revoir (LECTURE) : renvoie l'asset choisi tel quel, AUCUNE sélection dans le flux (pas de picksrc). Journal consultable.
+  // [#7 RECHERCHE INTER-PROJETS] pour une VIDÉO retrouvée, on indique SON projet propriétaire + un bouton « 📂 Ouvrir le projet » (remontée dans le flux).
   if(d.indexOf('R0_GVIEW_')===0){ const i=+d.slice(9); const ctx2=r0Ctx(persona); const file=(ctx2.galleryFiles||[])[i];
-    if(file&&fs.existsSync(file)){ try{ if(r0GalKind==='video') await sendVideoKb(file,'🕘 <i>Historique — revoir</i>',null); else await sendPhotoKb(file,'🕘 <i>Historique — revoir</i>',null); }catch(e){} }
+    if(file&&fs.existsSync(file)){
+      let cap='🕘 <i>Historique — revoir</i>', kb=null;
+      if(r0GalKind==='video'){ const owner=r0ProjectIdOfFile(persona,file);
+        if(owner){ const of=S.loadFacts(BASE,persona,owner)||{}; const onom=(of.intention&&of.intention.titre)||of.titre||of.nom||owner; cap='🎬 <i>'+_r0esc(onom)+'</i>'; kb=r0Kb([[{text:'📂 Ouvrir projet',cb:'R0_GOPROJ_'+i}]]); }
+        await sendVideoKb(file,cap,kb);
+      } else { await sendPhotoKb(file,cap,null); }
+    }
     else { try{ await toast('Fichier indisponible'); }catch(e){} }
     await r0Render(persona, editMid); return; }
+  // [#7] 📂 OUVRIR LE PROJET d'une vidéo retrouvée : bascule le projet courant sur le propriétaire (touch), réconcilie ses médias du disque, ouvre son Résultat vidéo.
+  if(d.indexOf('R0_GOPROJ_')===0){ const i=+d.slice(10); const ctx2=r0Ctx(persona); const file=(ctx2.galleryFiles||[])[i];
+    const owner=file?r0ProjectIdOfFile(persona,file):null;
+    if(owner){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,owner),Date.now()); }catch(e){} // touch -> devient le projet courant
+      try{ r0ReconcileProjectMedia(persona, owner); }catch(e){}
+      r0Screen='video_result'; r0Section=null; r0Block=null; r0GalKind='image'; r0GalAll=false; r0GalRole='select';
+      await r0Render(persona, editMid, '📂 <b>Projet ouvert</b> — tu peux refaire une vidéo, éditer les légendes ou récupérer les fichiers.'); return; }
+    try{ await toast('Projet introuvable pour cette vidéo'); }catch(e){} await r0Render(persona, editMid); return; }
   // [ANO-ARCH-VERSIONING] ⏪ Version précédente : restaure la dernière version du champ du bloc courant (jamais de perte — la version est ré-appliquée).
   if(d==='R0_PREVVER' && r0Block){ const f3=r0Cur(persona,true); const keys=NAV.verKeysFor(r0Block);
     const key=keys.find(k=>((f3.versions&&f3.versions[k])||[]).length>0);
@@ -4947,6 +4973,7 @@ if(R0DRY){
     nextPart:()=>r0NextPart, // [PARTIE 2/3] état de série armé
     seriesScripts:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0SeriesScripts(_persona(), f.projectId); }catch(e){ return []; } },
     realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
+    projectIdOf:(file)=>{ try{ return r0ProjectIdOfFile(_persona(), file); }catch(e){ return null; } }, // [#7] code projet propriétaire d'un fichier vidéo retrouvé
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
     projects:()=>{ try{ return _r0().S.listProjects(BASE,_persona()).length; }catch(e){ return 0; } },                         // [G4] nb de projets (preuve « Modèle = projet réutilisable »)

@@ -43,7 +43,7 @@ const cbs=v=>[].concat.apply([],v.rows||[]).map(b=>b.cb);
   chk('#2 : bouton « Hashtags » séparé RETIRÉ de Fichiers', !cbs(rv).includes('R0_FULLTEXT_tags'));
   chk('#2 : légendes copiables toujours présentes (legc/legl)', cbs(rv).includes('R0_FULLTEXT_legc') && cbs(rv).includes('R0_FULLTEXT_legl'));
   // #6 : Refaire une vidéo depuis ce projet présent
-  chk('#6 : « Refaire une vidéo » présent dans Fichiers (R0_VI_CREATE)', cbs(rv).includes('R0_VI_CREATE') && rv.rows.some(r=>r.some(b=>/Refaire une vid/i.test(b.text))));
+  chk('#6 : « Refaire vidéo » présent dans Fichiers (R0_VI_CREATE)', cbs(rv).includes('R0_VI_CREATE') && rv.rows.some(r=>r.some(b=>/Refaire vid/i.test(b.text))));
 
   // ── #2 NON-ÉCRASEMENT : une légende éditée par Etoile n'est JAMAIS remplacée ──
   require('../ui/socle').setPublication(BOX,'imany',id,{legende_courte:'MA LÉGENDE PERSO'},Date.now());
