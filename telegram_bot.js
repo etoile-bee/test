@@ -2660,6 +2660,7 @@ function r0Cur(persona, create){ const {S}=_r0(); let cur=S.currentProject(BASE,
 function r0PickCurrent(persona){ const {S,C}=_r0(); const list=S.listProjects(BASE,persona)||[];
   const withMedia=list.find(p=>(C.visibles(p)||[]).length>0); const pick=withMedia||list[0];
   if(pick){ try{ r0ReconcileProjectMedia(persona, pick.projectId); }catch(e){} // [🔴P2] récupère du disque les médias perdus AVANT de reprendre
+    try{ r0RestoreScriptOnReopen(persona, pick.projectId); }catch(e){} // [#A] RÉOUVERTURE projet -> affiche le vrai script enregistré (jamais pendant l'édition/thème)
     try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,pick.projectId),Date.now()); }catch(e){} jlog('[v4r] reprise projet '+(withMedia?'avec médias ':'')+pick.projectId); }
   return pick; }
 function r0DemoPhoto(){ try{ return v4Placeholder(); }catch(e){ return null; } } /*image de démo LOCALE (look) — zéro dépense*/
@@ -2825,12 +2826,22 @@ function r0ReconcileProjectMedia(persona, id){
     for(const fp of found){ const bn=path.basename(fp); if(known.has(bn)||!fs.existsSync(fp)) continue;
       const isV=VID.test(fp);
       try{ S.addCandidate(BASE,persona,id,ts,isV?'video':'image',{file:fp, simule:false, etat:'garde', source:'disque projet', recovered:true}); known.add(bn); added++; }catch(e){} }
-    // [🔴SCRIPT RÉEL] si les faits ont un script vide/simulé alors qu'un vrai script existe (sidecar/média), on le restaure dans le draft.
-    try{ const dv=S.getDraft(f,'video')||{}; const cur=String(dv.script||'').trim();
-      if(!cur || /simul/i.test(cur)){ const real=r0FindProjectScript(persona, id); if(real){ S.setDraft(BASE,persona,id,'video',{script:real},ts); try{ jlog('[v4r] 🔴 script réel restauré pour '+id); }catch(_){} } } }catch(e){}
+    // [#A — RÉGRESSION THÈME] La RESTAURATION du script réel a été RETIRÉE d'ici : la réconciliation média tourne aussi à l'ouverture de Résultat/Fichiers
+    //   (édition active) et écrasait alors la régénération par thème (le simulé « …simulé… » matchait /simul/). La restauration n'a lieu QU'À la réouverture
+    //   d'un projet, via r0RestoreScriptOnReopen() (appelée par r0PickCurrent + R0_GOPROJ uniquement). Ici : MÉDIA seulement, jamais le script.
     if(added) try{ jlog('[v4r] 🔴P2 réconciliation disque projet '+id+' : +'+added+' média(s) récupéré(s) du dossier'); }catch(_){}
     return added;
   }catch(e){ try{ jlog('[v4r] reconcile err '+e.message); }catch(_){} return 0; }
+}
+// [#A — THÈME PILOTE LE SCRIPT] Restauration du VRAI script UNIQUEMENT à la RÉOUVERTURE d'un projet (jamais pendant l'édition).
+//   Si le draft n'a pas de vrai script (vide/simulé) mais qu'un script réel existe (sidecar/média), on l'affiche -> « rouvrir projet = script existant ».
+//   N'est JAMAIS appelée sur changement de thème / Régénérer / Résultat / Fichiers -> ces actions produisent toujours un nouveau script.
+function r0RestoreScriptOnReopen(persona, id){
+  try{ const {S}=_r0(); if(!id) return false; const f=S.loadFacts(BASE,persona,id); if(!f) return false;
+    const dv=S.getDraft(f,'video')||{}; const cur=String(dv.script||'').trim();
+    if(!cur || /simul/i.test(cur)){ const real=r0FindProjectScript(persona, id); if(real){ S.setDraft(BASE,persona,id,'video',{script:real},Date.now()); try{ jlog('[v4r] 🔴 script réel restauré (réouverture projet) '+id); }catch(_){}; return true; } }
+  }catch(e){ try{ jlog('[v4r] restoreScript err '+e.message); }catch(_){} }
+  return false;
 }
 // [🔴SCRIPT RÉEL] récupère le VRAI script généré du projet : sidecar .txt (« SCRIPT:\n… ») le plus récent, sinon script d'un média. JAMAIS le stub simulé.
 function r0FindProjectScript(persona, id){ try{ const {S,C}=_r0(); const dir=path.join(BASE,'projects_r',persona,id); const cand=[];
@@ -3116,7 +3127,9 @@ async function r0Render(persona, editMid, banner){
       if(png){ media=png; kind='photo'; } else { media=r0RealSource(f); kind=media?'photo':'text'; } }
   }
   // [ANO-CTX-BLOCK-DEMO-GENERAL] AUCUN écran d'ÉDITION (block) ne peint une démo : contexte projet réel (r0RealSource) ou TEXTE.
-  else if(_isEditPanel){ media=r0RealSource(f); kind=media?'photo':'text'; }
+  // [#C — VOIR PLUS] les blocs TEXTE (Script/Prompt, vw.kind==='text') restent en MESSAGE TEXTE (jusqu'à 4096) -> « Voir plus » déroule TOUT le texte.
+  //   Sinon (look/décor/source…), on peint la source réelle (photo) pour le contexte. NE JAMAIS peindre un script/prompt en légende photo (tronquée à 1024 = « Voir plus » cassé).
+  else if(_isEditPanel){ if(vw.kind==='text'){ kind='text'; media=null; } else { media=r0RealSource(f); kind=media?'photo':'text'; } }
   // [LOT 2 #7] ÉCRAN edition (🛠 Modifier) : peint l'APERÇU retouché s'il existe, sinon la SOURCE réelle. Jamais de démo.
   else if(r0Screen==='edition'){ media=(r0EditPreviewFile&&fs.existsSync(r0EditPreviewFile))?r0EditPreviewFile:r0RealSource(f); kind=media?'photo':'text'; }
   // [P1-a] ÉCRANS INTERMÉDIAIRES (quit · confirm · confirm2 · validation) : source projet réelle, jamais une démo (femme cuir).
@@ -3344,6 +3357,7 @@ async function r0Dispatch(persona, d, editMid){
     const owner=file?r0ProjectIdOfFile(persona,file):null;
     if(owner){ try{ S.saveFacts(BASE,persona,S.loadFacts(BASE,persona,owner),Date.now()); }catch(e){} // touch -> devient le projet courant
       try{ r0ReconcileProjectMedia(persona, owner); }catch(e){}
+      try{ r0RestoreScriptOnReopen(persona, owner); }catch(e){} // [#A] réouverture projet -> script existant restauré
       r0Screen='video_result'; r0Section=null; r0Block=null; r0GalKind='image'; r0GalAll=false; r0GalRole='select';
       await r0Render(persona, editMid, '📂 <b>Projet ouvert</b> — tu peux refaire une vidéo, éditer les légendes ou récupérer les fichiers.'); return; }
     try{ await toast('Projet introuvable pour cette vidéo'); }catch(e){} await r0Render(persona, editMid); return; }
@@ -4962,7 +4976,8 @@ if(R0DRY){
     findRaw:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0FindRaw(_persona(), f.projectId); }catch(e){ return null; } }, // [☁] RAW retrouvé (test)
     BASE:()=>BASE,
     seedDraft:(kind,patch)=>{ try{ const f=r0Cur(_persona(),true); _r0().S.setDraft(BASE,_persona(),f.projectId,kind,patch,Date.now()); }catch(e){} }, // [test] seed script/prompt/st_*
-    reconcile:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0ReconcileProjectMedia(_persona(), f.projectId); }catch(e){ return 0; } }, // [🔴P2] réconcilie facts<-disque projet
+    reconcile:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0ReconcileProjectMedia(_persona(), f.projectId); }catch(e){ return 0; } }, // [🔴P2] réconcilie facts<-disque projet (MÉDIA seulement)
+    restoreScript:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0RestoreScriptOnReopen(_persona(), f.projectId); }catch(e){ return false; } }, // [#A] restauration script = RÉOUVERTURE projet uniquement
     projDir:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return path.join(BASE,'projects_r',_persona(),f.projectId); }catch(e){ return null; } }, // [test] dossier disque du projet courant
     curId:()=>{ try{ return (r0Cur(_persona(),false)||{}).projectId; }catch(e){ return null; } },
     nextPart:()=>r0NextPart, // [PARTIE 2/3] état de série armé

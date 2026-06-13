@@ -18,7 +18,7 @@ const cbs=v=>[].concat.apply([],v.rows||[]).map(b=>b.cb);
   fs.writeFileSync(path.join(dir,'2026-06-13-18-00_p1.txt'),
     'SCRIPT:\nIl te voit. [pause] Mais il ne dit rien. pause Et toi tu attends. Arrête d’attendre.\n');
   fs.writeFileSync(path.join(dir,'2026-06-13-18-00_p1.mp4'),Buffer.alloc(20000,9));
-  bot.reconcile();
+  bot.reconcile(); bot.restoreScript(); // [#A] script restauré à la réouverture (média via reconcile, script via restoreScript)
   const dvScript=(bot.draft('video').script)||'';
   chk('#3 : draft.video.script restauré SANS « pause » visible', /il te voit/i.test(dvScript) && !/pause/i.test(dvScript));
   const sub=bot.subChunks({script:dvScript});

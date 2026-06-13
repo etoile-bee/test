@@ -16,9 +16,10 @@ const cbs=v=>[].concat.apply([],v.rows||[]).map(b=>b.cb);
   // ── #3 : sidecar avec un VRAI script (« men retreat… »), draft.video.script vide -> doit être restauré + affiché ──
   fs.writeFileSync(path.join(dir,'2026-06-13-17-33_p1.txt'),'SCRIPT:\nMen retreat when you start valuing yourself. Stop chasing.\n\nSHORT:\nValue yourself\n\nHASHTAGS:\nfyp viral');
   fs.writeFileSync(path.join(dir,'2026-06-13-17-33_p1.mp4'),Buffer.alloc(20000,9));
-  bot.reconcile(); // simule l'ouverture (Fichiers/reprise)
+  bot.reconcile();        // média (P2)
+  bot.restoreScript();    // [#A] restauration script = RÉOUVERTURE projet (déplacée hors de la réconciliation média)
   const dvScript=(bot.draft('video').script)||'';
-  chk('#3 : script RÉEL restauré dans le draft (men retreat)', /men retreat/i.test(dvScript) && !/simul/i.test(dvScript));
+  chk('#3 : script RÉEL restauré dans le draft à la RÉOUVERTURE (men retreat)', /men retreat/i.test(dvScript) && !/simul/i.test(dvScript));
   // le panneau Script affiche ce vrai texte
   const spec=NAV.blockSpec({screen:'video',key:'script'},require('../ui/socle').loadFacts(BOX,'imany',id),{});
   const sv=SC.blockView(spec);

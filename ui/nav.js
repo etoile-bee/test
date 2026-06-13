@@ -324,11 +324,12 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_QUIT_DISCARD') { st.quitFrom = null; return Object.assign(go('home'), { op: { type: 'cleardraft' } }); }
   if (d === 'R0_QUIT_CANCEL') { const back = st.quitFrom || 'home'; st.quitFrom = null; return { st: Object.assign(st, { screen: back }) }; }
 
-  // [SCRIPTS] choisir un THÈME legacy -> mémorise label + seed dans le brouillon vidéo ; reste sur le panneau Script. Oriente la génération.
+  // [SCRIPTS — #A LE THÈME PILOTE LE SCRIPT] choisir/changer un THÈME -> mémorise label+seed PUIS génère aussitôt un script pour CE thème (op.then gentext, simulé = zéro dépense ;
+  //   la vraie version IA arrive à la génération vidéo). -> « choisir thème = script affiché » et « modifier thème = script change ». Reste sur le panneau Script.
   if (d.indexOf('R0_STHEME_') === 0) {
     const i = +d.slice(10); const c = (ctx && ctx.scriptCats && ctx.scriptCats[i]) || null;
     if (!c) return { st: st, toast: 'Thème indisponible' };
-    return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed } }, toast: '🎬 Thème : ' + c.label };
+    return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed }, then: { type: 'gentext', ask: 'vi_script' } }, toast: '🎬 Thème : ' + c.label };
   }
   // [P4bis] HAUTEUR sous-titres (≈ « Position y » legacy) : stepper continu sur draft.video.st_oy, borné, reste sur le panneau. Défaut legacy 0.37.
   if (d === 'R0_STOY_NOP') { return { st: st }; }
