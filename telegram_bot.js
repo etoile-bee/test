@@ -4790,6 +4790,8 @@ if(R0DRY){
     draft:(kind)=>{ try{ const {S}=_r0(); return S.getDraft(r0Cur(_persona(),false), kind)||{}; }catch(e){ return {}; } }, // brouillon courant (preuve #17/#18)
     cover:()=>{ try{ return r0CoverFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // image AFFICHÉE (couverture réelle) — preuve conservation source
     srcFile:()=>{ try{ return r0SourceFile(r0Cur(_persona(),false)||{}); }catch(e){ return null; } }, // [LOT 2] SOURCE ACTIVE épinglée (invariant) — preuve hash sha1 stable
+    galFiles:()=>{ try{ return (r0Ctx(_persona()).galleryFiles)||[]; }catch(e){ return []; } }, // [🔴P2] fichiers RÉELS de la galerie courante (preuve photo choisie == fichier #k)
+    realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
     projects:()=>{ try{ return _r0().S.listProjects(BASE,_persona()).length; }catch(e){ return 0; } },                         // [G4] nb de projets (preuve « Modèle = projet réutilisable »)
