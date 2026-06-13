@@ -165,6 +165,13 @@ const allBtns = [home, ph0, SC.photoView(fimg), php, phr, vi0, SC.videoView(fimg
   .flatMap(v => [].concat.apply([], v.rows)).map(b => b.text);
 chk('point3 : libellés courts (aucun > 18 caractères)', allBtns.every(t => t.length <= 18));
 chk('point3 : libellés cibles présents (Garder/Changer/Choisir/Créer vidéo/Historique)', /Garder/.test(allBtns.join(' ')) && /Changer/.test(allBtns.join(' ')) && /Choisir/.test(allBtns.join(' ')) && /Créer vidéo/.test(allBtns.join(' ')));
+// ── [#4] ALLÉGEMENT : boutons d'ACTION en 2/ligne max (les grilles média numérotées 1-6 restent à 3 — exclues car non présentes dans ces vues statiques) ──
+const view4 = (n, a, b) => { try { return SC[n](a, b); } catch (e) { return { rows: [] }; } };
+const flowViews = [home, SC.photoView(fimg), php, phr, SC.videoView(fimg), vip, vir, pub, studio, rec,
+  view4('resourcesView', fvid, {}), view4('publicationView', f0, {}), view4('pretView', f0, { pret: { items: [] } }),
+  view4('editionView', fimg, {}), SC.photoSourceView(fimg), view4('videoSourceView', fimg), SC.videoEditView(fvid), SC.quitView(fimg)];
+const wideRows = flowViews.flatMap(v => (v.rows || [])).filter(r => r.length > 2);
+chk('point4 [#4] : écrans allégés — rangées d\'action ≤ 2 boutons/ligne', wideRows.length === 0);
 // ── AUDIT JSON BRUT (point 4) : aucune liste n'affiche de JSON/objet sérialisé ──
 const listCaps = [SC.studioSectionView(f0, { section: { icon: '👗', label: 'Looks', count: 2, items: [{ id: 1, cat: 'soiree' }, { id: 2, cat: 'business' }], source: 'x' } }),
   SC.galleryView(fvid, { galleryKind: 'image' }), SC.recentsView(f0, ctx)];

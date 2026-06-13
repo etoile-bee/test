@@ -216,7 +216,8 @@ function videoParamsView(facts, ctx) {
   let cap = '<b>' + titleFor('video_prepare') + '</b>\nChoisissez l\'action suivante.' + srcLine(ctx);
   // [R6] IMAGE SOURCE (Garder · Changer · Autre photo) PUIS un seul 🛠 Montage. [LOT1 vocab] « Changer » (jamais « Remplacer »).
   const rows = [
-    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }, { text: '🔄 Changer', cb: 'R0_VI_PICK' }, { text: '✨ Autre photo', cb: 'R0_VI_GENPHOTO' }], // « Autre photo » = génère une AUTRE source (≠ générer la vidéo)
+    [{ text: '✅ Garder', cb: 'R0_VI_KEEPLOOK' }], // [#4] action primaire (garder la source) en pleine largeur
+    [{ text: '🔄 Changer', cb: 'R0_VI_PICK' }, { text: '✨ Autre photo', cb: 'R0_VI_GENPHOTO' }], // [#4] 2/ligne · « Autre photo » = génère une AUTRE source (≠ générer la vidéo)
     [{ text: '🛠 Montage', cb: 'R0_VE' }, { text: '📸 Outils photo', cb: 'R0_PH_GEN' }],            // [NAV BIDIRECTIONNELLE] revenir aux outils photo (même image source conservée)
     [{ text: '👁 Aperçu', cb: 'R0_VI_PREVIEW' }],                                                  // PRODUCTION via aperçu obligatoire
     [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],                                                      // NAVIGATION : Retour vers VIDÉO·Choisir (pas de boucle)
@@ -329,7 +330,8 @@ function recentsView(facts, ctx) {
   // NUMÉRO AFFICHÉ + index cb = ABSOLUS (base de page + j) -> ouverture correcte ; retrait = Archiver (soft).
   const rows = gridRows(top, (p, j) => ({ text: (pg.base + j + 1) + '. ' + short((p.intention && p.intention.message) || 'Projet', 18), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_REPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_REPREV' }, { text: 'Suivant ▶', cb: 'R0_RENEXT' }]);
-  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }, { text: '🗂 Fichiers', cb: 'R0_RES' }]); // [HUB] accès assets du projet ouvert
+  rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]); // [#4] 2/ligne
+  rows.push([{ text: '🗂 Fichiers', cb: 'R0_RES' }]); // [HUB] accès assets du projet ouvert
   rows.push([{ text: '◀ Retour', cb: 'R0_HOME' }]);
   return { kind: 'text', caption: cap, rows: rows };
 }
@@ -509,10 +511,11 @@ function resourcesView(facts, ctx) {
   // [HUB ASSETS — Etoile] récupération UN PAR UN de TOUS les fichiers de la version : un bouton dédié par type.
   //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
   const rows = [
-    [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '☁ RAW', cb: 'R0_GETRAW' }], // [☁] RAW Kling récupérable (export brut)
+    [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }], // [#4] 2/ligne
+    [{ text: '☁ RAW', cb: 'R0_GETRAW' }, { text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }], // [☁] RAW Kling récupérable (export brut) + voix
     [{ text: '🎬 Refaire vidéo', cb: 'R0_VI_CREATE' }], // [#6] relance le flux vidéo en réutilisant la photo + le projet (flux existant testé ; libellé court ≤18)
-    [{ text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
-    [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
+    [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }], // [#4] 2/ligne
+    [{ text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#2] hashtags FUSIONNÉS dans les 2 légendes -> bouton Hashtags séparé supprimé
     [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
     [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
