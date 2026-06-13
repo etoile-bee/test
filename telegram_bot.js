@@ -2566,6 +2566,12 @@ const R0_PAGE=6; /*[Etoile] taille de page = 6 vignettes/projets par écran (au 
 let r0MediaPath=null, r0Busy=false; /*[RÉALISATION] fichier média actuellement AFFICHÉ (pour remplacer l'image quand elle change) + verrou anti double-génération.*/
 let r0Generating=false, r0GenStep=''; /*[🔴3/4 — H13] état « génération en cours » : confirm2 masque Oui/Annuler + montre l'avancement (aucun re-clic).*/
 const R0_HEARTBEAT_MS = (parseInt(process.env.R0_HEARTBEAT_MS,10)>0) ? parseInt(process.env.R0_HEARTBEAT_MS,10) : 180000; /*[#J] battement de cœur génération vidéo = ~3 min (legacy) ; surchargé en test.*/
+// [#P CARTE CONNEXION] horodatage de la dernière action + seuil d'inactivité (~20 min). Telegram n'émet RIEN à l'ouverture pure de l'app ;
+//   on reposte donc la carte « ✅ Connecté » à la 1re interaction après un REDÉMARRAGE (r0LastAction=0 au boot) ou après une PÉRIODE D'INACTIVITÉ.
+let r0LastAction=0;
+const R0_INACTIVITY_MS = (parseInt(process.env.R0_INACTIVITY_MS,10)>0) ? parseInt(process.env.R0_INACTIVITY_MS,10) : 1200000;
+function r0ConnectGateDue(now){ now=now||Date.now(); return (!r0LastAction) || ((now - r0LastAction) > R0_INACTIVITY_MS); } // carte due ? (boot OU inactivité)
+function r0TouchAction(now){ r0LastAction=now||Date.now(); }
 let r0NextPart=null; /*[PARTIE 2/3] série multi-parties : {n, prev:[scripts], baseTopic} — script = SUITE cohérente, mêmes réglages, même projet.*/
 let r0BlockExpanded=false; /*[🔴5 #8] « 👁 Voir plus » : déroule le texte complet (script/prompt) DANS le bloc ; réinit à chaque navigation.*/
 let r0EditPreviewFile=null; /*[LOT 2 #7] aperçu retouche couleur (ffmpeg local) peint dans le bloc edition ; non destructif.*/
@@ -3802,6 +3808,19 @@ async function r0RealVideo(persona, id, onStep){
 }
 
 async function handle(upd){
+  // [#P CARTE CONNEXION] à chaque RETOUR : reposte « ✅ Connecté » sur les ENTRÉES (/accueil, /v4r) et sur la 1re interaction après boot/inactivité (>~20 min).
+  //   /start poste déjà la carte (son handler) ; les boutons de la carte (Reprendre/Accueil) ne la redéclenchent pas. La carte reste persistante (send, jamais edit).
+  try{
+    const _cid = upd.callback_query ? (upd.callback_query.message&&upd.callback_query.message.chat&&upd.callback_query.message.chat.id) : (upd.message&&upd.message.chat&&upd.message.chat.id);
+    if(String(_cid)===CHAT_ID){
+      const _act = upd.callback_query ? String(upd.callback_query.data||'') : String((upd.message&&upd.message.text)||'');
+      const _isCardBtn = (_act==='R0_RESUME'||_act==='R0_RESUME_HOME');
+      const _isStart = (_act==='/start');                         // /start poste sa propre carte
+      const _isEntry = (_act==='/accueil' || /^\/v4r\b/.test(_act)); // entrées explicites -> carte TOUJOURS
+      if(!_isCardBtn && !_isStart && (_isEntry || r0ConnectGateDue())){ try{ await r0ConnectCard(_persona()); }catch(e){} }
+      r0TouchAction();
+    }
+  }catch(e){}
   // Callback
   if(upd.callback_query){
     const cb=upd.callback_query;
@@ -5086,6 +5105,9 @@ if(R0DRY){
     deriveCaptions:(s)=>{ try{ return r0DeriveCaptions(s); }catch(e){ return null; } }, // [#2] dérivation déterministe courte/longue+tags
     budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } }, // [#1'] suivi crédits cumulés (informatif, SANS plafond) — exhausted toujours false
     connectCard:()=>{ try{ return r0ConnectCardSpec(); }catch(e){ return null; } }, // [#1-connexion] carte « Connecté » (texte + Reprendre/Accueil)
+    connectGateDue:(now)=>{ try{ return r0ConnectGateDue(now); }catch(e){ return null; } }, // [#P] carte due ? (boot / inactivité)
+    touchAction:(now)=>{ try{ r0TouchAction(now); }catch(e){} }, // [#P] marque une interaction (reset l'inactivité)
+    inactivityMs:()=>R0_INACTIVITY_MS, // [#P] seuil d'inactivité
     startCard:async()=>{ try{ const before=new Set([...R0DRY.alive]); await r0ConnectCard(_persona()); r0Mid=null; r0Type=null; return [...R0DRY.alive].find(x=>!before.has(x))||null; }catch(e){ return null; } }, // [#carte] envoie la carte connexion (comme /start) et renvoie son id ; r0Mid=null = la carte n'est PAS le cockpit
     aliveHas:(id)=>{ try{ return R0DRY.alive.has(id); }catch(e){ return false; } }, // [test] le message <id> est-il toujours dans le fil ?
     projNum:(id)=>{ try{ return r0ProjNum(_persona(), id||(r0Cur(_persona(),false)||{}).projectId); }catch(e){ return null; } }, // [RG-7] n° séquentiel du projet
