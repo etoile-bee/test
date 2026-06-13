@@ -327,12 +327,12 @@ function reduce(action, st0, facts, ctx) {
   if (d === 'R0_QUIT_DISCARD') { st.quitFrom = null; return Object.assign(go('home'), { op: { type: 'cleardraft' } }); }
   if (d === 'R0_QUIT_CANCEL') { const back = st.quitFrom || 'home'; st.quitFrom = null; return { st: Object.assign(st, { screen: back }) }; }
 
-  // [SCRIPTS — #A LE THÈME PILOTE LE SCRIPT] choisir/changer un THÈME -> mémorise label+seed PUIS génère aussitôt un script pour CE thème (op.then gentext, simulé = zéro dépense ;
-  //   la vraie version IA arrive à la génération vidéo). -> « choisir thème = script affiché » et « modifier thème = script change ». Reste sur le panneau Script.
+  // [SCRIPTS — #script complet] R0_STHEME_*/R0_REGEN_SCRIPT sont INTERCEPTÉS par le câble (telegram_bot) qui génère le VRAI script complet (Anthropic ; dry -> déterministe).
+  //   Ce reduce reste un repli pur (mémorise le thème) au cas où le câble ne traiterait pas ; il NE chaîne PLUS de gentext simulé.
   if (d.indexOf('R0_STHEME_') === 0) {
     const i = +d.slice(10); const c = (ctx && ctx.scriptCats && ctx.scriptCats[i]) || null;
     if (!c) return { st: st, toast: 'Thème indisponible' };
-    return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed }, then: { type: 'gentext', ask: 'vi_script' } }, toast: '🎬 Thème : ' + c.label };
+    return { st: Object.assign(st, { screen: 'block' }), op: { type: 'draft', kind: 'video', patch: { theme: c.label, theme_seed: c.seed } }, toast: '🎬 Thème : ' + c.label };
   }
   // [P4bis] HAUTEUR sous-titres (≈ « Position y » legacy) : stepper continu sur draft.video.st_oy, borné, reste sur le panneau. Défaut legacy 0.37.
   if (d === 'R0_STOY_NOP') { return { st: st }; }
@@ -516,13 +516,9 @@ function applyOp(op, S, base, persona, id, facts, ctx, ts) {
       const items = all.filter(m => want === 'video' ? m.type === 'video' : m.type !== 'video');
       const m = items[op.index]; if (m) S.setDraft(base, persona, id, 'video', { source: 'Photo #' + (op.index + 1) }, ts);
       break; }
-    case 'gentext': { // texte généré (simulé tant que LIVE off) -> écrit dans le CHAMP EXISTANT (mappe ASKMAP). Aucun objet nouveau.
-      const m = ASKMAP[op.ask]; if (m) { let txt = SIMTEXT[op.ask] || '✨ (texte généré — simulé, éditable)';
-        // [B+ — Etoile] le SCRIPT simulé REFLÈTE la catégorie choisie ET VARIE à chaque régénération (même thème, autre version).
-        if (op.ask === 'vi_script') { const dv = (facts && facts.draft && facts.draft.video) || {}; const theme = dv.theme || null;
-          const v = (Math.floor((ts || 0) / 1000) % 3) + 1; // variante 1..3 stable par seconde
-          txt = (theme ? ('🎬 ' + theme + ' — ') : '') + 'version ' + v + ' : accroche (thème ' + (theme || 'libre') + ') · point clé · chute. (simulé — régénère pour varier, ou Générer pour la vraie version IA)';
-        }
+    case 'gentext': { // texte généré (légendes/hashtags). [#script complet] Le SCRIPT (vi_script) ne passe PLUS par ici : il est généré EN ENTIER par le câble (r0GenScriptReal) ;
+      //   ce stub « simulé » est donc supprimé pour le script (plus jamais de brouillon court affiché). Reste pour les champs publication.
+      const m = ASKMAP[op.ask]; if (m && op.ask !== 'vi_script') { const txt = SIMTEXT[op.ask] || '✨ (texte généré — éditable)';
         if (m.target === 'pub') S.setPublication(base, persona, id, { [m.field]: txt }, ts);
         else S.setDraft(base, persona, id, m.kind, { [m.field]: txt }, ts); }
       break; }

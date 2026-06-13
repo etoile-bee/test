@@ -20,20 +20,25 @@ const themeBtns=()=>{const m=bot.markup();return [].concat.apply([],m.rows).filt
   const themes=themeBtns();
   chk('setup : au moins 2 thèmes proposés dans le panneau Script', themes.length>=2);
 
-  // ── A1 : choisir un thème -> un script s'affiche (non vide, non « à définir ») ──
+  // [#script complet] un VRAI script = long (≥120 c.), PLUSIEURS phrases (≥3), et SANS le stub « (simulé… » / « version N : accroche · point clé · chute ».
+  const isFull=s=>{ s=String(s||''); const phrases=(s.match(/[.!?…]/g)||[]).length; return s.trim().length>=120 && phrases>=3 && !/simul[ée]/i.test(s) && !/accroche.*point cl[eé].*chute/i.test(s); };
+
+  // ── A1 : choisir un thème -> VRAI script COMPLET s'affiche (pas le stub simulé) ──
   await bot.tap('R0_STHEME_0');
   const sA=String(bot.draft('video').script||'');
-  chk('#A1 : choisir thème A -> script généré (non vide)', sA.trim().length>0 && !/à définir/i.test(sA));
+  chk('#A1 : choisir thème A -> VRAI script COMPLET (≥120c, ≥3 phrases, PAS de stub « simulé »)', isFull(sA) && !/à définir/i.test(sA));
 
-  // ── A2 : changer de thème -> le script CHANGE ──
+  // ── A2 : changer de thème -> le script CHANGE et reste COMPLET ──
   await bot.tap('R0_STHEME_1');
   const sB=String(bot.draft('video').script||'');
-  chk('#A2 : changer vers thème B -> script DIFFÉRENT', sB.trim().length>0 && sB!==sA);
+  chk('#A2 : changer vers thème B -> script COMPLET DIFFÉRENT (pas de stub)', isFull(sB) && sB!==sA);
 
-  // ── A3 : régénérer -> script à nouveau produit (thème courant), jamais bloqué ──
+  // ── A3 : régénérer -> NOUVEAU script COMPLET, DIFFÉRENT, jamais le stub ──
   await bot.tap('R0_REGEN_SCRIPT');
   const sR=String(bot.draft('video').script||'');
-  chk('#A3 : Régénérer -> script (re)généré, non vide', sR.trim().length>0 && !/à définir/i.test(sR));
+  chk('#A3 : Régénérer -> script COMPLET DIFFÉRENT (≥3 phrases, pas de stub « simulé »)', isFull(sR) && sR!==sB);
+  // garde-fou : la génération de script n'a déclenché AUCUNE dépense vidéo (compteur crédits inchangé)
+  chk('#A3 : génération script = ZÉRO dépense vidéo (crédits inchangés)', (require('../ui/budget').state(BOX).credits||0)===0);
 
   // ── A4 : un VRAI script existe sur disque (sidecar) MAIS changer de thème NE le restaure PAS (thème pilote) ──
   const dir=bot.projDir(); fs.mkdirSync(dir,{recursive:true});

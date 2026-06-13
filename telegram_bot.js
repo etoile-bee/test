@@ -2849,6 +2849,34 @@ function r0RestoreScriptOnReopen(persona, id){
   }catch(e){ try{ jlog('[v4r] restoreScript err '+e.message); }catch(_){} }
   return false;
 }
+// [#script complet — Etoile] Script de REPLI/TEST : VRAI script COMPLET (multi-phrases, thème-aware), JAMAIS le stub « (simulé…) ».
+//   Sert en dry-run (tests, zéro réseau) ET en repli si l'appel Anthropic échoue. Varie à chaque appel (r0ScriptGenSeq) -> Régénérer = script DIFFÉRENT.
+let r0ScriptGenSeq=0;
+function r0FakeScript(theme, words){ r0ScriptGenSeq++; const v=r0ScriptGenSeq; const t=String(theme||'ce sujet').replace(/\s+/g,' ').trim()||'ce sujet';
+  const lines=[
+    'Tu crois que tout va bien, et pourtant quelque chose cloche avec '+t+'.',
+    'Voici le signe n°'+v+' que presque personne ne remarque à temps.',
+    'La vérité, c\'est que ton instinct te parlait déjà — tu ne l\'écoutais pas.',
+    'Arrête de chercher des excuses à sa place et regarde les faits en face.',
+    'Si tu te reconnais, ce n\'est pas un hasard : c\'est un schéma qui se répète.',
+    'Pose une limite claire, et observe qui reste vraiment pour toi.',
+    'Reprends ton pouvoir aujourd\'hui, une décision à la fois.',
+    'Enregistre cette vidéo et reviens-y quand tu douteras.'];
+  const target=Math.max(40, Math.min(words||60, 90)); let out=[], n=0;
+  for(const l of lines){ out.push(l); n+=l.split(/\s+/).length; if(n>=target) break; }
+  return out.join(' '); }
+// [#script complet — Etoile] GÉNÈRE LE VRAI SCRIPT COMPLET (Anthropic via WF.generateScript) pour le thème/durée courants, le stocke et le renvoie ENTIER.
+//   Appel TEXTE (peu coûteux), DISTINCT de la dépense vidéo Kling (aucune dépense vidéo déclenchée ici). En dry-run -> script déterministe complet (zéro réseau).
+async function r0GenScriptReal(persona, id){ const {S}=_r0(); const f=S.loadFacts(BASE,persona,id)||{}; const dv=S.getDraft(f,'video')||{};
+  const theme=(dv.theme_seed||dv.theme||(f.intention&&f.intention.message)||'Podcast');
+  const secs=parseInt(String(dv.duree||'30'),10)||30; const words=Math.max(20, Math.round(secs*2.4));
+  let script=null;
+  if(typeof R0DRY!=='undefined' && R0DRY){ script=r0FakeScript(theme, words); }            // banc d'essai : VRAI script complet déterministe, zéro réseau/dépense
+  else { try{ const c=await WF.generateScript(String(theme), words); script=(c&&c.script)?String(c.script).trim():null; }catch(e){ try{ jlog('[v4r] generateScript err '+e.message); }catch(_){} }
+    if(!script || /simul/i.test(script)) script=r0FakeScript(theme, words); }                // repli : script COMPLET (jamais le stub), jamais un panneau vide
+  script=_stripPause(script).trim();                                                         // [#3] « pause » invisible
+  try{ S.setDraft(BASE,persona,id,'video',{script}, Date.now()); }catch(e){}
+  return script; }
 // [🔴SCRIPT RÉEL] récupère le VRAI script généré du projet : sidecar .txt (« SCRIPT:\n… ») le plus récent, sinon script d'un média. JAMAIS le stub simulé.
 function r0FindProjectScript(persona, id){ try{ const {S,C}=_r0(); const dir=path.join(BASE,'projects_r',persona,id); const cand=[];
   try{ for(const x of fs.readdirSync(dir)){ if(!/\.txt$/i.test(x)) continue; const fp=path.join(dir,x);
@@ -3408,6 +3436,21 @@ async function r0Dispatch(persona, d, editMid){
   // [🔴5 #8] VOIR PLUS / RÉDUIRE : déroule/replie le texte complet (script/prompt) DANS le bloc, sans quitter l'écran.
   if(d==='R0_SEEMORE'){ r0BlockExpanded=true; await r0Render(persona, editMid); return; }
   if(d==='R0_SEELESS'){ r0BlockExpanded=false; await r0Render(persona, editMid); return; }
+  // [#script complet — Etoile] CHANGER DE THÈME : pose le thème/seed PUIS génère le VRAI script COMPLET pour ce thème (Anthropic ; dry -> déterministe). Reste sur le panneau Script.
+  if(d.indexOf('R0_STHEME_')===0){ const i=+d.slice(10); const cats=_r0ScriptCats()||[]; const c=cats[i];
+    const cur=r0Cur(persona,true); const id=cur&&cur.projectId;
+    if(!c||!id){ try{ await toast('Thème indisponible'); }catch(e){} await r0Render(persona, editMid); return; }
+    S.setDraft(BASE,persona,id,'video',{theme:c.label, theme_seed:c.seed}, Date.now());
+    r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'script'}; r0BlockExpanded=false;
+    await r0Render(persona, editMid, '🎬 <b>Thème : '+_r0esc(c.label)+'</b> — génération du script…'); // banner pendant l'appel
+    try{ await r0GenScriptReal(persona, id); }catch(e){ try{ jlog('[v4r] STHEME gen err '+e.message); }catch(_){} }
+    await r0Render(persona, editMid, '🎬 <b>Script généré</b> — thème '+_r0esc(c.label)+' · 👁 Voir plus pour tout dérouler'); return; }
+  // [#script complet — Etoile] RÉGÉNÉRER : produit un NOUVEAU vrai script COMPLET pour le thème + la durée courants (DIFFÉRENT à chaque fois). Reste sur le panneau Script.
+  if(d==='R0_REGEN_SCRIPT'){ const cur=r0Cur(persona,true); const id=cur&&cur.projectId; if(!id){ await r0Render(persona, editMid); return; }
+    r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'script'}; r0BlockExpanded=false;
+    await r0Render(persona, editMid, '🔄 <b>Nouveau script…</b>'); // banner pendant l'appel
+    try{ await r0GenScriptReal(persona, id); }catch(e){ try{ jlog('[v4r] REGEN gen err '+e.message); }catch(_){} }
+    await r0Render(persona, editMid, '🔄 <b>Script régénéré</b> — 👁 Voir plus pour tout dérouler'); return; }
   // [LOT 2 #7] BOÎTE À OUTILS COULEUR : un changement de réglage invalide l'aperçu précédent (il faut re-cliquer 👁 Aperçu).
   if(d==='R0_PH_TOOLS' || /^R0_EDIT_(bright|contrast|sat|sharp)_/.test(d) || d==='R0_EDIT_RESET'){ r0EditPreviewFile=null; }
   if(d==='R0_EDIT_PREVIEW'){ // 👁 Aperçu : applique les réglages sur la source (ffmpeg local), peint le résultat dans le bloc
