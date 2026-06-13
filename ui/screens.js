@@ -407,7 +407,8 @@ function validationView(facts, ctx) {
     else cap += '\n🟡 Simulation — aucune dépense.';
   } else cap += '\n🟢 Local — gratuit.';
   const rows = blocked
-    ? [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
+    ? [[{ text: '🔓 Réautoriser le budget', cb: 'R0_BUDGET_REARM' }], // [#1b] plus de cul-de-sac : un clic rouvre 10 tests (acte délibéré d'Etoile)
+       [{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '✏️ Modifier', cb: 'R0_GEN_EDIT' }]]
     : [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
        [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
   // [P1-c FIX-1] la Validation peint la SOURCE PROJET (r0RealSource via le peintre, écran _strictSrc) + récap chiffré en légende.
@@ -436,7 +437,7 @@ function confirm2View(facts, ctx) {
   else cap = '<b>🟡 Confirmation (simulation)</b>\n💳 ' + cout + ' <i>(aucune dépense)</i> · ⚙️ ' + esc(e.moteur || '—') + '\n\n<b>Confirmer ?</b>';
   cap += srcLine(ctx);
   const rows = blocked
-    ? [[{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]]
+    ? [[{ text: '🔓 Réautoriser le budget', cb: 'R0_BUDGET_REARM' }], [{ text: '◀ Retour', cb: 'R0_GEN_CANCEL' }]] // [#1b] sortie d'impasse : réautorise au lieu d'un cul-de-sac
     : [[{ text: '✅ Oui, générer', cb: 'R0_GO' }], [{ text: '◀ Annuler', cb: 'R0_GO2_CANCEL' }]];
   return { kind: C.mediaKind(facts), caption: cap, rows: rows };
 }
@@ -508,9 +509,10 @@ function resourcesView(facts, ctx) {
   //   Texte -> envoyé en message complet (R0_FULLTEXT_) ; fichiers -> envoyés tels quels (R0_GET*).
   const rows = [
     [{ text: '🖼 Image', cb: 'R0_GETIMG' }, { text: '🎬 Vidéo', cb: 'R0_GETVID' }, { text: '☁ RAW', cb: 'R0_GETRAW' }], // [☁] RAW Kling récupérable (export brut)
+    [{ text: '🎬 Refaire une vidéo depuis ce projet', cb: 'R0_VI_CREATE' }], // [#6] relance le flux vidéo en réutilisant la photo + le projet (flux existant testé)
     [{ text: '🎙 Voix/Audio', cb: 'R0_GETAUDIO' }],
     [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }, { text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
-    [{ text: '✏️ Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '📄 Lég. longue', cb: 'R0_FULLTEXT_legl' }, { text: '#️⃣ Hashtags', cb: 'R0_FULLTEXT_tags' }],
+    [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#2] hashtags FUSIONNÉS dans les 2 légendes -> bouton Hashtags séparé supprimé
     [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
     [{ text: '✏️ Éditer légendes', cb: 'R0_PUB_EDIT' }, { text: '📤 Publication', cb: 'R0_PUB' }],
     [{ text: '◀ Retour', cb: (ctx && ctx.resReturn) || (C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO') }, HOME], // [RETOUR CONTEXTUEL] revient à l'origine (Studio/Récents/Résultat)

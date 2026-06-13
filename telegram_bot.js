@@ -926,7 +926,7 @@ let RL=require('./render_local');
 function freshRL(){try{delete require.cache[require.resolve('./render_local')];}catch(e){}RL=require('./render_local');return RL;}
 const WF=require('./workflow.js'); // briques de génération (require.main!==module -> main() ne se lance pas)
 const uiRouter=require('./ui/router'); // [L0-1] routeur modulaire (strangler-fig : cohabite avec l'ancien dispatch)
-const {sanitizeTTS:_sanTTS}=require('./tts_sanitize'); // ceinture : nettoyage pause côté bot aussi
+const {sanitizeTTS:_sanTTS, stripPauseText:_stripPause}=require('./tts_sanitize'); // _sanTTS = voix (break SSML) ; _stripPause = texte affiché (#3 : « pause » invisible)
 // ── Mémoire persistante (mise à jour SEULEMENT par les vraies générations) ──────
 const STATE_PATH=path.join(BASE,'state.json');
 const DEFAULT_STATE={look:null,duration:'23s',styleName:null,subjectMode:'auto',lastLooks:[],activeDraftId:null};
@@ -2675,6 +2675,30 @@ function r0StoreCaptions(persona, id, caps){ try{ if(!caps) return null; const {
   if(!String(pub.hashtags||'').trim() && tags)             patch.hashtags=tags;
   if(Object.keys(patch).length){ S.setPublication(BASE,persona,id,patch,Date.now()); try{ jlog('[v4r] légendes AUTO stockées ('+Object.keys(patch).join('+')+')'); }catch(_){}; return patch; }
 }catch(e){ try{ jlog('[v4r] storeCaptions err '+e.message); }catch(_){} } return null; }
+// [#2 LÉGENDES RÉTRO] Hashtags STANDARD (zéro dépense) intégrés AUX DEUX légendes (la fusion finale se fait via r0FuseTags à l'affichage).
+const R0_TAGS_DEFAUT = '#fyp #foryou #viral #pourtoi';
+// [#2 LÉGENDES RÉTRO] Dérive 2 légendes DEPUIS LE SCRIPT — déterministe, ZÉRO dépense (aucun appel moteur). Pause déjà retirée en amont.
+//   courte = 1re phrase nette (≤120) ; longue = ~3 premières phrases (≤240). Sert de repli quand le projet n'a pas de légendes stockées.
+function r0DeriveCaptions(script){ const s=_stripPause(String(script==null?'':script)).replace(/\s+/g,' ').trim(); if(!s) return null;
+  const phrases=s.split(/(?<=[.!?…])\s+/).map(x=>x.trim()).filter(Boolean);
+  let courte=phrases[0]||s; if(courte.length>120) courte=courte.slice(0,117).replace(/\s+\S*$/,'').trim()+'…';
+  let longue=phrases.slice(0,3).join(' ')||s; if(longue.length>240) longue=longue.slice(0,237).replace(/\s+\S*$/,'').trim()+'…';
+  return { short:courte, long:longue, tags:R0_TAGS_DEFAUT }; }
+// [#2 LÉGENDES RÉTRO] Remplit les légendes VIDES d'un projet existant À PARTIR DU SCRIPT (même vidéo déjà générée). N'écrase jamais une édition d'Etoile.
+//   Appelé à l'ouverture de Résultat / Légendes / Fichiers : si script présent mais légendes « à définir », on les fabrique sans dépense.
+function r0EnsureCaptions(persona, id){ try{ const {S}=_r0(); if(!id) id=(r0Cur(persona,false)||{}).projectId; if(!id) return null;
+  const f=S.loadFacts(BASE,persona,id)||{}; const pub=f.publication||{};
+  const hasC=!!String(pub.legende_courte||'').trim(), hasL=!!String(pub.legende_longue||'').trim(), hasT=!!String(pub.hashtags||'').trim();
+  if(hasC && hasL && hasT) return null; // tout est déjà là
+  const dv=(f.draft&&f.draft.video)||{}; const script=_stripPause(dv.script||r0FindProjectScript(persona,id)||'').trim();
+  if(!script) return null;
+  const der=r0DeriveCaptions(script); if(!der) return null;
+  const patch={};
+  if(!hasC && der.short) patch.legende_courte=der.short;
+  if(!hasL && der.long)  patch.legende_longue=der.long;
+  if(!hasT)              patch.hashtags=R0_TAGS_DEFAUT;
+  if(Object.keys(patch).length){ S.setPublication(BASE,persona,id,patch,Date.now()); try{ jlog('[v4r] légendes RÉTRO dérivées du script ('+Object.keys(patch).join('+')+')'); }catch(_){}; return patch; }
+}catch(e){ try{ jlog('[v4r] ensureCaptions err '+e.message); }catch(_){} } return null; }
 // [FIX réel] COUVERTURE du projet = la DERNIÈRE image visible dont le FICHIER EXISTE vraiment (on remonte la liste).
 //   Évite « projet vide/démo » quand la toute dernière entrée n'a pas de fichier mais qu'une vraie photo existe plus haut.
 // [ANO-SOURCE-EDIT-REVERT] garde-fou ABSOLU : la couverture/source NE DOIT JAMAIS être la référence persona (cuir, sous references/).
@@ -2811,9 +2835,9 @@ function r0FindProjectScript(persona, id){ try{ const {S,C}=_r0(); const dir=pat
   try{ for(const x of fs.readdirSync(dir)){ if(!/\.txt$/i.test(x)) continue; const fp=path.join(dir,x);
     try{ const st=fs.statSync(fp); const txt=fs.readFileSync(fp,'utf8'); const m=txt.match(/SCRIPT:\s*([\s\S]*?)(\n\nSHORT:|\n\nLONG:|\n\nHASHTAGS:|$)/i);
       const s=m&&m[1]?m[1].trim():''; if(s.length>10 && !/simul/i.test(s)) cand.push({s:s,m:st.mtimeMs}); }catch(e){} } }catch(e){}
-  cand.sort((a,b)=>b.m-a.m); if(cand[0]) return cand[0].s;
+  cand.sort((a,b)=>b.m-a.m); if(cand[0]) return _stripPause(cand[0].s).trim(); // [#3] script affiché SANS « pause »
   // repli : script d'un média réel (non simulé)
-  try{ const f=S.loadFacts(BASE,persona,id); const vids=((f&&f.medias)||[]).filter(mm=>mm&&mm.script&&!/simul/i.test(String(mm.script))); if(vids.length){ const sc=String(vids[vids.length-1].script).trim(); if(sc.length>10) return sc; } }catch(e){}
+  try{ const f=S.loadFacts(BASE,persona,id); const vids=((f&&f.medias)||[]).filter(mm=>mm&&mm.script&&!/simul/i.test(String(mm.script))); if(vids.length){ const sc=_stripPause(vids[vids.length-1].script).trim(); if(sc.length>10) return sc; } }catch(e){}
   return null;
 }catch(e){ return null; } }
 // [PARTIE 2/3] scripts de la SÉRIE (ordre chronologique) du projet : sidecars .txt « SCRIPT: » + scripts de médias réels. Pour partPrompt (continuité).
@@ -3205,6 +3229,9 @@ async function r0Dispatch(persona, d, editMid){
   if(d==='R0_VE_SUBS') r0SubReturn=null;
   if(/^R0_(GNEXT|RENEXT)$/.test(d)){ r0Page++; await r0Render(persona, editMid); return; }       // Suivant ▶
   if(/^R0_(GPREV|REPREV)$/.test(d)){ r0Page=Math.max(0,r0Page-1); await r0Render(persona, editMid); return; } // ◀ Précédent
+  // [#1b RÉAUTORISATION] Etoile rouvre le budget de tests (acte délibéré, son clic) : remet le compteur à 0 -> « Générer » redevient disponible. Aucune dépense déclenchée.
+  if(d==='R0_BUDGET_REARM'){ const nb=BUD.reauthorize(BASE); jlog('[v4r] budget RÉAUTORISÉ par Etoile -> '+nb.tests+'/'+nb.max);
+    await r0Render(persona, editMid, '🔓 <b>Budget réautorisé</b> ('+nb.remaining+'/'+nb.max+' tests disponibles) — tu peux générer.'); return; }
   // GARDE-FOU BUDGET : un GO sur une génération PAYANTE avec moteur RÉEL armé (LIVE) et budget épuisé -> BLOQUE (aucune dépense).
   if(d==='R0_GO' && r0Pending && ENG.live() && BUD.state(BASE).exhausted){
     const b=BUD.state(BASE); jlog('[v4r] GO bloqué : budget tests réels épuisé '+b.max+'/'+b.max);
@@ -3222,7 +3249,8 @@ async function r0Dispatch(persona, d, editMid){
     if(isLock && nv){ const {DEF}=_r0(); const field=(flag==='lock_look')?'look':'decor'; const v=(S.getDraft(r0Cur(persona),'photo')||{})[field];
       if(v!=null&&v!=='') DEF.setField(BASE,persona,'photo',field,v); } // conserve la valeur -> nouveaux projets l'héritent
     await r0Render(persona, editMid); return; }
-  if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); const pub=(f3&&f3.publication)||{};
+  if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); try{ r0EnsureCaptions(persona,f3&&f3.projectId); }catch(e){} // [#2] dérive les légendes du script si vides (zéro dépense, même vidéo déjà faite)
+    const f3b=r0Cur(persona,true)||f3; const pub=(f3b&&f3b.publication)||{};
     const courte=r0FuseTags(pub.legende_courte,pub.hashtags), longue=r0FuseTags(pub.legende_longue,pub.hashtags);
     if(!courte && !longue){ try{ await toast('Aucune légende à copier (édite-les d\'abord)'); }catch(e){} await r0Render(persona, editMid); return; }
     try{ await toast('🏷 Légendes copiables ci-dessous'); }catch(e){}
@@ -3317,6 +3345,7 @@ async function r0Dispatch(persona, d, editMid){
   // [RETOUR CONTEXTUEL — résources/Fichiers] [G2] mémorise l'écran d'origine -> le Retour de Fichiers y revient (Studio/Récents/Résultat/Publication), pas un défaut fixe. Couvre studio_section, pret, publies.
   if(d==='R0_VI_RESULT'||d==='R0_PHOTO_RESULT'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} } // [🔴P2] Résultat = ré-affiche la dernière vidéo retrouvée du disque
   if(d==='R0_RES'){ try{ r0ReconcileProjectMedia(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [🔴P2] Fichiers = SCAN du dossier projet -> aucune vidéo perdue
+    try{ r0EnsureCaptions(persona, (r0Cur(persona,false)||{}).projectId); }catch(e){} // [#2] légendes dérivées du script si vides (zéro dépense)
     r0ResFrom = (/^studio/.test(r0Screen)?'R0_STUDIO':(r0Screen==='recents'?'R0_RECENTS':(r0Screen==='video_result'?'R0_VI_RESULT':(r0Screen==='photo_result'?'R0_PHOTO':(r0Screen==='publication'?'R0_PUB':(r0Screen==='pret'?'R0_READY':(r0Screen==='publies'?'R0_PUBLISHED':null))))))); }
   // [APERÇU VIDÉO] 🔤 éditer les sous-titres DEPUIS l'aperçu : ouvre le panneau apparence, Valider/Retour reviennent à l'aperçu (re-rend le clip).
   if(d==='R0_STEDIT'){ r0SubReturn='R0_VI_PREVIEW'; r0Screen='block'; r0Section=null; r0Block={screen:'video',key:'soustitres'}; await r0Render(persona, editMid); return; }
@@ -3518,7 +3547,7 @@ async function r0EnsureLocal(file){ try{ if(!file||!fs.existsSync(file)) return 
 //   Le groupement (≈2 mots) ne dépend QUE des mots (leur longueur), PAS des timings -> identique au final quels que soient les timings TTS.
 //   Script VIDE -> 1 chunk « EXEMPLE » clairement marqué (jamais un faux texte présenté comme réel). maxWords borne la durée de l'aperçu.
 function r0SubChunks(dv, maxWords){ const rl=freshRL();
-  const txt=(dv&&dv.script&&String(dv.script).trim())||'';
+  const txt=_stripPause((dv&&dv.script)||'').trim(); // [#3] sous-titres SANS « pause »
   if(!txt){ return { exemple:true, chunks:[{ text:'EXEMPLE — ajoute un script', start:0, length:99 }] }; }
   const words=txt.replace(/\s+/g,' ').trim().split(' ').slice(0, maxWords||8);
   const wt=words.map((w,i)=>({ text:w, start:i*0.5, end:i*0.5+0.5 })); // timings réguliers : buildChunks groupe par MOTS -> découpage = celui du final
@@ -3614,7 +3643,7 @@ async function r0RealVideo(persona, id, onStep){
         const c=await WF.generateScript(i===1?topic:WF.partPrompt(topic,i,parts,prevScripts), words); // script Anthropic
         // [🔴P1] LÉGENDES AUTO : le MÊME appel renvoie caption_short/long/hashtags -> stockées AVEC le projet (part 1), zéro dépense en plus.
         if(i===1){ try{ r0StoreCaptions(persona, id, { short:c.caption_short||c.caption, long:c.caption_long, hashtags:c.hashtags }); }catch(_){}
-          try{ if(c.script&&String(c.script).trim()) S.setDraft(BASE,persona,id,'video',{script:String(c.script).trim()},ts); }catch(_){} } // [🔴SCRIPT RÉEL] le script généré devient le script du projet (visible dans le panneau)
+          try{ const cs=_stripPause(c.script||'').trim(); if(cs) S.setDraft(BASE,persona,id,'video',{script:cs},ts); }catch(_){} } // [🔴SCRIPT RÉEL + #3] script généré SANS « pause » -> panneau Script
         prevScripts.push(c.script);
         STEP('🎙 Étape 3/5 — Génération de la voix'+pp+'…');
         const audio=await WF.generateAudio((typeof _sanTTS==='function'?_sanTTS(c.script):c.script), i);  // voix ElevenLabs (garde-fou TTS si dispo)
@@ -4926,6 +4955,10 @@ if(R0DRY){
     pub:()=>{ try{ return (r0Cur(_persona(),false)||{}).publication||{}; }catch(e){ return {}; } }, // [🔴P1] lecture publication (légendes auto)
     finalCap:(kind,sim)=>{ try{ return r0FinalCap(_persona(), kind||'video', !!sim, null); }catch(e){ return ''; } }, // [#11bis] caption keepsake (doit être propre)
     storeCaptions:(caps)=>{ try{ const f=r0Cur(_persona(),true); return r0StoreCaptions(_persona(), f.projectId, caps); }catch(e){ return null; } }, // [🔴P1] stocke les légendes auto (réutilise le moteur script)
+    ensureCaptions:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0EnsureCaptions(_persona(), f.projectId); }catch(e){ return null; } }, // [#2] dérive les légendes DEPUIS LE SCRIPT si vides (rétroactif, zéro dépense)
+    deriveCaptions:(s)=>{ try{ return r0DeriveCaptions(s); }catch(e){ return null; } }, // [#2] dérivation déterministe courte/longue+tags
+    reauthorize:()=>{ try{ return BUD.reauthorize(BASE); }catch(e){ return null; } }, // [#1b] réautorise le budget (acte délibéré)
+    budget:()=>{ try{ return BUD.state(BASE); }catch(e){ return null; } },
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)

@@ -25,4 +25,7 @@ function record(base, credits) {
   return state(base);
 }
 
-module.exports = { MAX, state, record, file };
+// [#1b RÉAUTORISATION] Etoile rouvre le budget de tests : remet le compteur à 0 (10 nouveaux tests). Crédits cumulés conservés (historique de dépense). Acte délibéré (clic d'Etoile).
+function reauthorize(base) { const s = load(base); save(base, { tests: 0, credits: s.credits || 0 }); return state(base); }
+
+module.exports = { MAX, state, record, reauthorize, file };

@@ -34,4 +34,17 @@ function stripPauseTokens(wordTimings) {
   return (wordTimings || []).filter(w => !isPauseToken(w && (w.word != null ? w.word : w.text)));
 }
 
-module.exports = { sanitizeTTS, stripPauseTokens, isPauseToken, BREAK };
+// [#3 PAUSE INVISIBLE] Pour le TEXTE AFFICHÉ (panneau Script, base des sous-titres, base des légendes) : retire TOUT marqueur de pause,
+//   SANS insérer de break SSML (le break ne sert qu'au TTS via sanitizeTTS). La voix marque toujours la pause ; le texte visible n'en montre rien.
+function stripPauseText(text) {
+  let s = String(text == null ? '' : text);
+  s = s.replace(/[\[\(\{<]\s*pause\s*[\]\)\}>]/gi, ' ');               // [pause] (pause) {pause} <pause>
+  s = s.replace(/([.!?,;:])\s*pause\b\s*(?=[.!?,;:]|\s|$)/gi, '$1 ');  // "pause" isolé entre phrases
+  s = s.replace(/(^|\n)\s*pause\s*(?=\n|$)/gi, '$1 ');                 // pause seul sur sa ligne
+  s = s.replace(/[*_~]+\s*pause\s*[*_~]+/gi, ' ');                     // *pause* / _pause_
+  s = s.replace(/\bpause\b/gi, ' ');                                   // tout « pause » résiduel
+  s = s.replace(/[ \t]{2,}/g, ' ').replace(/\s+([.!?,;:])/g, '$1').replace(/\n{3,}/g, '\n\n').trim();
+  return s;
+}
+
+module.exports = { sanitizeTTS, stripPauseTokens, isPauseToken, stripPauseText, BREAK };
