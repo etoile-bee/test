@@ -22,6 +22,16 @@ Base prod : `5ce809e`. HEAD pile : voir `git log`. Sweep courant : voir `tools/t
 | N | Boutons inutiles retirés + positions (2/ligne) | ✅ | audit_parcours |
 | O | Légendes legacy : courte ≈2 phrases ≠ longue développée, +# fusionnés | ✅ | test_v4r_lot5r |
 | P | Carte connexion reposée (boot + inactivité ~20 min + entrées) ; persistante | ✅ | test_v4r_connectgate 9/0 + test_v4r_connectcard 7/0 |
+| Q | Alignement numéro vignette ↔ bouton ↔ média (mosaïques, toutes grilles, AVEC pagination & volume réel) | ✅ | test_v4r_grids 6/0 + mosaïque rendue `assets_r/_TEST_mosaic_page5_6-5-4-3-2-1.jpg` |
+| R | Récents/Archives : badge 📸 photo / 🎬 vidéo par projet | ✅ | test_v4r_grids |
+
+### Q — diagnostic & fix
+**Cause** : la mosaïque brûlait un index SÉQUENTIEL de page (`startNum+i`) tandis que les boutons Récents portaient le n° de PROJET réel (`p._num`). À 1-6 éléments (sandbox) ils coïncidaient → invisible ; à 112 projets ils divergeaient (vignette « 25 » sous bouton « n°97 »). **Fix** : `r0Mosaic(files, nums[])` brûle le numéro EXACT du bouton de chaque tuile — positions pour les galeries de choix, n° de projet pour Récents/Archives. Prouvé à 30 projets, page 5 : n° brûlés `[6,5,4,3,2,1]` == boutons == projets ouverts (cb position → `projets[pos]._num`).
+
+## Procédure de validation OBLIGATOIRE (FI3a/FI3b) — appliquée à tout l'audit nuit
+Un point n'est validé que contrôlé aux 4 niveaux **technique + fonctionnel + VISUEL + UTILISATEUR**, couvrant :
+1. texte affiché (markup) ; 2. **IMAGE réellement rendue** (mosaïque/vignette GÉNÉRÉE puis REGARDÉE — pas le markup) ; 3. **VIDÉO réelle** (9:16/miniature) ; 4. rendu Telegram mobile ; 5. cohérence VISUEL↔EXÉCUTÉ (numéro vignette == bouton == média sélectionné) ; 6. **VOLUMÉTRIE RÉELLE** (pagination, ≈30-120 éléments, pas 1-6).
+Outils : `tools/test_v4r_grids.js` (seed 30 projets + rend mosaïque réelle), `R0_MOSAIC_FORCE=1` pour forcer le rendu ffmpeg en test. Chemins des planches rendues fournis pour contrôle à l'œil.
 
 ## Demandes antérieures (rappels, toujours conformes)
 | # | Point | Statut |

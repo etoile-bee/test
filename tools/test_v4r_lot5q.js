@@ -46,7 +46,7 @@ const cbsOf=v=>[].concat.apply([],(v.rows||[])).map(b=>b.cb||b.callback_data);
   const fv=SC.resourcesView(f,ctx);     chk('#3 : Fichiers affiche « Projet n° »', fv.caption.indexOf('Projet n°'+n1)>=0);
   const ptv=SC.pretView(f,Object.assign({pret:{items:[]}},ctx)); chk('#3 : Prêt à poster affiche « Projet n° »', ptv.caption.indexOf('Projet n°'+n1)>=0);
   const plv=SC.publiesView(f,Object.assign({publies:{items:[]}},ctx)); chk('#3 : Archives publiées affiche « Projet n° »', plv.caption.indexOf('Projet n°'+n1)>=0);
-  const rcv=SC.recentsView(f,ctx);      chk('#3 : grille Récents — chaque vignette montre « 📦 n° »', rcv.rows.some(r=>r.some(b=>/📦 n°/.test(b.text))));
+  const rcv=SC.recentsView(f,ctx);      chk('#3 : grille Récents — chaque vignette montre « n° » (avec badge 📸/🎬/📦)', rcv.rows.some(r=>r.some(b=>/[📸🎬📦] n°/.test(b.text))));
   // vidéo result
   const fv2=Object.assign({}, f, {medias:[{id:'v',type:'video',etat:'final',file:'/v.mp4'}],draft:{video:{theme:'X'}}});
   const vrv=SC.videoResultView(fv2,ctx); chk('#3 : Résultat VIDÉO affiche « Projet n° »', vrv.caption.indexOf('Projet n°'+n1)>=0);

@@ -339,8 +339,9 @@ function recentsView(facts, ctx) {
     + '📂 ' + all.length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
     + (r.legacy ? ('\n🗄 ' + r.legacy + ' hérité(s)') : '') + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
-  // [RG-7] chaque vignette projet affiche son NUMÉRO de projet (n°N, rang de création via ctx -> p._num) + le titre. cb index = position absolue (ouverture correcte).
-  const rows = gridRows(top, (p, j) => ({ text: '📦 n°' + (p._num != null ? p._num : (pg.base + j + 1)) + ' · ' + short((p.intention && p.intention.message) || 'Projet', 14), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
+  // [RG-7] n° de projet réel (p._num) = MÊME numéro brûlé sur la vignette (#Q). [#R] badge 📸 photo / 🎬 vidéo pour distinguer d'un coup d'œil. cb = position absolue (ouverture correcte).
+  const kindIco = p => C.hasVideo(p) ? '🎬' : (C.hasImage(p) ? '📸' : '📦');
+  const rows = gridRows(top, (p, j) => ({ text: kindIco(p) + ' n°' + (p._num != null ? p._num : (pg.base + j + 1)) + ' ' + short((p.intention && p.intention.message) || 'Projet', 11), cb: 'R0_RE_OPEN_' + (pg.base + j) }), 2);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_REPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_REPREV' }, { text: 'Suivant ▶', cb: 'R0_RENEXT' }]);
   rows.push([{ text: '📋 Dupliquer', cb: 'R0_RE_DUP' }, { text: '📦 Archiver', cb: 'R0_RE_ARCH' }]); // [#4] 2/ligne
   rows.push([{ text: '🗂 Fichiers', cb: 'R0_RES' }]); // [HUB] accès assets du projet ouvert
