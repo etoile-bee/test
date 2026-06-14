@@ -12,9 +12,11 @@ const REOPEN_FLAG='/tmp/ws_reopen_cockpit'; // [fix/restart-feedback] drapeau : 
 //   Cause racine corrigée : « la base n'est pas la même en test qu'en réel » + plus aucune pollution des données réelles.
 // Sandbox de test : dossier DÉDIÉ, isolé de la prod. V4R_SANDBOX permet de le pointer vers un dossier Drive (local + cloud).
 const BASE=process.env.R0_DRYRUN?(process.env.V4R_SANDBOX||path.join(os.homedir(),'podcast-workflow','.v4r_sandbox')):path.join(os.homedir(),'podcast-workflow');
-// [DATA-INTÉGRITÉ] sandbox de test : on ISOLE l'écriture des projets (projects_r) mais on PARTAGE EN LECTURE les catalogues
-//   réels (looks/outputs/prompts) via symlink -> les tests voient les mêmes ressources qu'en réel, sans polluer les vrais projets.
-if(process.env.R0_DRYRUN){ try{ fs.mkdirSync(BASE,{recursive:true}); const REAL=path.join(os.homedir(),'podcast-workflow');
+// [DATA-INTÉGRITÉ] sandbox DEV par défaut (.v4r_sandbox) : on ISOLE l'écriture des projets (projects_r) mais on PARTAGE EN LECTURE
+//   les catalogues réels (looks/outputs/prompts) via symlink -> le dev voit les mêmes ressources qu'en réel, sans polluer.
+// [HERMÉTICITÉ — anti faux-vert] si V4R_SANDBOX est fourni EXPLICITEMENT (fixture de test isolée mkdtemp), on NE symlink RIEN
+//   vers le réel : le sandbox est 100% autonome (sinon outputs/prompts/library.json pointaient vers l'iCloud réel -> faux vert).
+if(process.env.R0_DRYRUN && !process.env.V4R_SANDBOX){ try{ fs.mkdirSync(BASE,{recursive:true}); const REAL=path.join(os.homedir(),'podcast-workflow');
   for(const d of ['looks','outputs','prompts']){ const link=path.join(BASE,d); try{ if(!fs.existsSync(link)) fs.symlinkSync(path.join(REAL,d),link); }catch(e){} }
   for(const f of ['library.json','lookbook.json','outfits_catalog.json']){ const link=path.join(BASE,f); try{ if(!fs.existsSync(link)) fs.symlinkSync(path.join(REAL,f),link); }catch(e){} }
 }catch(e){} }
