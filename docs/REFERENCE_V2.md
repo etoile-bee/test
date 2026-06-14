@@ -192,3 +192,6 @@ Rendus RÉELS regardés à l'œil (chemins fournis à Etoile) :
 - Aperçu sous-titres position **collier** (oy=0.370, Archivo Black, 2-mots == final) : `assets_r/_AUDIT_soustitres_collier.png` ✅
 - Clip aperçu **9:16 RÉEL** (720×1280 ffprobe) + miniature : `assets_r/_AUDIT_apercu_clip.mp4` / `_AUDIT_apercu_thumb.jpg` ✅
 Hooks de test ajoutés : `subSample`, `subClip` (rendent les VRAIES fonctions aperçu) ; flag `R0_SUBCLIP_FORCE` (rendu réel en test, comme `R0_MOSAIC_FORCE`).
+
+### Preuve PERSISTANCE & FLUX (`tools/audit_flow_nuit.js`, 27/0)
+Rejoue le VRAI handler sur Photo → (pont) Vidéo → Script (thème) → Aperçu/Validation (gate, **zéro dépense** : budget inchangé après annulation) → Accueil mi-parcours (garde-fou « enregistrer avant de quitter » #34) → **Reprise /restart** → **Changement de projet** (A↔B). Invariants tenus à CHAQUE écran : projet stable (curId) · 1 seul bloc cockpit vivant · **aucune exception avalée** (`logs()` sans `THROW`) · **source active invariante** au pont photo→vidéo · **isolation inter-projets** (la vidéo de B n'est jamais la source de A).
