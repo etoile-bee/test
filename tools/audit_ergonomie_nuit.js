@@ -10,8 +10,8 @@ process.env.V4R_SANDBOX=BOX; process.on('exit',()=>{try{fs.rmSync(BOX,{recursive
 const bot=require('../telegram_bot.js'); const SC=require('../ui/screens');
 let ok=0,ko=0; const chk=(m,c)=>{c?ok++:ko++; if(!c) console.log('   ❌ '+m);};
 
-// règles ergo : libellé ≤ 22 caractères (emoji compris, lisible mobile) ; rangée ≤ 2 boutons (sauf grilles 3/ligne tolérées) ; nav présente
-const LEN=22, ROWMAX=3;
+// règles ergo : libellé ≤ 18 caractères (emoji compris, lisible mobile — exigence Etoile) ; rangée ≤ 2 boutons (sauf grilles 3/ligne tolérées) ; nav présente
+const LEN=18, ROWMAX=3;
 function audit(name, rows, opts){ opts=opts||{}; const flat=[].concat.apply([],rows).filter(Boolean);
   const labels=flat.map(b=>b.text||b.t||'');
   const longs=labels.filter(l=>[...l].length>LEN);

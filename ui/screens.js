@@ -429,10 +429,10 @@ function validationView(facts, ctx) {
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     cap += '\n💰 Crédits cumulés : ' + (b.credits != null ? b.credits + ' cr' : '—');
-    cap += live ? '\n⚠️ <b>Dépense réelle</b> au clic « Générer maintenant ».' : '\n🟡 Simulation — aucune dépense.';
+    cap += live ? '\n⚠️ <b>Dépense réelle</b> au clic « ✨ Générer ».' : '\n🟡 Simulation — aucune dépense.';
   } else cap += '\n🟢 Local — gratuit.';
   const rows = [[{ text: '◀ Retour', cb: 'R0_VALID_BACK' }, { text: '💾 Modèle', cb: 'R0_SAVEMODEL' }],
-       [{ text: '✨ Générer maintenant', cb: 'R0_GO2' }]];
+       [{ text: '✨ Générer', cb: 'R0_GO2' }]]; // [ergo ≤18] libellé court ; l'écran indique déjà « Dépense réelle au clic »
   // [P1-c FIX-1] la Validation peint la SOURCE PROJET (r0RealSource via le peintre, écran _strictSrc) + récap chiffré en légende.
   //   -> Aperçu(média)→Validation(média)→Confirmation(média) = 100% média, 0 recréation de bloc. Repli texte si aucune source réelle.
   const k = (cf.mediaKind !== 'text' && C.hasImage(facts)) ? 'photo' : 'text';
