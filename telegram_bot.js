@@ -3052,6 +3052,11 @@ function r0ProjectIdOfFile(persona, file){ try{ if(!file) return null; const {S}
   // 3) repli : un id de projet apparaît tel quel dans le chemin (ex. nom de fichier préfixé)
   for(const id of ids){ if(id && f.indexOf('/'+id+'/')>=0) return id; }
   return null; }catch(e){ return null; } }
+// [Etoile — N° PROJET PARTOUT] n° de PROJET PARENT d'un fichier média (même r0ProjNum partout) -> le même projet porte le MÊME numéro dans les 6 sections.
+function r0ProjNumOfFile(persona, file){ try{ const id=r0ProjectIdOfFile(persona,file); if(!id) return null; const m=r0ProjNums(persona); return m[id]||null; }catch(e){ return null; } }
+// [Etoile — VUES MÉDIA GLOBALES] agrège TOUS les médias d'un état (garde/publie) sur TOUS les projets (récent d'abord). Lecture seule.
+function r0GlobalMediaFiles(persona, etat){ try{ const {S}=_r0(); const out=[];
+  for(const p of (S.listProjects(BASE,persona)||[])){ for(const m of (p.medias||[])){ if(m&&m.etat===etat&&m.file&&!m.simule&&!_r0IsRef(m.file)&&fs.existsSync(m.file)) out.push(m.file); } } return out; }catch(e){ return []; } }
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
 // [#Q] nums = numéro à BRÛLER sur chaque vignette (tableau, 1 par fichier) = numéro du BOUTON correspondant. Rétrocompat : si nums est un nombre -> startNum séquentiel (nums+i).
@@ -3162,20 +3167,22 @@ function r0Ctx(persona){
     const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
     ctx.galleryFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE);
     ctx.galleryTotal=list.length; ctx.galleryScope=r0GalAll?'global':'projet'; ctx.galDel=r0GalDel;
+    // [Etoile — N° PROJET PARTOUT] chaque vignette porte le n° de son PROJET PARENT (même n° que dans Récents) + l'id pour OUVRIR ce projet.
+    ctx.galleryNums=ctx.galleryFiles.map(fp=>r0ProjNumOfFile(persona,fp)); ctx.galleryProj=ctx.galleryFiles.map(fp=>r0ProjectIdOfFile(persona,fp));
     ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
   // [PAGINATION] Récents/Archives : page courante pour la grille de projets.
   if(r0Screen==='recents'){ const tot=((ctx.recents&&ctx.recents.projets)||[]).length; const pages=Math.max(1,Math.ceil(tot/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0; ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
-  // [PRÊT À POSTER] file des médias VALIDÉS (etat « garde ») du projet, avec fichier réel, paginée.
-  if(r0Screen==='pret'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
-    const list=(C.medias(f)||[]).filter(m=>m.etat==='garde'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+  // [Etoile] PRÊT À POSTER — GLOBAL : tous les médias « garde » de TOUS les projets (vue média globale, cohérente avec Historique). n° = projet parent.
+  if(r0Screen==='pret'){ const list=r0GlobalMediaFiles(persona,'garde');
     const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
     ctx.pretFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE); ctx.pretTotal=list.length;
+    ctx.pretNums=ctx.pretFiles.map(fp=>r0ProjNumOfFile(persona,fp)); ctx.pretProj=ctx.pretFiles.map(fp=>r0ProjectIdOfFile(persona,fp));
     ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
-  // [ARCHIVES PUBLIÉES] médias marqués « publie », paginés.
-  if(r0Screen==='publies'){ const {C}=_r0(); const f=r0Cur(persona,false)||{};
-    const list=(C.medias(f)||[]).filter(m=>m.etat==='publie'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
+  // [Etoile] PUBLIÉS — GLOBAL : tous les médias « publie » de TOUS les projets. n° = projet parent.
+  if(r0Screen==='publies'){ const list=r0GlobalMediaFiles(persona,'publie');
     const pages=Math.max(1,Math.ceil(list.length/R0_PAGE)); if(r0Page>pages-1)r0Page=pages-1; if(r0Page<0)r0Page=0;
     ctx.publiesFiles=list.slice(r0Page*R0_PAGE, r0Page*R0_PAGE+R0_PAGE); ctx.publiesTotal=list.length;
+    ctx.publiesNums=ctx.publiesFiles.map(fp=>r0ProjNumOfFile(persona,fp)); ctx.publiesProj=ctx.publiesFiles.map(fp=>r0ProjectIdOfFile(persona,fp));
     ctx.page={ idx:r0Page, pages:pages, size:R0_PAGE, base:r0Page*R0_PAGE }; }
   // [#17/#18] sur un bloc d'édition (prompt/script/choix) : remonter les MODÈLES pré-enregistrés + les DÉFAUTS du persona.
   if(r0Screen==='block' && r0Block){ const {DEF}=_r0();
@@ -3271,7 +3278,7 @@ async function r0Render(persona, editMid, banner){
       if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIS fichiers (images OU vidéos, projet/global selon le scope)
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
         files=all.filter(m=> (wantVid? m.type==='video' : m.type!=='video') && m.file && fs.existsSync(m.file)).slice(0,R0_PAGE).map(m=>m.file); }
-      // [#Q] le bouton affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME. [#R] kind = vidéo -> poster-frame + badge 🎬.
+      // [Etoile — OPTION A] VUE MÉDIA : 95 % des médias n'ont PAS de projet -> numéro = POSITION (base+i+1) brûlée == bouton == média. Règle unique « tape le numéro que tu vois ».
       nums=files.map((_,i)=> base+i+1); kinds=files.map(fp=> (wantVid||_isVidFile(fp)) ? 'video' : 'image');
     }
     else if(r0Screen==='recents'){ const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
@@ -3284,7 +3291,7 @@ async function r0Render(persona, editMid, banner){
       // [#R] badge vidéo seulement si le projet a une VRAIE vidéo propre (cohérent avec le libellé 🎬 du bouton).
       kinds=slice.map(p=> (C.hasVideo(p) && r0RealVideoFile(p)) ? 'video' : 'image');
     }
-    else { // [#Q/#R] PRÊT À POSTER / PUBLIÉS : grille de FICHIERS paginée -> n° de POSITION (base+i+1) == bouton 📤 (base+i+1) ; type par extension -> badge VIDEO sur la vignette.
+    else { // [Etoile — OPTION A] PRÊT À POSTER / PUBLIÉS (global) : numéro = POSITION (base+i+1) brûlée == bouton ; badge par extension. (tap = ouvre le projet parent)
       files=((r0Screen==='pret'?ctx.pretFiles:ctx.publiesFiles)||[]).slice(0,R0_PAGE);
       nums=files.map((_,i)=> base+i+1);
       kinds=files.map(fp=> _isVidFile(fp) ? 'video' : 'image');
@@ -3411,6 +3418,16 @@ async function r0Dispatch(persona, d, editMid){
   if(d.indexOf('R0_LAYER_NONE_')===0){ const key=d.slice('R0_LAYER_NONE_'.length); const field=(key==='look')?'look':'decor'; const lockFlag=(key==='look')?'lock_look':'lock_decor';
     const f3=r0Cur(persona,true); S.setDraft(BASE,persona,f3.projectId,'photo',{[field]:'',[lockFlag]:false},Date.now());
     const {DEF}=_r0(); try{ DEF.setField(BASE,persona,'photo',field,''); }catch(e){}
+    await r0Render(persona, editMid); return; }
+  // [Etoile — N° PROJET PARTOUT] taper une vignette d'une vue MÉDIA (Archives/Historique/Trouver/Prêt/Publiés) OUVRE le PROJET PARENT.
+  if(d.indexOf('R0_OPENMED_')===0){ const i=+d.slice('R0_OPENMED_'.length); const ctx2=r0Ctx(persona);
+    const arr = r0Screen==='pret'?ctx2.pretProj : (r0Screen==='publies'?ctx2.publiesProj : ctx2.galleryProj);
+    const pid = arr && arr[i];
+    if(pid){ const pf=S.loadFacts(BASE,persona,pid);
+      if(pf){ S.saveFacts(BASE,persona,pf,Date.now()); // ce projet devient le COURANT (comme ouvrir depuis Récents)
+        r0Page=0; const hv=C.hasVideo(pf), hi=C.hasImage(pf);
+        r0Screen = hv?'video_result':(hi?'photo_result':'home'); r0Section=null; r0Block=null;
+        await r0Render(persona, editMid, '📂 <b>Projet n°'+(r0ProjNum(persona,pid)||'?')+' ouvert</b>'); return; } }
     await r0Render(persona, editMid); return; }
   if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); try{ r0EnsureCaptions(persona,f3&&f3.projectId); }catch(e){} // [#2] dérive les légendes du script si vides (zéro dépense, même vidéo déjà faite)
     const f3b=r0Cur(persona,true)||f3; const pub=(f3b&&f3b.publication)||{};

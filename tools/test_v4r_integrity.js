@@ -82,24 +82,23 @@ const mkMp4=(p)=>{try{cp.execFileSync('ffmpeg',['-y','-f','lavfi','-i','color=c=
   chk('E : Prêt à poster = médias « garde » du projet ouvert ('+garde.length+')', garde.length>=1 && garde.every(m=>/[pv]/.test(path.basename(m.file))));
   chk('E : Publiés = médias « publie » du projet ouvert ('+publie.length+')', publie.length>=1);
 
-  // ── F) MÊME NUMÉRO de projet sur les 5 écrans (header == r0ProjNum), projet ouvert n°6, via le VRAI ctx (taps réels) ──
-  //   On NE passe PAS projNum à la main : on lit le markup réel rendu par le peintre (r0Ctx calcule projNum depuis r0ProjNum).
+  // ── F) Écrans PROJET (Fichiers/Publication/Résultat) portent le n° du projet ouvert ; Prêt/Publiés sont GLOBAUX (n° projet PAR vignette). ──
   const tag='n°'+wantNum;
   const capOf=()=>String((bot.markup()||{}).caption||'');
-  await bot.tap('R0_RES');       const cF=capOf();   chk('F : Fichiers — header « '+tag+' » (ctx réel)', cF.indexOf(tag)>=0);
-  await bot.tap('R0_HOME'); await bot.tap('R0_PRET');     const cP=capOf(); chk('F : Prêt à poster — header « '+tag+' »', cP.indexOf(tag)>=0);
-  await bot.tap('R0_HOME'); await bot.tap('R0_STUDIO'); await bot.tap('R0_PUBLISHED'); const cB=capOf(); chk('F : Publiés — header « '+tag+' »', cB.indexOf(tag)>=0);
+  await bot.tap('R0_RES');       const cF=capOf();   chk('F : Fichiers — header « '+tag+' » (projet ouvert)', cF.indexOf(tag)>=0);
   await bot.tap('R0_HOME'); await bot.tap('R0_PUB');      const cU=capOf(); chk('F : Publication — header « '+tag+' »', cU.indexOf(tag)>=0);
-  // Résultat vidéo : le projet n°6 a une vidéo finale -> bouton/écran résultat ; on lit via la vue avec le projNum RÉEL du bot
   const vr=SC.videoResultView(S.loadFacts(BOX,persona,curE)||{}, {projNum:bot.projNum(curE)});
   chk('F : Vidéo·Résultat — header « '+tag+' » (== bot.projNum)', String(vr.caption).indexOf(tag)>=0 && bot.projNum(curE)===wantNum);
 
-  // ── G) Prêt/Publiés : boutons positionnels mappent les médias du PROJET COURANT (pas d'un autre) ──
-  bot.reset===undefined; // noop
-  // ré-ouvrir n°6 (les taps précédents ont pu changer le courant)
-  const recG=bot.ctxRecents().projets; const posG=recG.findIndex(p=>p.projectId===idByNum[wantNum]); await bot.tap('R0_RE_OPEN_'+posG);
-  await bot.tap('R0_PRET'); const pretBtns=bot.buttons().filter(b=>/^R0_PRETITEM_/.test(b));
-  chk('G : Prêt — '+pretBtns.length+' bouton(s) positionnel(s) == nb médias « garde » du projet courant', pretBtns.length===garde.length);
+  // ── G) Prêt/Publiés GLOBAUX (Option A) : numéro = POSITION, tap = OUVRE le projet parent (médias garde/publie toujours rattachés à un projet). ──
+  await bot.tap('R0_HOME'); await bot.tap('R0_PRET');
+  const cP=capOf();
+  chk('G : Prêt à poster est GLOBAL (« tous projets »)', /tous projets/i.test(cP));
+  const pretBtns=bot.buttons().filter(b=>/^R0_OPENMED_/.test(b));
+  const pretLabels=bot.labels().filter(t=>/^📤 \d+$/.test(t));
+  chk('G : Prêt — numéro = POSITION (« 📤 1,2,3… ») + tap ouvre projet (R0_OPENMED)', pretBtns.length>=1 && pretLabels.length===pretBtns.length);
+  // tap une vignette -> ouvre un VRAI projet (le média est rattaché à son projet parent)
+  await bot.tap(pretBtns[0]); chk('G : taper une vignette Prêt OUVRE son projet parent (curId = projet réel)', !!bot.curId() && bot.projNum(bot.curId())>=1);
 
   console.log('\nRÉSULTAT: '+ok+' OK, '+ko+' KO'); process.exit(ko?1:0);
 })();

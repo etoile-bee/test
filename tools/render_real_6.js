@@ -12,6 +12,9 @@ process.env.V4R_SANDBOX=SB; process.on('exit',()=>{ try{ fs.rmSync(SB,{recursive
 const bot=require('../telegram_bot.js'); const C=require('../ui/conscience');
 const OUT='/Users/fayrouzn/wt-terrain/assets_r'; try{fs.mkdirSync(OUT,{recursive:true});}catch(e){}
 const isVid=fp=>/\.(mp4|mov|m4v|webm)$/i.test(fp||'');
+// [Etoile — N° PROJET PARTOUT] n° de projet parent d'un fichier média (même r0ProjNum partout)
+const PN=bot.projNums(); const pnumOf=fp=>{ try{ const id=bot.projectIdOf(fp); return id?(PN[id]||null):null; }catch(e){ return null; } };
+const nproj=files=>files.map(fp=>pnumOf(fp));
 
 (async()=>{
   // [SÉCURITÉ] AUCUN reset()/open()/tap() : ils écriraient (reset rm projects_r ; open écrit le nav). On n'utilise QUE des hooks de LECTURE
@@ -35,9 +38,11 @@ const isVid=fp=>/\.(mp4|mov|m4v|webm)$/i.test(fp||'');
   { const f=bot.curFacts()||{}; const g=(f.medias||[]).filter(m=>m&&m.etat==='garde'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
     await save('3_Pret', g.slice(0,6), g.slice(0,6).map((_,i)=>i+1), g.slice(0,6).map(fp=>isVid(fp)?'video':'image')); }
 
-  // 4) PUBLIÉS (médias « publie » du projet courant)
-  { const f=bot.curFacts()||{}; const p=(f.medias||[]).filter(m=>m&&m.etat==='publie'&&m.file&&fs.existsSync(m.file)).map(m=>m.file);
-    await save('4_Publies', p.slice(0,6), p.slice(0,6).map((_,i)=>i+1), p.slice(0,6).map(fp=>isVid(fp)?'video':'image')); }
+  // 4) PUBLIÉS — GLOBAL (tous les médias « publie » de TOUS les projets, cohérent avec Historique) [lecture seule]
+  { const S=require('../ui/socle'); const all=[];
+    for(const p of (S.listProjects(SB,'imany')||[])){ for(const m of (p.medias||[])){ if(m&&m.etat==='publie'&&m.file&&fs.existsSync(m.file)) all.push(m.file); } }
+    console.log('[base réelle] '+all.length+' média(s) publié(s) (global)');
+    await save('4_Publies', all.slice(0,6), all.slice(0,6).map((_,i)=>i+1), all.slice(0,6).map(fp=>isVid(fp)?'video':'image')); }
 
   // 5) HISTORIQUE VIDÉOS (tout le patrimoine vidéo -> GRILLE)
   const vids=bot.realVideos(9999)||[]; console.log('[base réelle] '+vids.length+' vidéo(s)');

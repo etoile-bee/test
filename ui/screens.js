@@ -265,9 +265,10 @@ function pretView(facts, ctx) {
   const items = (ctx && ctx.pretFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.pretTotal != null) ? ctx.pretTotal : items.length;
-  let cap = '<b>📤 Prêt à poster</b>' + projNo(facts, ctx && ctx.projNum) + ' · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
-    + (items.length ? '\n<i>touche un numéro pour le publier</i>' : '\n<i>aucun média validé — touche « Garder » sur un résultat</i>');
-  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PRETITEM_' + i }), 3);
+  let cap = '<b>📤 Prêt à poster</b> <i>(tous projets)</i> · ' + total + ' média(s) validé(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+    + (items.length ? '\n<i>touche un numéro pour ouvrir son projet</i>' : '\n<i>aucun média validé — touche « Garder » sur un résultat</i>');
+  // [Etoile — OPTION A] numéro = POSITION (base+i+1) ; tap ouvre le PROJET PARENT (les médias « garde » sont toujours rattachés à un projet).
+  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_OPENMED_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
   rows.push([{ text: '◀ Retour', cb: 'R0_VI_RESULT' }, HOME]);
   return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
@@ -278,9 +279,10 @@ function publiesView(facts, ctx) {
   const items = (ctx && ctx.publiesFiles) || [];
   const pg = (ctx && ctx.page) || { idx: 0, pages: 1, base: 0 };
   const total = (ctx && ctx.publiesTotal != null) ? ctx.publiesTotal : items.length;
-  let cap = '<b>📤 Archives publiées</b>' + projNo(facts, ctx && ctx.projNum) + ' · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
-    + (items.length ? '\n<i>tes médias publiés (retrouvables ici)</i>' : '\n<i>rien de publié pour l\'instant</i>');
-  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_PUBITEM_' + i }), 3);
+  let cap = '<b>📤 Publiés</b> <i>(tous projets)</i> · ' + total + ' publié(s) · page ' + (pg.idx + 1) + '/' + pg.pages
+    + (items.length ? '\n<i>touche un numéro pour ouvrir son projet</i>' : '\n<i>rien de publié pour l\'instant</i>');
+  // [Etoile — OPTION A] numéro = POSITION (base+i+1) ; tap ouvre le PROJET PARENT (médias « publie » toujours rattachés à un projet).
+  const rows = gridRows(items, (m, i) => ({ text: '📤 ' + (pg.base + i + 1), cb: 'R0_OPENMED_' + i }), 3);
   if (pg.pages > 1) rows.push([{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Page ' + (pg.idx + 1) + '/' + pg.pages, cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
   rows.push([{ text: '◀ Retour', cb: 'R0_STUDIO' }, HOME]);
   return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
@@ -486,7 +488,8 @@ function galleryView(facts, ctx) {
   // [G1] HISTORIQUE (lecture) : pagination SANS ✅ Choisir ; SÉLECTION : ✅ Choisir au milieu.
   rows.push(isHist ? [{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]
     : [{ text: '◀ Précédent', cb: 'R0_GPREV' }, { text: '✅ Choisir', cb: 'R0_GCHOOSE' }, { text: 'Suivant ▶', cb: 'R0_GNEXT' }]);
-  // numéro AFFICHÉ = absolu (base de page + j) ; cb = index RELATIF dans la page. RETRAIT : R0_GDEL_ (soft-delete) ; HISTORIQUE : R0_GVIEW_ (revoir, lecture) ; SÉLECTION : R0_GITEM_ (utiliser dans le flux).
+  // [Etoile — OPTION A] VUE MÉDIA : numéro = POSITION (base+i+1) brûlée == bouton. HISTORIQUE/ARCHIVES (lecture) : R0_GVIEW_ (voir le média ;
+  //   « 📂 Ouvrir le projet » proposé à l'ouverture quand le média a un parent). RETRAIT : R0_GDEL_ ; SÉLECTION (flux) : R0_GITEM_.
   const itemCb = del ? 'R0_GDEL_' : (isHist ? 'R0_GVIEW_' : 'R0_GITEM_');
   gridRows(items, (m, i) => ({ text: (del ? '🗑 ' : ic) + (pg.base + i + 1), cb: itemCb + i }), 3).forEach(r => rows.push(r));
   // [VISIBILITÉ] bascule scope + [CORBEILLE] bascule retrait soft-delete (récupérable)

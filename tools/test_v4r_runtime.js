@@ -280,9 +280,10 @@ async function main() {
   chk('G1 : GALERIE = grille de SÉLECTION (✅ Choisir + items R0_GITEM_)', gSel.includes('R0_GCHOOSE') && gSel.some(b => /^R0_GITEM_/.test(b)));
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();
   await bot.tap('R0_PH_HIST'); const gHist = bot.buttons();
+  // [Etoile Option A] HISTORIQUE/Archives (vue média, lecture) : numéro = POSITION, item = R0_GVIEW_ (voir le média) ; pas de ✅ Choisir.
   chk('G1 : HISTORIQUE = LECTURE (PAS de ✅ Choisir, items R0_GVIEW_)', !gHist.includes('R0_GCHOOSE') && gHist.some(b => /^R0_GVIEW_/.test(b)));
-  chk('G1 : Galerie et Historique ne sont PLUS identiques (rôles distincts)', JSON.stringify(gSel) !== JSON.stringify(gHist));
-  await bot.tap('R0_GVIEW_0'); chk('G1 : « revoir » (R0_GVIEW_) répond, reste sur l\'historique, 1 cockpit', bot.state().screen === 'gallery' && bot.state().cockpit === 1);
+  chk('G1 : Galerie (sélection) et Historique (lecture) ne sont PLUS identiques (rôles distincts)', JSON.stringify(gSel) !== JSON.stringify(gHist));
+  await bot.tap('R0_GVIEW_0'); chk('G1 : « voir » (R0_GVIEW_) répond, reste sur l\'historique, 1 cockpit', bot.state().screen === 'gallery' && bot.state().cockpit === 1);
 
   // ════ [G2] RESSOURCES/Fichiers : ◀ Retour revient à l'ORIGINE (Récents/Studio/Résultat), pas un défaut fixe ════
   bot.reset(); await bot.open(); await bot.tap('R0_RECENTS'); await bot.tap('R0_RES');

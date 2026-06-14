@@ -45,8 +45,9 @@ const cbsOf=v=>[].concat.apply([],(v.rows||[])).map(b=>b.cb||b.callback_data);
   const ctx={ projNum:n1, srcName:'s5.jpg', recents:{ projets:[Object.assign({_num:n1},f)], brouillons:[], archives:[] } };
   const pr=SC.photoResultView(f,ctx);   chk('#3 : Résultat PHOTO affiche « Projet n°'+n1+' »', /Projet n°'+n1+'\b/.test(pr.caption)||pr.caption.indexOf('Projet n°'+n1)>=0);
   const fv=SC.resourcesView(f,ctx);     chk('#3 : Fichiers affiche « Projet n° »', fv.caption.indexOf('Projet n°'+n1)>=0);
-  const ptv=SC.pretView(f,Object.assign({pret:{items:[]}},ctx)); chk('#3 : Prêt à poster affiche « Projet n° »', ptv.caption.indexOf('Projet n°'+n1)>=0);
-  const plv=SC.publiesView(f,Object.assign({publies:{items:[]}},ctx)); chk('#3 : Archives publiées affiche « Projet n° »', plv.caption.indexOf('Projet n°'+n1)>=0);
+  // [Etoile] Prêt/Publiés sont désormais GLOBAUX (vues média tous projets) : n° de projet PAR vignette, pas dans l'en-tête.
+  const ptv=SC.pretView(f,Object.assign({pret:{items:[]}},ctx)); chk('#3 : Prêt à poster = vue GLOBALE (« tous projets »)', /tous projets/i.test(ptv.caption));
+  const plv=SC.publiesView(f,Object.assign({publies:{items:[]}},ctx)); chk('#3 : Publiés = vue GLOBALE (« tous projets »)', /tous projets/i.test(plv.caption));
   const rcv=SC.recentsView(f,ctx);      chk('#3 : grille Récents — chaque vignette montre « n° » (avec badge 📸/🎬/📦)', rcv.rows.some(r=>r.some(b=>/[📸🎬📦] n°/.test(b.text))));
   // vidéo result
   const fv2=Object.assign({}, f, {medias:[{id:'v',type:'video',etat:'final',file:'/v.mp4'}],draft:{video:{theme:'X'}}});

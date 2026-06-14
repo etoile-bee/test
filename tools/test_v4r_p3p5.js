@@ -17,8 +17,9 @@ const chk = (m, c) => { console.log((c ? '✅' : '❌') + ' ' + m); c ? ok++ : k
 // ── P3 : n° projet visible sur les écrans patrimoine (vues pures) ──
 const f = { projectId: 'imany_1781200000_ab12', intention: { message: 'Red flags' }, medias: [{ id: 'm1', type: 'image', etat: 'final', file: '/x.jpg' }], publication: {}, draft: { photo: {}, video: {} } };
 chk('P3 : Fichiers affiche 📦 #id', /📦 #1781200000_ab12/.test(SC.resourcesView(f, {}).caption));
-chk('P3 : Prêt à poster affiche 📦 #id', /📦 #1781200000_ab12/.test(SC.pretView(f, { pretFiles: [], pretTotal: 0 }).caption));
-chk('P3 : Archives publiées affiche 📦 #id', /📦 #1781200000_ab12/.test(SC.publiesView(f, { publiesFiles: [], publiesTotal: 0 }).caption));
+// [Etoile] Prêt/Publiés GLOBAUX (vues média tous projets) -> en-tête « tous projets » (n° projet par vignette, pas dans l'en-tête).
+chk('P3 : Prêt à poster = GLOBAL (« tous projets »)', /tous projets/i.test(SC.pretView(f, { pretFiles: [], pretTotal: 0 }).caption));
+chk('P3 : Publiés = GLOBAL (« tous projets »)', /tous projets/i.test(SC.publiesView(f, { publiesFiles: [], publiesTotal: 0 }).caption));
 chk('P3 : Résultat vidéo affiche 📦 Projet #id', /📦 Projet #1781200000_ab12/.test(SC.videoResultView(f, {}).caption));
 
 // ── P5 #11bis : keepsake FRAIS PROPRE (aucun « cap à poser / brouillon / décision(s) ») ──
