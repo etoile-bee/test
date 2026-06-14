@@ -163,7 +163,7 @@ function blockSpec(block, facts, ctx) {
     const val = d[fieldAlias(block)]; const kept = d[lockFlag] === true;
     const cur = (val == null || String(val).trim() === '') ? '— image de base (rien choisi)' : (val + (kept ? ' · 🔒 conservé' : ''));
     const picker = optionsFor(block, ctx, d);                       // [X] tenues/décors (jusqu'à 12)
-    const clear = { text: '🚫 Aucune (image de base)', cb: 'R0_LAYER_NONE_' + block.key };
+    const clear = { text: '🚫 Aucune', cb: 'R0_LAYER_NONE_' + block.key }; // (le « Actuel » indique déjà « image de base »)
     const lockToggle = kept ? { text: '🔓 Ne pas conserver', cb: 'R0_INFL_' + lockFlag }
                             : { text: '🔒 Conserver', cb: 'R0_INFL_' + lockFlag };
     const optionRows = []; for (let i = 0; i < picker.length; i += 2) optionRows.push(picker.slice(i, i + 2)); // 2/ligne
