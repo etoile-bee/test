@@ -189,8 +189,11 @@ Outils : `tools/test_v4r_grids.js` (seed 112 projets + rend mosaïque réelle), 
 ### Méthode d'audit nuit
 Boucle : sweep complet (`tools/test_v4r_*.js`, 37 suites) + `audit_parcours.js` + audits RÉELS (`audit_visual_nuit.js` planches+sous-titres+clip 9:16, `audit_flow_nuit.js` persistance/flux/isolation) + balayage anomalies (libellés tronqués, rangées >2, grilles, états vides) ; à chaque anomalie trouvée → corrigée + test ajouté + recontrôle à l'œil ; re-passe à regard neuf jusqu'à zéro écart. **Aucun déploiement sans GO.**
 
+### Passe FINALE à regard neuf (`tools/audit_final_nuit.js`, 13/0, ≥112 projets)
+Couvre les zones restantes : **bornes de pagination** Récents (1ère page · « Suivant » au-delà → clamp 19/19 · « Précédent » au-delà → clamp 1 · planche **dernière page rendue & regardée** `assets_r/_AUDIT_recents_DERNIERE_page.jpg` = 5·4·3·2·1 + 1 case vide, VIDEO sur n°3) · **Studio** + ses 8 sections (ouverture sans plantage) · **Fichiers** (Image/Vidéo/RAW/Audio + textes copiables) · **imports** photo + accès audio (entrées sans plantage) · **projet VIDE** (galerie scope projet ne plante pas). Zéro exception avalée.
+
 ### État de la boucle (passe consolidée)
-Sweep **37/0** · audit_visual **9/0** · audit_flow **27/0** · audit_parcours **0 écart** · états vides **9/0** · verrous intacts. Anomalies nuit trouvées+corrigées+recontrôlées : **AN1** (planches Prêt/Publiés), **AN2** (herméticité faux-vert). Dernière passe à regard neuf (légendes O, écran final L, états vides, flux) : **aucun nouvel écart**.
+Sweep **40/0** · audit_visual **9/0** · audit_flow **27/0** · audit_final **13/0** · audit_parcours **0 écart** · états vides **9/0** · verrous intacts. Anomalies nuit trouvées+corrigées+recontrôlées : **AN1** (planches Prêt/Publiés), **AN2** (herméticité faux-vert). Lot demandes Etoile **S·T·U·V·W2·X·C2** : ✅ tous livrés+testés. Passe FINALE à regard neuf (Studio/sections, Fichiers, bornes pagination, imports, projet vide, flux complet) : **aucun nouvel écart**. **PRÊT pour GO de déploiement délibéré** (prod reste 5ce809e jusqu'au GO).
 
 ## AN — ANOMALIES TROUVÉES EN AUDIT NUIT (boucle contrôle→cause→correction→recontrôle)
 | # | Anomalie | Cause | Correction | Validation (vue à l'œil) |
