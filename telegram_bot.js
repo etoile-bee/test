@@ -3064,6 +3064,9 @@ async function r0Mosaic(files, nums, kinds){
     files=files.map((fp,i)=> (Array.isArray(kinds)&&kinds[i]==='video' && /\.(mp4|mov|m4v|webm)$/i.test(String(fp))) ? (_videoThumb(fp)||fp) : fp);
     // [#Q] résout le numéro brûlé pour la vignette i : tableau fourni -> nums[i] ; nombre -> nums+i ; défaut -> i+1.
     const _num=(i)=> Array.isArray(nums) ? (nums[i]!=null?nums[i]:(i+1)) : ((typeof nums==='number'?nums:1)+i);
+    // [CC — Etoile] FIABILITÉ : toute entrée manquante/vide/non-lisible (poster vidéo échoué, fichier disparu) -> PLACEHOLDER PROPRE numéroté.
+    //   Garantit qu'ffmpeg ne reçoit JAMAIS un fichier cassé -> plus de vignette floue/avec un « X ». Alignement nums/kinds préservé.
+    files=files.map((fp,i)=>{ try{ if(fp && fs.existsSync(fp) && fs.statSync(fp).size>0) return fp; }catch(e){} return r0PlaceholderTile(_num(i),'indispo')||fp; });
     // [#R] type de média brûlé sur la vignette : 'video' -> badge rouge VIDEO en haut à droite ; sinon photo (rien). kinds[i] ∈ 'video'|'image'.
     const _isVid=(i)=> Array.isArray(kinds) && kinds[i]==='video';
     const _vidTag=(cell)=> ",drawtext=text='VIDEO':x="+(cell-128)+":y=10:fontsize=30:fontcolor=white:box=1:boxcolor=red@0.8:boxborderw=8"; // badge rouge VIDEO = vidéo (glyphes latins fiables, ≠ ▶ tofu)
@@ -3257,16 +3260,19 @@ async function r0Render(persona, editMid, banner){
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
   let _galFiles=null, _galNums=null, _galKinds=null; // [#Q] numéros brûlés == boutons ; [#R] type (photo/vidéo) brûlé sur la vignette Récents
   // La planche-contact ne vaut que pour des IMAGES : la galerie VIDÉO reste une liste texte (numéros sélectionnables), pas de mosaïque de .mp4.
-  if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents' || r0Screen==='pret' || r0Screen==='publies'){
+  // [BB — Etoile] GRILLE UNIQUE : Récents · Archives · Prêt · Publiés · Galerie images · Galerie/Historique VIDÉOS (251) -> TOUTES en planche-contact.
+  //   La galerie VIDÉO n'est plus une liste de numéros : on extrait un poster-frame par vidéo (via r0Mosaic) + badge 🎬, MÊME présentation que les images.
+  if(r0Screen==='gallery' || r0Screen==='recents' || r0Screen==='pret' || r0Screen==='publies'){
     const base=(ctx.page&&ctx.page.base)||0;
-    const _isVidFile=fp=>/\.(mp4|mov|m4v|webm)$/i.test(fp||''); // [#R] type par EXTENSION pour les grilles de fichiers (Prêt/Publiés)
+    const _isVidFile=fp=>/\.(mp4|mov|m4v|webm)$/i.test(fp||''); // [#R] type par EXTENSION pour les grilles de fichiers (Prêt/Publiés/Vidéos)
     let files=[], nums=[], kinds=[];
     if(r0Screen==='gallery'){
-      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIES images (projet ou global selon le scope)
+      const wantVid=(r0GalKind==='video');
+      if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIS fichiers (images OU vidéos, projet/global selon le scope)
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
-        files=all.filter(m=>m.type!=='video' && m.file && fs.existsSync(m.file)).slice(0,R0_PAGE).map(m=>m.file); } // [🔴1] vignette RÉELLE uniquement (jamais la démo cuir pour un fichier manquant)
-      // [#Q] GALERIE : le bouton de sélection affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME. (galerie photo -> aucune vidéo)
-      nums=files.map((_,i)=> base+i+1); kinds=files.map(()=>'image');
+        files=all.filter(m=> (wantVid? m.type==='video' : m.type!=='video') && m.file && fs.existsSync(m.file)).slice(0,R0_PAGE).map(m=>m.file); }
+      // [#Q] le bouton affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME. [#R] kind = vidéo -> poster-frame + badge 🎬.
+      nums=files.map((_,i)=> base+i+1); kinds=files.map(fp=> (wantVid||_isVidFile(fp)) ? 'video' : 'image');
     }
     else if(r0Screen==='recents'){ const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
       // [#Q] RÉCENTS/ARCHIVES : le bouton affiche le n° de PROJET réel (p._num) -> on brûle CE numéro -> vignette == bouton == projet ouvert.

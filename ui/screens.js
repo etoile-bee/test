@@ -492,8 +492,8 @@ function galleryView(facts, ctx) {
   // [VISIBILITÉ] bascule scope + [CORBEILLE] bascule retrait soft-delete (récupérable)
   rows.push([{ text: (ctx && ctx.galleryScope === 'global') ? '📁 Ce projet' : '🌍 Tout', cb: 'R0_GALSCOPE' }, { text: del ? '✖️ Quitter retrait' : '🗑 Retirer', cb: 'R0_GALDEL' }]);
   rows.push([{ text: '◀ Retour', cb: back }, HOME]);
-  // image -> aperçu mosaïque (photo) ; vidéo -> liste texte (pas de planche d'images possible)
-  return { kind: (items.length && kindWanted !== 'video') ? 'photo' : 'text', caption: cap, rows: rows };
+  // [BB] images ET vidéos -> planche-contact (photo) : la galerie vidéo n'est PLUS une liste (poster-frame + badge 🎬 par r0Mosaic).
+  return { kind: items.length ? 'photo' : 'text', caption: cap, rows: rows };
 }
 
 // ── VIDÉO / REMPLACER LA SOURCE : Choisir (galerie) · Importer photo · Importer vidéo ──

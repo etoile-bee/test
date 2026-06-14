@@ -20,6 +20,13 @@ function audit(name, rows, opts){ opts=opts||{}; const flat=[].concat.apply([],r
   const hasNav = opts.home===false ? true : labels.some(l=>/Retour|Accueil|◀|🏠/.test(l));
   const total=flat.length;
   const overload = total > (opts.max||14);
+  // [DD] PIED CANONIQUE : dernière rangée == [🏠 Accueil | 🛑 Stop] (même ordre) ; Accueil/Stop nulle part ailleurs ; Retour (si présent) juste au-dessus.
+  if(opts.home!==false){ const last=rows[rows.length-1]||[]; const lt=last.map(b=>b.text||b.t||'');
+    const footOk = lt.length===2 && /🏠|Accueil/.test(lt[0]) && /🛑|Stop/.test(lt[1]);
+    const strayExit = rows.slice(0,-1).some(r=>r.some(b=>{const t=b.text||b.t||'';return /🏠|Accueil|🛑|Stop/.test(t);}));
+    chk(name+' pied [Accueil|Stop] en bas', footOk);
+    chk(name+' pas d\'Accueil/Stop hors pied', !strayExit);
+  }
   // catégorie mélangée à une action : heuristique — une rangée ne doit pas mêler une action primaire (Générer/Valider/Publier) à un simple choix de catégorie
   const verdict = (longs.length===0 && wide.length===0 && hasNav && !overload);
   console.log((verdict?'✅':'⚠️ ')+' '+name+' — '+total+' btns'
@@ -56,13 +63,15 @@ function audit(name, rows, opts){ opts=opts||{}; const flat=[].concat.apply([],r
   await bot.tap('R0_ST_looks'); R('Studio·Section',{max:14});
   await bot.tap('R0_STUDIO'); await bot.tap('R0_RES'); R('Fichiers',{max:18});
   await bot.tap('R0_HOME'); await bot.tap('R0_PRET'); R('Prêt à poster',{max:16});
-  // ── écrans à média (vues directes seedées) ──
+  // ── écrans à média : rendus via le WRAPPER NAV.view (comme en vrai) -> pied canonique appliqué ──
+  const NAV=require('../ui/nav');
   const f={medias:[{id:'i',type:'image',etat:'final',file:'/i.jpg'}],draft:{photo:{}},publication:{legende_courte:'x'}};
-  audit('Photo·Résultat', SC.photoResultView(f,{projNum:1}).rows.map(r=>r.map(b=>({text:b.text,cb:b.cb}))));
+  const W=(name,screen,facts,c)=>audit(name, NAV.view({screen:screen},facts,c||{projNum:1}).rows.map(r=>r.map(b=>({text:b.text,cb:b.cb}))));
+  W('Photo·Résultat','photo_result',f);
   const fv={medias:[{id:'v',type:'video',etat:'final',file:'/v.mp4'}],draft:{video:{theme:'X',duree:'60s'}},publication:{legende_courte:'x',legende_longue:'y'}};
-  audit('Vidéo·Résultat', SC.videoResultView(fv,{projNum:1}).rows.map(r=>r.map(b=>({text:b.text,cb:b.cb}))));
-  audit('Publication', SC.publicationView(f,{projNum:1}).rows.map(r=>r.map(b=>({text:b.text,cb:b.cb}))));
-  audit('Publiés', SC.publiesView(f,{publiesFiles:[],page:{idx:0,pages:1,base:0}}).rows.map(r=>r.map(b=>({text:b.text,cb:b.cb}))));
+  W('Vidéo·Résultat','video_result',fv);
+  W('Publication','publication',f);
+  W('Publiés','publies',f,{publiesFiles:[],page:{idx:0,pages:1,base:0},projNum:1});
 
   console.log('\nRÉSULTAT: '+ok+' OK, '+ko+' KO'); process.exit(ko?1:0);
 })();

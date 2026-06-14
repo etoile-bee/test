@@ -244,21 +244,25 @@ function view(state, facts, ctx) {
   const RETOUR = /◀|Retour|Annuler|↩/;
   const APERCU = /👁|Aperçu/;
   const VALID = /✅\s*Valider/;
-  const add = [];
-  const pushU = b => { if (b && b.cb && !present.has(b.cb)) { add.push(b); present.add(b.cb); } }; // ajout UNIQUE (anti-doublon)
-  if (req && req.cls === 'gen') {
-    if (!hasTxt(APERCU)) pushU({ text: '👁 Aperçu', cb: req.prod }); // D3 : seule entrée de production sur l'écran de prépa
-  } else if (req && req.cls === 'edit') {
-    if (!hasTxt(VALID)) pushU({ text: '✅ Valider', cb: 'R0_BLOCK_OK' }); // cb DISTINCT du Retour -> 0 doublon
-  }
-  if (!hasTxt(RETOUR) && req && req.back) pushU({ text: '◀ Retour', cb: req.back });
-  if (add.length) v.rows = v.rows.concat([add]);
-  // 🏠 Accueil + 🛑 Stop garantis en dernier (sortie possible à TOUTE étape).
-  const cb = _bcb(v.rows);
-  const tail = [];
-  if (cb.indexOf('R0_HOME') < 0) tail.push({ text: '🏠 Accueil', cb: 'R0_HOME' });
-  if (cb.indexOf('R0_STOP') < 0) tail.push({ text: '🛑 Stop', cb: 'R0_STOP' });
-  if (tail.length) v.rows = v.rows.concat([tail]);
+  // [DD — Etoile] PIED CANONIQUE IDENTIQUE PARTOUT : ◀ Retour · ✅ Valider · 🏠 Accueil · 🛑 Stop, MÊME ordre, EN BAS, 2/ligne, FIXE.
+  //   On capture les cb CONTEXTUELS (Retour propre à l'écran, Valider d'édition), on RETIRE ces boutons épars du corps,
+  //   puis on REPOSE un pied uniforme -> l'utilisatrice retrouve toujours les mêmes actions au même endroit.
+  let backCb = null, validCb = null;
+  const isFootBtn = b => { const t = (b && b.text) || '', c = (b && b.cb) || '';
+    if (RETOUR.test(t)) { if (!backCb) backCb = c; return true; }                 // Retour/Annuler -> cb contextuel préservé
+    if (c === 'R0_HOME' || /🏠|Accueil/.test(t)) return true;
+    if (c === 'R0_STOP' || /🛑|Stop/.test(t)) return true;
+    if (c === 'R0_BLOCK_OK') { validCb = 'R0_BLOCK_OK'; return true; }             // Valider universel d'édition -> au pied
+    return false; };
+  v.rows = v.rows.map(r => r.filter(b => !isFootBtn(b))).filter(r => r.length);     // corps SANS les boutons de pied
+  // action PRIMAIRE spécifique à l'écran de prépa : 👁 Aperçu reste dans le CORPS (au-dessus du pied).
+  if (req && req.cls === 'gen' && !hasTxt(APERCU)) v.rows.push([{ text: '👁 Aperçu', cb: req.prod }]);
+  if (req && req.cls === 'edit') validCb = validCb || 'R0_BLOCK_OK';
+  if (!backCb && req && req.back) backCb = req.back;
+  // PIED FIXE : rangée 1 = ◀ Retour [+ ✅ Valider] (2/ligne) ; rangée 2 = 🏠 Accueil · 🛑 Stop.
+  const foot1 = []; if (backCb) foot1.push({ text: '◀ Retour', cb: backCb }); if (validCb) foot1.push({ text: '✅ Valider', cb: validCb });
+  if (foot1.length) v.rows.push(foot1);
+  v.rows.push([{ text: '🏠 Accueil', cb: 'R0_HOME' }, { text: '🛑 Stop', cb: 'R0_STOP' }]);
   return v;
 }
 function _view(state, facts, ctx) {
