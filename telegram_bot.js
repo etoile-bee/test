@@ -3029,12 +3029,15 @@ function r0ProjectIdOfFile(persona, file){ try{ if(!file) return null; const {S}
 // [F] PLANCHE-CONTACT (mosaïque) : assemble jusqu'à 9 vignettes en grille via ffmpeg xstack (LOCAL, zéro dépense).
 //   Affichée comme média du bloc UNIQUE ; les boutons numérotés 1..N dessous servent à sélectionner. Pas d'empilement.
 // [#Q] nums = numéro à BRÛLER sur chaque vignette (tableau, 1 par fichier) = numéro du BOUTON correspondant. Rétrocompat : si nums est un nombre -> startNum séquentiel (nums+i).
-async function r0Mosaic(files, nums){
+async function r0Mosaic(files, nums, kinds){
   try{
     files=(files||[]).filter(Boolean).slice(0,6); // [Etoile] 6 vignettes max par mosaïque
     if(!files.length) return null;
     // [#Q] résout le numéro brûlé pour la vignette i : tableau fourni -> nums[i] ; nombre -> nums+i ; défaut -> i+1.
     const _num=(i)=> Array.isArray(nums) ? (nums[i]!=null?nums[i]:(i+1)) : ((typeof nums==='number'?nums:1)+i);
+    // [#R] type de média brûlé sur la vignette : 'video' -> badge rouge VIDEO en haut à droite ; sinon photo (rien). kinds[i] ∈ 'video'|'image'.
+    const _isVid=(i)=> Array.isArray(kinds) && kinds[i]==='video';
+    const _vidTag=(cell)=> ",drawtext=text='VIDEO':x="+(cell-128)+":y=10:fontsize=30:fontcolor=white:box=1:boxcolor=red@0.8:boxborderw=8"; // badge rouge VIDEO = vidéo (glyphes latins fiables, ≠ ▶ tofu)
     if(R0DRY && !process.env.R0_MOSAIC_FORCE) return files[0]; // dry : pas de ffmpeg (sauf R0_MOSAIC_FORCE -> test de rendu réel de planche)
     if(files.length===1){ // une seule vignette : on incruste quand même son numéro (cohérence avec le bouton)
       const lbl=_num(0); const out1=path.join(BASE,'assets_r','_mosaic_'+(lbl)+'_'+path.basename(files[0])+'.jpg');
@@ -3047,11 +3050,11 @@ async function r0Mosaic(files, nums){
     const args=['-y']; files.forEach(f=>args.push('-i',f));
     let fc=''; const labels=[];
     // [#Q] NUMÉRO INCRUSTÉ sur chaque vignette (drawtext) = numéro EXACT du bouton (_num(i)) -> vignette == bouton == média sélectionné.
-    files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1,drawtext=text=\''+_num(i)+'\':x=10:y=10:fontsize=64:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8[v'+i+'];'; labels.push('[v'+i+']'); });
+    files.forEach((f,i)=>{ fc+='['+i+':v]scale='+cell+':'+cell+':force_original_aspect_ratio=increase,crop='+cell+':'+cell+',setsar=1,drawtext=text=\''+_num(i)+'\':x=10:y=10:fontsize=64:fontcolor=white:box=1:boxcolor=black@0.6:boxborderw=8'+(_isVid(i)?_vidTag(cell):'')+'[v'+i+'];'; labels.push('[v'+i+']'); });
     const layout=files.map((f,i)=>((i%cols)*cell)+'_'+(Math.floor(i/cols)*cell)).join('|');
     fc+=labels.join('')+'xstack=inputs='+n+':layout='+layout+':fill=black[out]';
-    // [FIX grille] nom de planche UNIQUE par CONTENU (hash des fichiers + numéros) -> chaque page a SA planche, pas de cache Telegram périmé.
-    let key=(_num(0)>>>0)||1; for(const f of files){ const b=path.basename(f); for(let i=0;i<b.length;i++) key=(key*31 + b.charCodeAt(i))>>>0; } for(let i=0;i<files.length;i++) key=(key*31 + (Number(_num(i))||0))>>>0;
+    // [FIX grille] nom de planche UNIQUE par CONTENU (hash des fichiers + numéros + types) -> chaque page a SA planche, pas de cache Telegram périmé.
+    let key=(_num(0)>>>0)||1; for(const f of files){ const b=path.basename(f); for(let i=0;i<b.length;i++) key=(key*31 + b.charCodeAt(i))>>>0; } for(let i=0;i<files.length;i++) key=(key*31 + (Number(_num(i))||0) + (_isVid(i)?7:0))>>>0;
     const out=path.join(BASE,'assets_r','_mosaic_'+key.toString(36)+'.jpg');
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     if(fs.existsSync(out)) return out; // déjà construite pour ce contenu
@@ -3218,38 +3221,40 @@ async function r0Render(persona, editMid, banner){
   // [F] GALERIE/HISTORIQUE/RÉCENTS : planche-contact comme média du bloc.
   // [NO-FREEZE] L'aperçu est peint IMMÉDIATEMENT (1ère image, zéro ffmpeg) ; la mosaïque se construit en ARRIÈRE-PLAN
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
-  let _galFiles=null, _galNums=null; // [#Q] _galNums = numéro à BRÛLER sur chaque vignette = numéro du BOUTON correspondant (alignement strict)
+  let _galFiles=null, _galNums=null, _galKinds=null; // [#Q] numéros brûlés == boutons ; [#R] type (photo/vidéo) brûlé sur la vignette Récents
   // La planche-contact ne vaut que pour des IMAGES : la galerie VIDÉO reste une liste texte (numéros sélectionnables), pas de mosaïque de .mp4.
   if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents'){
     const base=(ctx.page&&ctx.page.base)||0;
-    let files=[], nums=[];
+    let files=[], nums=[], kinds=[];
     if(r0Screen==='gallery'){
       if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIES images (projet ou global selon le scope)
       else { const all=r0GalAll?C.medias(f):C.visibles(f);
         files=all.filter(m=>m.type!=='video' && m.file && fs.existsSync(m.file)).slice(0,R0_PAGE).map(m=>m.file); } // [🔴1] vignette RÉELLE uniquement (jamais la démo cuir pour un fichier manquant)
-      // [#Q] GALERIE : le bouton de sélection affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME.
-      nums=files.map((_,i)=> base+i+1);
+      // [#Q] GALERIE : le bouton de sélection affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME. (galerie photo -> aucune vidéo)
+      nums=files.map((_,i)=> base+i+1); kinds=files.map(()=>'image');
     }
     else { const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
       files=slice.map(p=>r0CoverFile(p)); // page courante + couverture réelle par projet (6/page)
       // [#Q] RÉCENTS/ARCHIVES : le bouton affiche le n° de PROJET réel (p._num) -> on brûle CE numéro (et non un index séquentiel de page) -> vignette == bouton == projet ouvert.
       nums=slice.map((p,i)=> (p && p._num!=null) ? p._num : (base+i+1));
+      // [#R] type par projet -> marqueur ▶ vidéo sur la vignette (badge cohérent avec le libellé du bouton)
+      kinds=slice.map(p=> C.hasVideo(p) ? 'video' : 'image');
     }
-    // garde l'alignement fichiers↔numéros après filtrage des fichiers manquants
-    { const pair=files.map((f,i)=>[f,nums[i]]).filter(x=>x[0]); files=pair.map(x=>x[0]); nums=pair.map(x=>x[1]); }
-    if(files.length){ kind='photo'; media=files[0]; _galFiles=files; _galNums=nums; } // aperçu immédiat = 1ère image (la planche arrive en fond)
+    // garde l'alignement fichiers↔numéros↔types après filtrage des fichiers manquants
+    { const tri=files.map((f,i)=>[f,nums[i],kinds[i]]).filter(x=>x[0]); files=tri.map(x=>x[0]); nums=tri.map(x=>x[1]); kinds=tri.map(x=>x[2]); }
+    if(files.length){ kind='photo'; media=files[0]; _galFiles=files; _galNums=nums; _galKinds=kinds; } // aperçu immédiat = 1ère image (la planche arrive en fond)
   }
   await r0Paint(kind, media, caption, vw.rows, editMid);
   r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
   // [NO-FREEZE] planche-contact EN FOND (fire-and-forget) — ne bloque pas le handler, donc Retour/Accueil restent répondants.
-  if(_galFiles && _galFiles.length && !R0DRY){ r0KickMosaic(_galFiles, r0Mid, r0Screen, caption, vw.rows, _galNums); } // [#Q] numéros incrustés = numéros EXACTS des boutons (positions galerie / n° projet Récents)
+  if(_galFiles && _galFiles.length && !R0DRY){ r0KickMosaic(_galFiles, r0Mid, r0Screen, caption, vw.rows, _galNums, _galKinds); } // [#Q] numéros == boutons ; [#R] ▶ vidéo sur la vignette
 }
 // [NO-FREEZE] Construit la planche-contact HORS du chemin de réponse aux taps, puis la pose dans le bloc SI on y est toujours
 //   (même message, même écran, toujours une photo). Toute erreur/délai reste silencieux : la 1ère image affichée suffit.
-function r0KickMosaic(files, mid, scr, caption, rows, startNum){
+function r0KickMosaic(files, mid, scr, caption, rows, nums, kinds){
   Promise.resolve().then(async()=>{
     try{
-      const mo=await r0Mosaic(files, startNum);
+      const mo=await r0Mosaic(files, nums, kinds);
       if(mo && r0Mid===mid && r0Screen===scr && r0Type==='photo'){ const ok=await editPhotoKb(mid, mo, cap1024(caption), r0Kb(rows)); if(ok) r0MediaPath=mo; }
     }catch(e){ try{ jlog('[v4r] mosaïque fond : '+e.message); }catch(_){} }
   });
@@ -5121,7 +5126,7 @@ if(R0DRY){
     aliveHas:(id)=>{ try{ return R0DRY.alive.has(id); }catch(e){ return false; } }, // [test] le message <id> est-il toujours dans le fil ?
     projNum:(id)=>{ try{ return r0ProjNum(_persona(), id||(r0Cur(_persona(),false)||{}).projectId); }catch(e){ return null; } }, // [RG-7] n° séquentiel du projet
     projNums:()=>{ try{ return r0ProjNums(_persona()); }catch(e){ return {}; } }, // [#Q] map id -> n° projet
-    renderMosaic:async(files,nums)=>{ try{ return await r0Mosaic(files,nums); }catch(e){ return null; } }, // [#Q] rend une VRAIE planche (avec R0_MOSAIC_FORCE) pour vérifier les numéros brûlés
+    renderMosaic:async(files,nums,kinds)=>{ try{ return await r0Mosaic(files,nums,kinds); }catch(e){ return null; } }, // [#Q/#R] rend une VRAIE planche (R0_MOSAIC_FORCE) : numéros brûlés + ▶ vidéo
     ctxRecents:()=>{ try{ return r0Ctx(_persona()).recents; }catch(e){ return null; } }, // [#Q/#R] projets de Récents (avec _num attaché)
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ

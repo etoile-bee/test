@@ -138,3 +138,43 @@
 - **T7 CLOUD** : `outputs/AAAA-MM-JJ/<#proj>_<slug>/` — 1 dossier par jour, 1 média finalisé = 1 dossier avec TOUS ses fichiers (RAW INCLUS) ; bouton ☁ RAW dans Fichiers. Migration des anciens fichiers à plat = `tools/cloud_migration.js` en **dry-run réversible** (`--apply` journalisé → `--undo`), **sans suppression**, lancée seulement sur GO d'Etoile.
 - **T8 PARTIE 2/3** : sur l'écran final vidéo, bouton « ➕ Partie N » — MÊME thème & réglages (look/décor/voix/sous-titres/durée/catégorie), SEUL le script change = SUITE cohérente (legacy `WF.partPrompt`, référence les parties précédentes), dans le MÊME projet.
 - **T9 DÉPLOIEMENT** : acte **DÉLIBÉRÉ** uniquement — checkout explicite du commit validé dans `/Users/fayrouzn/podcast-workflow` + UN restart contrôlé. Dev **isolé en worktree** (`wt-terrain`) ; la prod ne suit jamais les commits de dev. **Plus JAMAIS de déploiement par effet de bord** (cause de l'incident du 13/06 : restart pm2 rechargeant le working copy laissé sur une branche non validée).
+
+## U — LOT FIABILISATION NUIT (A→R) — phase STRICTE (zéro nouvelle fonctionnalité)
+Base prod de départ : `5ce809e`. Statut : ✅ conforme · 🔧 en cours · ⚠️ anomalie · □ non commencé. Preuves = `tools/test_v4r_*.js` + `tools/audit_parcours.js` + planches rendues réelles.
+
+| # | Point | Statut | Preuve |
+|---|---|---|---|
+| A | Génération : UN seul statut « en cours » (photo+vidéo) | ✅ | test_v4r_genstatus 7/0 |
+| B | Panneau Sous-titres toujours complet (Police/Taille/Hauteur/Modèle) ; entrées unifiées | ✅ | test_v4r_scriptpick 8/0 |
+| C | Découvrabilité Tenue/Décor/Influences dans le parcours photo | ✅ | test_v4r_photolayers |
+| D | Tenue/Décor défaut = image de base + « Désactiver » explicite | ✅ | test_v4r_photolayers 9/0 |
+| E | Libellés non tronqués en plein mot (helper `_shortLbl`) | ✅ | test_v4r_scriptpick |
+| F | Actions séparées des catégories (script) | ✅ | test_v4r_scriptpick |
+| G | Photo·Choisir : pas « aucune photo » si source active | ✅ | test_v4r_photolayers |
+| H | Aperçu : indicateur Influences = réalité (✓ si valeur+activée) | ✅ | test_v4r_photolayers |
+| I | Ergonomie 2/ligne + action primaire pleine largeur partout | ✅ | audit_parcours / screens |
+| J | Génération « en cours » update ~3 min (legacy) + timeout | ✅ | test_v4r_lot5r 18/0 |
+| K | Vidéo 9:16 : width/height (ffprobe, repli 720×1280) + thumb sur TOUS les sendVideo | ✅ | test_v4r_lot5r |
+| L | Écran final vidéo : Lég. courte/longue copiables + Partie 2/3 + Refaire vidéo | ✅ | test_v4r_lot5r + runtime + screens |
+| M | Retrait « Éditer légendes » + ligne « # Hashtags » séparée | ✅ | test_v4r_lot5r |
+| N | Boutons inutiles retirés + positions (2/ligne) | ✅ | audit_parcours |
+| O | Légendes legacy : courte ≈2 phrases ≠ longue développée, +# fusionnés | ✅ | test_v4r_lot5r |
+| P | Carte connexion reposée (boot + inactivité ~20 min + entrées) ; persistante | ✅ | test_v4r_connectgate 9/0 + test_v4r_connectcard 7/0 |
+| Q | Alignement numéro vignette ↔ bouton ↔ média (mosaïques, toutes grilles, AVEC pagination & volume réel) | ✅ | test_v4r_grids 6/0 (**112 projets, 19 pages**) + mosaïque rendue `assets_r/_TEST_mosaic_recents_page5.jpg` (88,87,86,85,84,83 brûlés == boutons) |
+| R | Récents/Archives : badge 📸 photo / 🎬 vidéo (libellé bouton) + badge rouge **VIDEO** brûlé sur la vignette vidéo | ✅ | test_v4r_grids (badge libellé + badge brûlé vérifiés à l'œil sur la planche p.5 : VIDEO sur 87 & 84) |
+
+### Q — diagnostic & fix (FIGÉ)
+**Cause** : la mosaïque brûlait un index SÉQUENTIEL de page (`startNum+i`) tandis que les boutons Récents portaient le n° de PROJET réel (`p._num`). À 1-6 éléments (sandbox) ils coïncidaient → invisible ; à 112 projets ils divergeaient (vignette « 25 » sous bouton « n°97 »). **Fix** : `r0Mosaic(files, nums[], kinds[])` brûle le numéro EXACT du bouton de chaque tuile (`nums[i]`) — positions pour les galeries de choix, n° de projet pour Récents/Archives. Prouvé à **112 projets**, page 5 : n° brûlés `[88,87,86,85,84,83]` == boutons == projets ouverts (cb position → `projets[pos]._num`), vérifié à l'œil sur la planche rendue.
+### R — fix marqueur vidéo (FIGÉ)
+Badge type sur la vignette : `kinds[i]==='video'` → badge rouge **VIDEO** brûlé en haut-droite (drawtext `text='VIDEO'`, glyphes latins fiables). Le marqueur ▶ (`▶`) a été abandonné : ffmpeg drawtext n'interprète pas l'échappement `\u…` et la police par défaut n'a pas le glyphe → rendait « u2 » (tofu). Le libellé du bouton garde l'emoji 🎬/📸 (`kindIco`).
+
+### Procédure de validation OBLIGATOIRE (FI3a/FI3b) — appliquée à tout l'audit nuit
+Un point n'est validé que contrôlé aux 4 niveaux **technique + fonctionnel + VISUEL + UTILISATEUR**, couvrant :
+1. texte affiché (markup) ; 2. **IMAGE réellement rendue** (mosaïque/vignette GÉNÉRÉE puis REGARDÉE — pas le markup) ; 3. **VIDÉO réelle** (9:16/miniature) ; 4. rendu Telegram mobile ; 5. cohérence VISUEL↔EXÉCUTÉ (numéro vignette == bouton == média sélectionné) ; 6. **VOLUMÉTRIE RÉELLE** (pagination, ≈30-120 éléments, pas 1-6).
+Outils : `tools/test_v4r_grids.js` (seed 112 projets + rend mosaïque réelle), `R0_MOSAIC_FORCE=1` pour forcer le rendu ffmpeg en test. Chemins des planches rendues fournis pour contrôle à l'œil.
+
+### Rappels antérieurs (toujours conformes)
+1' Quota de tests ENTIÈREMENT supprimé ; garde-fou coût + double-confirm conservé ✅ · #2 Légendes auto rétro + # fusionnés + bouton Hashtags retiré ✅ · #3 « pause »/« [pause] » invisible ✅ · #5 Modèle sous-titres défaut (hauteur collier 0.370) ✅ · #6 Fichiers RAW + lég courte/longue + Refaire vidéo ✅ · #7 Recherche vidéo inter-projets ✅ · #8 Cloud par CODE PROJET ✅ · script complet (VRAI script Anthropic, plus de stub) ✅ · carte persistante (R0_RESUME/R0_RESUME_HOME laissent la carte) ✅ · RG-7 « Projet n°N » partout ✅ · plateformes TikTok/IG/YT retirées ✅.
+
+### Méthode d'audit nuit
+Boucle : sweep complet (`tools/test_v4r_*.js`) + `audit_parcours.js` + balayage anomalies (libellés tronqués, rangées >2, grilles, états vides) ; à chaque anomalie trouvée → corrigée + test ajouté ; re-passe à regard neuf jusqu'à zéro écart. **Aucun déploiement sans GO.**
