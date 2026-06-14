@@ -2750,6 +2750,10 @@ function r0OwnCover(f){ try{ const {C}=_r0(); const vis=C.visibles(f)||[];
   const imgs=vis.filter(m=>m&&m.type!=='video'); for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; }
   const vids=vis.filter(m=>m&&m.type==='video'); for(let i=vids.length-1;i>=0;i--){ const m=vids[i]; if(m&&m.file&&!m.simule&&fs.existsSync(m.file)){ const th=_videoThumb(m.file); if(th) return th; } }
 }catch(e){} return null; }
+// [AA — Etoile] un projet a-t-il du VRAI CONTENU ? = au moins UNE image ou vidéo réelle (fichier existant, ni référence, ni simulé).
+//   Léger (pas de ffmpeg/thumb) : seulement statSync sur les médias déclarés. Les brouillons VIDES (aucun média) -> false.
+function r0HasRealMedia(f){ try{ const {C}=_r0(); const vis=C.visibles(f)||[];
+  return vis.some(m=> m && m.file && !m.simule && (m.type==='image'||m.type==='video') && !_r0IsRef(m.file) && fs.existsSync(m.file)); }catch(e){ return false; } }
 // [GRILLE — placeholder DISTINCT par projet vide] vignette neutre = fond ardoise (teinté par le n°) + libellé centré (« brouillon »/« vide »/titre court).
 //   Le NUMÉRO de projet est brûlé par r0Mosaic par-dessus (haut-gauche) -> chaque tuile reste unique et ne PRÊTE JAMAIS la photo d'un autre projet.
 const _R0_PH_BG=['#33414f','#3f3a4a','#3a4a42','#4a3f33','#414f33','#4a3340'];
@@ -3133,6 +3137,10 @@ function r0Ctx(persona){
     recents:INV.recents(BASE,persona),
     galleryKind:r0GalKind, galleryAll:r0GalAll, galleryRole:r0GalRole, verKeys:r0VerKeys, // [ANO-ARCH-VERSIONING] clés exposées à l'écran versions
   };
+  // [AA — Etoile] NAVIGATION = VRAI CONTENU SEULEMENT. Récents/Archives n'affichent QUE les projets ayant ≥1 photo/vidéo réelle.
+  //   Les brouillons VIDES (sans média) sont EXCLUS de la grille (comptés à part) -> le contenu réel n'est plus noyé.
+  try{ if(ctx.recents && Array.isArray(ctx.recents.projets)){ const all=ctx.recents.projets;
+    const reels=all.filter(p=>r0HasRealMedia(p)); ctx.recents.videsCount=all.length-reels.length; ctx.recents.projets=reels; } }catch(e){}
   // [RG-7] numéro de projet (séquentiel, lisible) injecté pour TOUS les écrans + par item de la grille Récents.
   try{ const _nums=r0ProjNums(persona); ctx.projNum=_nums[(r0Cur(persona,false)||{}).projectId]||null;
     if(ctx.recents&&Array.isArray(ctx.recents.projets)) ctx.recents.projets.forEach(p=>{ if(p&&p.projectId) p._num=_nums[p.projectId]||null; }); }catch(e){}
@@ -3194,7 +3202,8 @@ function r0Ctx(persona){
 // RENDRE l'ÉCRAN COURANT (r0Screen/r0Section/r0Block) dans le bloc UNIQUE. banner = bandeau optionnel.
 //   Le KIND vient de la VUE (screens décide text/photo/video selon les médias) — jamais de placeholder.
 async function r0Render(persona, editMid, banner){
-  const {NAV,C}=_r0(); const f=r0Cur(persona,true);
+  // [AA — Etoile] RENDRE ne CRÉE JAMAIS de projet (sinon chaque navigation/affichage générait un brouillon vide). Les vues gèrent f=null.
+  const {NAV,C}=_r0(); const f=r0Cur(persona,false);
   const ctx=r0Ctx(persona);
   const vw=NAV.view({ screen:r0Screen, section:r0Section, block:r0Block }, f, ctx);
   if(vw.await) r0Await=vw.await; // certaines sous-vues arment une saisie
@@ -3363,7 +3372,10 @@ function r0RestoreNav(persona){ try{ const s=JSON.parse(fs.readFileSync(R0_NAV_F
 //   publication GATÉE (GO requis), suppression DOUCE, un seul bloc vivant.
 async function r0Dispatch(persona, d, editMid){
   const {S,NAV}=_r0(); const now=Date.now();
-  const cur=r0Cur(persona,true); const id=cur.projectId; r0Await=null;
+  // [AA — Etoile] NE CRÉE un projet QUE sur une vraie action (génération/sélection/édition), PAS sur une simple navigation/lecture.
+  //   -> fini l'accumulation de brouillons vides. Liste des cb de NAVIGATION/LECTURE pure (n'ouvrent/affichent rien à écrire).
+  const _navOnly=/^R0_(HOME|ACCUEIL|RECENTS|STUDIO|RES|PRET|PUBLISHED|PH_HIST|VI_HIST|VSEARCH|PHOTO|VIDEO|ST_|RE_OPEN_|RESUME|RESUME_HOME|GETIMG|GETVID|GETRAW|GETAUDIO|FULLTEXT_|LEGENDS|GNEXT|GPREV|RENEXT|REPREV|SEEMORE|SEELESS|STOP|RESTART|GVIEW_|GOPROJ_)/.test(d);
+  const cur=r0Cur(persona, !_navOnly); const id=cur&&cur.projectId; r0Await=null;
   const ctx=r0Ctx(persona);
   const {ENG,BUD,C}=_r0();
   // [PAGINATION] toute action HORS pagination remet la page à 0 (on rouvre une grille au début) ; les flèches changent la page.

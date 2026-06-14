@@ -27,20 +27,22 @@ const mkMp4=(p,c)=>{try{cp.execFileSync('ffmpeg',['-y','-f','lavfi','-i','color=
       const vp=path.join(dir,'v'+i+'.mp4'); mkMp4(vp,COLS[i%6]); S.addCandidate(BOX,persona,id,ts+1,'video',{file:vp,simule:false,etat:'garde'}); }
     // t===0 : VIDE (aucun média) -> doit donner un placeholder distinct
   }
+  // [AA] Récents n'affiche QUE le vrai contenu : les 6 projets VIDES (t===0) sont EXCLUS ; restent 12 projets avec média.
   const rec=bot.ctxRecents(); const projets=rec.projets;
-  chk('volumétrie : 18 projets (mix image/vidéo/vide)', projets.length>=18);
+  const nbVides=types.filter(t=>t===0).length;
+  chk('AA : projets VIDES EXCLUS de Récents (12 réels sur 18 seedés)', projets.length===18-nbVides);
+  chk('AA : aucun projet sans média dans Récents', projets.every(p=>bot.ownCover(p)));
+  chk('AA : compteur « brouillons vides masqués » == '+nbVides, rec.videsCount===nbVides);
 
-  // ── construit la grille EXACTEMENT comme r0Render : own cover sinon placeholder ──
-  const page=projets.slice(0,6); // page 1 (mix)
+  // ── grille r0Render : own cover (placeholder = filet de sécurité, non attendu ici) ──
+  const page=projets.slice(0,6); // page 1 (que du réel)
   const nums=page.map(p=>p._num);
   const files=page.map((p,i)=>{ const own=bot.ownCover(p); if(own) return own; const lab=(p.intention&&p.intention.message)||'brouillon'; return bot.placeholderTile(nums[i],lab); });
   const kinds=page.map(p=> (require('../ui/conscience').hasVideo(p)) ? 'video':'image');
 
-  chk('aucune tuile NULL (chaque projet a une vignette : cover OU placeholder)', files.every(Boolean));
-  chk('AUCUNE photo empruntée : toutes les vignettes sont des chemins DISTINCTS', new Set(files).size===files.length);
-  // les projets vides -> placeholder (chemin _ph_), les pleins -> leur propre fichier
-  let emptyOk=true; page.forEach((p,i)=>{ const own=bot.ownCover(p); const isEmpty=!own; const isPh=/_ph_/.test(files[i]); if(isEmpty!==isPh) emptyOk=false; });
-  chk('projets vides -> placeholder ; projets pleins -> cover propre', emptyOk);
+  chk('aucune tuile NULL', files.every(Boolean));
+  chk('AUCUNE photo empruntée : vignettes = chemins DISTINCTS', new Set(files).size===files.length);
+  chk('chaque tuile = cover PROPRE du projet (plus de placeholder en Récents)', files.every(f=>!/_ph_/.test(f)));
 
   // ── RENDU RÉEL + REGARD ──
   const mo=await bot.renderMosaic(files,nums,kinds);

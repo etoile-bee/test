@@ -16,12 +16,14 @@ const inv=(label,proj)=>{ const st=bot.state(); chk(label+' : projet stable + 1 
 
 (async()=>{
   bot.reset(); await bot.open();
-  const projA=bot.curId(); chk('ouverture : projet A actif', !!projA);
+  // [AA] /v4r ne crée PLUS de brouillon vide : aucun projet tant qu'aucune vraie action.
+  chk('AA : ouverture SANS création de projet vide', !bot.curId() && noThrow());
+  const okEarly=()=>bot.state().cockpit===1 && noThrow();
 
-  // ── PHOTO : Choisir -> Galerie -> sélection -> Valider (épingle source) -> Préparer ──
-  await bot.tap('R0_PHOTO'); inv('Photo·Choisir', projA);
-  await bot.tap('R0_PH_GAL'); inv('Galerie', projA);
-  await bot.tap('R0_GITEM_0'); inv('sélection vignette 1', projA);
+  // ── PHOTO : Choisir -> Galerie (pas encore de projet) -> sélection (CRÉE le projet) -> Valider -> Préparer ──
+  await bot.tap('R0_PHOTO'); chk('Photo·Choisir (avant projet) : 1 bloc + 0 exception', okEarly());
+  await bot.tap('R0_PH_GAL'); chk('Galerie (avant projet) : 1 bloc + 0 exception', okEarly());
+  await bot.tap('R0_GITEM_0'); const projA=bot.curId(); chk('sélection vignette -> PROJET CRÉÉ (vraie action)', !!projA && okEarly());
   await bot.tap('R0_PH_VALID'); inv('Photo·Préparer (source validée)', projA);
   const src=bot.srcFile(); chk('source active épinglée', !!src && fs.existsSync(src));
 

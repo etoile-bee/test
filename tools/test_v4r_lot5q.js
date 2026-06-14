@@ -19,8 +19,9 @@ const cbsOf=v=>[].concat.apply([],(v.rows||[])).map(b=>b.cb||b.callback_data);
   chk('#1 : bouton ▶️ Reprendre (R0_RESUME)', ccb.includes('R0_RESUME') && cc.rows.some(r=>r.some(b=>/Reprendre/i.test(b.text))));
   chk('#1 : bouton 🏠 Accueil (R0_RESUME_HOME)', ccb.includes('R0_RESUME_HOME') && cc.rows.some(r=>r.some(b=>/Accueil/i.test(b.text))));
   // les handlers existent et restaurent / vont à l'accueil
-  const id0=bot.curId();
+  // [AA] un projet ne se crée QUE sur une vraie action (sélection photo) -> on capture id0 APRÈS la sélection, pas après /v4r (qui ne crée plus rien).
   await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GAL'); await bot.tap('R0_GITEM_0'); await bot.tap('R0_PH_VALID');
+  const id0=bot.curId();
   await bot.tap('R0_RESUME'); // doit restaurer un écran (pas planter)
   chk('#1 : ▶️ Reprendre restaure un écran (pas de plantage)', !!bot.state().screen);
   await bot.tap('R0_RESUME_HOME');

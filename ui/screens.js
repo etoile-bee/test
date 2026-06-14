@@ -340,7 +340,9 @@ function recentsView(facts, ctx) {
   const pg = (ctx && ctx.page) || { idx: 0, pages: Math.max(1, Math.ceil(all.length / 6)), base: 0, size: 6 };
   const top = all.slice(pg.base, pg.base + pg.size);               // page courante
   let cap = '<b>🕘 Récents / Archives</b>\n'
-    + '📂 ' + all.length + ' projet(s) · 📝 ' + (r.brouillons || []).length + ' brouillon(s) · 📦 ' + (r.archives || []).length + ' archivé(s)'
+    // [AA] on n'affiche QUE le vrai contenu (projets avec photo/vidéo) ; les brouillons VIDES sont masqués (comptés à part).
+    + '📂 ' + all.length + ' projet(s) avec contenu · 📦 ' + (r.archives || []).length + ' archivé(s)'
+    + ((r.videsCount) ? ('\n🗑 ' + r.videsCount + ' brouillon(s) vide(s) masqué(s)') : '')
     + (r.legacy ? ('\n🗄 ' + r.legacy + ' hérité(s)') : '') + ' · page ' + (pg.idx + 1) + '/' + pg.pages
     + '\n' + (top.length ? '<i>touche un projet pour l\'ouvrir</i>' : '<i>aucun projet</i>');
   // [RG-7] n° de projet réel (p._num) = MÊME numéro brûlé sur la vignette (#Q). [#R] badge 📸 photo / 🎬 vidéo pour distinguer d'un coup d'œil. cb = position absolue (ouverture correcte).
