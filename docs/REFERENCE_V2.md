@@ -176,8 +176,14 @@ Outils : `tools/test_v4r_grids.js` (seed 112 projets + rend mosaïque réelle), 
 ### Rappels antérieurs (toujours conformes)
 1' Quota de tests ENTIÈREMENT supprimé ; garde-fou coût + double-confirm conservé ✅ · #2 Légendes auto rétro + # fusionnés + bouton Hashtags retiré ✅ · #3 « pause »/« [pause] » invisible ✅ · #5 Modèle sous-titres défaut (hauteur collier 0.370) ✅ · #6 Fichiers RAW + lég courte/longue + Refaire vidéo ✅ · #7 Recherche vidéo inter-projets ✅ · #8 Cloud par CODE PROJET ✅ · script complet (VRAI script Anthropic, plus de stub) ✅ · carte persistante (R0_RESUME/R0_RESUME_HOME laissent la carte) ✅ · RG-7 « Projet n°N » partout ✅ · plateformes TikTok/IG/YT retirées ✅.
 
+### États vides (regard neuf)
+`tools/test_v4r_emptystates.js` 9/0 : projet neuf SANS média — Photo · Galerie · Récents · Prêt · Studio · Publiés · Fichiers · Accueil ne plantent pas, n'avalent aucune exception, et ne peignent JAMAIS la démo « cuir » (R1).
+
 ### Méthode d'audit nuit
-Boucle : sweep complet (`tools/test_v4r_*.js`) + `audit_parcours.js` + balayage anomalies (libellés tronqués, rangées >2, grilles, états vides) ; à chaque anomalie trouvée → corrigée + test ajouté ; re-passe à regard neuf jusqu'à zéro écart. **Aucun déploiement sans GO.**
+Boucle : sweep complet (`tools/test_v4r_*.js`, 37 suites) + `audit_parcours.js` + audits RÉELS (`audit_visual_nuit.js` planches+sous-titres+clip 9:16, `audit_flow_nuit.js` persistance/flux/isolation) + balayage anomalies (libellés tronqués, rangées >2, grilles, états vides) ; à chaque anomalie trouvée → corrigée + test ajouté + recontrôle à l'œil ; re-passe à regard neuf jusqu'à zéro écart. **Aucun déploiement sans GO.**
+
+### État de la boucle (passe consolidée)
+Sweep **37/0** · audit_visual **9/0** · audit_flow **27/0** · audit_parcours **0 écart** · états vides **9/0** · verrous intacts. Anomalies nuit trouvées+corrigées+recontrôlées : **W1** (planches Prêt/Publiés), **W2** (herméticité faux-vert). Dernière passe à regard neuf (légendes O, écran final L, états vides, flux) : **aucun nouvel écart**.
 
 ## W — ANOMALIES TROUVÉES EN AUDIT NUIT (boucle contrôle→cause→correction→recontrôle)
 | # | Anomalie | Cause | Correction | Validation (vue à l'œil) |
