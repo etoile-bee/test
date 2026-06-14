@@ -84,6 +84,12 @@ const LOOKBOOK=path.join(BASE,'lookbook.json');
 function readLookbook(){return JSON.parse(fs.readFileSync(LOOKBOOK,'utf8'));}
 function writeLookbook(lb){fs.writeFileSync(LOOKBOOK,JSON.stringify(lb,null,2));}
 
+// [W2 — Etoile] IDENTITÉ FÉMININE + EXCLUSIONS QUALITÉ. Seedream v1 n'a pas de champ negative_prompt séparé -> on INCRUSTE l'exclusion
+//   dans le prompt (clause forte, en fin). Réduit fortement (sans garantie 100%, IA probabiliste) les défauts vus en terrain :
+//   poils sur le torse / traits masculins sur une persona FÉMININE. Permanent, appliqué à TOUTES les générations photo.
+const IDENTITY_RULES = 'IDENTITY: a beautiful WOMAN with clearly feminine features, smooth hairless skin on chest and torso, feminine jawline and neck. '
+  + 'STRICTLY AVOID (do not render): body hair, chest hair, torso hair, arm hair, facial hair, beard, stubble, moustache, masculine features, masculine body, Adam\'s apple, male anatomy. '
+  + 'High-quality, realistic feminine skin.';
 function buildPrompt(lb,opts){
   const cat=lb.categories[opts.category];
   const env=lb.envs[opts.env]||lb.envs.bougies;
@@ -97,7 +103,8 @@ function buildPrompt(lb,opts){
     +'\n'+(lb.texture_rules||'')
     +'\n'+(lb.realism_rules||'')
     +'\n'+env.prompt
-    +'\n'+pose;
+    +'\n'+pose
+    +'\n'+IDENTITY_RULES; /*[W2] identité féminine + exclusion poils/traits masculins (permanent)*/
 }
 
 /*v8 : moteur SEEDREAM v4 (celui qu'Etoile utilise a la main, rendu valide) + reference photo directe — Soul abandonne*/
@@ -243,7 +250,7 @@ async function recreatePose(plancheUrl,frameIdx,log){
   const cropUrl=await client.uploadImage(fs.readFileSync(crop),'jpeg');
   log('Recréation de la pose '+(frameIdx+1)+' en 9:16…');
   const jobSet=await client.generate('/v1/text2image/seedream',{
-    prompt:'Recreate this exact image as ONE single full-bleed 9:16 vertical portrait: same woman, same face, same outfit, same accessories, same makeup, same hairstyle, same pose, same studio and lighting. '+defaultPrompt(),
+    prompt:'Recreate this exact image as ONE single full-bleed 9:16 vertical portrait: same woman, same face, same outfit, same accessories, same makeup, same hairstyle, same pose, same studio and lighting. '+defaultPrompt()+'\n'+IDENTITY_RULES,
     input_images:[{type:'image_url',image_url:cropUrl}],
     aspect_ratio:'9:16',
     batch_size:1
@@ -256,4 +263,4 @@ async function recreatePose(plancheUrl,frameIdx,log){
   return url;
 }
 
-module.exports={ recreatePose, splitPlanche, generateLook, defaultPrompt, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };
+module.exports={ recreatePose, splitPlanche, generateLook, defaultPrompt, buildPrompt, IDENTITY_RULES, looksDir, readLookbook, saveRecipe, getRecipe, listRecipes, pickOutfit, probeEndpoints };

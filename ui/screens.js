@@ -29,6 +29,8 @@ function short(s, n) { s = String(s == null ? '' : s); return s.length > n ? s.s
 function val(v, d) { return (v == null || v === '') ? (d || '<i>à définir</i>') : esc(cleanLabel(v)); }
 // (P6) nombre de photos sources nécessaires selon la durée (déterministe) : 15s→1 · 30s→1 · 45s→2 · 60s→3.
 function nbPhotos(duree) { const s = parseInt(duree, 10) || 30; return s >= 60 ? 3 : (s >= 45 ? 2 : 1); }
+// [U — Etoile] nombre de PARTIES (vidéos) d'une vidéo selon sa durée : 1 partie / 30 s (aligné moteur Kling + estimation coût = ceil(sec/30)).
+function nbParts(duree) { const s = parseInt(duree, 10) || 30; return Math.max(1, Math.ceil(s / 30)); }
 function nom(facts) { return (facts && facts.intention && facts.intention.message) ? short(facts.intention.message, 48) : C.situation(facts).nom; }
 // [RG-7] NUMÉRO DE PROJET visible partout (Résultat/Fichiers/Prêt/Publiés/Publication/Récents). Forme LISIBLE « 📦 Projet n°N » (rang de création, via ctx.projNum)
 //   + le code court entre parenthèses pour la traçabilité. Repli sur le code seul si le n° n'est pas fourni.
@@ -178,7 +180,9 @@ function photoResultView(facts, ctx) {
   const m = C.lastImage(facts) || {};
   const dr = (facts && facts.draft && facts.draft.photo) || {};
   // [#11/D3] BANDEAU FINAL PHOTO harmonisé comme la vidéo (Projet/Date/Type/Catégorie/Statut) + source active. Détails (prompt/tenue/décor) via boutons.
-  const cap = finalCaption(facts, 'photo', m, dr, ctx && ctx.projNum) + srcLine(ctx);
+  // [W2 — Etoile] inciter à INSPECTER la photo (zoom plein écran) AVANT de lancer une vidéo (repérer un défaut avant de dépenser).
+  const cap = finalCaption(facts, 'photo', m, dr, ctx && ctx.projNum) + srcLine(ctx)
+    + '\n<i>👀 Touche la photo pour la voir en grand et vérifier (défaut ?) avant de créer la vidéo.</i>';
   return {
     kind: 'photo', caption: cap, rows: [
       [{ text: '✏️ Modifier', cb: 'R0_PH_EDIT' }, { text: '🔁 Régénérer', cb: 'R0_PH_REGEN' }],
@@ -395,6 +399,8 @@ function confirmView(facts, ctx) {
     cap += '\n🖼 Source : ' + val(pr.source, 'photo du projet');
     cap += '\n📝 Script : ' + (pr.scriptFull ? esc(short(pr.scriptFull, 160)) : '<i>(auto)</i>');
     cap += '\n🔤 Sous-titres : ' + esc(String(pr.soustitres || 'auto')) + '   ⏱ Durée : ' + ((cf.est || {}).duree || pr.duree || '30s');
+    // [U] note de découpage dès l'aperçu (détaillée + confirmée à la Validation)
+    { const parts = nbParts((cf.est || {}).duree || pr.duree); if (parts > 1) cap += '\n✂️ <i>Vidéo longue → ' + parts + ' parties (' + parts + ' vidéos).</i>'; }
   } else { cap += '\n📝 Texte (IA)'; }
   cap += '\n<i>Vérifie l\'aperçu, puis ✅ Valider pour la validation finale.</i>';
   const fullBtn = (cf.mediaKind === 'photo' && pr.promptFull) ? { text: '📄 Texte complet', cb: 'R0_FULLTEXT_prompt' }
@@ -417,6 +423,9 @@ function validationView(facts, ctx) {
   let cap = '<b>✅ Validation — ' + (cf.mediaKind === 'video' ? '🎬 Vidéo' : (cf.mediaKind === 'text' ? '✨ Texte' : '📸 Photo')) + '</b>' + srcLine(ctx);
   cap += '\n⚙️ Moteur : ' + esc(e.moteur || (cf.mediaKind === 'video' ? 'Kling+ElevenLabs+Anthropic' : 'Seedream'));
   if (cf.mediaKind === 'video') cap += '\n⏱ Durée : ' + (e.duree || pr.duree || '30s') + '   🖼 Médias prévus : ' + nbPhotos(e.duree || pr.duree);
+  // [U — Etoile] VIDÉO LONGUE : AVERTIR du découpage AVANT toute dépense. parts = e.nb (estimation) ou ceil(durée/30).
+  if (cf.mediaKind === 'video') { const parts = (e.nb && e.nb > 0) ? e.nb : nbParts(e.duree || pr.duree);
+    if (parts > 1) cap += '\n✂️ <b>Vidéo longue</b> : ' + (e.duree || pr.duree || '') + ' → découpée en <b>' + parts + ' parties</b> (' + parts + ' vidéos générées). Le coût ci-dessous couvre les ' + parts + ' parties.'; }
   if (paid) {
     cap += '\n💳 Coût : ' + (e.credits != null ? e.credits + ' cr ≈ ' : '') + (e.eur != null ? e.eur + ' €' : '?');
     cap += '\n💰 Crédits cumulés : ' + (b.credits != null ? b.credits + ' cr' : '—');
