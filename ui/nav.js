@@ -158,7 +158,7 @@ function blockSpec(block, facts, ctx) {
     //   Choisir/changer un thème GÉNÈRE le vrai script (câble) ; 🔄 Régénérer = autre version ; ✍️ Saisir (ajouté par blockView) = écrire le sien.
     if (block.key === 'script') {
       const cats = (ctx && ctx.scriptCats) || [];
-      const optionRows = [[{ text: '🔄 Régénérer le script', cb: 'R0_REGEN_SCRIPT' }]]; // action principale, pleine largeur
+      const optionRows = [[{ text: '🔄 Régénérer', cb: 'R0_REGEN_SCRIPT' }]]; // action principale, pleine largeur
       for (let i = 0; i < cats.length; i += 2) optionRows.push(cats.slice(i, i + 2).map((c, j) => ({ text: (d.theme === c.label ? '🔵 ' : '') + c.label, cb: 'R0_STHEME_' + (i + j) }))); // catégories legacy, 2/ligne, LISIBLES
       optionRows.push([{ text: '💾 Modèle défaut', cb: 'R0_DEFSAVE' }]);
       return { title: titleOf(block), current: curVal, parentKind: 'text', back: back, askCb: 'R0_ASK_' + ask, optionRows: optionRows, expanded: !!(ctx && ctx.blockExpanded),
@@ -179,8 +179,8 @@ function blockSpec(block, facts, ctx) {
     const on = d[useFlag] !== false; const val = d[fieldAlias(block)];
     const cur = !on ? '🚫 Désactivé — image de base' : (val == null || val === '' ? '— (image de base tant que non choisi)' : val);
     const toggle = on
-      ? { text: '🚫 Désactiver (image de base)', cb: 'R0_INFL_' + useFlag }
-      : { text: '✅ Activer ' + (block.key === 'look' ? 'la tenue' : 'le décor'), cb: 'R0_INFL_' + useFlag };
+      ? { text: '🚫 Désactiver', cb: 'R0_INFL_' + useFlag }
+      : { text: '✅ Activer', cb: 'R0_INFL_' + useFlag };
     return { title: titleOf(block), current: cur, parentKind: pk, back: back,
       options: optionsFor(block, ctx, d).concat([toggle, { text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
   }

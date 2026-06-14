@@ -491,7 +491,7 @@ function videoSourceView(facts) {
   const cap = '<b>🔄 Remplacer la source</b>\n<i>D\'où vient la nouvelle source ?</i>';
   return {
     kind: C.mediaKind(facts), caption: cap, rows: [
-      [{ text: '🖼 Choisir (galerie)', cb: 'R0_VI_GAL' }],
+      [{ text: '🖼 Galerie', cb: 'R0_VI_GAL' }],
       [{ text: '📥 Importer photo', cb: 'R0_VI_IMPORT' }, { text: '🎬 Importer vidéo', cb: 'R0_VI_IMPORTVID' }],
       [{ text: '◀ Retour', cb: 'R0_VI_BACK' }],
     ],
@@ -524,7 +524,7 @@ function resourcesView(facts, ctx) {
     [{ text: '📝 Prompt', cb: 'R0_FULLTEXT_prompt' }, { text: '🎬 Script', cb: 'R0_FULLTEXT_script' }], // [#4] 2/ligne
     [{ text: '🔤 Sous-titres', cb: 'R0_FULLTEXT_soustitres' }],
     [{ text: '🏷 Lég. courte', cb: 'R0_FULLTEXT_legc' }, { text: '🏷 Lég. longue', cb: 'R0_FULLTEXT_legl' }], // [#2] hashtags FUSIONNÉS dans les 2 légendes -> bouton Hashtags séparé supprimé
-    [{ text: '🕘 Historique photos', cb: 'R0_PH_HIST' }, { text: '🕘 Historique vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
+    [{ text: '🕘 Hist. photos', cb: 'R0_PH_HIST' }, { text: '🕘 Hist. vidéos', cb: 'R0_VI_HIST' }], // [G1] libellé = rôle réel (consultation), plus « Galerie » (sélection)
     [{ text: '📤 Publication', cb: 'R0_PUB' }], // [#M] bouton « Éditer légendes » RETIRÉ (Etoile n'en veut pas) ; légendes auto + copiables ci-dessus
     [{ text: '◀ Retour', cb: (ctx && ctx.resReturn) || (C.hasVideo(facts) ? 'R0_VI_RESULT' : 'R0_PHOTO') }, HOME], // [RETOUR CONTEXTUEL] revient à l'origine (Studio/Récents/Résultat)
   ];
