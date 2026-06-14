@@ -5166,6 +5166,8 @@ if(R0DRY){
     nextPart:()=>r0NextPart, // [PARTIE 2/3] état de série armé
     seriesScripts:()=>{ try{ const f=r0Cur(_persona(),false)||{}; return r0SeriesScripts(_persona(), f.projectId); }catch(e){ return []; } },
     realVideos:(n)=>{ try{ return r0RealVideos(_persona(), n||99); }catch(e){ return []; } }, // [🔴P2] patrimoine vidéo GLOBAL (preuve persistance inter-projets)
+    realImages:(n)=>{ try{ return r0RealImages(_persona(), n||99); }catch(e){ return []; } }, // [BB] patrimoine photo GLOBAL (Archives/Historique photos)
+    curFacts:()=>{ try{ return r0Cur(_persona(),false)||null; }catch(e){ return null; } }, // [BB] projet courant (lecture seule) pour Prêt/Publiés
     projectIdOf:(file)=>{ try{ return r0ProjectIdOfFile(_persona(), file); }catch(e){ return null; } }, // [#7] code projet propriétaire d'un fichier vidéo retrouvé
     media:()=>r0MediaPath, // fichier média actuellement peint dans le bloc (preuve « image cohérente »)
     defaults:()=>{ try{ return _r0().DEF.load(BASE,_persona()); }catch(e){ return {}; } },                                   // modèles par défaut du persona (#18)
