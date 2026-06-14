@@ -2744,6 +2744,25 @@ function r0CoverFile(f){ try{ const {C}=_r0(); const imgs=(C.visibles(f)||[]).fi
   // [COUVERTURE RÉELLE] projet sans image -> reprend la photo réelle la PLUS récente de tout le patrimoine (jamais une démo, JAMAIS la référence persona).
   try{ const pers=(f&&f.persona)|| (typeof _persona==='function'?_persona():'imany'); const g=r0RealImages(pers,1); if(g&&g[0]&&!_r0IsRef(g[0])&&fs.existsSync(g[0])) return g[0]; }catch(e){}
   return r0DemoPhoto(); }
+// [GRILLE — anti-photo-empruntée] COUVERTURE STRICTEMENT PROPRE au projet : sa propre image, sinon sa propre vidéo (poster frame), sinon NULL.
+//   AUCUN repli sur le patrimoine global (sinon tous les projets vides afficheraient la MÊME photo dans la grille — bug terrain IMG_3717).
+function r0OwnCover(f){ try{ const {C}=_r0(); const vis=C.visibles(f)||[];
+  const imgs=vis.filter(m=>m&&m.type!=='video'); for(let i=imgs.length-1;i>=0;i--){ const fp=imgs[i].file; if(fp&&!_r0IsRef(fp)&&fs.existsSync(fp)) return fp; }
+  const vids=vis.filter(m=>m&&m.type==='video'); for(let i=vids.length-1;i>=0;i--){ const m=vids[i]; if(m&&m.file&&!m.simule&&fs.existsSync(m.file)){ const th=_videoThumb(m.file); if(th) return th; } }
+}catch(e){} return null; }
+// [GRILLE — placeholder DISTINCT par projet vide] vignette neutre = fond ardoise (teinté par le n°) + libellé centré (« brouillon »/« vide »/titre court).
+//   Le NUMÉRO de projet est brûlé par r0Mosaic par-dessus (haut-gauche) -> chaque tuile reste unique et ne PRÊTE JAMAIS la photo d'un autre projet.
+const _R0_PH_BG=['#33414f','#3f3a4a','#3a4a42','#4a3f33','#414f33','#4a3340'];
+function r0PlaceholderTile(num, label){ try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true});
+  const lab=String(label||'vide').replace(/[^A-Za-z0-9À-ÿ' ]/g,'').slice(0,16)||'vide';
+  const safe=(String(num)+'_'+lab).replace(/[^A-Za-z0-9_]/g,'_');
+  const out=path.join(BASE,'assets_r','_ph_'+safe+'.jpg'); if(fs.existsSync(out)&&fs.statSync(out).size>0) return out;
+  const bg=_R0_PH_BG[(Number(num)||0)%_R0_PH_BG.length];
+  const vf="drawtext=text='"+lab.replace(/'/g,'')+"':x=(w-text_w)/2:y=h/2+34:fontsize=26:fontcolor=white@0.8"
+          +",drawtext=text='sans image':x=(w-text_w)/2:y=h/2-66:fontsize=18:fontcolor=white@0.45";
+  try{ require('child_process').execFileSync('ffmpeg',['-y','-f','lavfi','-i','color=c='+bg+':s=300x300',
+        '-vf',vf,'-frames:v','1','-q:v','3',out],{timeout:15000}); }catch(e){ return null; }
+  return (fs.existsSync(out)&&fs.statSync(out).size>0)?out:null; }catch(e){ return null; } }
 // [SOURCE UNIQUE DE VÉRITÉ — Etoile] UNE seule image source, lue PARTOUT (Préparer · Aperçu · génération · vidéo · final).
 //   Priorité : source ÉPINGLÉE (draft.video.source_file puis draft.photo.source_file) -> sinon le cover (dernière image visible).
 //   Dès qu'une photo est sélectionnée/générée/posée, on épingle CETTE image dans les deux drafts -> aucun retour à une référence de base.
@@ -3036,8 +3055,9 @@ async function r0Mosaic(files, nums, kinds){
   try{
     files=(files||[]).filter(Boolean).slice(0,6); // [Etoile] 6 vignettes max par mosaïque
     if(!files.length) return null;
-    // [#R] une entrée VIDÉO -> poster frame (la planche-contact ne lit que des images) ; alignement nums/kinds préservé.
-    files=files.map((fp,i)=> (Array.isArray(kinds)&&kinds[i]==='video') ? (_videoThumb(fp)||fp) : fp);
+    // [#R] une entrée VIDÉO (fichier .mp4/.mov…) -> poster frame (la planche-contact ne lit que des images) ; alignement nums/kinds préservé.
+    //   (si l'entrée est déjà une image — vignette propre/placeholder/poster — on la garde telle quelle ; le badge VIDEO reste posé selon kinds.)
+    files=files.map((fp,i)=> (Array.isArray(kinds)&&kinds[i]==='video' && /\.(mp4|mov|m4v|webm)$/i.test(String(fp))) ? (_videoThumb(fp)||fp) : fp);
     // [#Q] résout le numéro brûlé pour la vignette i : tableau fourni -> nums[i] ; nombre -> nums+i ; défaut -> i+1.
     const _num=(i)=> Array.isArray(nums) ? (nums[i]!=null?nums[i]:(i+1)) : ((typeof nums==='number'?nums:1)+i);
     // [#R] type de média brûlé sur la vignette : 'video' -> badge rouge VIDEO en haut à droite ; sinon photo (rien). kinds[i] ∈ 'video'|'image'.
@@ -3240,11 +3260,14 @@ async function r0Render(persona, editMid, banner){
       nums=files.map((_,i)=> base+i+1); kinds=files.map(()=>'image');
     }
     else if(r0Screen==='recents'){ const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
-      files=slice.map(p=>r0CoverFile(p)); // page courante + couverture réelle par projet (6/page)
-      // [#Q] RÉCENTS/ARCHIVES : le bouton affiche le n° de PROJET réel (p._num) -> on brûle CE numéro (et non un index séquentiel de page) -> vignette == bouton == projet ouvert.
+      // [#Q] RÉCENTS/ARCHIVES : le bouton affiche le n° de PROJET réel (p._num) -> on brûle CE numéro -> vignette == bouton == projet ouvert.
       nums=slice.map((p,i)=> (p && p._num!=null) ? p._num : (base+i+1));
-      // [#R] type par projet -> marqueur ▶ vidéo sur la vignette (badge cohérent avec le libellé du bouton)
-      kinds=slice.map(p=> C.hasVideo(p) ? 'video' : 'image');
+      // [GRILLE anti-photo-empruntée — Etoile IMG_3717] couverture STRICTEMENT propre au projet, sinon PLACEHOLDER DISTINCT (jamais la photo d'un autre projet).
+      files=slice.map((p,i)=>{ const own=r0OwnCover(p); if(own) return own;
+        const lab=(p && p.intention && p.intention.message) ? String(p.intention.message) : 'brouillon';
+        return r0PlaceholderTile(nums[i], lab); });
+      // [#R] badge vidéo seulement si le projet a une VRAIE vidéo propre (cohérent avec le libellé 🎬 du bouton).
+      kinds=slice.map(p=> (C.hasVideo(p) && r0RealVideoFile(p)) ? 'video' : 'image');
     }
     else { // [#Q/#R] PRÊT À POSTER / PUBLIÉS : grille de FICHIERS paginée -> n° de POSITION (base+i+1) == bouton 📤 (base+i+1) ; type par extension -> badge VIDEO sur la vignette.
       files=((r0Screen==='pret'?ctx.pretFiles:ctx.publiesFiles)||[]).slice(0,R0_PAGE);
@@ -5146,6 +5169,8 @@ if(R0DRY){
     projNum:(id)=>{ try{ return r0ProjNum(_persona(), id||(r0Cur(_persona(),false)||{}).projectId); }catch(e){ return null; } }, // [RG-7] n° séquentiel du projet
     projNums:()=>{ try{ return r0ProjNums(_persona()); }catch(e){ return {}; } }, // [#Q] map id -> n° projet
     renderMosaic:async(files,nums,kinds)=>{ try{ return await r0Mosaic(files,nums,kinds); }catch(e){ return null; } }, // [#Q/#R] rend une VRAIE planche (R0_MOSAIC_FORCE) : numéros brûlés + ▶ vidéo
+    ownCover:(f)=>{ try{ return r0OwnCover(f); }catch(e){ return null; } }, // [GRILLE] couverture STRICTEMENT propre (null si projet vide) — anti-photo-empruntée
+    placeholderTile:(num,label)=>{ try{ return r0PlaceholderTile(num,label); }catch(e){ return null; } }, // [GRILLE] vignette placeholder distincte d'un projet vide
     ctxRecents:()=>{ try{ return r0Ctx(_persona()).recents; }catch(e){ return null; } }, // [#Q/#R] projets de Récents (avec _num attaché)
     fullText:(field)=>{ try{ const f=r0Cur(_persona(),true); const pub=(f&&f.publication)||{}; if(field==='legc') return r0FuseTags(pub.legende_courte,pub.hashtags); if(field==='legl') return r0FuseTags(pub.legende_longue,pub.hashtags); if(field==='tags') return String(pub.hashtags||''); return ''; }catch(e){ return ''; } }, // [G5] texte EXACT copié par R0_FULLTEXT_<field>
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
