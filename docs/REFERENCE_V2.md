@@ -178,3 +178,16 @@ Outils : `tools/test_v4r_grids.js` (seed 112 projets + rend mosaïque réelle), 
 
 ### Méthode d'audit nuit
 Boucle : sweep complet (`tools/test_v4r_*.js`) + `audit_parcours.js` + balayage anomalies (libellés tronqués, rangées >2, grilles, états vides) ; à chaque anomalie trouvée → corrigée + test ajouté ; re-passe à regard neuf jusqu'à zéro écart. **Aucun déploiement sans GO.**
+
+## W — ANOMALIES TROUVÉES EN AUDIT NUIT (boucle contrôle→cause→correction→recontrôle)
+| # | Anomalie | Cause | Correction | Validation (vue à l'œil) |
+|---|---|---|---|---|
+| W1 | **Prêt à poster / Publiés : pas de planche numérotée** — boutons 📤 1..N posés sur UNE seule photo sans rapport ⇒ impossible de savoir quel n° = quel média (même classe que #Q, sur 2 grilles citées par Etoile) | la planche-contact n'était construite QUE pour `gallery`+`recents` ; `pret`/`publies` peignaient `r0RealSource` (1 image) sous des boutons positionnels | bloc planche étendu à `pret`/`publies` : n° brûlé = POSITION (base+i+1) == bouton 📤 ; `kinds` par extension → badge VIDEO sur item vidéo. `r0Mosaic` résout une entrée vidéo en poster-frame (`_videoThumb`) pour la planche. | planches rendues `assets_r/_AUDIT_pret_page1.jpg` (1-6, VIDEO sur 3·6) + `_AUDIT_publies_page1.jpg` (1-6, VIDEO sur 4) — n° == boutons vérifié |
+
+### Preuves visuelles audit nuit (`tools/audit_visual_nuit.js`, R0_MOSAIC_FORCE + R0_SUBCLIP_FORCE)
+Rendus RÉELS regardés à l'œil (chemins fournis à Etoile) :
+- Prêt à poster numéroté : `assets_r/_AUDIT_pret_page1.jpg` ✅
+- Publiés numéroté : `assets_r/_AUDIT_publies_page1.jpg` ✅
+- Aperçu sous-titres position **collier** (oy=0.370, Archivo Black, 2-mots == final) : `assets_r/_AUDIT_soustitres_collier.png` ✅
+- Clip aperçu **9:16 RÉEL** (720×1280 ffprobe) + miniature : `assets_r/_AUDIT_apercu_clip.mp4` / `_AUDIT_apercu_thumb.jpg` ✅
+Hooks de test ajoutés : `subSample`, `subClip` (rendent les VRAIES fonctions aperçu) ; flag `R0_SUBCLIP_FORCE` (rendu réel en test, comme `R0_MOSAIC_FORCE`).

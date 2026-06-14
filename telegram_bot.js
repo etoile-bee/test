@@ -3033,6 +3033,8 @@ async function r0Mosaic(files, nums, kinds){
   try{
     files=(files||[]).filter(Boolean).slice(0,6); // [Etoile] 6 vignettes max par mosaïque
     if(!files.length) return null;
+    // [#R] une entrée VIDÉO -> poster frame (la planche-contact ne lit que des images) ; alignement nums/kinds préservé.
+    files=files.map((fp,i)=> (Array.isArray(kinds)&&kinds[i]==='video') ? (_videoThumb(fp)||fp) : fp);
     // [#Q] résout le numéro brûlé pour la vignette i : tableau fourni -> nums[i] ; nombre -> nums+i ; défaut -> i+1.
     const _num=(i)=> Array.isArray(nums) ? (nums[i]!=null?nums[i]:(i+1)) : ((typeof nums==='number'?nums:1)+i);
     // [#R] type de média brûlé sur la vignette : 'video' -> badge rouge VIDEO en haut à droite ; sinon photo (rien). kinds[i] ∈ 'video'|'image'.
@@ -3223,8 +3225,9 @@ async function r0Render(persona, editMid, banner){
   //   et se substitue dans le bloc seulement si on y est encore. -> r0Render NE bloque JAMAIS la boucle d'updates.
   let _galFiles=null, _galNums=null, _galKinds=null; // [#Q] numéros brûlés == boutons ; [#R] type (photo/vidéo) brûlé sur la vignette Récents
   // La planche-contact ne vaut que pour des IMAGES : la galerie VIDÉO reste une liste texte (numéros sélectionnables), pas de mosaïque de .mp4.
-  if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents'){
+  if((r0Screen==='gallery' && r0GalKind!=='video') || r0Screen==='recents' || r0Screen==='pret' || r0Screen==='publies'){
     const base=(ctx.page&&ctx.page.base)||0;
+    const _isVidFile=fp=>/\.(mp4|mov|m4v|webm)$/i.test(fp||''); // [#R] type par EXTENSION pour les grilles de fichiers (Prêt/Publiés)
     let files=[], nums=[], kinds=[];
     if(r0Screen==='gallery'){
       if(ctx.galleryFiles && ctx.galleryFiles.length){ files=ctx.galleryFiles.slice(0,R0_PAGE); } // VRAIES images (projet ou global selon le scope)
@@ -3233,16 +3236,22 @@ async function r0Render(persona, editMid, banner){
       // [#Q] GALERIE : le bouton de sélection affiche le n° de POSITION absolu (base+i+1) -> on brûle le MÊME. (galerie photo -> aucune vidéo)
       nums=files.map((_,i)=> base+i+1); kinds=files.map(()=>'image');
     }
-    else { const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
+    else if(r0Screen==='recents'){ const r=ctx.recents||{projets:[]}; const slice=(r.projets||[]).slice(base,base+R0_PAGE);
       files=slice.map(p=>r0CoverFile(p)); // page courante + couverture réelle par projet (6/page)
       // [#Q] RÉCENTS/ARCHIVES : le bouton affiche le n° de PROJET réel (p._num) -> on brûle CE numéro (et non un index séquentiel de page) -> vignette == bouton == projet ouvert.
       nums=slice.map((p,i)=> (p && p._num!=null) ? p._num : (base+i+1));
       // [#R] type par projet -> marqueur ▶ vidéo sur la vignette (badge cohérent avec le libellé du bouton)
       kinds=slice.map(p=> C.hasVideo(p) ? 'video' : 'image');
     }
+    else { // [#Q/#R] PRÊT À POSTER / PUBLIÉS : grille de FICHIERS paginée -> n° de POSITION (base+i+1) == bouton 📤 (base+i+1) ; type par extension -> badge VIDEO sur la vignette.
+      files=((r0Screen==='pret'?ctx.pretFiles:ctx.publiesFiles)||[]).slice(0,R0_PAGE);
+      nums=files.map((_,i)=> base+i+1);
+      kinds=files.map(fp=> _isVidFile(fp) ? 'video' : 'image');
+    }
     // garde l'alignement fichiers↔numéros↔types après filtrage des fichiers manquants
     { const tri=files.map((f,i)=>[f,nums[i],kinds[i]]).filter(x=>x[0]); files=tri.map(x=>x[0]); nums=tri.map(x=>x[1]); kinds=tri.map(x=>x[2]); }
-    if(files.length){ kind='photo'; media=files[0]; _galFiles=files; _galNums=nums; _galKinds=kinds; } // aperçu immédiat = 1ère image (la planche arrive en fond)
+    // aperçu immédiat = 1ère vignette (la planche numérotée arrive en fond) ; 1er item vidéo -> poster frame pour le bloc photo.
+    if(files.length){ kind='photo'; media=(kinds[0]==='video'?(_videoThumb(files[0])||files[0]):files[0]); _galFiles=files; _galNums=nums; _galKinds=kinds; }
   }
   await r0Paint(kind, media, caption, vw.rows, editMid);
   r0SaveNav(persona); // [A] persiste le contexte (dernier écran/état) -> restauré après /restart et /v4r
@@ -3738,7 +3747,7 @@ async function r0SubClip(persona){
     let key=img+'|'+JSON.stringify(o)+'|'+keytext; let h=0; for(let i=0;i<key.length;i++) h=(h*31+key.charCodeAt(i))>>>0;
     const out=path.join(BASE,'assets_r','subclip_'+h.toString(36)+'.mp4');
     if(_r0SubClipCache[h] && fs.existsSync(out)) return out;
-    if(R0DRY) return out; // dry : pas de ffmpeg
+    if(R0DRY && !process.env.R0_SUBCLIP_FORCE) return out; // dry : pas de ffmpeg (sauf R0_SUBCLIP_FORCE -> rendu réel pour l'audit visuel)
     try{ fs.mkdirSync(path.join(BASE,'assets_r'),{recursive:true}); }catch(e){}
     const rl=freshRL(); const assPath='/tmp/subclip_'+h.toString(36)+'.ass';
     fs.writeFileSync(assPath, rl.buildAss(chunks, {font:o.font,fontSize:o.fontSize,oy:o.oy,alignment:o.alignment,color:o.color,letterSpacing:o.letterSpacing}));
@@ -5132,6 +5141,8 @@ if(R0DRY){
     versions:(key)=>{ try{ const f=r0Cur(_persona(),false)||{}; const v=f.versions||{}; return key?((v[key]||[]).slice()):v; }catch(e){ return key?[]:{}; } }, // [ANO-ARCH-VERSIONING] historique par champ
     subOpts:(dv)=>{ try{ return r0SubOpts(dv||{}); }catch(e){ return {}; } }, // [#1/#2 sous-titres] opts ASS effectives (police/taille/oy/alignement/couleur)
     subChunks:(dv)=>{ try{ return r0SubChunks(dv||{},8); }catch(e){ return {chunks:[],exemple:true}; } }, // [🔴2] découpage aperçu (== buildChunks du final sur le vrai script)
+    subSample:async()=>{ try{ return await r0SubSample(_persona()); }catch(e){ return null; } }, // [AUDIT NUIT] PNG aperçu sous-titres RÉEL (position collier) — à regarder
+    subClip:async()=>{ try{ return await r0SubClip(_persona()); }catch(e){ return null; } }, // [AUDIT NUIT] clip aperçu sous-titré RÉEL (forme/position) — à regarder
   };
 } else
 /*restartcmd v2 : purge du backlog au demarrage — on ignore tout message recu pendant qu'on etait mort (anti-boucle, anti-rafale)*/
