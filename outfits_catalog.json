@@ -1200,6 +1200,66 @@
    "cat": "soiree",
    "src": "pdf60",
    "prompt": "Cream satin bias-cut slip gown, minimalist elegance. Soft glam, fine winged liner, glossy nude lips. Baroque pearl drop earrings, fine gold chain. Sleek low bun."
+  },
+  {
+   "id": 235,
+   "cat": "oldmoney",
+   "prompt": "tailored beige cashmere sweater and ivory wool trousers, quiet luxury old money elegance, delicate gold jewelry, feminine refined silhouette, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 236,
+   "cat": "oldmoney",
+   "prompt": "camel double-breasted coat over silk blouse, old money aesthetic, pearl earrings, understated wealth, elegant feminine look, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 237,
+   "cat": "luxe",
+   "prompt": "opulent designer gown with subtle sequins, high-fashion luxury, statement jewelry, glamorous feminine elegance, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 238,
+   "cat": "luxe",
+   "prompt": "structured luxury blazer dress in deep emerald, premium tailoring, gold accessories, sophisticated feminine silhouette, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 239,
+   "cat": "naturel",
+   "prompt": "soft neutral linen dress, effortless natural look, minimal dewy makeup, relaxed feminine elegance, soft natural light, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 240,
+   "cat": "naturel",
+   "prompt": "cream knit top and beige wide-leg trousers, natural understated style, barely-there makeup, gentle feminine vibe, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 241,
+   "cat": "sportchic",
+   "prompt": "elevated athleisure: fitted matching set with a tailored long coat, sporty chic, clean sneakers, sleek ponytail, feminine athletic silhouette, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 242,
+   "cat": "sportchic",
+   "prompt": "high-waisted leggings with a cropped structured jacket, sport chic city style, minimal jewelry, toned feminine figure, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 243,
+   "cat": "bohemechic",
+   "prompt": "flowing floral maxi dress with layered delicate necklaces, bohemian chic, soft waves, free-spirited feminine elegance, golden hour light, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 244,
+   "cat": "bohemechic",
+   "prompt": "embroidered blouse with wide flared trousers and suede accessories, boho chic, natural textured hair, romantic feminine look, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 245,
+   "cat": "minimaliste",
+   "prompt": "clean monochrome white shirt and straight black trousers, minimalist elegance, no-logo refined style, sleek hair, modern feminine silhouette, makeup and hairstyle chosen for this look"
+  },
+  {
+   "id": 246,
+   "cat": "minimaliste",
+   "prompt": "single-tone beige slip dress, minimalist aesthetic, fine jewelry, understated feminine elegance, soft studio light, makeup and hairstyle chosen for this look"
   }
  ]
 }

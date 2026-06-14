@@ -25,34 +25,42 @@ const lb=JSON.parse(fs.readFileSync(path.join(BOX,'lookbook.json'),'utf8'));
   const opts0=PO.buildPhotoOpts(draft0, lb, {});
   chk('#D : défaut SANS tenue -> aucune catégorie/extra forcée (image de base)', !opts0.opts.category && !opts0.opts.extra);
 
-  // ── D : bloc Tenue propose « Désactiver » + montre « image de base » tant que non choisi ──
+  // ── D+T : bloc Tenue = picker + « 🚫 Aucune (image de base) » + « 🔒 Conserver » (plus de « Désactiver »/« Influences ») ──
   const lookSpec=NAV.blockSpec({screen:'photo',key:'look'}, S.loadFacts(BOX,'imany',id), {});
   const specBtns=s=>[].concat.apply([], (s.optionRows||[]).concat(s.options?[s.options]:[])).map(b=>b.text);
   chk('#D : bloc Tenue montre « image de base » (non choisi)', /image de base/i.test(String(lookSpec.current)));
-  chk('#D : bloc Tenue propose « Désactiver »', specBtns(lookSpec).some(t=>/Désactiver/i.test(t)));
+  chk('#T : bloc Tenue propose « 🚫 Aucune (image de base) »', specBtns(lookSpec).some(t=>/Aucune/i.test(t)));
+  chk('#T : bloc Tenue propose « 🔒 Conserver » (pas « Désactiver » ni « Utiliser »)',
+      specBtns(lookSpec).some(t=>/Conserver/i.test(t)) && !specBtns(lookSpec).some(t=>/Désactiver|Utiliser/i.test(t)));
 
-  // choisir une tenue -> appliquée + réactive la couche
+  // ── T : « 🚫 Aucune » remet la couche à vide -> image de base (non passée au moteur) ──
   await bot.tap('R0_PH_VALID'); // -> Préparer
-  bot.seedDraft('photo',{look:'soiree', use_look:false}); // simule une couche désactivée AVEC valeur
+  bot.seedDraft('photo',{look:'soiree'});
+  await bot.tap('R0_LAYER_NONE_look');
   const draftA=S.getDraft(S.loadFacts(BOX,'imany',id),'photo')||{};
+  chk('#T : « Aucune » -> look vidé', !draftA.look);
   const optsA=PO.buildPhotoOpts(draftA, lb, {});
-  chk('#D : tenue DÉSACTIVÉE (use_look=false) -> non passée au moteur même avec valeur', !optsA.opts.category && !optsA.opts.extra);
+  chk('#T : tenue vidée -> non passée au moteur (image de base)', !optsA.opts.category && !optsA.opts.extra);
 
-  // ── H : indicateur aperçu reflète la réalité ──
-  // cas 1 : rien -> ✗ Tenue ✗ Décor + « image de base »
-  const cv0=SC.confirmView(S.loadFacts(BOX,'imany',id), {confirm:{mediaKind:'photo'}, prep:{}});
-  // (on relit un draft vierge)
-  bot.seedDraft('photo',{look:'', decor:'', use_look:true, use_decor:true});
+  // ── H : indicateur aperçu reflète la réalité (présence de valeur, plus de toggle use_*) ──
+  bot.seedDraft('photo',{look:'', decor:''});
   const cvBase=SC.confirmView(S.loadFacts(BOX,'imany',id), {confirm:{mediaKind:'photo'}});
   chk('#H : aucun look/décor -> ✗ Tenue · ✗ Décor · « image de base »', /✗ Tenue/.test(cvBase.caption) && /✗ Décor/.test(cvBase.caption) && /image de base/i.test(cvBase.caption));
-  // cas 2 : look défini + activé -> ✓ Tenue
-  bot.seedDraft('photo',{look:'soiree', use_look:true});
+  bot.seedDraft('photo',{look:'soiree'});
   const cvLook=SC.confirmView(S.loadFacts(BOX,'imany',id), {confirm:{mediaKind:'photo'}});
-  chk('#H : look défini+activé -> ✓ Tenue', /✓ Tenue/.test(cvLook.caption));
-  // cas 3 : look défini mais désactivé -> ✗ Tenue (pas de faux ✓)
-  bot.seedDraft('photo',{look:'soiree', use_look:false});
+  chk('#H : look défini -> ✓ Tenue', /✓ Tenue/.test(cvLook.caption));
+  // valeur effacée (Aucune) -> ✗ Tenue (pas de faux ✓)
+  bot.seedDraft('photo',{look:''});
   const cvOff=SC.confirmView(S.loadFacts(BOX,'imany',id), {confirm:{mediaKind:'photo'}});
-  chk('#H : look défini mais DÉSACTIVÉ -> ✗ Tenue (pas de faux ✓)', /✗ Tenue/.test(cvOff.caption));
+  chk('#H : look vidé -> ✗ Tenue (pas de faux ✓)', /✗ Tenue/.test(cvOff.caption));
+
+  // ── X : picker Tenue (réel, via le handler) expose 12 tenues dont Old Money / Luxe / Naturel / Sport chic / Bohème chic / Minimaliste ──
+  await bot.tap('R0_PHB_look');
+  const tlabels=bot.labels().join(' | ');
+  const wanted=['Old Money','Luxe','Naturel','Sport chic','Bohème chic','Minimaliste'];
+  chk('#X : 6 nouvelles tenues présentes dans le picker', wanted.every(w=>tlabels.indexOf(w)>=0));
+  chk('#X : tenues legacy conservées (Soirée/Business/Casual)', /Soirée/.test(tlabels)&&/Business/.test(tlabels)&&/Casual/.test(tlabels));
+  await bot.tap('R0_BLOCK_OK');
 
   console.log('\nRÉSULTAT: '+ok+' OK, '+ko+' KO'); process.exit(ko?1:0);
 })();

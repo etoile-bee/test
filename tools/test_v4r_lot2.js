@@ -35,17 +35,19 @@ const rV = NAV.reduce('R0_PH_VALID', { screen: 'photo' }, fimg, { coverFile: '/x
 chk('Valider la photo -> Étape 2 (photo_prompt)', rV.st.screen === 'photo_prompt');
 chk('Valider la photo -> ÉPINGLE la source (op pinsource)', rV.op && rV.op.type === 'pinsource');
 
-// ── ÉTAPE 2 (Préparer) : Référence retirée, pas de « Valider params », Influences présent ──
+// ── ÉTAPE 2 (Préparer) : Référence retirée, pas de « Valider params ». [S] « Influences » SUPPRIMÉ. ──
 const v2 = SC.photoPromptView(fimg, { srcName: 'IMG.jpg' });
-chk('Étape 2 : Tenue/Décor/Influences/Prompt/Aperçu/Faire vidéo', ['R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_influences', 'R0_PHB_prompt', 'R0_PH_PREVIEW', 'R0_PH_TOVIDEO'].every(c => cbs(v2).includes(c)));
+chk('Étape 2 : Tenue/Décor/Prompt/Aperçu/Faire vidéo', ['R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_prompt', 'R0_PH_PREVIEW', 'R0_PH_TOVIDEO'].every(c => cbs(v2).includes(c)));
+chk('[S] Étape 2 : « 🎛 Influences » RETIRÉ', !cbs(v2).includes('R0_PHB_influences'));
 chk('Étape 2 : RÉFÉRENCE retirée du parcours (R0_PHB_reference absent)', !cbs(v2).includes('R0_PHB_reference'));
 chk('Étape 2 : PAS de « Valider les paramètres » séparé (flux D3 conservé)', !cbs(v2).includes('R0_PH_VALID'));
 
-// ── 🎛 Influences = 5 bascules (réf masquée) ──
-const inf = NAV.blockSpec({ screen: 'photo', key: 'influences' }, { draft: { photo: {} } }, {});
-const infcb = [].concat.apply([], inf.optionRows || []).map(b => b.cb);
-chk('Influences : 5 bascules (Source/Tenue+🔒/Décor+🔒)', infcb.length === 5 && ['R0_INFL_use_source', 'R0_INFL_use_look', 'R0_INFL_lock_look', 'R0_INFL_use_decor', 'R0_INFL_lock_decor'].every(c => infcb.includes(c)));
-chk('Influences : « références visuelles » MASQUÉE (use_refs hors UI)', !infcb.includes('R0_INFL_use_refs'));
+// ── [T] Tenue = picker + « 🚫 Aucune » + « 🔒 Conserver » (un seul réglage), plus de bascules « Utiliser » ──
+const lk = NAV.blockSpec({ screen: 'photo', key: 'look' }, { draft: { photo: {} } }, {});
+const lkcb = [].concat.apply([], lk.optionRows || []).map(b => b.cb);
+chk('[T] Tenue : « 🔒 Conserver » présent', lkcb.includes('R0_INFL_lock_look'));
+chk('[T] Tenue : « 🚫 Aucune » présent', lkcb.includes('R0_LAYER_NONE_look'));
+chk('[T] Tenue : aucune bascule « Utiliser » (use_*)', !lkcb.includes('R0_INFL_use_look') && !lkcb.includes('R0_INFL_use_source'));
 
 // ── BOÎTE À OUTILS #7 : steppers couleur, bornés, écran edition ──
 const rTool = NAV.reduce('R0_PH_TOOLS', { screen: 'photo' }, fimg, {});

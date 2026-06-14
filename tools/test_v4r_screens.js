@@ -32,7 +32,7 @@ chk('Photo : sobre sans image (texte), photo dès qu\'une image existe', ph0.kin
 
 // ── ÉCRAN 2.1 PHOTO/PROMPT : 6 blocs + 6 commandes ──
 const php = SC.photoPromptView(f0, ctx);
-chk('Photo/Prompt [LOT2] : Prompt/Tenue/Décor + Influences + Faire une vidéo ; RÉFÉRENCE RETIRÉE ; Montage/Avatar/refs/format hors prépa', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PHB_influences', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_reference') && !has(php, 'R0_PH_MONTAGE') && !has(php, 'R0_PHB_avatar') && !has(php, 'R0_PHB_refs') && !has(php, 'R0_PHB_params'));
+chk('Photo/Prompt [S/LOT2] : Prompt/Tenue/Décor + Faire une vidéo ; SANS Influences ; RÉFÉRENCE/Montage/Avatar/refs/format hors prépa', ['R0_PHB_prompt', 'R0_PHB_look', 'R0_PHB_decor', 'R0_PH_TOVIDEO'].every(c => has(php, c)) && !has(php, 'R0_PHB_influences') && !has(php, 'R0_PHB_reference') && !has(php, 'R0_PH_MONTAGE') && !has(php, 'R0_PHB_avatar') && !has(php, 'R0_PHB_refs') && !has(php, 'R0_PHB_params'));
 chk('Photo/Prompt : Aperçu (production via aperçu) + Retour, PAS d\'Accueil en flux', ['R0_PHOTO', 'R0_PH_PREVIEW'].every(c => has(php, c)) && !has(php, 'R0_HOME'));
 
 // ── ÉCRAN 2.2 PHOTO/RÉSULTAT : 6 actions exactes ──
@@ -123,7 +123,7 @@ chk('point2 : Accueil = couverture photo si image, sobre (texte) sinon — jamai
 // (5) photo decision tree + look bug (libellés propres)
 chk('point5 : Photo (avec image) = Valider+Garder+Changer+Modifier+Générer [LOT2]', ['R0_PH_VALID','R0_PH_KEEP','R0_PH_GAL','R0_PH_TOOLS','R0_PH_GEN'].every(c=>has(SC.photoView(fimg),c)));
 chk('point5 : « Une autre » -> sources Galerie/Archives/Récents/Importer', (() => { const v = SC.photoSourceView(fimg); return ['R0_PH_GAL', 'R0_PH_HIST', 'R0_RECENTS', 'R0_PH_IMPORT'].every(c => has(v, c)); })());
-chk('point5 : sélecteur Look = libellés propres (pas de JSON brut)', (() => { const sp = NAV.blockSpec({ screen: 'photo', key: 'look' }, fimg, ctx); return sp.options.every(o => !/[{}\[\]]/.test(o.text)); })());
+chk('point5 : sélecteur Look = libellés propres (pas de JSON brut)', (() => { const sp = NAV.blockSpec({ screen: 'photo', key: 'look' }, fimg, ctx); const opts = [].concat.apply([], sp.optionRows || []).concat(sp.options || []); return opts.every(o => !/[{}\[\]]/.test(o.text)); })());
 // point5 : AUTO-RÉPARATION d'une valeur héritée (JSON, même tronqué) -> libellé lisible, jamais de JSON affiché
 chk('point5 : cleanLabel répare objet / JSON / JSON tronqué -> « Soiree #6 »', SC.cleanLabel({ id: 6, cat: 'soiree' }) === 'Soiree #6' && SC.cleanLabel('{"id":6,"cat":"soiree","prompt') === 'Soiree #6');
 chk('point5 : un look hérité (JSON tronqué) s\'affiche propre dans « Actuel » + chip', (() => {

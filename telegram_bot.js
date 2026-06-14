@@ -2638,7 +2638,8 @@ function _r0Prompts(persona){ const out=[]; try{ const dir=path.join(BASE,'promp
   return out; }
 function _r0Outfits(){ try{ delete require.cache[require.resolve('./outfits_catalog.json')]; return require('./outfits_catalog.json'); }catch(e){ return null; } }
 // [#26/Etoile] TENUE : expose les catégories du catalogue en LIBELLÉS PROPRES (accentués, sans « #id »). Le mapping moteur (photo_opts) résout le nom de catégorie.
-const _R0_TENUE_LABELS={ soiree:'Soirée', business:'Business', casual:'Casual', cosy:'Cosy', ete:'Été', fete:'Fête' };
+const _R0_TENUE_LABELS={ soiree:'Soirée', business:'Business', casual:'Casual', cosy:'Cosy', ete:'Été', fete:'Fête',
+  oldmoney:'Old Money', luxe:'Luxe', naturel:'Naturel', sportchic:'Sport chic', bohemechic:'Bohème chic', minimaliste:'Minimaliste' }; // [X] +6 tenues
 function _r0LookCats(){ try{ const list=(_r0Outfits()||{}).outfits||[]; const seen={}, out=[];
   for(const o of list){ const c=String(o.cat||'').toLowerCase(); if(c&&!seen[c]){ seen[c]=1; out.push(_R0_TENUE_LABELS[c]||(c.charAt(0).toUpperCase()+c.slice(1))); } }
   return out; }catch(e){ return []; } }
@@ -3360,8 +3361,15 @@ async function r0Dispatch(persona, d, editMid){
     const isLock=flag.indexOf('lock_')===0; const cur=dp[flag];
     const nv = isLock ? !(cur===true) : !(cur!==false);   // use_*: true->false->true ; lock_*: false->true->false
     S.setDraft(BASE,persona,f3.projectId,'photo',{[flag]:nv},Date.now());
-    if(isLock && nv){ const {DEF}=_r0(); const field=(flag==='lock_look')?'look':'decor'; const v=(S.getDraft(r0Cur(persona),'photo')||{})[field];
-      if(v!=null&&v!=='') DEF.setField(BASE,persona,'photo',field,v); } // conserve la valeur -> nouveaux projets l'héritent
+    // [T — Etoile] « 🔒 Conserver » : on persiste la valeur via DEF -> les prochains projets l'héritent. « 🔓 Ne pas conserver » : on retire le défaut.
+    if(isLock){ const {DEF}=_r0(); const field=(flag==='lock_look')?'look':'decor'; const v=(S.getDraft(r0Cur(persona),'photo')||{})[field];
+      if(nv && v!=null && v!=='') DEF.setField(BASE,persona,'photo',field,v);
+      else if(!nv) DEF.setField(BASE,persona,'photo',field,''); } // unlock -> n'est plus réutilisé
+    await r0Render(persona, editMid); return; }
+  // [T — Etoile] « 🚫 Aucune (image de base) » : remet la couche tenue/décor à vide -> la génération utilise l'image de base (D). Retire aussi le verrou « Conserver ».
+  if(d.indexOf('R0_LAYER_NONE_')===0){ const key=d.slice('R0_LAYER_NONE_'.length); const field=(key==='look')?'look':'decor'; const lockFlag=(key==='look')?'lock_look':'lock_decor';
+    const f3=r0Cur(persona,true); S.setDraft(BASE,persona,f3.projectId,'photo',{[field]:'',[lockFlag]:false},Date.now());
+    const {DEF}=_r0(); try{ DEF.setField(BASE,persona,'photo',field,''); }catch(e){}
     await r0Render(persona, editMid); return; }
   if(d==='R0_LEGENDS'){ const f3=r0Cur(persona,true); try{ r0EnsureCaptions(persona,f3&&f3.projectId); }catch(e){} // [#2] dérive les légendes du script si vides (zéro dépense, même vidéo déjà faite)
     const f3b=r0Cur(persona,true)||f3; const pub=(f3b&&f3b.publication)||{};

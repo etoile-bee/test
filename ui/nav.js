@@ -67,25 +67,8 @@ function blockSpec(block, facts, ctx) {
       : { text: '◀ Retour', cb: 'R0_PUB' };
   const pk = parentKind(block.screen === 'photo' ? 'photo_prompt' : block.screen === 'video' ? 'video_params' : 'publication', facts);
 
-  // [AJOUT 2] 🎛 INFLUENCES ACTIVES (NEUTRES, avatar-agnostiques) : 4 bascules d'usage + 2 verrous. Défaut use_*=true / lock_*=false.
-  //   Décoché = la couche n'influence PAS la génération. 🔒 = conservé sur les prochaines générations. L'IDENTITÉ de l'avatar reste TOUJOURS active.
-  if (block.key === 'influences') {
-    const useSrc = d.use_source !== false, useLook = d.use_look !== false, useDecor = d.use_decor !== false;
-    const lockLook = d.lock_look === true, lockDecor = d.lock_decor === true;
-    const ck = on => on ? '☑' : '☐';
-    // [LOT 2 — OPTION 2] 5 BASCULES : Source · Tenue (+🔒) · Décor (+🔒). « Références visuelles » MASQUÉE (refs→moteur 🟡 PLANIFIÉ ; le drapeau use_refs reste dans le draft, défaut true).
-    return {
-      title: '🎛 Influences actives', current: null, parentKind: pk, back: { text: '◀ Retour', cb: 'R0_PH_GEN' },
-      hint: 'Décoché = cette couche n\'influence PAS la génération. 🔒 = conservé sur les prochaines générations. (L\'identité de l\'avatar reste toujours active.)',
-      optionRows: [
-        [{ text: ck(useSrc) + ' Utiliser la source principale', cb: 'R0_INFL_use_source' }],
-        [{ text: ck(useLook) + ' Utiliser la tenue', cb: 'R0_INFL_use_look' }],
-        [{ text: (lockLook ? '🔒' : '🔓') + ' Conserver la tenue', cb: 'R0_INFL_lock_look' }],
-        [{ text: ck(useDecor) + ' Utiliser le décor', cb: 'R0_INFL_use_decor' }],
-        [{ text: (lockDecor ? '🔒' : '🔓') + ' Conserver le décor', cb: 'R0_INFL_lock_decor' }],
-      ],
-    };
-  }
+  // [S — Etoile] Panneau « 🎛 Influences » SUPPRIMÉ (jugé inutile). La fonction utile (conserver tenue/décor) est portée par le réglage
+  //   « 🔒 Conserver / 🔓 Ne pas conserver » directement dans les blocs Tenue/Décor (voir plus bas). L'identité du persona reste toujours active.
 
   // SOUS-TITRES (D) : activer/désactiver · position · taille — réglages PAR PROJET (draft.video), retour à Vidéo>Édition.
   //   Lit subtitle_style.js (legacy) pour les valeurs PAR DÉFAUT affichées, SANS jamais le modifier (verrou intact).
@@ -172,17 +155,20 @@ function blockSpec(block, facts, ctx) {
     return { title: titleOf(block), current: curVal, parentKind: pkFree, back: back, askCb: 'R0_ASK_' + ask, optionRows: optionRowsP, expanded: !!(ctx && ctx.blockExpanded),
       hint: 'Écris, charge un 📁 modèle, ou ✨ régénère puis édite.' + (hasDef ? ' (défaut dispo)' : '') };
   }
-  // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (tenue/voix/format…).
-  // [#D — Etoile] TENUE/DÉCOR : option explicite « Désactiver » (= image de base, la couche n'influence pas) ET « Activer ». Par défaut, sans valeur -> image de base.
+  // blocs à CHOIX (list/preset/literal) — + [#18] « 💾 Défaut » pour mémoriser le choix courant (voix/format…).
+  // [S+T — Etoile] TENUE/DÉCOR : picker (2/ligne) + UN SEUL réglage « 🔒 Conserver / 🔓 Ne pas conserver » (conserver = réutilisé sur les prochaines générations).
+  //   Plus de « Utiliser la tenue/décor » ni de panneau « Influences » (supprimés). DÉFAUT (D) : rien choisi -> image de base. « 🚫 Aucune » remet à l'image de base.
   if (block.key === 'look' || block.key === 'decor') {
-    const useFlag = block.key === 'look' ? 'use_look' : 'use_decor';
-    const on = d[useFlag] !== false; const val = d[fieldAlias(block)];
-    const cur = !on ? '🚫 Désactivé — image de base' : (val == null || val === '' ? '— (image de base tant que non choisi)' : val);
-    const toggle = on
-      ? { text: '🚫 Désactiver', cb: 'R0_INFL_' + useFlag }
-      : { text: '✅ Activer', cb: 'R0_INFL_' + useFlag };
-    return { title: titleOf(block), current: cur, parentKind: pk, back: back,
-      options: optionsFor(block, ctx, d).concat([toggle, { text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
+    const lockFlag = block.key === 'look' ? 'lock_look' : 'lock_decor';
+    const val = d[fieldAlias(block)]; const kept = d[lockFlag] === true;
+    const cur = (val == null || String(val).trim() === '') ? '— image de base (rien choisi)' : (val + (kept ? ' · 🔒 conservé' : ''));
+    const picker = optionsFor(block, ctx, d);                       // [X] tenues/décors (jusqu'à 12)
+    const clear = { text: '🚫 Aucune (image de base)', cb: 'R0_LAYER_NONE_' + block.key };
+    const lockToggle = kept ? { text: '🔓 Ne pas conserver', cb: 'R0_INFL_' + lockFlag }
+                            : { text: '🔒 Conserver', cb: 'R0_INFL_' + lockFlag };
+    const optionRows = []; for (let i = 0; i < picker.length; i += 2) optionRows.push(picker.slice(i, i + 2)); // 2/ligne
+    optionRows.push([clear]); optionRows.push([lockToggle]);
+    return { title: titleOf(block), current: cur, parentKind: pk, back: back, optionRows: optionRows };
   }
   return { title: titleOf(block), current: d[fieldAlias(block)], parentKind: pk, back: back, options: optionsFor(block, ctx, d).concat([{ text: '💾 Défaut', cb: 'R0_DEFSAVE' }]) };
 }
@@ -201,7 +187,7 @@ function optionsFor(block, ctx, d) {
   const spec = SETMAP[blk];
   const cur = SC.cleanLabel(d[spec.field]);   // valeur courante NETTOYÉE (auto-répare un ancien stockage JSON)
   if (spec.src === 'list') {
-    const list = ((ctx && ctx[spec.name]) || []).slice(0, 6);
+    const list = ((ctx && ctx[spec.name]) || []).slice(0, 12); // [X] jusqu'à 12 tenues/décors (picker complet)
     return list.map((it, i) => ({ text: (String(cur) === String(it) ? '🔵 ' : '') + String(it).slice(0, 16), cb: 'R0_SET_' + blk + '_' + i }));
   }
   if (spec.src === 'preset') {

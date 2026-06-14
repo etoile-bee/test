@@ -416,18 +416,19 @@ async function main() {
     chk('AJOUT2 base propre : prompt SEUL (ni tenue, ni décor, ni réf)', propre.basePrompt === 'p' && !propre.extra && propre.env == null && propre.refs == null);
   }
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN');
-  chk('AJOUT2 UI : Préparer expose 🎛 Influences', bot.buttons().includes('R0_PHB_influences'));
-  await bot.tap('R0_PHB_influences');
-  chk('AJOUT2 UI [LOT2] : bloc Influences = 5 bascules (réf MASQUÉE ; Source/Tenue+🔒/Décor+🔒)', bot.state().screen === 'block' && bot.state().block === 'influences'
-    && ['R0_INFL_use_source', 'R0_INFL_use_look', 'R0_INFL_use_decor', 'R0_INFL_lock_look', 'R0_INFL_lock_decor'].every(c => bot.buttons().includes(c))
-    && !bot.buttons().includes('R0_INFL_use_refs'));
-  chk('AJOUT2 NEUTRALITÉ : aucun libellé « Imany »/avatar spécifique', !bot.labels().some(t => /imany/i.test(t)));
-  await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : décocher Tenue -> use_look=false', bot.draft('photo').use_look === false);
-  await bot.tap('R0_INFL_use_look'); chk('AJOUT2 : recocher Tenue -> use_look=true', bot.draft('photo').use_look === true);
-  await bot.tap('R0_INFL_lock_look'); chk('AJOUT2 : 🔒 Conserver la tenue -> lock_look=true', bot.draft('photo').lock_look === true);
-  await bot.tap('R0_INFL_use_decor'); // décor OFF -> doit apparaître ✗ dans le résumé
-  await bot.tap('R0_BLOCK_OK'); await bot.tap('R0_PH_PREVIEW');
-  chk('AJOUT2 : résumé 🎛 sur l\'Aperçu reflète les flags (✗ Décor)', /🎛/.test(bot.markup().caption || '') && /✗ Décor/.test(bot.markup().caption || ''));
+  // [S] « 🎛 Influences » SUPPRIMÉ du parcours Préparer ; [T] la conservation est portée par le bloc Tenue/Décor.
+  chk('[S] Préparer N\'expose PLUS 🎛 Influences', !bot.buttons().includes('R0_PHB_influences'));
+  await bot.tap('R0_PHB_look');
+  chk('[T] bloc Tenue : « 🔒 Conserver » + « 🚫 Aucune », plus de bascules « Utiliser »', bot.state().screen === 'block'
+    && bot.buttons().includes('R0_INFL_lock_look') && bot.buttons().includes('R0_LAYER_NONE_look')
+    && !bot.buttons().includes('R0_INFL_use_look') && !bot.buttons().includes('R0_INFL_use_source'));
+  chk('NEUTRALITÉ : aucun libellé « Imany »/avatar spécifique', !bot.labels().some(t => /imany/i.test(t)));
+  await bot.tap('R0_INFL_lock_look'); chk('[T] 🔒 Conserver la tenue -> lock_look=true', bot.draft('photo').lock_look === true);
+  await bot.tap('R0_INFL_lock_look'); chk('[T] 🔓 Ne pas conserver -> lock_look=false', bot.draft('photo').lock_look === false);
+  await bot.tap('R0_BLOCK_OK');
+  // décor vide -> ✗ Décor dans le résumé aperçu (présence de valeur = réalité)
+  await bot.tap('R0_PH_PREVIEW');
+  chk('[H] résumé 🎛 sur l\'Aperçu reflète la réalité (✗ Décor)', /🎛/.test(bot.markup().caption || '') && /✗ Décor/.test(bot.markup().caption || ''));
 
   // ════ [P1-a] ÉCRANS INTERMÉDIAIRES (validation/confirm2/quit) : source projet, JAMAIS une démo (femme cuir) ════
   bot.reset(); await bot.open(); await bot.tap('R0_PHOTO'); await bot.tap('R0_PH_GEN'); await genPhotoFull();

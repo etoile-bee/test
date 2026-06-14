@@ -136,11 +136,11 @@ function photoPromptView(facts, ctx) {
   const has = C.hasImage(facts);
   // (J/R8) prépa = étape + action seulement (le récap complet vit dans l'Aperçu).
   let cap = '<b>' + titleFor('photo_prepare') + '</b>\nChoisissez l\'action suivante.' + srcLine(ctx);
-  // [LOT 2] Étape 2 = PARAMÈTRES. Tenue/Décor · 🎛 Influences/Prompt · Aperçu · Faire une vidéo. RÉFÉRENCE RETIRÉE du parcours (code conservé, réactivable).
-  //   Pas de « Valider les paramètres » : le flux D3 reste — Aperçu -> ✅ Valider (à l'aperçu) -> Validation chiffrée -> Générer.
+  // [LOT 2] Étape 2 = PARAMÈTRES. Tenue/Décor · Prompt · Aperçu · Faire une vidéo. RÉFÉRENCE RETIRÉE du parcours (code conservé, réactivable).
+  //   [S — Etoile] « 🎛 Influences » SUPPRIMÉ : Tenue/Décor portent eux-mêmes « 🔒 Conserver ». Pas de « Valider les paramètres » (flux D3 : Aperçu -> Validation -> Générer).
   const rows = [
     [{ text: '👗 Tenue', cb: 'R0_PHB_look' }, { text: '🏛 Décor', cb: 'R0_PHB_decor' }],
-    [{ text: '🎛 Influences', cb: 'R0_PHB_influences' }, { text: '📝 Prompt', cb: 'R0_PHB_prompt' }], // [AJOUT 2] couches d'influence (5 bascules) AVANT l'Aperçu
+    [{ text: '📝 Prompt', cb: 'R0_PHB_prompt' }],
     [{ text: '👁 Aperçu', cb: 'R0_PH_PREVIEW' }],                                                // PRODUCTION via aperçu obligatoire
     [{ text: '🎬 Faire une vidéo', cb: 'R0_PH_TOVIDEO' }],                                       // [R2] pont vidéo : MÊME photo en source (jamais remplacée)
     [{ text: '◀ Retour', cb: 'R0_PHOTO' }],                                                      // NAVIGATION : Retour
@@ -384,13 +384,11 @@ function confirmView(facts, ctx) {
     cap += '\n📝 Prompt : ' + (pr.promptFull ? esc(short(pr.promptFull, 160)) : '<i>(par défaut)</i>');
     cap += '\n👗 Tenue : ' + val(cleanLabel(pr.outfit));
     cap += '\n🏛 Décor : ' + val(pr.decor);
-    // [LOT 2] Référence RETIRÉE du résumé (désexposée du parcours photo ; code conservé/réactivable).
-    // [AJOUT 2] résumé 1 ligne des couches d'influence (✓ = passée au moteur, ✗ = ignorée ; 🔒 = conservée). 5 bascules (réf masquée). Réglable via 🎛 Influences.
-    // [#H — Etoile] l'indicateur reflète la RÉALITÉ : une couche est ✓ seulement si elle a une VALEUR ET n'est pas désactivée. Sinon ✗ = image de base (aucun forçage).
+    // [#H — Etoile] résumé 1 ligne : reflète la RÉALITÉ. Une couche compte si elle a une VALEUR (sinon image de base). 🔒 = conservée (T). Plus de panneau Influences (S).
     { const dp = (facts && facts.draft && facts.draft.photo) || {};
-      const lookOn = (dp.use_look !== false) && !!(dp.look && String(dp.look).trim());
-      const decorOn = (dp.use_decor !== false) && !!(dp.decor && String(dp.decor).trim());
-      cap += '\n🎛 ' + (dp.use_source !== false ? '✓' : '✗') + ' Source · ' + (lookOn ? '✓' : '✗') + ' Tenue · ' + (decorOn ? '✓' : '✗') + ' Décor'
+      const lookOn = !!(dp.look && String(dp.look).trim());
+      const decorOn = !!(dp.decor && String(dp.decor).trim());
+      cap += '\n🎛 ' + (lookOn ? '✓' : '✗') + ' Tenue · ' + (decorOn ? '✓' : '✗') + ' Décor'
         + ((!lookOn && !decorOn) ? ' · 🖼 image de base' : '')
         + (dp.lock_look === true ? ' · 🔒Tenue' : '') + (dp.lock_decor === true ? ' · 🔒Décor' : ''); }
   } else if (cf.mediaKind === 'video') {

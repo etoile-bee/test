@@ -162,6 +162,13 @@ Base prod de départ : `5ce809e`. Statut : ✅ conforme · 🔧 en cours · ⚠�
 | P | Carte connexion reposée (boot + inactivité ~20 min + entrées) ; persistante | ✅ | test_v4r_connectgate 9/0 + test_v4r_connectcard 7/0 |
 | Q | Alignement numéro vignette ↔ bouton ↔ média (mosaïques, toutes grilles, AVEC pagination & volume réel) | ✅ | test_v4r_grids 6/0 (**112 projets, 19 pages**) + mosaïque rendue `assets_r/_TEST_mosaic_recents_page5.jpg` (88,87,86,85,84,83 brûlés == boutons) |
 | R | Récents/Archives : badge 📸 photo / 🎬 vidéo (libellé bouton) + badge rouge **VIDEO** brûlé sur la vignette vidéo | ✅ | test_v4r_grids (badge libellé + badge brûlé vérifiés à l'œil sur la planche p.5 : VIDEO sur 87 & 84) |
+| S | Supprimer entièrement le panneau « 🎛 Influences » (bouton + écran) | ✅ | bouton retiré de Préparer + bloc `influences` supprimé ; test_v4r_lot2/runtime/screens MAJ |
+| T | Tenue/Décor = UN seul réglage « 🔒 Conserver / 🔓 Ne pas conserver » (plus de « Utiliser » ni 5 cases) ; défaut image de base ; « 🚫 Aucune » remet à l'image de base | ✅ | test_v4r_photolayers 13/0 + test_v4r_lot2 |
+| U | Vidéo longue : AVERTIR avant génération du découpage en N parties + coût, et confirmer | 🔧 | (en cours) |
+| V | Écrans finaux vidéo ET photo : audit visuel (lisibilité, boutons utiles, légendes copiables, pas surchargé) | 🔧 | (en cours) |
+| W2 | Identité : photo générée a fait apparaître des poils sur le torse (persona féminine) → renforcer le NEGATIVE PROMPT + visibilité photo pleine avant vidéo | 🔧 | (en cours) |
+| X | +6 tenues au picker (Old Money, Luxe, Naturel, Sport chic, Bohème chic, Minimaliste) avec vrais prompts | ✅ | catalogue 246 tenues / 12 cat. + test_v4r_photolayers #X |
+| C2 | « 👁 Voir plus » sur le panneau Prompt (comme Script) | ✅ | blockSpec prompt `parentKind:'text'` → blockView Voir plus ; à reconfirmer au rendu |
 
 ### Q — diagnostic & fix (FIGÉ)
 **Cause** : la mosaïque brûlait un index SÉQUENTIEL de page (`startNum+i`) tandis que les boutons Récents portaient le n° de PROJET réel (`p._num`). À 1-6 éléments (sandbox) ils coïncidaient → invisible ; à 112 projets ils divergeaient (vignette « 25 » sous bouton « n°97 »). **Fix** : `r0Mosaic(files, nums[], kinds[])` brûle le numéro EXACT du bouton de chaque tuile (`nums[i]`) — positions pour les galeries de choix, n° de projet pour Récents/Archives. Prouvé à **112 projets**, page 5 : n° brûlés `[88,87,86,85,84,83]` == boutons == projets ouverts (cb position → `projets[pos]._num`), vérifié à l'œil sur la planche rendue.

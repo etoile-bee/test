@@ -33,10 +33,12 @@ function buildPhotoOpts(draft, lookbook, outfits) {
     } else if (lookbook && lookbook.categories && lookbook.categories[String(draft.look).toLowerCase()]) {
       opts.category = String(draft.look).toLowerCase();
     } else {
-      // [Etoile] LIBELLÉ DE CATÉGORIE PROPRE (« Soirée », « Été », « Fête »…) -> dé-accentue, retrouve la catégorie du catalogue et prend une tenue représentative.
-      const norm = String(draft.look).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+      // [Etoile] LIBELLÉ DE CATÉGORIE PROPRE (« Soirée », « Old Money », « Sport chic »…) -> dé-accentue + retire espaces/ponctuation, retrouve la catégorie du catalogue.
+      // [X] cats multi-mots (oldmoney/sportchic/bohemechic) : comparaison alphanumérique stricte des deux côtés.
+      const alnum = s => String(s).toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]/g, '');
+      const norm = alnum(draft.look);
       const list = (outfits && outfits.outfits) || [];
-      const inCat = list.filter(x => String(x.cat).toLowerCase() === norm);
+      const inCat = list.filter(x => alnum(x.cat) === norm);
       if (inCat.length) { const o = inCat[0]; opts.extra = o.prompt; opts.category = norm; }
       else { opts.extra = String(draft.look); }
     }
